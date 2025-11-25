@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* Theme-specific styles */
+body {
+  @apply bg-white text-black dark:bg-neutral-900 dark:text-white;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Ensure smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
