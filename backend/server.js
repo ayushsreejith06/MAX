@@ -16,7 +16,13 @@ const start = async () => {
 
     // Register routes
     await fastify.register(require('./routes/sectors'), { prefix: '/sectors' });
-    await fastify.register(require('./routes/agents'), { prefix: '/agents' });
+    try {
+      await fastify.register(require('./routes/agents'), { prefix: '/agents' });
+      fastify.log.info('Agents route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering agents route:', err);
+      throw err;
+    }
 
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
