@@ -15,7 +15,7 @@ export default function ThemeToggle() {
   if (!mounted) {
     return (
       <button
-        className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+        className="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 transition-colors"
         aria-label="Toggle theme"
       >
         🌙
@@ -28,10 +28,10 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+      className="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 transition-colors"
       aria-label={`Switch to ${currentTheme === "dark" ? "light" : "dark"} mode`}
     >
-      {currentTheme === "dark" ? "🌙" : "☀️"}
+      {currentTheme === "dark" ? "☀️" : "🌙"}
     </button>
   );
 }
