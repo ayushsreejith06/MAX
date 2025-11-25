@@ -30,6 +30,13 @@ const start = async () => {
       fastify.log.error('Error registering research route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/debates'), { prefix: '/debates' });
+      fastify.log.info('Debates route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering debates route:', err);
+      throw err;
+    }
 
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
@@ -37,6 +44,7 @@ const start = async () => {
     console.log(`📍 Sectors API: http://localhost:${PORT}/sectors`);
     console.log(`📍 Agents API: http://localhost:${PORT}/agents`);
     console.log(`📍 Research API: http://localhost:${PORT}/research`);
+    console.log(`📍 Debates API: http://localhost:${PORT}/debates`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
