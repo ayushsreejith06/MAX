@@ -1,46 +1,20 @@
-const express = require('express');
-const cors = require('cors');
-const app = express();
-const PORT = process.env.PORT || 3000;
-const { createAgent } = require('./agents/pipeline/createAgent');
+const fastify = require('fastify')({ logger: true });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Routes
-const sectorsRoutes = require('./routes/sectors');
-app.use('/sectors', sectorsRoutes);
-
-// Create agent endpoint
-app.post('/agents/create', async (req, res) => {
-  try {
-    const { promptText, sectorId } = req.body;
-    
-    if (!promptText) {
-      return res.status(400).json({ 
-        error: 'promptText is required' 
-      });
-    }
-    
-    const agent = await createAgent(promptText, sectorId || null);
-    
-    return res.status(201).json({
-      success: true,
-      agent: agent.getSummary()
-    });
-  } catch (error) {
-    console.error('Error creating agent:', error);
-    return res.status(500).json({ 
-      error: 'Failed to create agent',
-      message: error.message 
-    });
-  }
+// Health check endpoint
+fastify.get('/health', async (request, reply) => {
+  return { status: 'ok' };
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`MAX Backend server running on port ${PORT}`);
-});
+const start = async () => {
+  try {
+    const port = process.env.PORT || 3000;
+    await fastify.listen({ port, host: '0.0.0.0' });
+    fastify.log.info(`Server listening on port ${port}`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
 
-module.exports = app;
+start();
