@@ -1,0 +1,56 @@
+[
+  {
+    "id": "2ce79567-8b81-442c-a57f-95d525feee63",
+    "sectorId": null,
+    "role": "trader",
+    "memory": [
+      {
+        "type": "creation",
+        "content": "I want to create a trading agent that buys and sells stocks",
+        "timestamp": "2025-11-25T19:12:07.632Z"
+      }
+    ],
+    "personality": {
+      "riskTolerance": "moderate",
+      "decisionStyle": "quick",
+      "communicationStyle": "direct"
+    },
+    "createdAt": "2025-11-25T19:12:07.632Z"
+  },
+  {
+    "id": "74ad8d66-f360-4bfe-a7f6-1f0fd6ebaac7",
+    "sectorId": null,
+    "role": "trader",
+    "memory": [
+      {
+        "type": "creation",
+        "content": "Create an analyst that researches market trends and forecasts prices",
+        "timestamp": "2025-11-25T19:12:07.638Z"
+      }
+    ],
+    "personality": {
+      "riskTolerance": "moderate",
+      "decisionStyle": "quick",
+      "communicationStyle": "direct"
+    },
+    "createdAt": "2025-11-25T19:12:07.638Z"
+  },
+  {
+    "id": "d2abe159-644d-4f82-9108-c76d82d10ea2",
+    "sectorId": null,
+    "role": "general",
+    "memory": [
+      {
+        "type": "creation",
+        "content": "I need a general purpose agent",
+        "timestamp": "2025-11-25T19:12:07.641Z"
+      }
+    ],
+    "personality": {
+      "riskTolerance": "moderate",
+      "decisionStyle": "balanced",
+      "communicationStyle": "neutral"
+    },
+    "createdAt": "2025-11-25T19:12:07.641Z"
+  }
+]

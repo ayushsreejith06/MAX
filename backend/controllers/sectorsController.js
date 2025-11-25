@@ -33,7 +33,13 @@ async function createSector(name) {
   return sector;
 }
 
+async function getSectors() {
+  const sectors = await loadSectors();
+  return sectors;
+}
+
 module.exports = {
-  createSector
+  createSector,
+  getSectors
 };
 

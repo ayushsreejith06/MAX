@@ -1,12 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const { createSector } = require('../controllers/sectorsController');
+const { createSector, getSectors } = require('../controllers/sectorsController');
 
 // Simple logger
 function log(message) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${message}`);
 }
+
+router.get('/', async (req, res) => {
+  try {
+    log(`GET /sectors - Fetching all sectors`);
+    const sectors = await getSectors();
+    log(`Found ${sectors.length} sectors`);
+    res.status(200).json({
+      success: true,
+      data: sectors
+    });
+  } catch (error) {
+    log(`Error fetching sectors: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 router.post('/', async (req, res) => {
   try {
