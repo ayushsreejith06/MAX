@@ -14,5 +14,25 @@ class ManagerAgent {
   saveState() {
     // Empty stub
   }
+
+  addAgent(agentId) {
+    // Empty stub
+  }
+
+  removeAgent(agentId) {
+    // Empty stub
+  }
+
+  decisionLoop() {
+    // Empty stub - placeholder
+  }
+
+  crossSectorComms() {
+    // Empty stub - placeholder
+  }
+
+  getSummary() {
+    // Empty stub
+  }
 }
 
