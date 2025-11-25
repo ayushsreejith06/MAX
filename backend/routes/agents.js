@@ -10,9 +10,24 @@ function log(message) {
 
 router.get('/', async (req, res) => {
   try {
-    log(`GET /agents - Fetching all agents`);
-    const agents = await getAgents();
-    log(`Found ${agents.length} agents`);
+    const { sectorId } = req.query;
+    
+    if (sectorId) {
+      log(`GET /agents - Fetching agents for sectorId: ${sectorId}`);
+    } else {
+      log(`GET /agents - Fetching all agents`);
+    }
+    
+    let agents = await getAgents();
+    
+    // Filter by sectorId if provided
+    if (sectorId) {
+      agents = agents.filter(agent => agent.sectorId === sectorId);
+      log(`Found ${agents.length} agents for sectorId: ${sectorId}`);
+    } else {
+      log(`Found ${agents.length} agents`);
+    }
+    
     res.status(200).json({
       success: true,
       data: agents
