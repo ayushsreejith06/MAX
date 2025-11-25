@@ -50,22 +50,22 @@ export default function SectorsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-black dark:text-white mb-2">Sectors</h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <h1 className="text-4xl font-bold text-white mb-2">Sectors</h1>
+        <p className="text-gray-400">
           Manage market sectors for the MAX simulation platform
         </p>
       </div>
 
       {/* Create Sector Form */}
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold text-black dark:text-white mb-4">Create New Sector</h2>
+      <div className="bg-gray-800 rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-semibold text-white mb-4">Create New Sector</h2>
         <form onSubmit={handleCreateSector} className="flex gap-4">
           <input
             type="text"
             value={newSectorName}
             onChange={(e) => setNewSectorName(e.target.value)}
             placeholder="Enter sector name (e.g., Technology, Finance)"
-            className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 text-black dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={creating}
           />
           <button
@@ -80,24 +80,24 @@ export default function SectorsPage() {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 rounded-lg p-4 mb-6">
-          <p className="text-red-800 dark:text-red-200">Error: {error}</p>
+        <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-6">
+          <p className="text-red-200">Error: {error}</p>
         </div>
       )}
 
       {/* Sectors List */}
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-black dark:text-white mb-4">
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
           Existing Sectors ({sectors.length})
         </h2>
 
         {loading ? (
           <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400">Loading sectors...</p>
+            <p className="text-gray-400">Loading sectors...</p>
           </div>
         ) : sectors.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400">No sectors yet. Create one above!</p>
+            <p className="text-gray-400">No sectors yet. Create one above!</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -105,16 +105,16 @@ export default function SectorsPage() {
               <Link
                 key={sector.id}
                 href={`/sectors/${sector.id}`}
-                className="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:bg-gray-650 transition-colors cursor-pointer"
+                className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors cursor-pointer"
               >
-                <h3 className="text-lg font-semibold text-black dark:text-white mb-2">
+                <h3 className="text-lg font-semibold text-white mb-2">
                   {sector.name}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-400">
                   ID: {sector.id.slice(0, 8)}...
                 </p>
                 {sector.createdAt && (
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  <p className="text-xs text-gray-500 mt-2">
                     Created: {new Date(sector.createdAt).toLocaleDateString()}
                   </p>
                 )}
