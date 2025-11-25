@@ -96,6 +96,13 @@ export async function getAgents(sectorId?: string): Promise<Agent[]> {
   }
 
   const result: GetAgentsResponse = await response.json();
-  return result.data;
+  let agents = result.data;
+
+  // Client-side filtering as fallback if backend doesn't support sectorId filtering
+  if (sectorId) {
+    agents = agents.filter(agent => agent.sectorId === sectorId);
+  }
+
+  return agents;
 }
 
