@@ -36,3 +36,5 @@ class ManagerAgent {
   }
 }
 
+module.exports = ManagerAgent;
+
