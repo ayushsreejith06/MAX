@@ -1,6 +1,11 @@
 const fastify = require('fastify')({ logger: true });
 const PORT = process.env.PORT || 8000;
 
+// Register CORS plugin
+fastify.register(require('@fastify/cors'), {
+  origin: true
+});
+
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {
   return { status: 'ok' };
