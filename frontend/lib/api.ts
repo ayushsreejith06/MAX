@@ -18,6 +18,12 @@ export interface GetSectorsResponse {
   error?: string;
 }
 
+export interface GetSectorByIdResponse {
+  success: boolean;
+  data: Sector;
+  error?: string;
+}
+
 export interface Agent {
   id: string;
   sectorId: string | null;
@@ -74,6 +80,23 @@ export async function getSectors(): Promise<Sector[]> {
   }
 
   const result: GetSectorsResponse = await response.json();
+  return result.data;
+}
+
+export async function getSectorById(id: string): Promise<Sector> {
+  const response = await fetch(`${API_BASE_URL}/sectors/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch sector');
+  }
+
+  const result: GetSectorByIdResponse = await response.json();
   return result.data;
 }
 
