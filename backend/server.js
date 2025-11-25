@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const sectorsRoutes = require('./routes/sectors');
+const agentsRoutes = require('./routes/agents');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -16,10 +17,12 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/sectors', sectorsRoutes);
+app.use('/agents', agentsRoutes);
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📍 Sectors API: http://localhost:${PORT}/sectors`);
+  console.log(`📍 Agents API: http://localhost:${PORT}/agents`);
 });
