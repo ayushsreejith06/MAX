@@ -6,5 +6,13 @@ class ManagerAgent {
     this.agents = [];
     this.state = {};
   }
+
+  loadState() {
+    // Empty stub
+  }
+
+  saveState() {
+    // Empty stub
+  }
 }
 
