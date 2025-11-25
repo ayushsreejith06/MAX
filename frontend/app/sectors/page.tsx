@@ -1,16 +1,15 @@
-export default function Dashboard() {
+export default function SectorsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            MAX Dashboard — Empty State
-          </h1>
+          <h1 className="text-4xl font-bold text-white mb-4">Sectors</h1>
           <p className="text-gray-400 text-lg">
-            Your dashboard will appear here once you start creating sectors and agents.
+            Sector management will be available here.
           </p>
         </div>
       </div>
     </div>
   );
 }
+
