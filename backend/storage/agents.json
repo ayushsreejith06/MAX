@@ -52,5 +52,41 @@
       "communicationStyle": "neutral"
     },
     "createdAt": "2025-11-25T19:12:07.641Z"
+  },
+  {
+    "id": "12497317-6df0-4f21-a20c-a580358e6f25",
+    "sectorId": null,
+    "role": "trader",
+    "memory": [
+      {
+        "type": "creation",
+        "content": "I need a trading agent that executes buy and sell orders",
+        "timestamp": "2025-11-25T19:12:37.274Z"
+      }
+    ],
+    "personality": {
+      "riskTolerance": "moderate",
+      "decisionStyle": "quick",
+      "communicationStyle": "direct"
+    },
+    "createdAt": "2025-11-25T19:12:37.274Z"
+  },
+  {
+    "id": "29875f47-7d8a-485d-b628-958ab7cc6a1f",
+    "sectorId": null,
+    "role": "analyst",
+    "memory": [
+      {
+        "type": "creation",
+        "content": "Create an analyst that performs research and analysis on financial data",
+        "timestamp": "2025-11-25T19:12:44.798Z"
+      }
+    ],
+    "personality": {
+      "riskTolerance": "conservative",
+      "decisionStyle": "thorough",
+      "communicationStyle": "detailed"
+    },
+    "createdAt": "2025-11-25T19:12:44.798Z"
   }
 ]
