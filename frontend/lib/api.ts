@@ -77,8 +77,20 @@ export async function getSectors(): Promise<Sector[]> {
   return result.data;
 }
 
-export async function getAgents(): Promise<Agent[]> {
-  const response = await fetch(`${API_BASE_URL}/agents`, {
+export async function getSectorById(id: string) {
+  const res = await fetch(`${API_BASE_URL}/sectors/${id}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to fetch sector " + id);
+  const result = await res.json();
+  return result.data;
+}
+
+export async function getAgents(sectorId?: string): Promise<Agent[]> {
+  const url = sectorId 
+    ? `${API_BASE_URL}/agents?sectorId=${sectorId}`
+    : `${API_BASE_URL}/agents`;
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -93,4 +105,11 @@ export async function getAgents(): Promise<Agent[]> {
   const result: GetAgentsResponse = await response.json();
   return result.data;
 }
+
+export {
+  getSectors,
+  createSector,
+  getAgents,
+  getSectorById,
+};
 
