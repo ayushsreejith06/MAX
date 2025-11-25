@@ -1,0 +1,47 @@
+---
+alwaysApply: true
+---
+# GLOBAL PROJECT RULES FOR THE MAX PROJECT
+
+## Branch Safety
+1. No agent may ever commit directly to the main branch.
+2. All work must occur in feature/<task-name> branches.
+3. If a feature branch already exists:
+   - git checkout <branch>
+   - git pull to sync the workspace.
+4. If the branch does not exist:
+   - git checkout -b <branch> and push it.
+
+## Commit Discipline
+5. After EVERY small change:
+   - git add .
+   - git commit -m "<clear descriptive message>"
+   - git push
+6. Avoid large diffs — each atomic operation (file creation, function creation, config change) MUST be its own commit.
+
+## Sync Rules
+7. Before starting any task, agents must:
+   - git fetch
+   - git pull
+   - confirm branch alignment
+8. If conflicts occur:
+   - agents should STOP and ask before overriding or resolving.
+
+## Merge Policy
+9. No agent is allowed to merge anything into main.
+10. Only merge into dev via PR-style workflow or manual approval.
+11. main should only receive merges at stable milestones.
+
+## Coding Conventions
+12. Always format code before committing.
+13. Keep file naming consistent (camelCase for JS, PascalCase for classes, kebab-case for components).
+14. Document new folders or modules when added.
+
+## Agent Coordination
+15. Each agent should announce which branch they are working on.
+16. If two agents work on same subsystem, they must use the same feature branch.
+17. Agents should avoid touching unrelated files.
+
+## Safety Rules
+18. No destructive operations without confirmation.
+19. Never delete files or large blocks of code without explicit user approval.
