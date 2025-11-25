@@ -36,29 +36,7 @@ async function saveDebates(debates) {
   await fs.writeFile(DEBATES_FILE, JSON.stringify(debates, null, 2), 'utf8');
 }
 
-async function findDebateById(id) {
-  const debates = await loadDebates();
-  return debates.find(d => d.id === id) || null;
-}
-
-async function saveDebate(debate) {
-  const debates = await loadDebates();
-  const idx = debates.findIndex(d => d.id === debate.id);
-
-  const data = debate.toJSON ? debate.toJSON() : debate;
-
-  if (idx >= 0) {
-    debates[idx] = data;
-  } else {
-    debates.push(data);
-  }
-
-  await saveDebates(debates);
-}
-
 module.exports = {
   loadDebates,
-  saveDebates,
-  findDebateById,
-  saveDebate
+  saveDebates
 };
