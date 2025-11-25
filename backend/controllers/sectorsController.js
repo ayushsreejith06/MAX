@@ -38,8 +38,14 @@ async function getSectors() {
   return sectors;
 }
 
+async function getSectorById(id) {
+  const sectors = await loadSectors();
+  return sectors.find(sector => sector.id === id) || null;
+}
+
 module.exports = {
   createSector,
-  getSectors
+  getSectors,
+  getSectorById
 };
 
