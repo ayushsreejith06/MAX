@@ -42,17 +42,19 @@ export interface GetAgentsResponse {
   error?: string;
 }
 
+export interface DebateMessage {
+  agentId: string;
+  content: string;
+  role: string;
+  createdAt: string;
+}
+
 export interface Debate {
   id: string;
   sectorId: string;
   title: string;
   agentIds: string[];
-  messages: Array<{
-    agentId: string;
-    content: string;
-    role: string;
-    createdAt: string;
-  }>;
+  messages: DebateMessage[];
   status: string;
   createdAt: string;
   updatedAt: string;
