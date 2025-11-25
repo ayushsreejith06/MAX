@@ -106,10 +106,3 @@ export async function getAgents(sectorId?: string): Promise<Agent[]> {
   return result.data;
 }
 
-export {
-  getSectors,
-  createSector,
-  getAgents,
-  getSectorById,
-};
-
