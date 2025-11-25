@@ -58,5 +58,7 @@ async function saveDebate(debate) {
 
 module.exports = {
   loadDebates,
-  saveDebates
+  saveDebates,
+  findDebateById,
+  saveDebate
 };
