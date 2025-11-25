@@ -22,7 +22,11 @@ module.exports = async (fastify) => {
 
       log(`POST /debates/start - Creating debate with sectorId: ${sectorId}, title: ${title}`);
 
-      const debateRoom = new DebateRoom(sectorId, title, agentIds || []);
+      const debateRoom = new DebateRoom({
+        sectorId,
+        title,
+        agentIds: agentIds || []
+      });
       
       // Load existing debates, add new one, and save
       const debates = await loadDebates();
