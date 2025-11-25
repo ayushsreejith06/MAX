@@ -36,30 +36,7 @@ async function saveDebates(debates) {
   await fs.writeFile(DEBATES_FILE, JSON.stringify(debates, null, 2), 'utf8');
 }
 
-async function findDebateById(id) {
-  const debates = await loadDebates();
-  return debates.find(debate => debate.id === id) || null;
-}
-
-async function saveDebate(debate) {
-  const debates = await loadDebates();
-  const index = debates.findIndex(d => d.id === debate.id);
-  
-  if (index >= 0) {
-    // Update existing debate
-    debates[index] = debate;
-  } else {
-    // Add new debate
-    debates.push(debate);
-  }
-  
-  await saveDebates(debates);
-  return debate;
-}
-
 module.exports = {
   loadDebates,
-  saveDebates,
-  findDebateById,
-  saveDebate
+  saveDebates
 };
