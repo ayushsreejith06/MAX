@@ -1,7 +1,11 @@
-// ManagerAgent.js - Base class stub
+// backend/agents/manager/ManagerAgent.js
 
-const { loadDebates, saveDebate } = require('../../utils/debateStorage');
-const DebateRoom = require('../../models/DebateRoom');
+const DebateRoom = require("../../models/DebateRoom");
+const {
+  loadDebates,
+  findDebateById,
+  saveDebate,
+} = require("../../utils/debateStorage");
 
 class ManagerAgent {
   constructor(sectorId) {
@@ -9,82 +13,92 @@ class ManagerAgent {
     this.agents = [];
     this.debates = [];
     this.state = {};
+
+    // 🔥 DEBUG: ensures we know this file is actually being loaded
+    console.log(">>> ManagerAgent.js loaded (patched version)");
   }
 
   async loadState() {
-    // Load all debates from debatesStorage
-    const allDebates = await loadDebates();
-    
-    // Filter by this.sectorId and convert to DebateRoom instances
-    this.debates = allDebates
-      .filter(debate => debate.sectorId === this.sectorId)
-      .map(debate => DebateRoom.fromData(debate));
+    try {
+      const allDebates = await loadDebates();
+      const filtered = allDebates.filter((d) => d.sectorId === this.sectorId);
+
+      this.debates = filtered.map((d) => new DebateRoom(d));
+    } catch (err) {
+      console.error("Error loading ManagerAgent state:", err);
+    }
   }
 
-  saveState() {
-    // Future hook for saving state
-    // For now, debates are saved individually via saveDebate() in openDebate()
-    // This method can be extended to save aggregated state if needed
-  }
-
-  async openDebate(title, agentIds) {
-    // Create a new DebateRoom for this.sectorId
-    const debate = new DebateRoom(this.sectorId, title, agentIds);
-    
-    // Save it via debatesStorage
-    await saveDebate(debate);
-    
-    // Add to this.debates
-    this.debates.push(debate);
-    
-    // Return the new debate
-    return debate;
+  async saveState() {
+    // Future capability
   }
 
   addAgent(agentId) {
-    // Empty stub
+    if (!this.agents.includes(agentId)) {
+      this.agents.push(agentId);
+    }
   }
 
   removeAgent(agentId) {
-    // Empty stub
+    this.agents = this.agents.filter((id) => id !== agentId);
   }
 
-  decisionLoop() {
-    // Empty stub - placeholder
+  async openDebate(title, agentIds = []) {
+    const debate = new DebateRoom({
+      title,
+      sectorId: this.sectorId,
+      agentIds,
+    });
+
+    await saveDebate(debate);
+    this.debates.push(debate);
+
+    return debate;
   }
 
-  crossSectorComms() {
-    // Empty stub - placeholder
+  async decisionLoop() {
+    // Phase 3+
+  }
+
+  async crossSectorComms() {
+    // Phase 3+
   }
 
   getDebateSummary() {
-    // Count debates by status for this.sectorId
-    const statusCounts = {};
+    // 🔥 ALWAYS include all 4 statuses
+    const statusCounts = {
+      created: 0,
+      debating: 0,
+      closed: 0,
+      archived: 0,
+    };
+
     let lastUpdated = null;
     const debatingIds = [];
 
-    this.debates.forEach(debate => {
-      // Count by status
-      statusCounts[debate.status] = (statusCounts[debate.status] || 0) + 1;
-      
-      // Track last updated timestamp
-      if (debate.updatedAt) {
-        const updatedAt = new Date(debate.updatedAt).getTime();
-        if (!lastUpdated || updatedAt > lastUpdated) {
-          lastUpdated = updatedAt;
-        }
+    for (const d of this.debates) {
+      const status = d.status || "created";
+
+      // Ensure unexpected statuses don’t break code
+      if (statusCounts[status] === undefined) {
+        statusCounts[status] = 0;
       }
-      
-      // Track currently "debating" debates
-      if (debate.status === 'debating') {
-        debatingIds.push(debate.id);
+
+      statusCounts[status]++;
+
+      if (status === "debating") {
+        debatingIds.push(d.id);
       }
-    });
+
+      if (!lastUpdated || new Date(d.updatedAt) > new Date(lastUpdated)) {
+        lastUpdated = d.updatedAt;
+      }
+    }
 
     return {
       statusCounts,
-      lastUpdated: lastUpdated ? new Date(lastUpdated).toISOString() : null,
-      debatingIds
+      lastUpdated,
+      debatingIds,
     };
   }
 
@@ -92,10 +106,9 @@ class ManagerAgent {
     return {
       sectorId: this.sectorId,
       agentCount: this.agents.length,
-      debateSummary: this.getDebateSummary()
+      debateSummary: this.getDebateSummary(),
     };
   }
 }
 
 module.exports = ManagerAgent;
-
