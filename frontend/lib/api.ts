@@ -100,8 +100,12 @@ export async function getSectorById(id: string): Promise<Sector> {
   return result.data;
 }
 
-export async function getAgents(): Promise<Agent[]> {
-  const response = await fetch(`${API_BASE_URL}/agents`, {
+export async function getAgents(sectorId?: string): Promise<Agent[]> {
+  const url = sectorId 
+    ? `${API_BASE_URL}/agents?sectorId=${sectorId}`
+    : `${API_BASE_URL}/agents`;
+  
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -114,6 +118,13 @@ export async function getAgents(): Promise<Agent[]> {
   }
 
   const result: GetAgentsResponse = await response.json();
-  return result.data;
+  let agents = result.data;
+
+  // Client-side filtering as fallback if backend doesn't support sectorId filtering
+  if (sectorId) {
+    agents = agents.filter(agent => agent.sectorId === sectorId);
+  }
+
+  return agents;
 }
 
