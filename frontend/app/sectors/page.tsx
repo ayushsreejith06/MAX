@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { getSectors, createSector, type Sector } from "@/lib/api";
 
 export default function SectorsPage() {
@@ -101,9 +102,10 @@ export default function SectorsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {sectors.map((sector) => (
-              <div
+              <Link
                 key={sector.id}
-                className="bg-gray-700 rounded-lg p-4 border border-gray-600"
+                href={`/sectors/${sector.id}`}
+                className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors cursor-pointer"
               >
                 <h3 className="text-lg font-semibold text-white mb-2">
                   {sector.name}
@@ -116,7 +118,7 @@ export default function SectorsPage() {
                     Created: {new Date(sector.createdAt).toLocaleDateString()}
                   </p>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}
