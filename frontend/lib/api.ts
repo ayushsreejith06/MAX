@@ -42,7 +42,7 @@ export interface GetAgentsResponse {
   error?: string;
 }
 
-export async function createSector(name: string): Promise<Sector> {
+async function createSector(name: string): Promise<Sector> {
   const response = await fetch(`${API_BASE_URL}/sectors`, {
     method: 'POST',
     headers: {
@@ -60,7 +60,7 @@ export async function createSector(name: string): Promise<Sector> {
   return result.data;
 }
 
-export async function getSectors(): Promise<Sector[]> {
+async function getSectors(): Promise<Sector[]> {
   const response = await fetch(`${API_BASE_URL}/sectors`, {
     method: 'GET',
     headers: {
@@ -77,7 +77,7 @@ export async function getSectors(): Promise<Sector[]> {
   return result.data;
 }
 
-export async function getSectorById(id: string) {
+async function getSectorById(id: string) {
   const res = await fetch(`${API_BASE_URL}/sectors/${id}`, {
     cache: "no-store",
   });
@@ -86,7 +86,7 @@ export async function getSectorById(id: string) {
   return result.data;
 }
 
-export async function getAgents(sectorId?: string): Promise<Agent[]> {
+async function getAgents(sectorId?: string): Promise<Agent[]> {
   const url = sectorId 
     ? `${API_BASE_URL}/agents?sectorId=${sectorId}`
     : `${API_BASE_URL}/agents`;
