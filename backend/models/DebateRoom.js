@@ -1,35 +1,48 @@
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
 
 class DebateRoom {
-  constructor(sectorId, title, agentIds = []) {
-    this.id = uuidv4();
+  constructor({
+    id = uuidv4(),
+    sectorId,
+    title,
+    agentIds = [],
+    messages = [],
+    status = "created",
+    createdAt = new Date().toISOString(),
+    updatedAt = new Date().toISOString(),
+  } = {}) {
+    this.id = id;
     this.sectorId = sectorId;
     this.title = title;
     this.agentIds = agentIds;
-    this.messages = [];
-    this.status = 'created';
-    this.createdAt = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
+    this.messages = messages;
+    this.status = status;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
   static fromData(data) {
-    const debateRoom = new DebateRoom(data.sectorId, data.title, data.agentIds);
-    debateRoom.id = data.id;
-    debateRoom.messages = data.messages || [];
-    debateRoom.status = data.status || 'created';
-    debateRoom.createdAt = data.createdAt;
-    debateRoom.updatedAt = data.updatedAt;
-    return debateRoom;
+    return new DebateRoom({
+      id: data.id,
+      sectorId: data.sectorId,
+      title: data.title,
+      agentIds: data.agentIds || [],
+      messages: data.messages || [],
+      status: data.status || "created",
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    });
   }
 
   addMessage(message) {
-    const messageEntry = {
+    const entry = {
       agentId: message.agentId,
       content: message.content,
       role: message.role,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    this.messages.push(messageEntry);
+
+    this.messages.push(entry);
     this.updatedAt = new Date().toISOString();
   }
 
@@ -42,10 +55,9 @@ class DebateRoom {
       messages: this.messages,
       status: this.status,
       createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      updatedAt: this.updatedAt,
     };
   }
 }
 
 module.exports = DebateRoom;
-
