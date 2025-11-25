@@ -1,9 +1,13 @@
 // ManagerAgent.js - Base class stub
 
+const { loadDebates, saveDebate } = require('../../storage/debatesStorage');
+const DebateRoom = require('../../models/DebateRoom');
+
 class ManagerAgent {
   constructor(sectorId) {
     this.sectorId = sectorId;
     this.agents = [];
+    this.debates = [];
     this.state = {};
   }
 
