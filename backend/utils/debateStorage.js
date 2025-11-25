@@ -43,16 +43,17 @@ async function findDebateById(id) {
 
 async function saveDebate(debate) {
   const debates = await loadDebates();
-  const idx = debates.findIndex(d => d.id === debate.id);
-
-  const data = debate.toJSON ? debate.toJSON() : debate;
-
-  if (idx >= 0) {
-    debates[idx] = data;
+  const debateData = debate.toJSON ? debate.toJSON() : debate;
+  const index = debates.findIndex(d => d.id === debateData.id);
+  
+  if (index >= 0) {
+    // Update existing debate
+    debates[index] = debateData;
   } else {
-    debates.push(data);
+    // Add new debate
+    debates.push(debateData);
   }
-
+  
   await saveDebates(debates);
 }
 
