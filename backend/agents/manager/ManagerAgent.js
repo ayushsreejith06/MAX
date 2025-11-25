@@ -47,11 +47,18 @@ class ManagerAgent {
   }
 
   addAgent(agentId) {
-    // Empty stub
+    // Add agent ID if not already present
+    if (!this.agents.includes(agentId)) {
+      this.agents.push(agentId);
+    }
   }
 
   removeAgent(agentId) {
-    // Empty stub
+    // Remove agent ID if present
+    const index = this.agents.indexOf(agentId);
+    if (index !== -1) {
+      this.agents.splice(index, 1);
+    }
   }
 
   async decisionLoop() {
