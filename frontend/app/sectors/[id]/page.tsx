@@ -123,40 +123,31 @@ export default function SectorDetailPage() {
       </div>
 
       {/* Debates Section */}
-      <div className="bg-gray-800 rounded-lg p-6 mb-6">
-        <h2 className="text-xl font-semibold text-white mb-4">
-          Debates ({debates.length})
-        </h2>
-        {debates.length === 0 ? (
-          <p className="text-gray-400">No debates in this sector yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {debates.map((debate) => (
-              <Link
-                key={debate.id}
-                href={`/debates/${debate.id}`}
-                className="block bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">
-                      {debate.title}
-                    </h3>
-                    <div className="flex items-center gap-3 text-sm text-gray-400">
-                      <span className="px-2 py-1 bg-gray-600 rounded">
-                        {debate.status}
-                      </span>
-                      <span>
-                        Last updated: {new Date(debate.updatedAt).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+      <section className="mt-10">
+        <h2 className="text-2xl font-semibold mb-4">Debates</h2>
+
+        {debates.length === 0 && (
+          <p className="text-gray-400">No debates yet for this sector.</p>
         )}
-      </div>
+
+        <div className="space-y-3">
+          {debates.map((debate) => (
+            <Link
+              key={debate.id}
+              href={`/debates/${debate.id}`}
+              className="block p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition"
+            >
+              <div className="flex justify-between">
+                <span className="font-medium">{debate.title}</span>
+                <span className="text-sm text-gray-400">{debate.status}</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Updated {new Date(debate.updatedAt).toLocaleString()}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Manager Agent Placeholder */}
       <div className="bg-gray-800 rounded-lg p-6">
