@@ -51,6 +51,19 @@ export default function ThemeToggle() {
     setMounted(true);
   }, []);
 
+  // Sync the dark class with the theme
+  useEffect(() => {
+    if (!mounted) return;
+    const currentTheme = resolvedTheme || theme || "dark";
+    if (typeof document !== "undefined") {
+      if (currentTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, [mounted, theme, resolvedTheme]);
+
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
@@ -66,7 +79,8 @@ export default function ThemeToggle() {
   const currentTheme = resolvedTheme || theme || "dark";
 
   const toggleTheme = () => {
-    setTheme(currentTheme === "dark" ? "light" : "dark");
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
   };
 
   return (
