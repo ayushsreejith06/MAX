@@ -1,6 +1,6 @@
 // ManagerAgent.js - Base class stub
 
-const { loadDebates, saveDebate } = require('../../storage/debatesStorage');
+const { loadDebates, saveDebate } = require('../../utils/debateStorage');
 const DebateRoom = require('../../models/DebateRoom');
 
 class ManagerAgent {
