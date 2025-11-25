@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getSectors, createSector, type Sector } from "@/lib/api";
+import Modal from "@/app/components/Modal";
 
 export default function SectorsPage() {
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -10,6 +11,7 @@ export default function SectorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [newSectorName, setNewSectorName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadSectors = async () => {
     try {
@@ -39,6 +41,7 @@ export default function SectorsPage() {
       const newSector = await createSector(newSectorName.trim());
       setSectors([...sectors, newSector]);
       setNewSectorName("");
+      setIsModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create sector");
       console.error("Error creating sector:", err);
@@ -56,27 +59,52 @@ export default function SectorsPage() {
         </p>
       </div>
 
-      {/* Create Sector Form */}
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold text-black dark:text-white mb-4">Create New Sector</h2>
-        <form onSubmit={handleCreateSector} className="flex gap-4">
-          <input
-            type="text"
-            value={newSectorName}
-            onChange={(e) => setNewSectorName(e.target.value)}
-            placeholder="Enter sector name (e.g., Technology, Finance)"
-            className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 text-black dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={creating}
-          />
-          <button
-            type="submit"
-            disabled={creating || !newSectorName.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {creating ? "Creating..." : "Create Sector"}
-          </button>
-        </form>
+      {/* Create Sector Button */}
+      <div className="mb-8">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Create Sector
+        </button>
       </div>
+
+      {/* Create Sector Modal */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create New Sector"
+      >
+        <form onSubmit={handleCreateSector} className="space-y-4">
+          <div>
+            <input
+              type="text"
+              value={newSectorName}
+              onChange={(e) => setNewSectorName(e.target.value)}
+              placeholder="Enter sector name (e.g., Technology, Finance)"
+              className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-black dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={creating}
+            />
+          </div>
+          <div className="flex gap-4 justify-end">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              disabled={creating}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-black dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={creating || !newSectorName.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {creating ? "Creating..." : "Create Sector"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Error Message */}
       {error && (
