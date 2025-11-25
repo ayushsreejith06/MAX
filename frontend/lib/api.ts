@@ -58,6 +58,22 @@ export interface Debate {
   updatedAt: string;
 }
 
+export interface Debate {
+  id: string;
+  sectorId: string;
+  title: string;
+  agentIds: string[];
+  messages: Array<{
+    agentId: string;
+    content: string;
+    role: string;
+    createdAt: string;
+  }>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DebateMessage {
   agentId: string;
   content: string;
