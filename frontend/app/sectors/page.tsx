@@ -49,33 +49,19 @@ export default function SectorsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-black dark:text-white mb-2">Sectors</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Manage market sectors for the MAX simulation platform
-        </p>
-      </div>
-
-      {/* Create Sector Form */}
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold text-black dark:text-white mb-4">Create New Sector</h2>
-        <form onSubmit={handleCreateSector} className="flex gap-4">
-          <input
-            type="text"
-            value={newSectorName}
-            onChange={(e) => setNewSectorName(e.target.value)}
-            placeholder="Enter sector name (e.g., Technology, Finance)"
-            className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 text-black dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={creating}
-          />
-          <button
-            type="submit"
-            disabled={creating || !newSectorName.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {creating ? "Creating..." : "Create Sector"}
-          </button>
-        </form>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-black dark:text-white mb-2">Sectors</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage market sectors for the MAX simulation platform
+          </p>
+        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Create Sector
+        </button>
       </div>
 
       {/* Error Message */}
@@ -84,6 +70,52 @@ export default function SectorsPage() {
           <p className="text-red-800 dark:text-red-200">Error: {error}</p>
         </div>
       )}
+
+      {/* Create Sector Modal */}
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <div>
+          <h2 className="text-2xl font-semibold text-black dark:text-white mb-4">
+            Create New Sector
+          </h2>
+          <form onSubmit={handleCreateSector} className="space-y-4">
+            <div>
+              <label
+                htmlFor="sector-name"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Sector Name
+              </label>
+              <input
+                id="sector-name"
+                type="text"
+                value={newSectorName}
+                onChange={(e) => setNewSectorName(e.target.value)}
+                placeholder="Enter sector name (e.g., Technology, Finance)"
+                className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-black dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={creating}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                disabled={creating}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={creating || !newSectorName.trim()}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {creating ? "Creating..." : "Create Sector"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
 
       {/* Sectors List */}
       <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6">
