@@ -51,37 +51,39 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <main className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-gray-900 mb-2">Dashboard</h1>
+    <div className="min-h-screen bg-white">
+      <main className="max-w-3xl mx-auto px-6 py-12">
+        <div className="mb-12">
+          <h1 className="text-4xl font-light text-gray-900 mb-6">Dashboard</h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
           >
             Create Sector
           </button>
         </div>
 
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Sectors</h2>
+        <div className="mt-12">
+          <h2 className="text-2xl font-light text-gray-900 mb-6">Sectors</h2>
           {isLoading && sectors.length === 0 ? (
-            <p className="text-gray-500">Loading sectors...</p>
+            <p className="text-gray-400 text-sm">Loading sectors...</p>
           ) : error && sectors.length === 0 ? (
-            <p className="text-red-500">{error}</p>
+            <p className="text-red-600 text-sm">{error}</p>
           ) : sectors.length === 0 ? (
-            <p className="text-gray-500">No sectors created yet.</p>
+            <div className="text-center py-12">
+              <p className="text-gray-400 text-sm">No sectors created yet.</p>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sectors.map((sector) => (
                 <div
                   key={sector.id}
-                  className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+                  className="bg-white p-5 rounded-md border border-gray-100 hover:border-gray-200 transition-colors"
                 >
-                  <h3 className="font-medium text-gray-900">{sector.name}</h3>
+                  <h3 className="font-normal text-gray-900 text-base">{sector.name}</h3>
                   {sector.createdAt && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Created: {new Date(sector.createdAt).toLocaleDateString()}
+                    <p className="text-xs text-gray-400 mt-2">
+                      {new Date(sector.createdAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -92,11 +94,17 @@ export default function Dashboard() {
       </main>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Create Sector</h2>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm"
+          onClick={handleCloseModal}
+        >
+          <div 
+            className="bg-white rounded-lg p-8 w-full max-w-md shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-light text-gray-900 mb-6">Create Sector</h2>
             <form onSubmit={handleSubmit}>
-              <div className="mb-4">
+              <div className="mb-6">
                 <label htmlFor="sector-name" className="block text-sm font-medium text-gray-700 mb-2">
                   Sector Name
                 </label>
@@ -105,26 +113,27 @@ export default function Dashboard() {
                   type="text"
                   value={sectorName}
                   onChange={(e) => setSectorName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
                   placeholder="Enter sector name"
                   disabled={isLoading}
+                  autoFocus
                 />
               </div>
               {error && (
-                <div className="mb-4 text-red-500 text-sm">{error}</div>
+                <div className="mb-4 text-red-600 text-sm">{error}</div>
               )}
               <div className="flex gap-3 justify-end">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="px-5 py-2.5 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
                   disabled={isLoading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
                   disabled={isLoading || !sectorName.trim()}
                 >
                   {isLoading ? "Creating..." : "Create"}
