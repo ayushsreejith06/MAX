@@ -43,66 +43,121 @@ export interface GetAgentsResponse {
 }
 
 export async function createSector(name: string): Promise<Sector> {
-  const response = await fetch(`${API_BASE_URL}/sectors`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ name }),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/sectors`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to create sector');
+    if (!response.ok) {
+      let errorMessage = 'Failed to create sector';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result: CreateSectorResponse = await response.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
   }
-
-  const result: CreateSectorResponse = await response.json();
-  return result.data;
 }
 
 export async function getSectors(): Promise<Sector[]> {
-  const response = await fetch(`${API_BASE_URL}/sectors`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/sectors`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch sectors');
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch sectors';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result: GetSectorsResponse = await response.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
   }
-
-  const result: GetSectorsResponse = await response.json();
-  return result.data;
 }
 
 export async function getSectorById(id: string) {
-  const res = await fetch(`${API_BASE_URL}/sectors/${id}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Failed to fetch sector " + id);
-  const result = await res.json();
-  return result.data;
+  try {
+    const res = await fetch(`${API_BASE_URL}/sectors/${id}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      let errorMessage = `Failed to fetch sector ${id}`;
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${res.status}: ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    const result = await res.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
+  }
 }
 
 export async function getAgents(sectorId?: string): Promise<Agent[]> {
-  const url = sectorId 
-    ? `${API_BASE_URL}/agents?sectorId=${sectorId}`
-    : `${API_BASE_URL}/agents`;
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const url = sectorId 
+      ? `${API_BASE_URL}/agents?sectorId=${sectorId}`
+      : `${API_BASE_URL}/agents`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch agents');
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch agents';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result: GetAgentsResponse = await response.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
   }
-
-  const result: GetAgentsResponse = await response.json();
-  return result.data;
 }
 
