@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getSectorById, getAgents, type Sector, type Agent } from "@/lib/api";
+import { getSectorById, getAgents, getDebates, type Sector, type Agent, type Debate } from "@/lib/api";
 
 export default function SectorDetailPage() {
   const params = useParams();
@@ -11,6 +11,7 @@ export default function SectorDetailPage() {
 
   const [sector, setSector] = useState<Sector | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [debates, setDebates] = useState<Debate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,13 +21,15 @@ export default function SectorDetailPage() {
         setLoading(true);
         setError(null);
 
-        const [sectorData, agentsData] = await Promise.all([
+        const [sectorData, agentsData, debatesData] = await Promise.all([
           getSectorById(sectorId),
           getAgents(sectorId),
+          getDebates(sectorId),
         ]);
 
         setSector(sectorData);
         setAgents(agentsData);
+        setDebates(debatesData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load sector data");
         console.error("Error loading sector:", err);
@@ -114,6 +117,46 @@ export default function SectorDetailPage() {
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Debates Section */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          Debates ({debates.length})
+        </h2>
+        {debates.length === 0 ? (
+          <p className="text-gray-400">No debates in this sector yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {debates.map((debate) => (
+              <Link
+                key={debate.id}
+                href={`/debates/${debate.id}`}
+                className="block bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 transition-colors"
+              >
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {debate.title}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <span className={`px-2 py-1 rounded ${
+                    debate.status === 'created' ? 'bg-blue-900/50 text-blue-300' :
+                    debate.status === 'debating' ? 'bg-yellow-900/50 text-yellow-300' :
+                    debate.status === 'closed' ? 'bg-gray-900/50 text-gray-300' :
+                    'bg-purple-900/50 text-purple-300'
+                  }`}>
+                    {debate.status}
+                  </span>
+                  {debate.createdAt && (
+                    <span>Created: {new Date(debate.createdAt).toLocaleString()}</span>
+                  )}
+                  {debate.updatedAt && debate.updatedAt !== debate.createdAt && (
+                    <span>Updated: {new Date(debate.updatedAt).toLocaleString()}</span>
+                  )}
+                </div>
+              </Link>
             ))}
           </div>
         )}
