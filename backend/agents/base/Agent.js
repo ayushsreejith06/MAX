@@ -1,10 +1,31 @@
 const { randomUUID } = require('crypto');
 
+// UUID v4 validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUUID(uuid) {
+  return typeof uuid === 'string' && UUID_REGEX.test(uuid);
+}
+
 class Agent {
   constructor(id, role, personality, sectorId = null) {
-    this.id = id || randomUUID();
+    // Validate role
+    if (!role || typeof role !== 'string' || role.trim().length === 0) {
+      throw new Error('Agent role is required and cannot be empty');
+    }
+
+    // Validate or generate ID
+    if (id) {
+      if (!isValidUUID(id)) {
+        throw new Error(`Invalid UUID format: ${id}`);
+      }
+      this.id = id;
+    } else {
+      this.id = randomUUID();
+    }
+
     this.sectorId = sectorId;
-    this.role = role;
+    this.role = role.trim();
     this.memory = [];
     this.personality = personality || {};
     this.createdAt = new Date().toISOString();
