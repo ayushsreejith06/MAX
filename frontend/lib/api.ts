@@ -77,8 +77,13 @@ export async function getSectors(): Promise<Sector[]> {
   return result.data;
 }
 
-export async function getAgents(): Promise<Agent[]> {
-  const response = await fetch(`${API_BASE_URL}/agents`, {
+export async function getAgents(sectorId?: string): Promise<Agent[]> {
+  const url = new URL(`${API_BASE_URL}/agents`);
+  if (sectorId) {
+    url.searchParams.append('sectorId', sectorId);
+  }
+  
+  const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
