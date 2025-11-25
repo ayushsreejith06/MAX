@@ -192,7 +192,9 @@ export async function getDebates(sectorId?: string) {
 }
 
 export async function getDebateById(id: string) {
-  const res = await fetch(`${API_BASE_URL}/debates/${id}`);
+  const res = await fetch(`${API_BASE_URL}/debates/${id}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) throw new Error("Failed to fetch debate");
 
