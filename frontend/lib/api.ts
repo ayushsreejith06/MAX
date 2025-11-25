@@ -191,15 +191,11 @@ export async function getDebates(sectorId?: string) {
   return data.data;
 }
 
-export async function getDebateById(id: string) {
-  const res = await fetch(`${API_BASE_URL}/debates/${id}`, {
-    cache: "no-store",
-  });
-
+export async function getDebateById(id: string): Promise<Debate> {
+  const res = await fetch(`${API_BASE_URL}/debates/${id}`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch debate");
 
-  const data = await res.json();
-
-  return data.data;
+  const result = await res.json();
+  return result.data;
 }
 
