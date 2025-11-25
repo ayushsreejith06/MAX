@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Navigation() {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = [
     { href: "/", label: "Dashboard" },
@@ -24,7 +33,7 @@ export default function Navigation() {
               MAX
             </Link>
           </div>
-          <div className="flex space-x-8">
+          <div className="flex items-center space-x-8">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -41,6 +50,7 @@ export default function Navigation() {
                 </Link>
               );
             })}
+            <ThemeToggle />
           </div>
         </div>
       </div>
