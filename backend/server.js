@@ -1,31 +1,31 @@
-const express = require('express');
-const cors = require('cors');
-const sectorsRoutes = require('./routes/sectors');
-const agentsRoutes = require('./routes/agents');
-const agentsRoutes = require('./routes/agents');
+const fastify = require('fastify')({ logger: true });
 
-const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Register CORS plugin
+fastify.register(require('@fastify/cors'));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+fastify.get('/health', async (request, reply) => {
+  return { status: 'ok' };
 });
 
-// Routes
-app.use('/sectors', sectorsRoutes);
-app.use('/agents', agentsRoutes);
-app.use('/agents', agentsRoutes);
+// Register routes
+fastify.register(require('./routes/sectors'), { prefix: '/sectors' });
+fastify.register(require('./routes/agents'), { prefix: '/agents' });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`📍 Sectors API: http://localhost:${PORT}/sectors`);
-  console.log(`📍 Agents API: http://localhost:${PORT}/agents`);
-  console.log(`📍 Agents API: http://localhost:${PORT}/agents`);
-});
+const start = async () => {
+  try {
+    await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
+    console.log(`📍 Health check: http://localhost:${PORT}/health`);
+    console.log(`📍 Sectors API: http://localhost:${PORT}/sectors`);
+    console.log(`📍 Agents API: http://localhost:${PORT}/agents`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();
