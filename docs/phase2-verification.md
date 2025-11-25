@@ -1,268 +1,287 @@
-# Phase 2 System Verification Report
+# Phase 2 Verification Report
 
-**Date:** January 26, 2025  
-**Branch:** feature/phase2-verification  
-**Verification Type:** Complete Phase 2 System Re-Verification
+**Date:** 2025-01-27
 
----
-
-## Phase 2 Scope Summary
-
-Phase 2 includes:
-- Backend debate system (DebateRoom model, debateStorage, debate routes)
-- Backend research system (research agents and routes)
-- ManagerAgent integration with debate system
-- Frontend debate UI (API client, sector detail debates section, debate detail page)
-- Dark mode enforcement
-- Storage requirements
-- Repository structure (no Express, clean imports)
+**Branch:** feature/phase2-verification
 
 ---
 
-## Verification Results
+## Executive Summary
 
-### BACKEND — Debate System
+**Status:** ⚠️ **PARTIAL** - Phase 2 is mostly complete but has **1 CRITICAL FAILURE** that prevents full functionality.
 
-#### 1. DebateRoom.js Implementation
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| Constructor(sectorId, title, agentIds) | ✅ PASS | Line 4: `constructor(sectorId, title, agentIds = [])` |
-| addMessage() | ✅ PASS | Lines 25-34: Implements message addition with agentId, content, role, createdAt |
-| toJSON() | ✅ PASS | Lines 36-47: Returns complete JSON representation |
-| static fromData() | ✅ PASS | Lines 15-23: Restores DebateRoom instance from data |
-
-**File:** `backend/models/DebateRoom.js`
+**Overview:**
+- Backend debate system: ✅ Fully implemented
+- Backend research system: ✅ Fully implemented
+- ManagerAgent: ❌ **CRITICAL FAILURE** - Incorrect import path
+- Frontend debate UI: ✅ Fully implemented
+- Dark mode: ✅ Correctly configured
+- Storage layer: ✅ All files exist and functional
+- Repository structure: ⚠️ Express still in package.json (unused)
 
 ---
 
-#### 2. debateStorage.js Functions
+## Detailed Results
 
-| Requirement | Status | Details |
-|------------|--------|---------|
-| loadDebates() | ✅ PASS | Lines 18-32: Loads debates from JSON file |
-| saveDebates() | ✅ PASS | Lines 34-37: Saves debates array to JSON file |
-| findDebateById() | ❌ FAIL | **MISSING** - Function does not exist |
-| saveDebate() | ❌ FAIL | **MISSING** - Function does not exist |
+### 1. Backend — Debate System
 
-**File:** `backend/utils/debateStorage.js`
+**Status:** ✅ **PASS**
 
-**Failures:**
-- Line 39-42: Only exports `loadDebates` and `saveDebates`
-- Missing `findDebateById(id)` function
-- Missing `saveDebate(debate)` function (single debate save)
+#### backend/models/DebateRoom.js
+- ✅ `constructor(sectorId, title, agentIds)` - Lines 4-13
+- ✅ `static fromData()` - Lines 15-23
+- ✅ `addMessage()` - Lines 25-34
+- ✅ `toJSON()` - Lines 36-47
 
-**Fix Instructions:**
-```javascript
-// Add to debateStorage.js:
+**Verification:**
+```4:13:backend/models/DebateRoom.js
+  constructor(sectorId, title, agentIds = []) {
+    this.id = uuidv4();
+    this.sectorId = sectorId;
+    this.title = title;
+    this.agentIds = agentIds;
+    this.messages = [];
+    this.status = 'created';
+    this.createdAt = new Date().toISOString();
+    this.updatedAt = new Date().toISOString();
+  }
+```
 
+#### backend/utils/debateStorage.js
+- ✅ `loadDebates()` - Lines 18-32
+- ✅ `saveDebates()` - Lines 34-37
+- ✅ `findDebateById()` - Lines 39-42 **EXISTS**
+- ✅ `saveDebate()` - Lines 44-58 **EXISTS**
+
+**Verification:**
+```39:58:backend/utils/debateStorage.js
 async function findDebateById(id) {
   const debates = await loadDebates();
-  return debates.find(d => d.id === id) || null;
+  return debates.find(debate => debate.id === id) || null;
 }
 
 async function saveDebate(debate) {
   const debates = await loadDebates();
   const index = debates.findIndex(d => d.id === debate.id);
-  if (index === -1) {
-    debates.push(debate.toJSON ? debate.toJSON() : debate);
+  
+  if (index >= 0) {
+    // Update existing debate
+    debates[index] = debate;
   } else {
-    debates[index] = debate.toJSON ? debate.toJSON() : debate;
+    // Add new debate
+    debates.push(debate);
   }
+  
   await saveDebates(debates);
+  return debate;
+}
+```
+
+#### backend/routes/debates.js
+- ✅ `POST /debates/start` - Lines 12-45
+- ✅ `POST /debates/message` - Lines 47-99
+- ✅ `POST /debates/close` - Lines 101-147
+- ✅ `POST /debates/archive` - Lines 149-195
+- ✅ `GET /debates/:id` - Lines 238-267
+- ✅ `GET /debates?sectorId=` - Lines 197-236
+- ✅ Input validation present in all endpoints
+- ✅ Uses Fastify (no Express) - Line 10: `module.exports = async (fastify) => {`
+- ✅ Writes to debates.json via `saveDebates()` calls
+
+**Verification:**
+```10:45:backend/routes/debates.js
+module.exports = async (fastify) => {
+  // POST /debates/start - Create a new debate room
+  fastify.post('/start', async (request, reply) => {
+    try {
+      const { sectorId, title, agentIds } = request.body;
+
+      if (!sectorId || !title) {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId and title are required'
+        });
+      }
+
+      log(`POST /debates/start - Creating debate with sectorId: ${sectorId}, title: ${title}`);
+
+      const debateRoom = new DebateRoom(sectorId, title, agentIds || []);
+      
+      // Load existing debates, add new one, and save
+      const debates = await loadDebates();
+      debates.push(debateRoom.toJSON());
+      await saveDebates(debates);
+
+      log(`Debate created successfully - ID: ${debateRoom.id}, Title: ${debateRoom.title}`);
+
+      return reply.status(201).send({
+        success: true,
+        data: debateRoom.toJSON()
+      });
+    } catch (error) {
+      log(`Error creating debate: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+```
+
+---
+
+### 2. Backend — Research System
+
+**Status:** ✅ **PASS**
+
+#### Directory Structure
+- ✅ `backend/agents/research/` directory exists
+- ✅ `NewsResearcher.js` exists
+- ✅ `SentimentAgent.js` exists
+- ✅ `DataSourceAgent.js` exists
+- ✅ `index.js` exists with `runResearchBundle(sectorId, topic)` export
+
+**Verification:**
+```18:40:backend/agents/research/index.js
+async function runResearchBundle(sectorId, topic) {
+  // Run all research agents in parallel for efficiency
+  const [news, sentiment, dataSource] = await Promise.all([
+    NewsResearcher.research(sectorId, topic),
+    SentimentAgent.analyze(sectorId, topic),
+    DataSourceAgent.fetch(sectorId, topic)
+  ]);
+
+  // Calculate total records for dataSource
+  if (dataSource.sources && Array.isArray(dataSource.sources)) {
+    dataSource.totalRecords = dataSource.sources.reduce(
+      (sum, source) => sum + (source.records || 0),
+      0
+    );
+  }
+
+  // Return combined research bundle
+  return {
+    news,
+    sentiment,
+    dataSource
+  };
+}
+```
+
+#### backend/routes/research.js
+- ✅ Correctly imports `runResearchBundle` - Line 1
+- ✅ `GET /research?sectorId=&topic=` endpoint - Lines 11-39
+- ✅ Validates params (sectorId and topic required) - Lines 15-20
+- ✅ Returns combined research result - Lines 24-30
+
+**Verification:**
+```1:39:backend/routes/research.js
+const { runResearchBundle } = require('../agents/research');
+
+// Simple logger
+function log(message) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
 }
 
-// Update module.exports:
-module.exports = {
-  loadDebates,
-  saveDebates,
-  findDebateById,
-  saveDebate
+module.exports = async (fastify) => {
+  // GET /research?sectorId=&topic=
+  fastify.get('/', async (request, reply) => {
+    try {
+      const { sectorId, topic } = request.query;
+
+      if (!sectorId || !topic) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Both sectorId and topic query parameters are required'
+        });
+      }
+
+      log(`GET /research - Running research bundle for sectorId: ${sectorId}, topic: ${topic}`);
+
+      const results = await runResearchBundle(sectorId, topic);
+
+      log(`Research bundle completed successfully`);
+
+      return reply.status(200).send({
+        success: true,
+        data: results
+      });
+    } catch (error) {
+      log(`Error running research bundle: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 };
 ```
 
 ---
 
-#### 3. Debate Routes
+### 3. ManagerAgent
 
-| Requirement | Status | Details |
-|------------|--------|---------|
-| POST /debates/start | ✅ PASS | Lines 12-45: Creates new debate room |
-| POST /debates/message | ✅ PASS | Lines 48-99: Adds message to debate |
-| POST /debates/close | ✅ PASS | Lines 102-147: Closes debate |
-| POST /debates/archive | ✅ PASS | Lines 150-195: Archives debate |
-| GET /debates/:id | ✅ PASS | Lines 239-267: Gets single debate by ID |
-| GET /debates?sectorId= | ✅ PASS | Lines 198-236: Gets all debates, filters by sectorId |
-| Input validation | ✅ PASS | All endpoints validate required fields |
-| JSON response structure | ✅ PASS | All endpoints return `{success, data, error?}` |
-| Updates debates.json | ✅ PASS | All mutation endpoints call `saveDebates()` |
-| Uses Fastify (NO Express) | ✅ PASS | Line 10: `module.exports = async (fastify) => {` |
+**Status:** ❌ **CRITICAL FAILURE**
 
-**File:** `backend/routes/debates.js`
+#### backend/agents/manager/ManagerAgent.js
 
----
+**Issues Found:**
 
-### BACKEND — Research System
+1. **❌ INCORRECT IMPORT PATH** - Line 3
+   - **Current:** `const { loadDebates, saveDebate } = require('../../storage/debatesStorage');`
+   - **Should be:** `const { loadDebates, saveDebate } = require('../../utils/debateStorage');`
+   - **Impact:** ManagerAgent will crash on instantiation or when calling `loadState()` or `openDebate()`
 
-#### 1. Research Agents
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| NewsResearcher.js | ❌ FAIL | **FILE MISSING** - Directory `backend/agents/research/` does not exist |
-| SentimentAgent.js | ❌ FAIL | **FILE MISSING** - Directory `backend/agents/research/` does not exist |
-| DataSourceAgent.js | ❌ FAIL | **FILE MISSING** - Directory `backend/agents/research/` does not exist |
-
-**Failures:**
-- Directory `backend/agents/research/` does not exist
-- All three research agent files are missing
-
-**Fix Instructions:**
-- Create directory: `backend/agents/research/`
-- Create `NewsResearcher.js`, `SentimentAgent.js`, `DataSourceAgent.js` with appropriate agent implementations
-
----
-
-#### 2. Research Index Export
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| backend/agents/research/index.js exports runResearchBundle() | ❌ FAIL | **FILE MISSING** - `backend/agents/research/index.js` does not exist |
-
-**File:** `backend/routes/research.js` (Line 1: imports from non-existent file)
-
-**Failures:**
-- Line 1 of `backend/routes/research.js`: `const { runResearchBundle } = require('../agents/research');`
-- This import will fail at runtime because the file doesn't exist
-
-**Fix Instructions:**
-- Create `backend/agents/research/index.js` with:
-```javascript
-const NewsResearcher = require('./NewsResearcher');
-const SentimentAgent = require('./SentimentAgent');
-const DataSourceAgent = require('./DataSourceAgent');
-
-async function runResearchBundle(sectorId, topic) {
-  const results = {
-    news: await NewsResearcher.research(sectorId, topic),
-    sentiment: await SentimentAgent.analyze(sectorId, topic),
-    dataSource: await DataSourceAgent.fetch(sectorId, topic)
-  };
-  return results;
-}
-
-module.exports = { runResearchBundle };
+**Verification:**
+```3:3:backend/agents/manager/ManagerAgent.js
+const { loadDebates, saveDebate } = require('../../storage/debatesStorage');
 ```
 
----
+**Correct Implementation Should Be:**
+```javascript
+const { loadDebates, saveDebate } = require('../../utils/debateStorage');
+```
 
-#### 3. Research Route
+#### Method Verification
 
-| Requirement | Status | Details |
-|------------|--------|---------|
-| GET /research?sectorId=&topic= | ✅ PASS | Lines 11-40: Route exists and validates parameters |
-| Returns combined results | ⚠️ PARTIAL | Route exists but will fail at runtime due to missing research agents |
+- ✅ `openDebate(title, agentIds)` - Lines 30-42 (implementation correct, but import will break it)
+- ✅ `getDebateSummary()` - Lines 60-89
+- ✅ `getSummary()` - Lines 91-97
+- ✅ `loadState()` - Lines 14-22 (loads debates only for its sector - correct logic, but import will break it)
 
-**File:** `backend/routes/research.js`
+**Verification:**
+```14:22:backend/agents/manager/ManagerAgent.js
+  async loadState() {
+    // Load all debates from debatesStorage
+    const allDebates = await loadDebates();
+    
+    // Filter by this.sectorId and convert to DebateRoom instances
+    this.debates = allDebates
+      .filter(debate => debate.sectorId === this.sectorId)
+      .map(debate => DebateRoom.fromData(debate));
+  }
+```
 
-**Note:** Route structure is correct but will crash when called due to missing research module.
-
----
-
-### BACKEND — ManagerAgent Integration
-
-#### 1. ManagerAgent.js Implementation
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| Import debateStorage correctly | ❌ FAIL | Line 3: Wrong import path |
-| Load debates filtered by sector | ✅ PASS | Lines 14-22: Filters by `this.sectorId` |
-| Implement openDebate() | ✅ PASS | Lines 30-42: Creates and saves debate |
-| Implement getDebateSummary() | ✅ PASS | Lines 60-89: Returns status counts and debating IDs |
-| Implement getSummary() | ✅ PASS | Lines 91-97: Returns sector summary |
-
-**File:** `backend/agents/manager/ManagerAgent.js`
-
-**Failures:**
-- Line 3: `const { loadDebates, saveDebate } = require('../../storage/debatesStorage');`
-  - **Wrong path:** Should be `'../utils/debateStorage'`
-  - **Wrong filename:** Should be `debateStorage.js` not `debatesStorage.js`
-  - **Missing functions:** `saveDebate` doesn't exist in debateStorage.js (see above)
-
-**Fix Instructions:**
-1. Change line 3 to: `const { loadDebates, saveDebate } = require('../utils/debateStorage');`
-2. Ensure `saveDebate` function is added to `debateStorage.js` (see debateStorage fixes above)
+**Required Fix:**
+- Change import path from `../../storage/debatesStorage` to `../../utils/debateStorage`
 
 ---
 
-#### 2. ManagerAgent Instantiation
+### 4. Frontend — Debate UI
 
-| Requirement | Status | Details |
-|------------|--------|---------|
-| MUST NOT crash when instantiated | ❌ FAIL | Will crash due to incorrect import path |
+**Status:** ✅ **PASS**
 
-**Failure:**
-- Import error will cause instantiation to fail
+#### frontend/lib/api.ts
+- ✅ `getDebates(sectorId?: string)` - Lines 192-223
+- ✅ `getDebateById(id: string)` - Lines 225-253
+- ✅ Error handling present in both functions
 
----
-
-#### 3. Debate Persistence
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| Handle debate persistence correctly | ⚠️ PARTIAL | Logic is correct but depends on fixed imports and saveDebate function |
-
----
-
-### FRONTEND — Debate UI
-
-#### 1. frontend/lib/api.ts Functions
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| getDebates(sectorId?) | ❌ FAIL | **FUNCTION MISSING** |
-| getDebateById(id) | ❌ FAIL | **FUNCTION MISSING** |
-
-**File:** `frontend/lib/api.ts`
-
-**Failures:**
-- No `getDebates` function exists
-- No `getDebateById` function exists
-
-**Fix Instructions:**
-Add to `frontend/lib/api.ts`:
-
-```typescript
-export interface Debate {
-  id: string;
-  sectorId: string;
-  title: string;
-  agentIds: string[];
-  messages: Array<{
-    agentId: string;
-    content: string;
-    role: string;
-    createdAt: string;
-  }>;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface GetDebatesResponse {
-  success: boolean;
-  data: Debate[];
-  error?: string;
-}
-
-export interface GetDebateResponse {
-  success: boolean;
-  data: Debate;
-  error?: string;
-}
-
+**Verification:**
+```192:253:frontend/lib/api.ts
 export async function getDebates(sectorId?: string): Promise<Debate[]> {
   try {
-    const url = sectorId 
+    const url = sectorId
       ? `${API_BASE_URL}/debates?sectorId=${sectorId}`
       : `${API_BASE_URL}/debates`;
     const response = await fetch(url, {
@@ -324,155 +343,62 @@ export async function getDebateById(id: string): Promise<Debate> {
 }
 ```
 
----
+#### frontend/app/sectors/[id]/page.tsx
+- ✅ Debates section exists - Lines 125-163
+- ✅ Debates fetched with `getDebates(sectorId)` - Line 27
+- ✅ Each debate links to `/debates/[id]` - Lines 135-160
 
-#### 2. Sector Detail Page (/sectors/[id])
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| Show "Debates" section | ❌ FAIL | **MISSING** - No debates section in page |
-| List debates for that sector | ❌ FAIL | **MISSING** - No debate listing |
-| Each item links to /debates/[id] | ❌ FAIL | **MISSING** - No debate links |
-
-**File:** `frontend/app/sectors/[id]/page.tsx`
-
-**Failures:**
-- Lines 90-120: Only shows "Agents" section
-- Lines 122-130: Only shows "Manager Agent" placeholder
-- No "Debates" section exists
-
-**Fix Instructions:**
-Add debates section after Agents section (around line 120):
-
-```typescript
-// Add import at top:
-import { getDebates, type Debate } from "@/lib/api";
-
-// Add state:
-const [debates, setDebates] = useState<Debate[]>([]);
-
-// Add to loadData in useEffect:
-const [sectorData, agentsData, debatesData] = await Promise.all([
-  getSectorById(sectorId),
-  getAgents(sectorId),
-  getDebates(sectorId),
-]);
-setDebates(debatesData);
-
-// Add section after Agents section:
-{/* Debates Section */}
-<div className="bg-gray-800 rounded-lg p-6 mb-6">
-  <h2 className="text-xl font-semibold text-white mb-4">
-    Debates ({debates.length})
-  </h2>
-  {debates.length === 0 ? (
-    <p className="text-gray-400">No debates in this sector yet.</p>
-  ) : (
-    <div className="space-y-3">
-      {debates.map((debate) => (
-        <Link
-          key={debate.id}
-          href={`/debates/${debate.id}`}
-          className="block bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-white mb-1">
-            {debate.title}
-          </h3>
-          <p className="text-sm text-gray-400">
-            Status: {debate.status} • {debate.messages.length} messages
-          </p>
-          {debate.updatedAt && (
-            <p className="text-xs text-gray-500 mt-1">
-              Updated: {new Date(debate.updatedAt).toLocaleString()}
-            </p>
-          )}
-        </Link>
-      ))}
-    </div>
-  )}
-</div>
+**Verification:**
+```125:163:frontend/app/sectors/[id]/page.tsx
+      {/* Debates Section */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          Debates ({debates.length})
+        </h2>
+        {debates.length === 0 ? (
+          <p className="text-gray-400">No debates in this sector yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {debates.map((debate) => (
+              <Link
+                key={debate.id}
+                href={`/debates/${debate.id}`}
+                className="block bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 transition-colors"
+              >
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {debate.title}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <span className={`px-2 py-1 rounded ${
+                    debate.status === 'created' ? 'bg-blue-900/50 text-blue-300' :
+                    debate.status === 'debating' ? 'bg-yellow-900/50 text-yellow-300' :
+                    debate.status === 'closed' ? 'bg-gray-900/50 text-gray-300' :
+                    'bg-purple-900/50 text-purple-300'
+                  }`}>
+                    {debate.status}
+                  </span>
+                  {debate.createdAt && (
+                    <span>Created: {new Date(debate.createdAt).toLocaleString()}</span>
+                  )}
+                  {debate.updatedAt && debate.updatedAt !== debate.createdAt && (
+                    <span>Updated: {new Date(debate.updatedAt).toLocaleString()}</span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 ```
 
----
+#### frontend/app/debates/[id]/page.tsx
+- ✅ Page exists
+- ✅ Loads debate by ID - Lines 16-35
+- ✅ Displays title, status, timestamps - Lines 73-91
+- ✅ Lists messages with role, agentId, content, createdAt - Lines 94-126
 
-#### 3. Debate Detail Page (/debates/[id])
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| Page must exist | ❌ FAIL | **FILE MISSING** - `frontend/app/debates/[id]/page.tsx` does not exist |
-| Load data server-side | ❌ FAIL | **FILE MISSING** |
-| Show title, status, timestamps | ❌ FAIL | **FILE MISSING** |
-| List all messages with role, agentId, content, createdAt | ❌ FAIL | **FILE MISSING** |
-
-**Failures:**
-- Directory `frontend/app/debates/` does not exist
-- File `frontend/app/debates/[id]/page.tsx` does not exist
-
-**Fix Instructions:**
-Create `frontend/app/debates/[id]/page.tsx`:
-
-```typescript
-"use client";
-
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { getDebateById, type Debate } from "@/lib/api";
-
-export default function DebateDetailPage() {
-  const params = useParams();
-  const debateId = params.id as string;
-
-  const [debate, setDebate] = useState<Debate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadDebate = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const debateData = await getDebateById(debateId);
-        setDebate(debateData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load debate");
-        console.error("Error loading debate:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (debateId) {
-      loadDebate();
-    }
-  }, [debateId]);
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-8">
-          <p className="text-gray-400">Loading debate...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !debate) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-red-900/50 border border-red-700 rounded-lg p-4">
-          <p className="text-red-200">Error: {error || "Debate not found"}</p>
-          <Link
-            href={`/sectors/${debate?.sectorId || ''}`}
-            className="mt-4 inline-block text-blue-400 hover:text-blue-300"
-          >
-            ← Back to Sector
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
+**Verification:**
+```63:126:frontend/app/debates/[id]/page.tsx
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -484,26 +410,33 @@ export default function DebateDetailPage() {
           ← Back to Sector
         </Link>
         <h1 className="text-4xl font-bold text-white mb-2">{debate.title}</h1>
-        <div className="flex gap-4 text-sm text-gray-400">
-          <span>Status: <span className="text-white">{debate.status}</span></span>
-          <span>•</span>
-          <span>Created: {new Date(debate.createdAt).toLocaleString()}</span>
-          {debate.updatedAt && (
-            <>
-              <span>•</span>
-              <span>Updated: {new Date(debate.updatedAt).toLocaleString()}</span>
-            </>
-          )}
+        <div className="flex flex-wrap gap-4 mt-4">
+          <div>
+            <span className="text-gray-400">Status: </span>
+            <span className="text-white font-semibold capitalize">{debate.status}</span>
+          </div>
+          <div>
+            <span className="text-gray-400">Created: </span>
+            <span className="text-white">
+              {new Date(debate.createdAt).toLocaleString()}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-400">Updated: </span>
+            <span className="text-white">
+              {new Date(debate.updatedAt).toLocaleString()}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages Section */}
       <div className="bg-gray-800 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-white mb-4">
           Messages ({debate.messages.length})
         </h2>
         {debate.messages.length === 0 ? (
-          <p className="text-gray-400">No messages yet.</p>
+          <p className="text-gray-400">No messages in this debate yet.</p>
         ) : (
           <div className="space-y-4">
             {debate.messages.map((message, index) => (
@@ -513,8 +446,10 @@ export default function DebateDetailPage() {
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <span className="text-white font-semibold">{message.role}</span>
-                    <span className="text-gray-400 text-sm ml-2">
+                    <span className="text-sm font-semibold text-blue-400 capitalize">
+                      {message.role}
+                    </span>
+                    <span className="text-sm text-gray-400 ml-2">
                       (Agent: {message.agentId.slice(0, 8)}...)
                     </span>
                   </div>
@@ -522,7 +457,7 @@ export default function DebateDetailPage() {
                     {new Date(message.createdAt).toLocaleString()}
                   </span>
                 </div>
-                <p className="text-gray-300 whitespace-pre-wrap">{message.content}</p>
+                <p className="text-white mt-2 whitespace-pre-wrap">{message.content}</p>
               </div>
             ))}
           </div>
@@ -530,111 +465,143 @@ export default function DebateDetailPage() {
       </div>
     </div>
   );
-}
 ```
 
 ---
 
-### DARK MODE
+### 5. Dark Mode Requirements
 
-| Requirement | Status | Details |
-|------------|--------|---------|
-| Must still be dark-mode-only | ✅ PASS | `frontend/app/layout.tsx` line 27: `className="dark"` |
-| No ThemeProvider | ✅ PASS | No ThemeProvider found in codebase |
-| No theme toggles | ✅ PASS | No theme toggle components found |
-| No leftover imports or unused code | ✅ PASS | Only Tailwind config has `theme:` (configuration, not runtime) |
+**Status:** ✅ **PASS**
 
-**Files Checked:**
-- `frontend/app/layout.tsx` - Line 27: `<html lang="en" className="dark" suppressHydrationWarning>`
-- `frontend/app/globals.css` - No theme-related code
-- No ThemeProvider imports found
+#### Verification
+- ✅ No ThemeProvider found in codebase
+- ✅ No toggle component found
+- ✅ All pages forced dark mode via layout.tsx
+- ✅ `layout.tsx` uses `<html class="dark">` - Line 27
 
----
+**Verification:**
+```27:27:frontend/app/layout.tsx
+    <html lang="en" className="dark" suppressHydrationWarning>
+```
 
-### STORAGE REQUIREMENTS
-
-| Requirement | Status | Details |
-|------------|--------|---------|
-| debates.json must exist | ✅ PASS | File exists at `backend/storage/debates.json` (currently empty array) |
-| debates.json must update when debate routes run | ✅ PASS | All mutation routes call `saveDebates()` |
-| agents.json must update through /agents/create | ✅ PASS | File exists and contains agent data |
-| sectors.json must update through /sectors | ✅ PASS | File exists and contains sector data |
-
-**Files:**
-- `backend/storage/debates.json` - Exists (empty array)
-- `backend/storage/agents.json` - Exists (contains 5 agents)
-- `backend/storage/sectors.json` - Exists (contains 4 sectors)
+**Note:** The `tailwind.config.ts` file contains a `theme` property, but this is standard Tailwind CSS configuration and not a theme provider/toggle system.
 
 ---
 
-### REPO STRUCTURE
+### 6. Storage Requirements
 
-| Requirement | Status | Details |
-|------------|--------|---------|
-| No Express code anywhere in backend | ⚠️ PARTIAL | Express listed in package.json but not used in code |
-| No dead files left unlinked | ✅ PASS | All files appear to be linked |
-| All imports must resolve correctly | ❌ FAIL | ManagerAgent and research routes have broken imports |
-| No unused or broken branches referenced in code | ✅ PASS | No branch references found in code |
+**Status:** ✅ **PASS**
 
-**Failures:**
-- `backend/package.json` line 23: `"express": "^5.1.0"` - Still in dependencies but not used
-- `backend/agents/manager/ManagerAgent.js` line 3: Broken import path
-- `backend/routes/research.js` line 1: Broken import (research module doesn't exist)
+#### Storage Files
+- ✅ `backend/storage/debates.json` exists
+- ✅ `backend/storage/agents.json` exists
+- ✅ `backend/storage/sectors.json` exists
 
-**Fix Instructions:**
-1. Remove Express from `backend/package.json` dependencies (line 23)
-2. Fix ManagerAgent import (see ManagerAgent section)
-3. Create research agents module (see Research System section)
+#### Storage Functions
+- ✅ `debateStorage.js` - `loadDebates()`, `saveDebates()`, `findDebateById()`, `saveDebate()` all resolve correctly
+- ✅ Debate routes update `debates.json` via `saveDebates()` calls
+- ✅ Agent routes should update `agents.json` (verified via route structure)
+- ✅ Sector routes should update `sectors.json` (verified via route structure)
 
----
-
-## Summary Statistics
-
-| Category | Pass | Fail | Partial |
-|----------|------|------|---------|
-| Backend Debate System | 6 | 2 | 0 |
-| Backend Research System | 1 | 3 | 1 |
-| ManagerAgent Integration | 3 | 2 | 1 |
-| Frontend Debate UI | 0 | 6 | 0 |
-| Dark Mode | 4 | 0 | 0 |
-| Storage Requirements | 4 | 0 | 0 |
-| Repo Structure | 2 | 1 | 1 |
-| **TOTAL** | **20** | **14** | **3** |
+**Verification:**
+- Storage directory exists: `backend/storage/`
+- All three JSON files present
+- Read/write functions use correct file paths
 
 ---
 
-## Critical Failures
+### 7. Repository Structure
 
-1. **Research System Completely Missing** - All research agent files and index.js are missing
-2. **Frontend Debate UI Missing** - No debate API functions, no debates section on sector page, no debate detail page
-3. **debateStorage.js Incomplete** - Missing `findDebateById` and `saveDebate` functions
-4. **ManagerAgent Broken Import** - Wrong import path will cause crashes
-5. **Express Still in Dependencies** - Should be removed from package.json
+**Status:** ⚠️ **PARTIAL**
+
+#### Express Removal
+- ⚠️ Express still listed in `backend/package.json` - Line 23: `"express": "^5.1.0"`
+- ✅ No Express imports found in backend code (verified via grep)
+- ✅ All routes use Fastify (verified in `debates.js`, `research.js`, `server.js`)
+
+**Verification:**
+```23:23:backend/package.json
+    "express": "^5.1.0",
+```
+
+**Impact:** Express is unused but still in dependencies. This is a minor issue - it doesn't break functionality but should be removed for cleanliness.
+
+#### Import Resolution
+- ✅ All imports resolve correctly (except ManagerAgent import issue)
+- ✅ No dead routes found
+- ✅ No broken branch references
+
+#### File Structure
+- ✅ All required directories exist
+- ✅ All required files exist
+- ✅ Research agents directory structure correct
+
+---
+
+## Critical Failures Summary
+
+### 1. ManagerAgent Import Path (CRITICAL)
+
+**File:** `backend/agents/manager/ManagerAgent.js`  
+**Line:** 3  
+**Issue:** Incorrect import path  
+**Current:** `require('../../storage/debatesStorage')`  
+**Required:** `require('../../utils/debateStorage')`  
+
+**Impact:**
+- ManagerAgent cannot be instantiated
+- `loadState()` will fail
+- `openDebate()` will fail
+- Any code using ManagerAgent will crash
+
+**Fix Required:**
+```javascript
+// Change line 3 from:
+const { loadDebates, saveDebate } = require('../../storage/debatesStorage');
+
+// To:
+const { loadDebates, saveDebate } = require('../../utils/debateStorage');
+```
+
+---
+
+## Minor Issues
+
+### 1. Express in package.json (NON-CRITICAL)
+
+**File:** `backend/package.json`  
+**Line:** 23  
+**Issue:** Express dependency present but unused  
+**Impact:** None - Express is not imported or used anywhere  
+**Recommendation:** Remove from dependencies for cleanliness
 
 ---
 
 ## Final Verdict
 
-### ❌ PHASE 2 INCOMPLETE
+**PHASE 2 COMPLETE:** ❌ **NO**
 
-**Reason:** Multiple critical components are missing or broken:
-- Research system files do not exist
-- Frontend debate UI is completely missing
-- debateStorage.js is missing required functions
-- ManagerAgent has broken imports
-- Express dependency should be removed
+**Reason:** ManagerAgent has a critical import path error that prevents it from functioning. All other Phase 2 requirements are met.
 
 **Required Actions:**
-1. Create research agent files and index.js
-2. Add `findDebateById` and `saveDebate` to debateStorage.js
-3. Fix ManagerAgent import path
-4. Add `getDebates` and `getDebateById` to frontend API
-5. Add debates section to sector detail page
-6. Create debate detail page
-7. Remove Express from package.json dependencies
+1. **CRITICAL:** Fix ManagerAgent import path in `backend/agents/manager/ManagerAgent.js`
+2. **OPTIONAL:** Remove Express from `backend/package.json` dependencies
+
+**After Fix:**
+Once the ManagerAgent import is corrected, Phase 2 will be functionally complete. The Express dependency removal is optional but recommended.
 
 ---
 
-**Report Generated:** January 26, 2025  
-**Verification Method:** Static code analysis and file system inspection  
-**Branch:** feature/phase2-verification
+## Test Recommendations
+
+After fixing the ManagerAgent import, verify:
+1. ManagerAgent can be instantiated: `new ManagerAgent('sector-id')`
+2. `loadState()` successfully loads debates for the sector
+3. `openDebate()` successfully creates and saves a new debate
+4. `getDebateSummary()` returns correct summary data
+5. `getSummary()` returns complete manager summary
+
+---
+
+**Report Generated:** 2025-01-27  
+**Verification Branch:** feature/phase2-verification
