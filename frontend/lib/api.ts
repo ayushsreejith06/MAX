@@ -42,6 +42,22 @@ export interface GetAgentsResponse {
   error?: string;
 }
 
+export interface Debate {
+  id: string;
+  sectorId: string;
+  title: string;
+  agentIds: string[];
+  messages: Array<{
+    agentId: string;
+    content: string;
+    role: string;
+    createdAt: string;
+  }>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function createSector(name: string): Promise<Sector> {
   try {
     const response = await fetch(`${API_BASE_URL}/sectors`, {
@@ -159,5 +175,29 @@ export async function getAgents(sectorId?: string): Promise<Agent[]> {
     }
     throw error;
   }
+}
+
+export async function getDebates(sectorId?: string) {
+  const url = sectorId
+    ? `${API_BASE_URL}/debates?sectorId=${sectorId}`
+    : `${API_BASE_URL}/debates`;
+
+  const res = await fetch(url, { cache: "no-store" });
+
+  if (!res.ok) throw new Error("Failed to fetch debates");
+
+  const data = await res.json();
+
+  return data.data;
+}
+
+export async function getDebateById(id: string) {
+  const res = await fetch(`${API_BASE_URL}/debates/${id}`);
+
+  if (!res.ok) throw new Error("Failed to fetch debate");
+
+  const data = await res.json();
+
+  return data.data;
 }
 
