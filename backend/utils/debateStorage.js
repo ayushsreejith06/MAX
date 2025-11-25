@@ -36,6 +36,11 @@ async function saveDebates(debates) {
   await fs.writeFile(DEBATES_FILE, JSON.stringify(debates, null, 2), 'utf8');
 }
 
+async function findDebateById(id) {
+  const debates = await loadDebates();
+  return debates.find(d => d.id === id) || null;
+}
+
 module.exports = {
   loadDebates,
   saveDebates
