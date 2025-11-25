@@ -177,18 +177,16 @@ export async function getAgents(sectorId?: string): Promise<Agent[]> {
   }
 }
 
-export async function getDebates(sectorId?: string) {
+export async function getDebates(sectorId?: string): Promise<Debate[]> {
   const url = sectorId
     ? `${API_BASE_URL}/debates?sectorId=${sectorId}`
     : `${API_BASE_URL}/debates`;
 
   const res = await fetch(url, { cache: "no-store" });
-
   if (!res.ok) throw new Error("Failed to fetch debates");
 
-  const data = await res.json();
-
-  return data.data;
+  const result = await res.json();
+  return result.data;
 }
 
 export async function getDebateById(id: string): Promise<Debate> {
