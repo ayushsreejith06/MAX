@@ -16,35 +16,49 @@ export default function SectorDetailPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!sectorId) {
+        setError("Invalid sector ID");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
 
+        // Load sector and agents in parallel
         const [sectorData, agentsData] = await Promise.all([
           getSectorById(sectorId),
           getAgents(sectorId),
         ]);
 
+        // Validate sector data
+        if (!sectorData) {
+          setError("Sector not found");
+          setLoading(false);
+          return;
+        }
+
         setSector(sectorData);
-        setAgents(agentsData);
+        setAgents(agentsData || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load sector data");
+        const errorMessage = err instanceof Error ? err.message : "Failed to load sector data";
+        setError(errorMessage);
         console.error("Error loading sector:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    if (sectorId) {
       loadData();
-    }
   }, [sectorId]);
 
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-8">
-          <p className="text-gray-400">Loading sector...</p>
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mb-4"></div>
+          <p className="text-gray-400">Loading sector data...</p>
         </div>
       </div>
     );
