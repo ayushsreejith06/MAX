@@ -1,6 +1,7 @@
 // ManagerAgent.js - Base class stub
 
 const { loadDebates, saveDebate } = require('../../storage/debatesStorage');
+const { saveDebates } = require('../../utils/debateStorage');
 const DebateRoom = require('../../models/DebateRoom');
 
 class ManagerAgent {
@@ -53,8 +54,74 @@ class ManagerAgent {
     // Empty stub
   }
 
-  decisionLoop() {
-    // Empty stub - placeholder
+  async decisionLoop() {
+    // Ensure we have the latest debates loaded
+    await this.loadState();
+
+    // Filter to active debates (open or debating status)
+    const activeDebates = this.debates.filter(
+      debate => debate.status === 'open' || debate.status === 'debating'
+    );
+
+    // If there is no active debate, return silently
+    if (activeDebates.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const THREE_MINUTES_MS = 3 * 60 * 1000;
+    let hasChanges = false;
+
+    // Process each active debate
+    for (const debate of activeDebates) {
+      let shouldClose = false;
+
+      // Check if debate is stuck in "open" > 3 minutes
+      if (debate.status === 'open') {
+        const openedAt = new Date(debate.updatedAt || debate.createdAt).getTime();
+        const timeSinceOpened = now - openedAt;
+        
+        if (timeSinceOpened > THREE_MINUTES_MS) {
+          shouldClose = true;
+        }
+      }
+
+      // Check if all agents have submitted messages
+      if (!shouldClose && debate.agentIds && debate.agentIds.length > 0) {
+        const agentIdsWithMessages = new Set(
+          debate.messages.map(msg => msg.agentId)
+        );
+        const allAgentsSubmitted = debate.agentIds.every(
+          agentId => agentIdsWithMessages.has(agentId)
+        );
+        
+        if (allAgentsSubmitted) {
+          shouldClose = true;
+        }
+      }
+
+      // Close the debate if needed
+      if (shouldClose) {
+        debate.status = 'closed';
+        debate.updatedAt = new Date().toISOString();
+        hasChanges = true;
+      }
+    }
+
+    // Save changes if any debates were closed
+    if (hasChanges) {
+      const allDebates = await loadDebates();
+      
+      // Update the debates in the allDebates array
+      for (let i = 0; i < allDebates.length; i++) {
+        const updatedDebate = this.debates.find(d => d.id === allDebates[i].id);
+        if (updatedDebate && updatedDebate.status === 'closed') {
+          allDebates[i] = updatedDebate.toJSON();
+        }
+      }
+      
+      await saveDebates(allDebates);
+    }
   }
 
   crossSectorComms() {
