@@ -1,20 +1,17 @@
-const fastify = require('fastify')({ logger: true });
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Health check endpoint
-fastify.get('/health', async (request, reply) => {
-  return { status: 'ok' };
-});
+// Middleware
+app.use(express.json());
+
+// Routes
+const sectorsRoutes = require('./routes/sectors');
+app.use('/sectors', sectorsRoutes);
 
 // Start server
-const start = async () => {
-  try {
-    const port = process.env.PORT || 3000;
-    await fastify.listen({ port, host: '0.0.0.0' });
-    fastify.log.info(`Server listening on port ${port}`);
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
-};
+app.listen(PORT, () => {
+  console.log(`MAX Backend server running on port ${PORT}`);
+});
 
-start();
+module.exports = app;
