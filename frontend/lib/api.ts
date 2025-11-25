@@ -18,6 +18,30 @@ export interface GetSectorsResponse {
   error?: string;
 }
 
+export interface Agent {
+  id: string;
+  sectorId: string | null;
+  role: string;
+  personality: {
+    riskTolerance?: string;
+    decisionStyle?: string;
+    communicationStyle?: string;
+    [key: string]: any;
+  };
+  createdAt: string;
+  memory?: Array<{
+    type: string;
+    content: string;
+    timestamp: string;
+  }>;
+}
+
+export interface GetAgentsResponse {
+  success: boolean;
+  data: Agent[];
+  error?: string;
+}
+
 export async function createSector(name: string): Promise<Sector> {
   const response = await fetch(`${API_BASE_URL}/sectors`, {
     method: 'POST',
@@ -50,6 +74,23 @@ export async function getSectors(): Promise<Sector[]> {
   }
 
   const result: GetSectorsResponse = await response.json();
+  return result.data;
+}
+
+export async function getAgents(): Promise<Agent[]> {
+  const response = await fetch(`${API_BASE_URL}/agents`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch agents');
+  }
+
+  const result: GetAgentsResponse = await response.json();
   return result.data;
 }
 
