@@ -29,7 +29,11 @@ class ManagerAgent {
 
   async openDebate(title, agentIds) {
     // Create a new DebateRoom for this.sectorId
-    const debate = new DebateRoom(this.sectorId, title, agentIds);
+    const debate = new DebateRoom({
+      sectorId: this.sectorId,
+      title,
+      agentIds
+    });
     
     // Save it via debatesStorage
     await saveDebate(debate);
