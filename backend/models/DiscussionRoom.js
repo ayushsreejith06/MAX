@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 
-class DebateRoom {
+class DiscussionRoom {
   constructor(sectorId, title, agentIds = []) {
     this.id = uuidv4();
     this.sectorId = sectorId;
@@ -13,13 +13,13 @@ class DebateRoom {
   }
 
   static fromData(data) {
-    const debateRoom = new DebateRoom(data.sectorId, data.title, data.agentIds);
-    debateRoom.id = data.id;
-    debateRoom.messages = data.messages || [];
-    debateRoom.status = data.status || 'created';
-    debateRoom.createdAt = data.createdAt;
-    debateRoom.updatedAt = data.updatedAt;
-    return debateRoom;
+    const discussionRoom = new DiscussionRoom(data.sectorId, data.title, data.agentIds);
+    discussionRoom.id = data.id;
+    discussionRoom.messages = data.messages || [];
+    discussionRoom.status = data.status || 'created';
+    discussionRoom.createdAt = data.createdAt;
+    discussionRoom.updatedAt = data.updatedAt;
+    return discussionRoom;
   }
 
   addMessage(message) {
@@ -47,5 +47,5 @@ class DebateRoom {
   }
 }
 
-module.exports = DebateRoom;
+module.exports = DiscussionRoom;
 
