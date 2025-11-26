@@ -12,7 +12,7 @@ class ManagerAgent {
   }
 
   async loadState() {
-    // Load all debates from debatesStorage
+    // Load all debates from debateStorage
     const allDebates = await loadDebates();
     
     // Filter by this.sectorId and convert to DebateRoom instances
