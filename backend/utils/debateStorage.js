@@ -36,7 +36,26 @@ async function saveDebates(debates) {
   await fs.writeFile(DEBATES_FILE, JSON.stringify(debates, null, 2), 'utf8');
 }
 
+async function saveDebate(debate) {
+  const debates = await loadDebates();
+  const debateData = debate.toJSON ? debate.toJSON() : debate;
+  
+  // Find if debate already exists
+  const existingIndex = debates.findIndex(d => d.id === debateData.id);
+  
+  if (existingIndex >= 0) {
+    // Update existing debate
+    debates[existingIndex] = debateData;
+  } else {
+    // Add new debate
+    debates.push(debateData);
+  }
+  
+  await saveDebates(debates);
+}
+
 module.exports = {
   loadDebates,
-  saveDebates
+  saveDebates,
+  saveDebate
 };
