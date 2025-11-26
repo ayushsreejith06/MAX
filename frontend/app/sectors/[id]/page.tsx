@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getSectorById, getAgents, type Sector, type Agent } from "@/lib/api";
+import { getSectorById, getAgents, getDebates, type Sector, type Agent, type Debate } from "@/lib/api";
 
 export default function SectorDetailPage() {
   const params = useParams();
@@ -11,6 +11,7 @@ export default function SectorDetailPage() {
 
   const [sector, setSector] = useState<Sector | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [debates, setDebates] = useState<Debate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,13 +21,15 @@ export default function SectorDetailPage() {
         setLoading(true);
         setError(null);
 
-        const [sectorData, agentsData] = await Promise.all([
+        const [sectorData, agentsData, debatesData] = await Promise.all([
           getSectorById(sectorId),
           getAgents(sectorId),
+          getDebates(sectorId),
         ]);
 
         setSector(sectorData);
         setAgents(agentsData);
+        setDebates(debatesData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load sector data");
         console.error("Error loading sector:", err);
@@ -115,6 +118,66 @@ export default function SectorDetailPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Debates Section */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-white">
+            Debates ({debates.length})
+          </h2>
+          <Link
+            href={`/debates/create?sectorId=${sectorId}`}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Open Debate
+          </Link>
+        </div>
+        {debates.length === 0 ? (
+          <p className="text-gray-400">No debates for this sector yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {debates.map((debate) => {
+              const getStatusColor = (status: string) => {
+                switch (status) {
+                  case 'created':
+                    return 'bg-gray-600';
+                  case 'debating':
+                    return 'bg-blue-600';
+                  case 'closed':
+                    return 'bg-green-600';
+                  case 'archived':
+                    return 'bg-gray-500';
+                  default:
+                    return 'bg-gray-600';
+                }
+              };
+              return (
+                <Link
+                  key={debate.id}
+                  href={`/debates/${debate.id}`}
+                  className="block bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        {debate.title}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        Updated: {new Date(debate.updatedAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <span
+                      className={`ml-4 inline-block px-2 py-1 rounded text-xs font-semibold text-white ${getStatusColor(debate.status)}`}
+                    >
+                      {debate.status}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
