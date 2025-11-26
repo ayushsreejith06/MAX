@@ -10,6 +10,7 @@ export default function Navigation() {
     { href: "/", label: "Dashboard" },
     { href: "/sectors", label: "Sectors" },
     { href: "/agents", label: "Agents" },
+    { href: "/debates", label: "Debates" },
   ];
 
   return (
