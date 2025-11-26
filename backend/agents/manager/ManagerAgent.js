@@ -23,7 +23,7 @@ class ManagerAgent {
 
   saveState() {
     // Future hook for saving state
-    // For now, debates are saved individually via saveDebate() in openDebate()
+    // For now, debates are saved individually via saveDebates() in openDebate()
     // This method can be extended to save aggregated state if needed
   }
 
@@ -31,8 +31,10 @@ class ManagerAgent {
     // Create a new DebateRoom for this.sectorId
     const debate = new DebateRoom(this.sectorId, title, agentIds);
     
-    // Save it via debatesStorage
-    await saveDebate(debate);
+    // Load all debates, add the new one, and save
+    const allDebates = await loadDebates();
+    allDebates.push(debate.toJSON());
+    await saveDebates(allDebates);
     
     // Add to this.debates
     this.debates.push(debate);
