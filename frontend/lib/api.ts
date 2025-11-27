@@ -255,7 +255,7 @@ export async function postDiscussionMessage(
         'x-manager': 'true',
       },
       body: JSON.stringify({
-        debateId: discussionId,
+        discussionId: discussionId,
         agentId,
         content,
         role,
@@ -292,7 +292,7 @@ export async function closeDiscussion(discussionId: string): Promise<Discussion>
         'x-manager': 'true',
       },
       body: JSON.stringify({
-        debateId: discussionId,
+        discussionId: discussionId,
       }),
     });
 
