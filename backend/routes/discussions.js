@@ -1,5 +1,5 @@
-const DebateRoom = require('../models/DebateRoom');
-const { loadDebates, saveDebates } = require('../utils/debateStorage');
+const DiscussionRoom = require('../models/DiscussionRoom');
+const { loadDiscussions, saveDiscussions } = require('../utils/discussionStorage');
 
 // Simple logger
 function log(message) {
