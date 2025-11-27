@@ -130,7 +130,7 @@ export default function SectorDetailPage() {
         {discussions.length === 0 ? (
           <p className="text-gray-400">No discussions for this sector yet.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {discussions.map((discussion) => (
               <Link
                 key={discussion.id}
@@ -143,20 +143,20 @@ export default function SectorDetailPage() {
                   </h3>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
-                      discussion.status === 'closed'
-                        ? 'bg-gray-600 text-gray-300'
-                        : discussion.status === 'debating'
-                        ? 'bg-blue-600 text-blue-100'
-                        : discussion.status === 'archived'
-                        ? 'bg-gray-700 text-gray-400'
-                        : 'bg-green-600 text-green-100'
+                      discussion.status === "open"
+                        ? "bg-green-900/50 text-green-300"
+                        : discussion.status === "discussing"
+                        ? "bg-blue-900/50 text-blue-300"
+                        : discussion.status === "closed"
+                        ? "bg-gray-700 text-gray-300"
+                        : "bg-gray-600 text-gray-400"
                     }`}
                   >
                     {discussion.status}
                   </span>
                 </div>
                 <p className="text-sm text-gray-400">
-                  Last updated: {new Date(discussion.updatedAt).toLocaleString()}
+                  Updated: {new Date(discussion.updatedAt).toLocaleString()}
                 </p>
               </Link>
             ))}
