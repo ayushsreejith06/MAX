@@ -161,3 +161,95 @@ export async function getAgents(sectorId?: string): Promise<Agent[]> {
   }
 }
 
+export interface Discussion {
+  id: string;
+  sectorId: string;
+  title: string;
+  status: string;
+  messages: Array<{
+    id: string;
+    agentId: string;
+    role: string;
+    content: string;
+    timestamp: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function postDiscussionMessage(
+  discussionId: string,
+  agentId: string,
+  content: string,
+  role: string
+): Promise<Discussion> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/discussions/message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-manager': 'true',
+      },
+      body: JSON.stringify({
+        discussionId: discussionId,
+        agentId,
+        content,
+        role,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to post discussion message';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
+  }
+}
+
+export async function closeDiscussion(discussionId: string): Promise<Discussion> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/discussions/close`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-manager': 'true',
+      },
+      body: JSON.stringify({
+        discussionId: discussionId,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to close discussion';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
+  }
+}
+
