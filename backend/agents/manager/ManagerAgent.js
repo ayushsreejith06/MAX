@@ -28,14 +28,14 @@ class ManagerAgent {
   }
 
   async startDiscussion(title, agentIds) {
-    // Create a new DebateRoom for this.sectorId
+    // Create a new DiscussionRoom for this.sectorId
     // Only ManagerAgent can call this method - users cannot start discussions
-    const discussion = new DebateRoom(this.sectorId, title, agentIds);
+    const discussion = new DiscussionRoom(this.sectorId, title, agentIds);
     
     // Load all discussions, add the new one, and save
-    const allDiscussions = await loadDebates();
+    const allDiscussions = await loadDiscussions();
     allDiscussions.push(discussion.toJSON());
-    await saveDebates(allDiscussions);
+    await saveDiscussions(allDiscussions);
     
     // Add to this.discussions
     this.discussions.push(discussion);
@@ -47,7 +47,7 @@ class ManagerAgent {
   async closeDiscussion(discussionId) {
     // Close a discussion by ID
     // Only ManagerAgent can call this method
-    const allDiscussions = await loadDebates();
+    const allDiscussions = await loadDiscussions();
     const discussionIndex = allDiscussions.findIndex(d => d.id === discussionId);
 
     if (discussionIndex === -1) {
@@ -55,13 +55,13 @@ class ManagerAgent {
     }
 
     const discussionData = allDiscussions[discussionIndex];
-    const discussionRoom = DebateRoom.fromData(discussionData);
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
 
     discussionRoom.status = 'closed';
     discussionRoom.updatedAt = new Date().toISOString();
 
     allDiscussions[discussionIndex] = discussionRoom.toJSON();
-    await saveDebates(allDiscussions);
+    await saveDiscussions(allDiscussions);
 
     // Update local state
     const localIndex = this.discussions.findIndex(d => d.id === discussionId);
@@ -88,7 +88,7 @@ class ManagerAgent {
     // Empty stub - placeholder
   }
 
-  getDebateSummary() {
+  getDiscussionSummary() {
     // Count discussions by status for this.sectorId
     const statusCounts = {};
     let lastUpdated = null;
@@ -123,7 +123,7 @@ class ManagerAgent {
     return {
       sectorId: this.sectorId,
       agentCount: this.agents.length,
-      debateSummary: this.getDebateSummary()
+      discussionSummary: this.getDiscussionSummary()
     };
   }
 }
