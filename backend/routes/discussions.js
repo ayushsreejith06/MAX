@@ -98,19 +98,24 @@ module.exports = async (fastify) => {
       const authError = checkManagerAuth(request, reply);
       if (authError) return authError;
 
-      const { debateId, agentId, content, role } = request.body;
+      const { discussionId, agentId, content, role } = request.body;
 
-      if (!debateId || !agentId || !content || !role) {
+      if (!discussionId || !agentId || !content || !role) {
         return reply.status(400).send({
           success: false,
-          error: 'debateId, agentId, content, and role are required'
+          error: 'discussionId, agentId, content, and role are required'
         });
       }
 
-      log(`POST /discussions/message - Adding message to discussion: ${debateId}`);
+      log(`POST /discussions/message - Adding message to discussion: ${discussionId}`);
 
+<<<<<<< Updated upstream
       const discussions = await loadDebates();
       const discussionIndex = discussions.findIndex(d => d.id === debateId);
+=======
+      const discussions = await loadDiscussions();
+      const discussionIndex = discussions.findIndex(d => d.id === discussionId);
+>>>>>>> Stashed changes
 
       if (discussionIndex === -1) {
         return reply.status(404).send({
@@ -134,7 +139,7 @@ module.exports = async (fastify) => {
       discussions[discussionIndex] = discussionRoom.toJSON();
       await saveDebates(discussions);
 
-      log(`Message added successfully to discussion: ${debateId}`);
+      log(`Message added successfully to discussion: ${discussionId}`);
 
       return reply.status(200).send({
         success: true,
@@ -186,7 +191,7 @@ module.exports = async (fastify) => {
       discussions[discussionIndex] = discussionRoom.toJSON();
       await saveDebates(discussions);
 
-      log(`Discussion closed successfully: ${debateId}`);
+      log(`Discussion closed successfully: ${discussionId}`);
 
       return reply.status(200).send({
         success: true,
