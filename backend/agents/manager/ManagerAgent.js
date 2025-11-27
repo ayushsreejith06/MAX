@@ -80,12 +80,91 @@ class ManagerAgent {
     // Empty stub
   }
 
-  decisionLoop() {
-    // Empty stub - placeholder
+  async decisionLoop() {
+    // Ensure discussions are loaded
+    if (this.discussions.length === 0) {
+      await this.loadState();
+    }
+
+    const now = Date.now();
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+    const NO_DISCUSSION_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
+    // Find open discussions (status: 'created' or 'debating')
+    const openDiscussions = this.discussions.filter(
+      d => d.status === 'created' || d.status === 'debating'
+    );
+
+    // Check for stale discussions and auto-close them
+    for (const discussion of openDiscussions) {
+      if (discussion.updatedAt) {
+        const updatedAt = new Date(discussion.updatedAt).getTime();
+        const ageMs = now - updatedAt;
+
+        if (ageMs > STALE_THRESHOLD_MS) {
+          console.log(`[ManagerAgent ${this.sectorId}] Auto-closing stale discussion: ${discussion.id} (age: ${Math.round(ageMs / 1000 / 60)} minutes)`);
+          try {
+            await this.closeDiscussion(discussion.id);
+          } catch (error) {
+            console.error(`[ManagerAgent ${this.sectorId}] Error closing stale discussion ${discussion.id}:`, error.message);
+          }
+        }
+      }
+    }
+
+    // Reload state after closing discussions
+    await this.loadState();
+
+    // Check if we need to start a new discussion
+    const currentOpenDiscussions = this.discussions.filter(
+      d => d.status === 'created' || d.status === 'debating'
+    );
+
+    if (currentOpenDiscussions.length === 0) {
+      // No open discussions - check when the last discussion was created/updated
+      let lastDiscussionTime = null;
+
+      if (this.discussions.length > 0) {
+        // Find the most recent discussion (by createdAt or updatedAt)
+        for (const discussion of this.discussions) {
+          const times = [];
+          if (discussion.createdAt) {
+            times.push(new Date(discussion.createdAt).getTime());
+          }
+          if (discussion.updatedAt) {
+            times.push(new Date(discussion.updatedAt).getTime());
+          }
+          if (times.length > 0) {
+            const maxTime = Math.max(...times);
+            if (!lastDiscussionTime || maxTime > lastDiscussionTime) {
+              lastDiscussionTime = maxTime;
+            }
+          }
+        }
+      }
+
+      const shouldStartNew = !lastDiscussionTime || (now - lastDiscussionTime > NO_DISCUSSION_THRESHOLD_MS);
+
+      if (shouldStartNew) {
+        console.log(`[ManagerAgent ${this.sectorId}] Auto-starting new discussion (no open discussions for ${lastDiscussionTime ? Math.round((now - lastDiscussionTime) / 1000 / 60) : 'ever'} minutes)`);
+        try {
+          // Start a new discussion with available agents
+          const agentIds = this.agents.length > 0 ? this.agents.map(a => a.id || a) : [];
+          await this.startDiscussion(`Auto-generated discussion ${new Date().toISOString()}`, agentIds);
+        } catch (error) {
+          console.error(`[ManagerAgent ${this.sectorId}] Error starting new discussion:`, error.message);
+        }
+      }
+    }
   }
 
   crossSectorComms() {
-    // Empty stub - placeholder
+    // Placeholder logs simulating inter-sector communication
+    // No real networking yet - Phase 2 minimal implementation
+    console.log(`[ManagerAgent ${this.sectorId}] Cross-sector communication placeholder`);
+    console.log(`[ManagerAgent ${this.sectorId}] Simulating message broadcast to other sectors...`);
+    console.log(`[ManagerAgent ${this.sectorId}] Simulating receiving updates from sector network...`);
+    console.log(`[ManagerAgent ${this.sectorId}] Cross-sector sync status: pending (not implemented)`);
   }
 
   getDiscussionSummary() {
