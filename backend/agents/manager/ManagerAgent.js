@@ -162,7 +162,7 @@ class ManagerAgent {
     // Empty stub - placeholder
   }
 
-  getDebateSummary() {
+  getDiscussionSummary() {
     // Count discussions by status for this.sectorId
     const statusCounts = {};
     let lastUpdated = null;
@@ -197,7 +197,7 @@ class ManagerAgent {
     return {
       sectorId: this.sectorId,
       agentCount: this.agents.length,
-      debateSummary: this.getDebateSummary()
+      discussionSummary: this.getDiscussionSummary()
     };
   }
 }
