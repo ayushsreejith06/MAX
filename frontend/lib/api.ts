@@ -48,11 +48,11 @@ export interface Discussion {
   title: string;
   status: string;
   messages: Array<{
-    id: string;
+    id?: string;
     agentId: string;
     role: string;
     content: string;
-    timestamp: string;
+    createdAt: string;
   }>;
   createdAt: string;
   updatedAt: string;
