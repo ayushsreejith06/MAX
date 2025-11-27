@@ -23,7 +23,7 @@ class ManagerAgent {
 
   saveState() {
     // Future hook for saving state
-    // For now, discussions are saved individually via saveDebates() in startDiscussion()
+    // For now, discussions are saved individually via saveDiscussions() in startDiscussion()
     // This method can be extended to save aggregated state if needed
   }
 
