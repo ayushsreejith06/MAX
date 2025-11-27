@@ -24,9 +24,10 @@ class DiscussionRoom {
 
   addMessage(message) {
     const messageEntry = {
+      id: uuidv4(),
       agentId: message.agentId,
-      content: message.content,
       role: message.role,
+      content: message.content,
       createdAt: new Date().toISOString()
     };
     this.messages.push(messageEntry);
