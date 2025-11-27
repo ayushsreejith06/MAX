@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getSectorById, getAgents, type Sector, type Agent } from "@/lib/api";
+import { getSectorById, getAgents, getDiscussions, type Sector, type Agent, type Discussion } from "@/lib/api";
 
 export default function SectorDetailPage() {
   const params = useParams();
@@ -11,6 +11,7 @@ export default function SectorDetailPage() {
 
   const [sector, setSector] = useState<Sector | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,13 +21,15 @@ export default function SectorDetailPage() {
         setLoading(true);
         setError(null);
 
-        const [sectorData, agentsData] = await Promise.all([
+        const [sectorData, agentsData, discussionsData] = await Promise.all([
           getSectorById(sectorId),
           getAgents(sectorId),
+          getDiscussions(sectorId),
         ]);
 
         setSector(sectorData);
         setAgents(agentsData);
+        setDiscussions(discussionsData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load sector data");
         console.error("Error loading sector:", err);
@@ -114,6 +117,50 @@ export default function SectorDetailPage() {
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Discussions Section */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          Discussions ({discussions.length})
+        </h2>
+        {discussions.length === 0 ? (
+          <p className="text-gray-400">No discussions in this sector yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {discussions.map((discussion) => (
+              <Link
+                key={discussion.id}
+                href={`/discussions/${discussion.id}`}
+                className="block bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-600 transition-colors"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-white mb-2">
+                      {discussion.title}
+                    </h3>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-400">Status: </span>
+                        <span className="text-white font-medium capitalize">
+                          {discussion.status}
+                        </span>
+                      </div>
+                      {discussion.updatedAt && (
+                        <div>
+                          <span className="text-gray-400">Updated: </span>
+                          <span className="text-gray-300">
+                            {new Date(discussion.updatedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         )}
