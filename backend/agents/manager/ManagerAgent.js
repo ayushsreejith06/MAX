@@ -1,7 +1,7 @@
 // ManagerAgent.js - Base class stub
 
-const { loadDebates, saveDebates } = require('../../utils/debateStorage');
-const DebateRoom = require('../../models/DebateRoom');
+const { loadDiscussions, saveDiscussions } = require('../../utils/discussionStorage');
+const DiscussionRoom = require('../../models/DiscussionRoom');
 
 class ManagerAgent {
   constructor(sectorId) {
