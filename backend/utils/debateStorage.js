@@ -1,3 +1,7 @@
+// DEPRECATED — no longer used
+// This file has been replaced by discussionStorage.js
+// All references have been migrated to use discussionStorage instead
+
 const fs = require('fs').promises;
 const path = require('path');
 

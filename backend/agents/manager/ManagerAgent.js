@@ -47,7 +47,7 @@ class ManagerAgent {
   async closeDiscussion(discussionId) {
     // Close a discussion by ID
     // Only ManagerAgent can call this method
-    const allDiscussions = await loadDebates();
+    const allDiscussions = await loadDiscussions();
     const discussionIndex = allDiscussions.findIndex(d => d.id === discussionId);
 
     if (discussionIndex === -1) {
@@ -55,13 +55,13 @@ class ManagerAgent {
     }
 
     const discussionData = allDiscussions[discussionIndex];
-    const discussionRoom = DebateRoom.fromData(discussionData);
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
 
     discussionRoom.status = 'closed';
     discussionRoom.updatedAt = new Date().toISOString();
 
     allDiscussions[discussionIndex] = discussionRoom.toJSON();
-    await saveDebates(allDiscussions);
+    await saveDiscussions(allDiscussions);
 
     // Update local state
     const localIndex = this.discussions.findIndex(d => d.id === discussionId);
