@@ -12,13 +12,13 @@ class ManagerAgent {
   }
 
   async loadState() {
-    // Load all discussions from debateStorage
-    const allDiscussions = await loadDebates();
+    // Load all discussions from discussionStorage
+    const allDiscussions = await loadDiscussions();
     
-    // Filter by this.sectorId and convert to DebateRoom instances
+    // Filter by this.sectorId and convert to DiscussionRoom instances
     this.discussions = allDiscussions
       .filter(discussion => discussion.sectorId === this.sectorId)
-      .map(discussion => DebateRoom.fromData(discussion));
+      .map(discussion => DiscussionRoom.fromData(discussion));
   }
 
   saveState() {
@@ -28,14 +28,14 @@ class ManagerAgent {
   }
 
   async startDiscussion(title, agentIds) {
-    // Create a new DebateRoom for this.sectorId
+    // Create a new DiscussionRoom for this.sectorId
     // Only ManagerAgent can call this method - users cannot start discussions
-    const discussion = new DebateRoom(this.sectorId, title, agentIds);
+    const discussion = new DiscussionRoom(this.sectorId, title, agentIds);
     
     // Load all discussions, add the new one, and save
-    const allDiscussions = await loadDebates();
+    const allDiscussions = await loadDiscussions();
     allDiscussions.push(discussion.toJSON());
-    await saveDebates(allDiscussions);
+    await saveDiscussions(allDiscussions);
     
     // Add to this.discussions
     this.discussions.push(discussion);
