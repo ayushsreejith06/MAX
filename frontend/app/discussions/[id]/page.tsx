@@ -70,13 +70,12 @@ export default function DiscussionDetailPage() {
     return new Date(timeA).getTime() - new Date(timeB).getTime();
   });
 
-  // Generate key for message - use id if available, otherwise generate from timestamp + index
+  // Generate key for message - use id if available, otherwise use createdAt + index
   const getMessageKey = (message: any, index: number) => {
     if (message.id) {
       return message.id;
     }
-    const timestamp = message.createdAt || message.timestamp || "";
-    return `msg-${timestamp}-${index}`;
+    return `${message.createdAt}-${index}`;
   };
 
   return (

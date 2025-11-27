@@ -125,9 +125,14 @@ module.exports = async (fastify) => {
       // Add message
       discussionRoom.addMessage({ agentId, content, role });
 
-      // Set status to "debating" if it was "created"
+      // Set status to "active" if it was "created"
       if (discussionRoom.status === 'created') {
-        discussionRoom.status = 'debating';
+        discussionRoom.status = 'active';
+      }
+      
+      // Normalize legacy "debating" status to "active" when updating
+      if (discussionRoom.status === 'debating') {
+        discussionRoom.status = 'active';
       }
 
       // Update the discussion in the array

@@ -90,9 +90,10 @@ class ManagerAgent {
     const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
     const NO_DISCUSSION_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 
-    // Find open discussions (status: 'created' or 'debating')
+    // Find open discussions (status: 'created' or 'active')
+    // Note: 'debating' is legacy status, handled for backward compatibility
     const openDiscussions = this.discussions.filter(
-      d => d.status === 'created' || d.status === 'debating'
+      d => d.status === 'created' || d.status === 'active' || d.status === 'debating'
     );
 
     // Check for stale discussions and auto-close them
@@ -116,8 +117,9 @@ class ManagerAgent {
     await this.loadState();
 
     // Check if we need to start a new discussion
+    // Note: 'debating' is legacy status, handled for backward compatibility
     const currentOpenDiscussions = this.discussions.filter(
-      d => d.status === 'created' || d.status === 'debating'
+      d => d.status === 'created' || d.status === 'active' || d.status === 'debating'
     );
 
     if (currentOpenDiscussions.length === 0) {
@@ -185,8 +187,8 @@ class ManagerAgent {
         }
       }
       
-      // Track currently "debating" discussions
-      if (discussion.status === 'debating') {
+      // Track currently "active" discussions (including legacy "debating" status)
+      if (discussion.status === 'active' || discussion.status === 'debating') {
         debatingIds.push(discussion.id);
       }
     });
