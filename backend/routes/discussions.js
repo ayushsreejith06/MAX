@@ -120,7 +120,7 @@ module.exports = async (fastify) => {
       }
 
       const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
 
       // Add message
       discussionRoom.addMessage({ agentId, content, role });
@@ -178,7 +178,7 @@ module.exports = async (fastify) => {
       }
 
       const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
 
       discussionRoom.status = 'closed';
       discussionRoom.updatedAt = new Date().toISOString();
