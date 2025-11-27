@@ -36,6 +36,11 @@ async function saveDiscussions(discussions) {
   await fs.writeFile(DISCUSSIONS_FILE, JSON.stringify(discussions, null, 2), 'utf8');
 }
 
+async function findDiscussionById(id) {
+  const discussions = await loadDiscussions();
+  return discussions.find(d => d.id === id) || null;
+}
+
 async function saveDiscussion(discussion) {
   const discussions = await loadDiscussions();
   const discussionData = discussion.toJSON ? discussion.toJSON() : discussion;
@@ -57,5 +62,6 @@ async function saveDiscussion(discussion) {
 module.exports = {
   loadDiscussions,
   saveDiscussions,
+  findDiscussionById,
   saveDiscussion
 };
