@@ -290,3 +290,33 @@ export async function getDiscussions(sectorId?: string): Promise<Discussion[]> {
   }
 }
 
+export async function getDiscussionById(id: string): Promise<Discussion> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/discussions/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch discussion ${id}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
+    }
+    throw error;
+  }
+}
+
