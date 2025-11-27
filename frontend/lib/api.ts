@@ -42,6 +42,22 @@ export interface GetAgentsResponse {
   error?: string;
 }
 
+export interface Discussion {
+  id: string;
+  sectorId: string;
+  title: string;
+  status: string;
+  messages: Array<{
+    id: string;
+    agentId: string;
+    role: string;
+    content: string;
+    timestamp: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function createSector(name: string): Promise<Sector> {
   try {
     const response = await fetch(`${API_BASE_URL}/sectors`, {
