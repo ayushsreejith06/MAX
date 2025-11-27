@@ -174,7 +174,7 @@ export interface Discussion {
   title: string;
   agentIds: string[];
   messages: DiscussionMessage[];
-  status: 'created' | 'debating' | 'closed' | 'archived';
+  status: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,8 +194,8 @@ export interface GetDiscussionResponse {
 export async function getDiscussions(sectorId?: string): Promise<Discussion[]> {
   try {
     const url = sectorId 
-      ? `${API_BASE_URL}/debates?sectorId=${sectorId}`
-      : `${API_BASE_URL}/debates`;
+      ? `${API_BASE_URL}/discussions?sectorId=${sectorId}`
+      : `${API_BASE_URL}/discussions`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -226,7 +226,7 @@ export async function getDiscussions(sectorId?: string): Promise<Discussion[]> {
 
 export async function getDiscussionById(id: string): Promise<Discussion> {
   try {
-    const response = await fetch(`${API_BASE_URL}/debates/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/discussions/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -255,18 +255,18 @@ export async function getDiscussionById(id: string): Promise<Discussion> {
 }
 
 export async function postDiscussionMessage(
-  debateId: string,
+  discussionId: string,
   agentId: string,
   content: string,
   role: string
 ): Promise<Discussion> {
   try {
-    const response = await fetch(`${API_BASE_URL}/debates/message`, {
+    const response = await fetch(`${API_BASE_URL}/discussions/message`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ debateId, agentId, content, role }),
+      body: JSON.stringify({ discussionId, agentId, content, role }),
     });
 
     if (!response.ok) {
@@ -290,14 +290,14 @@ export async function postDiscussionMessage(
   }
 }
 
-export async function closeDiscussion(debateId: string): Promise<Discussion> {
+export async function closeDiscussion(discussionId: string): Promise<Discussion> {
   try {
-    const response = await fetch(`${API_BASE_URL}/debates/close`, {
+    const response = await fetch(`${API_BASE_URL}/discussions/close`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ debateId }),
+      body: JSON.stringify({ discussionId }),
     });
 
     if (!response.ok) {
@@ -312,92 +312,6 @@ export async function closeDiscussion(debateId: string): Promise<Discussion> {
     }
 
     const result: GetDiscussionResponse = await response.json();
-    return result.data;
-  } catch (error) {
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
-    }
-    throw error;
-  }
-}
-
-export interface Discussion {
-  id: string;
-  sectorId: string;
-  title: string;
-  agentIds: string[];
-  messages: Array<{
-    agentId: string;
-    content: string;
-    role: string;
-    createdAt: string;
-  }>;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface GetDiscussionsResponse {
-  success: boolean;
-  data: Discussion[];
-  error?: string;
-}
-
-export interface GetDiscussionResponse {
-  success: boolean;
-  data: Discussion;
-  error?: string;
-}
-
-export async function getDiscussions(sectorId?: string): Promise<Discussion[]> {
-  try {
-    const url = sectorId 
-      ? `${API_BASE_URL}/debates?sectorId=${sectorId}`
-      : `${API_BASE_URL}/debates`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Failed to fetch discussions';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = `Server returned ${response.status}: ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const result: GetDiscussionsResponse = await response.json();
-    return result.data;
-  } catch (error) {
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`);
-    }
-    throw error;
-  }
-}
-
-export async function getDiscussionById(id: string): Promise<Discussion> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/debates/${id}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      let errorMessage = `Failed to fetch discussion ${id}`;
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = `Server returned ${res.status}: ${res.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-    const result: GetDiscussionResponse = await res.json();
     return result.data;
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('fetch')) {
