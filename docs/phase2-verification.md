@@ -9,26 +9,28 @@
 
 ## 1. EXECUTIVE SUMMARY
 
-**Status: ⚠️ PHASE 2 PARTIAL**
+**Status: ❌ PHASE 2 FAIL**
 
-Phase 2 verification reveals significant architectural inconsistency: DiscussionRoom model and discussionStorage utilities exist but are not integrated into the system. The codebase still uses the legacy "debate" terminology throughout routes, ManagerAgent, and storage. Research system is fully functional, but discussion system integration is incomplete.
+Phase 2 verification reveals that the system has **not been migrated** from the "debate" architecture to the "discussion" architecture. The codebase still uses DebateRoom, debateStorage, and `/debates` routes throughout. DiscussionRoom model, discussionStorage utilities, and `/discussions` routes do not exist. Research system is fully functional, but the discussion system migration is incomplete.
 
 **Summary:**
-- ⚠️ **Discussion System:** 30% complete - DiscussionRoom model and discussionStorage exist but not used
+- ❌ **Discussion System:** 0% complete - DiscussionRoom model does not exist, system still uses DebateRoom
 - ✅ **Research System:** 100% complete - all three agents implemented and working
-- ⚠️ **ManagerAgent:** 40% complete - uses debates, missing startDiscussion/closeDiscussion methods
+- ⚠️ **ManagerAgent:** 30% complete - uses debates, missing startDiscussion/closeDiscussion methods, has import error
 - ❌ **Frontend Discussion UI:** 0% complete - no discussion pages or API functions
-- ✅ **Storage Layer:** 100% complete - all storage systems working correctly
+- ✅ **Storage Layer:** 100% complete - all storage systems working correctly (but using debates.json)
 - ❌ **Contract:** 0% complete - placeholder only (expected for Phase 2)
 
 **Critical Issues:**
-1. **Architectural Inconsistency:** DiscussionRoom model and discussionStorage exist but system still uses DebateRoom and debateStorage
-2. **ManagerAgent Missing Methods:** No `startDiscussion()` or `closeDiscussion()` methods (only `openDebate()` exists)
-3. **No Discussion Routes:** Routes still use `/debates` endpoints, no `/discussions` routes exist
-4. **Frontend Missing:** No discussion API functions, no discussion detail page, no discussions section in sector pages
-5. **Storage Mismatch:** discussions.json doesn't exist, only debates.json is used
+1. **No Discussion Architecture:** DiscussionRoom model does not exist; system still uses DebateRoom
+2. **No Discussion Storage:** discussionStorage utilities do not exist; system still uses debateStorage
+3. **No Discussion Routes:** `/discussions` routes do not exist; only `/debates` routes exist
+4. **ManagerAgent Import Error:** Incorrect import path (`../../storage/debatesStorage` should be `../../utils/debateStorage`)
+5. **Missing ManagerAgent Methods:** No `startDiscussion()` or `closeDiscussion()` methods (only `openDebate()` exists)
+6. **Frontend Missing:** No discussion API functions, no discussion detail page, no discussions section in sector pages
+7. **No Authorization:** Users can create/close debates directly (should be ManagerAgent-only)
 
-**Completion Score: 55%**
+**Completion Score: 35%**
 
 ---
 
@@ -36,31 +38,24 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### 2.1 Discussion System
 
-#### ⚠️ PARTIAL: DiscussionRoom Model
+#### ❌ FAIL: DiscussionRoom Model
 - **Location:** `backend/models/DiscussionRoom.js`
-- **Status:** Model exists but not used
+- **Status:** File does not exist
 - **Verification:**
-  - ✅ Constructor accepts: `constructor(sectorId, title, agentIds = [])`
-  - ✅ `addMessage()` method adds messages and updates timestamps
-  - ✅ `toJSON()` serialization method
-  - ✅ `static fromData()` deserialization method
-  - ✅ Proper UUID generation for IDs
-  - ✅ Status tracking (created, debating, closed, archived)
-  - ❌ **Issue:** Model exists but is not imported or used anywhere in the codebase
-  - ❌ **Issue:** System still uses DebateRoom model instead
+  - ❌ File does not exist
+  - ❌ System still uses DebateRoom model (`backend/models/DebateRoom.js`)
+  - **Impact:** Cannot use discussion architecture
+  - **Severity:** CRITICAL
 
 #### ❌ FAIL: Discussion Storage Integration
 - **Location:** `backend/utils/discussionStorage.js`
-- **Status:** Utilities exist but not used
+- **Status:** File does not exist
 - **Verification:**
-  - ✅ `loadDiscussions()` loads from `backend/storage/discussions.json`
-  - ✅ `saveDiscussions()` persists array to storage
-  - ✅ `saveDiscussion()` saves single discussion
-  - ✅ `findDiscussionById()` finds discussion by ID
-  - ✅ Handles missing files gracefully
-  - ❌ **Issue:** File exists but is not imported or used anywhere
-  - ❌ **Issue:** System still uses debateStorage instead
-  - ❌ **Issue:** `discussions.json` file doesn't exist in storage (only `debates.json` exists)
+  - ❌ File does not exist
+  - ❌ System still uses debateStorage (`backend/utils/debateStorage.js`)
+  - ❌ `discussions.json` file does not exist in storage (only `debates.json` exists)
+  - **Impact:** Cannot store discussions
+  - **Severity:** CRITICAL
 
 #### ❌ FAIL: Discussion API Routes
 - **Location:** `backend/routes/discussions.js`
@@ -70,6 +65,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - ❌ No `/discussions` endpoints registered
   - ❌ System still uses `/debates` routes
   - **Impact:** Cannot create, view, or manage discussions via API
+  - **Severity:** CRITICAL
 
 #### ⚠️ PARTIAL: Legacy Debate Routes (Still Active)
 - **Location:** `backend/routes/debates.js`
@@ -84,6 +80,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - ⚠️ **Issue:** Uses DebateRoom model instead of DiscussionRoom
   - ⚠️ **Issue:** Uses debateStorage instead of discussionStorage
   - ⚠️ **Issue:** Routes registered under `/debates` instead of `/discussions`
+  - ❌ **Issue:** No authorization checks - anyone can create/close debates
 
 #### ❌ FAIL: Discussion Routes Registration
 - **Location:** `backend/server.js:34`
@@ -104,6 +101,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - ❌ No `startDiscussion()` method found
   - ❌ Only `openDebate()` method exists (legacy)
   - **Impact:** ManagerAgent cannot start discussions using new architecture
+  - **Severity:** CRITICAL
 
 #### ❌ FAIL: closeDiscussion() Method
 - **Location:** `backend/agents/manager/ManagerAgent.js`
@@ -112,29 +110,34 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - ❌ No `closeDiscussion()` method found
   - ❌ No discussion closing logic exists
   - **Impact:** ManagerAgent cannot close discussions
+  - **Severity:** CRITICAL
 
 #### ⚠️ PARTIAL: openDebate() Method (Legacy)
 - **Location:** `backend/agents/manager/ManagerAgent.js:30-44`
-- **Status:** Exists but uses wrong architecture
+- **Status:** Exists but uses wrong architecture and has import error
 - **Verification:**
   - ✅ Creates DebateRoom instance correctly
   - ✅ Adds to `this.debates` array
   - ✅ Returns debate
-  - ⚠️ **Issue:** Uses DebateRoom instead of DiscussionRoom
-  - ⚠️ **Issue:** Uses debateStorage instead of discussionStorage
-  - ⚠️ **Issue:** Method name doesn't match new architecture
+  - ❌ **Issue:** Uses DebateRoom instead of DiscussionRoom
+  - ❌ **Issue:** Uses debateStorage instead of discussionStorage
+  - ❌ **Issue:** Method name doesn't match new architecture
+  - ❌ **Issue:** Import path is incorrect (`../../storage/debatesStorage` should be `../../utils/debateStorage`)
 
-#### ⚠️ PARTIAL: loadState() Method
-- **Location:** `backend/agents/manager/ManagerAgent.js:14-22`
-- **Status:** Uses wrong storage
+#### ❌ FAIL: loadState() Method - Import Error
+- **Location:** `backend/agents/manager/ManagerAgent.js:3,14-22`
+- **Status:** Has incorrect import path
 - **Verification:**
+  - ❌ **CRITICAL:** Line 3 imports from `../../storage/debatesStorage` but file is at `../../utils/debateStorage`
   - ✅ Calls `loadDebates()` (but should use `loadDiscussions()`)
   - ✅ Filters by `this.sectorId`
   - ✅ Converts to DebateRoom instances (but should use DiscussionRoom)
-  - ⚠️ **Issue:** Uses debateStorage instead of discussionStorage
+  - ❌ **Issue:** Uses debateStorage instead of discussionStorage
+  - **Impact:** ManagerAgent will fail to load due to import error
+  - **Severity:** CRITICAL
 
 #### ✅ PASS: getDebateSummary() Method
-- **Location:** `backend/agents/manager/ManagerAgent.js:62-91`
+- **Location:** `backend/agents/manager/ManagerAgent.js:60-89`
 - **Status:** Functional but uses wrong terminology
 - **Verification:**
   - ✅ Counts debates by status
@@ -144,7 +147,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - ⚠️ **Note:** Method name and logic use "debate" terminology
 
 #### ✅ PASS: getSummary() Method
-- **Location:** `backend/agents/manager/ManagerAgent.js:93-99`
+- **Location:** `backend/agents/manager/ManagerAgent.js:91-97`
 - **Status:** Fully functional
 - **Verification:**
   - ✅ Returns sectorId
@@ -156,7 +159,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 ### 2.3 ManagerAgent Higher-Order Logic
 
 #### ❌ FAIL: decisionLoop() Method
-- **Location:** `backend/agents/manager/ManagerAgent.js:54-56`
+- **Location:** `backend/agents/manager/ManagerAgent.js:52-54`
 - **Status:** Empty stub
 - **Verification:**
   - ❌ Method exists but is empty placeholder
@@ -164,7 +167,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - **Severity:** HIGH (Phase 2 requirement)
 
 #### ❌ FAIL: crossSectorComms() Method
-- **Location:** `backend/agents/manager/ManagerAgent.js:58-60`
+- **Location:** `backend/agents/manager/ManagerAgent.js:56-58`
 - **Status:** Empty stub
 - **Verification:**
   - ❌ Method exists but is empty placeholder
@@ -172,7 +175,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - **Severity:** HIGH (Phase 2 requirement)
 
 #### ⚠️ PARTIAL: addAgent() and removeAgent() Methods
-- **Location:** `backend/agents/manager/ManagerAgent.js:46-52`
+- **Location:** `backend/agents/manager/ManagerAgent.js:44-50`
 - **Status:** Empty stubs (acceptable for Phase 2)
 - **Verification:**
   - ✅ Methods exist
@@ -189,7 +192,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - ❌ No checks to prevent users from creating discussions
   - ❌ No checks to prevent users from closing discussions
   - ❌ All endpoints are publicly accessible
-  - **Impact:** Users can create/close discussions directly (should be ManagerAgent-only)
+  - **Impact:** Users can create/close debates directly (should be ManagerAgent-only)
   - **Severity:** HIGH
 
 ---
@@ -263,12 +266,12 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### 2.6 Storage Layer Integrity
 
-#### ⚠️ PARTIAL: Discussion Storage File
+#### ❌ FAIL: Discussion Storage File
 - **Location:** `backend/storage/discussions.json`
 - **Status:** File does not exist
 - **Verification:**
   - ❌ File does not exist in storage directory
-  - ⚠️ **Note:** discussionStorage.js would create it on first use, but it's never called
+  - ❌ Only `debates.json` exists
 
 #### ✅ PASS: Debate Storage File (Legacy)
 - **Location:** `backend/storage/debates.json`
@@ -298,12 +301,12 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
   - `backend/utils/storage.js` (sectors)
   - `backend/utils/agentStorage.js` (agents)
   - `backend/utils/debateStorage.js` (debates - legacy)
-  - `backend/utils/discussionStorage.js` (discussions - unused)
 - **Status:** All utilities functional
 - **Verification:**
   - ✅ All utilities handle missing files gracefully
   - ✅ All utilities create directories if needed
   - ✅ All utilities use proper async/await patterns
+  - ❌ **Note:** `discussionStorage.js` does not exist
 
 ---
 
@@ -470,22 +473,22 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 | Category | Weight | Score | Weighted Score |
 |----------|--------|-------|----------------|
-| Discussion System | 30% | 30% | 9.00% |
+| Discussion System | 30% | 0% | 0.00% |
 | Research System | 20% | 100% | 20.00% |
-| ManagerAgent Logic | 25% | 40% | 10.00% |
+| ManagerAgent Logic | 25% | 30% | 7.50% |
 | Frontend Discussion UI | 20% | 0% | 0.00% |
 | Storage & Infrastructure | 5% | 100% | 5.00% |
-| **TOTAL** | **100%** | - | **44.00%** |
+| **TOTAL** | **100%** | - | **32.50%** |
 
-**Adjusted Score (accounting for architectural inconsistency): 55%**
+**Adjusted Score (accounting for critical import error): 35%**
 
 **Reasoning:**
-- Discussion system has DiscussionRoom model and discussionStorage but they're not integrated (30% complete)
+- Discussion system does not exist - no DiscussionRoom model, no discussionStorage, no discussion routes (0% complete)
 - Research system is fully functional (100% complete)
-- ManagerAgent uses legacy debate architecture and missing startDiscussion/closeDiscussion methods (40% complete)
+- ManagerAgent uses legacy debate architecture, missing startDiscussion/closeDiscussion methods, and has critical import error (30% complete)
 - Frontend discussion UI is completely missing (0% complete)
 - Storage layer works but uses wrong files (debates.json instead of discussions.json)
-- Critical architectural inconsistency: DiscussionRoom exists but system uses DebateRoom
+- Critical import error in ManagerAgent prevents it from loading correctly
 
 ---
 
@@ -493,57 +496,65 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### Critical Issues Preventing 100% Completion
 
-1. **Architectural Inconsistency - DiscussionRoom Not Integrated**
+1. **No Discussion Architecture Implementation**
    - **Files:** 
-     - `backend/models/DiscussionRoom.js` (exists but unused)
-     - `backend/utils/discussionStorage.js` (exists but unused)
-   - **Issue:** DiscussionRoom model and discussionStorage utilities exist but are not used anywhere
-   - **Current State:** System still uses DebateRoom and debateStorage throughout
-   - **Impact:** New architecture not implemented despite files existing
+     - `backend/models/DiscussionRoom.js` (does not exist)
+     - `backend/utils/discussionStorage.js` (does not exist)
+     - `backend/routes/discussions.js` (does not exist)
+   - **Issue:** DiscussionRoom model, discussionStorage utilities, and discussion routes do not exist
+   - **Current State:** System still uses DebateRoom, debateStorage, and `/debates` routes throughout
+   - **Impact:** Cannot use discussion architecture
    - **Severity:** CRITICAL
 
-2. **Missing Discussion API Routes**
+2. **ManagerAgent Import Error**
+   - **File:** `backend/agents/manager/ManagerAgent.js:3`
+   - **Issue:** Imports from `../../storage/debatesStorage` but file is at `../../utils/debateStorage`
+   - **Current State:** ManagerAgent will fail to load due to incorrect import path
+   - **Impact:** ManagerAgent cannot function
+   - **Severity:** CRITICAL
+
+3. **Missing Discussion API Routes**
    - **File:** `backend/routes/discussions.js`
    - **Issue:** File does not exist, no `/discussions` endpoints
    - **Current State:** Only `/debates` routes exist
    - **Impact:** Cannot create, view, or manage discussions via API
    - **Severity:** CRITICAL
 
-3. **ManagerAgent Missing Discussion Methods**
+4. **ManagerAgent Missing Discussion Methods**
    - **File:** `backend/agents/manager/ManagerAgent.js`
    - **Issue:** No `startDiscussion()` or `closeDiscussion()` methods
    - **Current State:** Only `openDebate()` method exists (legacy)
    - **Impact:** ManagerAgent cannot start or close discussions
    - **Severity:** CRITICAL
 
-4. **Missing Frontend Discussion API Functions**
+5. **Missing Frontend Discussion API Functions**
    - **File:** `frontend/lib/api.ts`
    - **Issue:** No discussion-related API functions
    - **Impact:** Frontend cannot fetch discussion data from backend
    - **Severity:** CRITICAL
 
-5. **Missing Discussion Detail Page**
+6. **Missing Discussion Detail Page**
    - **File:** `frontend/app/discussions/[id]/page.tsx`
    - **Issue:** File does not exist
    - **Impact:** Users cannot view individual discussions
    - **Severity:** CRITICAL
 
-6. **Missing Discussions Section in Sector Detail Page**
+7. **Missing Discussions Section in Sector Detail Page**
    - **File:** `frontend/app/sectors/[id]/page.tsx`
    - **Issue:** No discussions section displayed
    - **Impact:** Users cannot see discussions for a sector
    - **Severity:** CRITICAL
 
-7. **No Manager-Only Authorization**
+8. **No Manager-Only Authorization**
    - **File:** `backend/routes/debates.js` (or future `discussions.js`)
    - **Issue:** No authorization checks to prevent users from creating/closing discussions
-   - **Impact:** Users can directly create/close discussions (should be ManagerAgent-only)
+   - **Impact:** Users can directly create/close debates (should be ManagerAgent-only)
    - **Severity:** HIGH
 
-8. **ManagerAgent Higher-Order Logic Stubbed**
+9. **ManagerAgent Higher-Order Logic Stubbed**
    - **Files:** 
-     - `backend/agents/manager/ManagerAgent.js:54-56` (decisionLoop)
-     - `backend/agents/manager/ManagerAgent.js:58-60` (crossSectorComms)
+     - `backend/agents/manager/ManagerAgent.js:52-54` (decisionLoop)
+     - `backend/agents/manager/ManagerAgent.js:56-58` (crossSectorComms)
    - **Issue:** Methods are empty stubs
    - **Impact:** ManagerAgent cannot make autonomous decisions or communicate across sectors
    - **Severity:** HIGH (Phase 2 requirement)
@@ -554,16 +565,34 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### Must Fix (Blocking Phase 3)
 
-1. **Integrate DiscussionRoom Architecture**
+1. **Fix ManagerAgent Import Error**
    - **Priority:** CRITICAL
-   - **Action:** 
-     - Replace all DebateRoom references with DiscussionRoom
-     - Replace all debateStorage references with discussionStorage
-     - Update routes to use DiscussionRoom and discussionStorage
-     - Update ManagerAgent to use DiscussionRoom and discussionStorage
-   - **Impact:** Enables new discussion architecture
+   - **File:** `backend/agents/manager/ManagerAgent.js:3`
+   - **Action:** Change import from `require('../../storage/debatesStorage')` to `require('../../utils/debateStorage')`
+   - **Impact:** Enables ManagerAgent to load correctly
 
-2. **Create Discussion API Routes**
+2. **Create DiscussionRoom Model**
+   - **Priority:** CRITICAL
+   - **File:** `backend/models/DiscussionRoom.js` (create new)
+   - **Action:** Implement DiscussionRoom class with:
+     - Constructor: `constructor(sectorId, title, agentIds = [])`
+     - `addMessage(message)` method
+     - `toJSON()` serialization method
+     - `static fromData(data)` deserialization method
+     - Status tracking (created, discussing, closed, archived)
+   - **Impact:** Enables discussion architecture
+
+3. **Create Discussion Storage Utilities**
+   - **Priority:** CRITICAL
+   - **File:** `backend/utils/discussionStorage.js` (create new)
+   - **Action:** Implement storage utilities:
+     - `loadDiscussions()` - loads from `backend/storage/discussions.json`
+     - `saveDiscussions(discussions)` - saves array to storage
+     - `saveDiscussion(discussion)` - saves single discussion
+     - `findDiscussionById(id)` - finds discussion by ID
+   - **Impact:** Enables discussion persistence
+
+4. **Create Discussion API Routes**
    - **Priority:** CRITICAL
    - **File:** `backend/routes/discussions.js` (create new)
    - **Action:** Implement discussion routes:
@@ -574,7 +603,13 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
      - GET `/discussions/:id` - Get single discussion
    - **Impact:** Enables discussion management via API
 
-3. **Implement ManagerAgent Discussion Methods**
+5. **Register Discussion Routes in Server**
+   - **Priority:** CRITICAL
+   - **File:** `backend/server.js`
+   - **Action:** Register discussion routes under `/discussions` prefix
+   - **Impact:** Makes discussion endpoints available
+
+6. **Implement ManagerAgent Discussion Methods**
    - **Priority:** CRITICAL
    - **File:** `backend/agents/manager/ManagerAgent.js`
    - **Action:** 
@@ -582,9 +617,11 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
      - Add `closeDiscussion(discussionId)` method
      - Update `loadState()` to use `loadDiscussions()` and DiscussionRoom
      - Update `getDebateSummary()` to `getDiscussionSummary()` (or keep both for compatibility)
+     - Replace DebateRoom imports with DiscussionRoom
+     - Replace debateStorage imports with discussionStorage
    - **Impact:** Enables ManagerAgent to manage discussions
 
-4. **Add Manager-Only Authorization**
+7. **Add Manager-Only Authorization**
    - **Priority:** HIGH
    - **File:** `backend/routes/discussions.js`
    - **Action:** Add authorization checks to:
@@ -592,7 +629,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
      - POST `/discussions/close` - Only ManagerAgent can close
    - **Impact:** Prevents users from creating/closing discussions directly
 
-5. **Implement Frontend Discussion API Functions**
+8. **Implement Frontend Discussion API Functions**
    - **Priority:** CRITICAL
    - **File:** `frontend/lib/api.ts`
    - **Action:** Add:
@@ -603,7 +640,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
      - `Discussion` interface type definition
    - **Impact:** Enables frontend to fetch discussion data
 
-6. **Create Discussion Detail Page**
+9. **Create Discussion Detail Page**
    - **Priority:** CRITICAL
    - **File:** `frontend/app/discussions/[id]/page.tsx` (create new)
    - **Action:** Implement discussion detail page with:
@@ -614,41 +651,35 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
      - Proper loading and error states
    - **Impact:** Enables users to view individual discussions
 
-7. **Add Discussions Section to Sector Detail Page**
-   - **Priority:** CRITICAL
-   - **File:** `frontend/app/sectors/[id]/page.tsx`
-   - **Action:** Add discussions section that:
-     - Fetches discussions using `getDiscussions(sectorId)`
-     - Displays discussion list with title, status, timestamps
-     - Links to discussion detail pages
-   - **Impact:** Enables users to see discussions for a sector
+10. **Add Discussions Section to Sector Detail Page**
+    - **Priority:** CRITICAL
+    - **File:** `frontend/app/sectors/[id]/page.tsx`
+    - **Action:** Add discussions section that:
+      - Fetches discussions using `getDiscussions(sectorId)`
+      - Displays discussion list with title, status, timestamps
+      - Links to discussion detail pages
+    - **Impact:** Enables users to see discussions for a sector
 
-8. **Add Discussions Navigation Link**
-   - **Priority:** MEDIUM
-   - **File:** `frontend/app/components/Navigation.tsx`
-   - **Action:** Add "Discussions" link to navigation
-   - **Impact:** Improves navigation to discussions
-
-9. **Register Discussion Routes in Server**
-   - **Priority:** CRITICAL
-   - **File:** `backend/server.js`
-   - **Action:** Register discussion routes under `/discussions` prefix
-   - **Impact:** Makes discussion endpoints available
+11. **Add Discussions Navigation Link**
+    - **Priority:** MEDIUM
+    - **File:** `frontend/app/components/Navigation.tsx`
+    - **Action:** Add "Discussions" link to navigation
+    - **Impact:** Improves navigation to discussions
 
 ### Should Implement (Phase 2 Completion)
 
-10. **Implement ManagerAgent decisionLoop()**
+12. **Implement ManagerAgent decisionLoop()**
     - **Priority:** HIGH
-    - **File:** `backend/agents/manager/ManagerAgent.js:54-56`
+    - **File:** `backend/agents/manager/ManagerAgent.js:52-54`
     - **Action:** Implement basic decision-making logic
     - **Requirements:**
       - Analyze discussion statuses
       - Decide when to start/close discussions
       - Coordinate agent participation
 
-11. **Implement ManagerAgent crossSectorComms()**
+13. **Implement ManagerAgent crossSectorComms()**
     - **Priority:** HIGH
-    - **File:** `backend/agents/manager/ManagerAgent.js:58-60`
+    - **File:** `backend/agents/manager/ManagerAgent.js:56-58`
     - **Action:** Implement cross-sector communication logic
     - **Requirements:**
       - Communicate with other ManagerAgents
@@ -657,13 +688,13 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### Optional Improvements
 
-12. **Implement addAgent() and removeAgent() Methods**
+14. **Implement addAgent() and removeAgent() Methods**
     - **Priority:** MEDIUM
-    - **File:** `backend/agents/manager/ManagerAgent.js:46-52`
+    - **File:** `backend/agents/manager/ManagerAgent.js:44-50`
     - **Action:** Implement agent management logic
     - **Note:** Currently stubbed, may be needed for Phase 3
 
-13. **Migrate Storage from debates.json to discussions.json**
+15. **Migrate Storage from debates.json to discussions.json**
     - **Priority:** LOW
     - **Action:** Create migration script to move data from debates.json to discussions.json
     - **Note:** Only needed if existing debate data should be preserved
@@ -684,7 +715,6 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
    - Sector storage utilities
    - Agent storage utilities
    - Debate storage utilities (legacy, still in use)
-   - Discussion storage utilities (exists but unused)
    - All utilities handle edge cases
 
 3. **Legacy Debate API Endpoints (Backend)**
@@ -695,6 +725,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
    - GET `/debates` - List debates with filtering
    - GET `/debates/:id` - Get single debate
    - ⚠️ **Note:** Uses DebateRoom and debateStorage (legacy architecture)
+   - ⚠️ **Note:** No authorization checks
 
 4. **Dark Mode System**
    - Global dark mode enforcement
@@ -708,31 +739,21 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### ⚠️ Partially Working
 
-1. **Discussion System Architecture**
-   - **Status:** Files exist but not integrated
-   - **Working:**
-     - DiscussionRoom model exists and is complete
-     - discussionStorage utilities exist and are complete
-   - **Broken:**
-     - DiscussionRoom not used anywhere
-     - discussionStorage not used anywhere
-     - System still uses DebateRoom and debateStorage
-   - **Completion:** 30% (architecture exists but not integrated)
-
-2. **ManagerAgent Basic Operations**
-   - **Status:** Uses legacy architecture
+1. **ManagerAgent Basic Operations**
+   - **Status:** Uses legacy architecture and has import error
    - **Working:**
      - `getDebateSummary()` - calculates summary correctly
      - `getSummary()` - returns summary correctly
      - `openDebate()` - creates debates (but uses DebateRoom)
    - **Broken:**
+     - ❌ **CRITICAL:** Import path is incorrect (will fail to load)
      - No `startDiscussion()` method
      - No `closeDiscussion()` method
      - Uses DebateRoom instead of DiscussionRoom
      - Uses debateStorage instead of discussionStorage
-   - **Completion:** 40% (functional but wrong architecture)
+   - **Completion:** 30% (functional but wrong architecture and has critical error)
 
-3. **ManagerAgent Higher-Order Logic**
+2. **ManagerAgent Higher-Order Logic**
    - **Status:** Methods exist but are stubbed
    - **Stubbed:**
      - `decisionLoop()` - empty placeholder
@@ -741,9 +762,11 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ### ❌ Not Started
 
-1. **Discussion API Routes**
+1. **Discussion System Architecture**
    - **Status:** Completely missing
    - **Missing:**
+     - `backend/models/DiscussionRoom.js` file
+     - `backend/utils/discussionStorage.js` file
      - `backend/routes/discussions.js` file
      - All `/discussions` endpoints
      - Route registration in server.js
@@ -757,7 +780,7 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
      - Discussions list page (`frontend/app/discussions/page.tsx`)
      - Discussions section in sector detail page
      - Discussions navigation link
-   - **Note:** Backend discussion architecture exists but frontend needs full implementation
+   - **Note:** Backend discussion architecture needs to be created first
 
 3. **Manager-Only Authorization**
    - **Status:** Not implemented
@@ -775,27 +798,29 @@ Phase 2 verification reveals significant architectural inconsistency: Discussion
 
 ## Summary
 
-Phase 2 verification reveals a system in architectural transition: DiscussionRoom model and discussionStorage utilities exist and are complete, but they are not integrated into the system. The codebase still uses the legacy "debate" terminology throughout routes, ManagerAgent, and storage.
+Phase 2 verification reveals that the system has **not been migrated** from the "debate" architecture to the "discussion" architecture. The DiscussionRoom model, discussionStorage utilities, and `/discussions` routes do not exist. The codebase still uses DebateRoom, debateStorage, and `/debates` routes throughout.
 
 **Key Findings:**
-1. **Architectural Inconsistency:** DiscussionRoom and discussionStorage exist but are unused; system still uses DebateRoom and debateStorage
-2. **Missing Discussion Routes:** No `/discussions` endpoints exist; only legacy `/debates` routes
-3. **ManagerAgent Incomplete:** Missing `startDiscussion()` and `closeDiscussion()` methods
-4. **Frontend Missing:** No discussion UI components, API functions, or pages
-5. **Research System Complete:** All three research agents fully functional
-6. **No Authorization:** Users can create/close discussions directly (should be ManagerAgent-only)
+1. **No Discussion Architecture:** DiscussionRoom model, discussionStorage utilities, and discussion routes do not exist
+2. **ManagerAgent Import Error:** Critical import path error prevents ManagerAgent from loading
+3. **Missing Discussion Routes:** No `/discussions` endpoints exist; only legacy `/debates` routes
+4. **ManagerAgent Incomplete:** Missing `startDiscussion()` and `closeDiscussion()` methods
+5. **Frontend Missing:** No discussion UI components, API functions, or pages
+6. **Research System Complete:** All three research agents fully functional
+7. **No Authorization:** Users can create/close debates directly (should be ManagerAgent-only)
 
-**Completion Score: 55%**
+**Completion Score: 35%**
 
 **Recommendation:** 
-1. Integrate DiscussionRoom architecture throughout the system (replace DebateRoom references)
-2. Create discussion API routes (`/discussions` endpoints)
-3. Implement ManagerAgent discussion methods (`startDiscussion`, `closeDiscussion`)
-4. Add manager-only authorization checks
-5. Implement frontend discussion UI (API functions, detail page, sector integration)
-6. Implement ManagerAgent higher-order logic to reach Phase 2 completion
+1. **IMMEDIATE:** Fix ManagerAgent import error to prevent runtime failure
+2. Create DiscussionRoom model and discussionStorage utilities
+3. Create discussion API routes (`/discussions` endpoints)
+4. Implement ManagerAgent discussion methods (`startDiscussion`, `closeDiscussion`)
+5. Add manager-only authorization checks
+6. Implement frontend discussion UI (API functions, detail page, sector integration)
+7. Implement ManagerAgent higher-order logic to reach Phase 2 completion
 
-The foundation for the discussion system exists but requires integration work to complete Phase 2.
+The system requires a complete migration from the debate architecture to the discussion architecture before Phase 2 can be considered complete.
 
 ---
 
