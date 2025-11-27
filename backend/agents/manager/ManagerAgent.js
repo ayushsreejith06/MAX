@@ -1,7 +1,7 @@
 // ManagerAgent.js - Base class stub
 
-const { loadDebates, saveDebates } = require('../../utils/debateStorage');
-const DebateRoom = require('../../models/DebateRoom');
+const { loadDiscussions, saveDiscussion } = require('../../utils/discussionStorage');
+const DiscussionRoom = require('../../models/DiscussionRoom');
 
 class ManagerAgent {
   constructor(sectorId) {
@@ -12,30 +12,32 @@ class ManagerAgent {
   }
 
   async loadState() {
-    // Load all discussions from debateStorage
-    const allDiscussions = await loadDebates();
+    // Load all discussions from discussionStorage
+    const allDiscussions = await loadDiscussions();
     
-    // Filter by this.sectorId and convert to DebateRoom instances
+    // Filter by this.sectorId and convert to DiscussionRoom instances
     this.discussions = allDiscussions
       .filter(discussion => discussion.sectorId === this.sectorId)
-      .map(discussion => DebateRoom.fromData(discussion));
+      .map(discussion => DiscussionRoom.fromData(discussion));
   }
 
   saveState() {
     // Future hook for saving state
-    // For now, discussions are saved individually via saveDebates() in startDiscussion()
+    // For now, discussions are saved individually via saveDiscussion() in startDiscussion()
     // This method can be extended to save aggregated state if needed
   }
 
   async startDiscussion(title, agentIds) {
-    // Create a new DebateRoom for this.sectorId
+    // Create a new DiscussionRoom for this.sectorId
     // Only ManagerAgent can call this method - users cannot start discussions
-    const discussion = new DebateRoom(this.sectorId, title, agentIds);
+    const discussion = new DiscussionRoom({
+      sectorId: this.sectorId,
+      title,
+      agentIds
+    });
     
-    // Load all discussions, add the new one, and save
-    const allDiscussions = await loadDebates();
-    allDiscussions.push(discussion.toJSON());
-    await saveDebates(allDiscussions);
+    // Save it via discussionStorage
+    await saveDiscussion(discussion);
     
     // Add to this.discussions
     this.discussions.push(discussion);
@@ -47,21 +49,19 @@ class ManagerAgent {
   async closeDiscussion(discussionId) {
     // Close a discussion by ID
     // Only ManagerAgent can call this method
-    const allDiscussions = await loadDebates();
-    const discussionIndex = allDiscussions.findIndex(d => d.id === discussionId);
+    const allDiscussions = await loadDiscussions();
+    const discussionData = allDiscussions.find(d => d.id === discussionId);
 
-    if (discussionIndex === -1) {
+    if (!discussionData) {
       throw new Error(`Discussion with ID ${discussionId} not found`);
     }
 
-    const discussionData = allDiscussions[discussionIndex];
-    const discussionRoom = DebateRoom.fromData(discussionData);
-
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
     discussionRoom.status = 'closed';
     discussionRoom.updatedAt = new Date().toISOString();
 
-    allDiscussions[discussionIndex] = discussionRoom.toJSON();
-    await saveDebates(allDiscussions);
+    // Save the updated discussion
+    await saveDiscussion(discussionRoom);
 
     // Update local state
     const localIndex = this.discussions.findIndex(d => d.id === discussionId);
