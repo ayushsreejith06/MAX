@@ -30,7 +30,7 @@ module.exports = async (fastify) => {
         log(`GET /discussions - Fetching all discussions`);
       }
 
-      let discussions = await loadDebates();
+      let discussions = await loadDiscussions();
 
       // Filter by sectorId if provided
       if (sectorId) {
@@ -66,7 +66,7 @@ module.exports = async (fastify) => {
       const { id } = request.params;
       log(`GET /discussions/${id} - Fetching discussion by ID`);
 
-      const discussions = await loadDebates();
+      const discussions = await loadDiscussions();
       const discussion = discussions.find(d => d.id === id);
 
       if (!discussion) {
@@ -109,7 +109,7 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/message - Adding message to discussion: ${debateId}`);
 
-      const discussions = await loadDebates();
+      const discussions = await loadDiscussions();
       const discussionIndex = discussions.findIndex(d => d.id === debateId);
 
       if (discussionIndex === -1) {
@@ -167,7 +167,7 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/close - Closing discussion: ${debateId}`);
 
-      const discussions = await loadDebates();
+      const discussions = await loadDiscussions();
       const discussionIndex = discussions.findIndex(d => d.id === debateId);
 
       if (discussionIndex === -1) {
