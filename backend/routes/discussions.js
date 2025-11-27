@@ -132,7 +132,7 @@ module.exports = async (fastify) => {
 
       // Update the discussion in the array
       discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      await saveDiscussions(discussions);
 
       log(`Message added successfully to discussion: ${debateId}`);
 
@@ -184,7 +184,7 @@ module.exports = async (fastify) => {
       discussionRoom.updatedAt = new Date().toISOString();
 
       discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      await saveDiscussions(discussions);
 
       log(`Discussion closed successfully: ${debateId}`);
 
