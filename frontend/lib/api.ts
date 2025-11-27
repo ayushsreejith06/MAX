@@ -255,7 +255,7 @@ export async function getDiscussionById(id: string): Promise<Discussion> {
 }
 
 export async function postDiscussionMessage(
-  discussionId: string,
+  debateId: string,
   agentId: string,
   content: string,
   role: string
@@ -265,8 +265,9 @@ export async function postDiscussionMessage(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-manager': 'true',
       },
-      body: JSON.stringify({ discussionId, agentId, content, role }),
+      body: JSON.stringify({ debateId, agentId, content, role }),
     });
 
     if (!response.ok) {
@@ -290,14 +291,15 @@ export async function postDiscussionMessage(
   }
 }
 
-export async function closeDiscussion(discussionId: string): Promise<Discussion> {
+export async function closeDiscussion(debateId: string): Promise<Discussion> {
   try {
     const response = await fetch(`${API_BASE_URL}/discussions/close`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-manager': 'true',
       },
-      body: JSON.stringify({ discussionId }),
+      body: JSON.stringify({ debateId }),
     });
 
     if (!response.ok) {
