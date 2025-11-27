@@ -1,7 +1,7 @@
 {
   "name": "max-backend",
   "version": "1.0.0",
-  "description": "MAX Backend API - Managing sectors, agents, debate rooms, simulation engine, and smart contract interactions",
+  "description": "MAX Backend API - Managing sectors, agents, discussion rooms, simulation engine, and smart contract interactions",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
