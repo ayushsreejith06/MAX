@@ -13,7 +13,7 @@ interface LineChartProps {
 export default function LineChart({
   data,
   height = 300,
-  color = '#3b82f6',
+  color = '#7FB069',
   showGrid = true,
 }: LineChartProps) {
   const { path, minValue, maxValue, width } = useMemo(() => {
@@ -52,7 +52,7 @@ export default function LineChart({
   if (!data || data.length === 0) {
     return (
       <div
-        className="flex items-center justify-center bg-gray-800 rounded-lg"
+        className="flex items-center justify-center bg-card rounded-lg border border-card"
         style={{ height }}
       >
         <p className="text-gray-400">No chart data available</p>
@@ -61,7 +61,7 @@ export default function LineChart({
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4">
+    <div className="bg-card border border-card rounded-lg p-4 shadow-dark-md">
       <svg
         width="100%"
         height={height}
@@ -70,7 +70,7 @@ export default function LineChart({
       >
         {/* Grid lines */}
         {showGrid && (
-          <g stroke="#374151" strokeWidth="1" strokeDasharray="2,2">
+          <g stroke="#262730" strokeWidth="1" strokeDasharray="2,2">
             {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
               const y = 20 + (height - 40) * (1 - ratio);
               return (
@@ -108,8 +108,28 @@ export default function LineChart({
           strokeLinejoin="round"
         />
 
+        {/* Data points */}
+        {data.map((point, index) => {
+          const x = padding + (index / (data.length - 1 || 1)) * (width - padding * 2);
+          const y =
+            padding +
+            (height - padding * 2) -
+            ((point.value - minValue) / (maxValue - minValue || 1)) * (height - padding * 2);
+          return (
+            <circle
+              key={index}
+              cx={x}
+              cy={y}
+              r="4"
+              fill="#FFF8F0"
+              stroke={color}
+              strokeWidth="2"
+            />
+          );
+        })}
+
         {/* Value labels */}
-        <g fill="#9ca3af" fontSize="10" textAnchor="end">
+        <g fill="#FFF8F0" fontSize="10" textAnchor="end" opacity="0.6">
           <text x={width - 25} y="15">
             {maxValue.toFixed(2)}
           </text>

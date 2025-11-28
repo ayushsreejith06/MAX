@@ -18,14 +18,14 @@ export default function LineChart({
   data,
   width = 400,
   height = 200,
-  color = '#3b82f6',
+  color = '#7FB069',
   showGrid = true,
   label,
 }: LineChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-800/50 rounded-lg border border-gray-700">
-        <p className="text-gray-400">No data available</p>
+          <p className="text-primary-text/60">No data available</p>
       </div>
     );
   }
@@ -56,8 +56,8 @@ export default function LineChart({
 
   return (
     <div className="w-full">
-      {label && (
-        <h3 className="text-sm font-medium text-gray-400 mb-2">{label}</h3>
+        {label && (
+        <h3 className="text-sm font-medium text-primary-text/60 mb-2">{label}</h3>
       )}
       <svg
         width={width}
@@ -67,7 +67,7 @@ export default function LineChart({
       >
         {/* Grid lines */}
         {showGrid && (
-          <g stroke="#374151" strokeWidth="1" strokeDasharray="2,2">
+          <g stroke="#262730" strokeWidth="1" strokeDasharray="2,2">
             {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
               const y = padding + chartHeight - ratio * chartHeight;
               return (
@@ -114,15 +114,17 @@ export default function LineChart({
             key={index}
             cx={point.x}
             cy={point.y}
-            r="3"
-            fill={color}
-            className="hover:r-4 transition-all"
+            r="4"
+            fill="#FFF8F0"
+            stroke={color}
+            strokeWidth="2"
+            className="hover:r-5 transition-all"
           />
         ))}
 
         {/* Y-axis labels */}
         {showGrid && (
-          <g fill="#9ca3af" fontSize="10" textAnchor="end">
+          <g fill="#FFF8F0" fontSize="10" textAnchor="end" opacity="0.6">
             {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
               const value = min + (1 - ratio) * range;
               const y = padding + chartHeight - ratio * chartHeight;
