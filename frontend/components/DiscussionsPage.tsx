@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Discussion, Sector } from '@/lib/types';
 import { fetchDiscussions, fetchSectors } from '@/lib/api';
 
@@ -84,6 +85,7 @@ function TerminalView({ discussion, sectorSymbol }: TerminalViewProps) {
 export default function DiscussionsPage() {
   type DiscussionWithSector = Discussion & { sectorSymbol: string; sectorName: string };
 
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_progress' | 'accepted' | 'rejected'>('all');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
   const [expandedDiscussion, setExpandedDiscussion] = useState<string | null>(null);
@@ -285,7 +287,12 @@ export default function DiscussionsPage() {
                   return (
                     <React.Fragment key={discussion.id}>
                       <tr
-                        onClick={() => setExpandedDiscussion(isExpanded ? null : discussion.id)}
+                        onClick={(e) => {
+                          // If clicking on the row (not a button), navigate to detail page
+                          if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+                            router.push(`/discussions/${discussion.id}`);
+                          }
+                        }}
                         className="cursor-pointer transition-colors border-b border-ink-500 bg-pure-black/80 hover:bg-ink-600/70"
                       >
                         <td className="px-4 py-3 border border-ink-500">
