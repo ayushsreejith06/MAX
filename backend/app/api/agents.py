@@ -66,6 +66,19 @@ async def get_agents(
             except ValueError:
                 agent_status = AgentStatus.IDLE
             
+            # Generate performance history (last 30 days of performance data)
+            # If performanceHistory exists in data, use it; otherwise generate mock data
+            performance_history = agent_data.get("performanceHistory", [])
+            if not performance_history:
+                # Generate mock performance history based on current performance
+                import random
+                current_perf = agent_data.get("performance", 0.0)
+                performance_history = []
+                for i in range(30):
+                    # Random walk around current performance
+                    perf_value = current_perf + random.uniform(-2.0, 2.0)
+                    performance_history.append(round(perf_value, 2))
+            
             agent = AgentRead(
                 id=agent_data.get("id"),
                 name=agent_data.get("name", agent_data.get("role", "Unknown")),
@@ -78,6 +91,7 @@ async def get_agents(
                 createdAt=agent_data.get("createdAt", ""),
                 sectorName=sector.get("name") if sector else None,
                 sectorSymbol=sector_symbol,
+                performanceHistory=performance_history,
             )
             agents_list.append(agent)
         
