@@ -10,16 +10,16 @@ interface AgentSidebarProps {
 export function AgentSidebar({ agents }: AgentSidebarProps) {
   if (agents.length === 0) {
     return (
-      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-400 mb-2">Participants</h3>
-        <p className="text-xs text-gray-500">No agents in this discussion</p>
+      <div className="bg-card border border-card rounded-lg p-4 shadow-dark-md">
+        <h3 className="text-sm font-semibold text-primary-text/60 mb-2">Participants</h3>
+        <p className="text-xs text-primary-text/40">No agents in this discussion</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-      <h3 className="text-sm font-semibold text-white mb-4">Participants ({agents.length})</h3>
+    <div className="bg-card border border-card rounded-lg p-4 shadow-dark-md">
+      <h3 className="text-sm font-semibold text-primary-text mb-4">Participants ({agents.length})</h3>
       <div className="space-y-3">
         {agents.map((agent) => {
           const initials = getInitials(agent.name);
@@ -27,18 +27,18 @@ export function AgentSidebar({ agents }: AgentSidebarProps) {
           
           return (
             <div key={agent.id} className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-semibold text-xs shadow-md flex-shrink-0`}>
+              <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-primary-text font-semibold text-xs shadow-dark-md flex-shrink-0`}>
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white truncate">{agent.name}</div>
-                <div className="text-xs text-gray-400 truncate">{agent.role}</div>
+                <div className="text-sm font-medium text-primary-text truncate">{agent.name}</div>
+                <div className="text-xs text-primary-text/60 truncate">{agent.role}</div>
               </div>
               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                agent.status === 'active' ? 'bg-green-500' :
+                agent.status === 'active' ? 'bg-up-trend' :
                 agent.status === 'idle' ? 'bg-yellow-500' :
-                agent.status === 'processing' ? 'bg-blue-500' :
-                'bg-gray-500'
+                agent.status === 'processing' ? 'bg-accent' :
+                'bg-primary-text/40'
               }`} title={agent.status} />
             </div>
           );

@@ -24,7 +24,7 @@ export default function LineChart({
 }: LineChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-800/50 rounded-lg border border-gray-700">
+      <div className="flex items-center justify-center h-full bg-card rounded-lg border border-card">
           <p className="text-primary-text/60">No data available</p>
       </div>
     );

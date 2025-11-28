@@ -13,9 +13,9 @@ interface StatusBadgeProps {
 
 const statusConfig = {
   active: {
-    bg: 'bg-green-500/20',
-    text: 'text-green-300',
-    border: 'border-green-500/50',
+    bg: 'bg-up-trend/20',
+    text: 'text-up-trend',
+    border: 'border-up-trend/50',
     label: 'Active',
   },
   idle: {
@@ -25,15 +25,15 @@ const statusConfig = {
     label: 'Idle',
   },
   processing: {
-    bg: 'bg-blue-500/20',
-    text: 'text-blue-300',
-    border: 'border-blue-500/50',
+    bg: 'bg-accent/20',
+    text: 'text-accent',
+    border: 'border-accent/50',
     label: 'Processing',
   },
   offline: {
-    bg: 'bg-gray-500/20',
-    text: 'text-gray-300',
-    border: 'border-gray-500/50',
+    bg: 'bg-primary-text/10',
+    text: 'text-primary-text/60',
+    border: 'border-primary-text/20',
     label: 'Offline',
   },
 };
