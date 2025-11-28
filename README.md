@@ -141,6 +141,21 @@ npm run dev
 
 The backend API will be available at `http://localhost:8000` (or as configured in your environment).
 
+**Environment Variables:**
+
+Create a `.env` file in the `backend` directory with the following variables:
+
+```env
+# Smart Contract Configuration
+# Set this to the deployed MaxRegistry contract address
+MAX_REGISTRY=0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+# Server Configuration (optional, defaults to 8000)
+PORT=8000
+```
+
+**Note:** The `MAX_REGISTRY` environment variable is required for smart contract interactions. Set it to your deployed MaxRegistry contract address.
+
 ### Recommended Versions
 
 - **Node.js**: 18.x LTS or 20.x LTS
