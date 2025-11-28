@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+// TODO: Replace with typed API client from src/lib/api.ts
+// import { getSectors, getAgents } from '@/src/lib/api';
+// import type { SectorSummary, AgentWithSectorMeta } from '@/src/lib/types';
 import { getSectors, getAgents, type Sector, type Agent } from '@/lib/api';
 
 export default function Dashboard() {
@@ -14,6 +17,8 @@ export default function Dashboard() {
       try {
         setLoading(true);
         setError(null);
+        // TODO: Replace mockSectors with real API call getSectors() from src/lib/api.ts
+        // TODO: Update types to use SectorSummary[] and AgentWithSectorMeta[] from src/lib/types.ts
         const [sectorsData, agentsData] = await Promise.all([
           getSectors(),
           getAgents(),
