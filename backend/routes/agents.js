@@ -1,6 +1,7 @@
 const { loadAgents } = require('../utils/agentStorage');
 const { createAgent } = require('../agents/pipeline/createAgent');
 const { registry } = require('../utils/contract');
+const { updateMorale } = require('../agents/morale');
 
 // Simple logger
 function log(message) {
@@ -88,6 +89,40 @@ module.exports = async (fastify) => {
         success: false,
         error: error.message
       });
+    }
+  });
+
+  // POST /api/agents/:id/morale - Adjust agent morale
+  fastify.post('/:id/morale', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { delta } = request.body;
+
+      log(`POST /api/agents/${id}/morale - Adjusting morale by ${delta}`);
+
+      if (typeof delta !== 'number') {
+        return reply.status(400).send({ error: 'delta must be a number' });
+      }
+
+      const result = await updateMorale(id, delta);
+
+      // Load and return updated agent
+      const agents = await loadAgents();
+      const agent = agents.find(a => a.id === id);
+
+      if (!agent) {
+        return reply.status(404).send({ error: 'Agent not found' });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: agent,
+        morale: result.morale,
+        status: result.status
+      });
+    } catch (error) {
+      log(`Error adjusting agent morale: ${error.message}`);
+      return reply.status(500).send({ error: error.message });
     }
   });
 };
