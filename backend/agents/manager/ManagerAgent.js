@@ -3,8 +3,11 @@
  * 
  * Provides decision-making, sector awareness, cross-sector communication,
  * and tick-based decision loops for managing sector operations.
+ * 
+ * Extends BaseAgent to inherit memory and reasoning capabilities.
  */
 
+const BaseAgent = require('../base/BaseAgent');
 const { vote } = require('../../manager/voting');
 const { aggregateConfidenceForAction } = require('../../manager/confidence');
 const { detectConflict, resolveConflict } = require('../../manager/conflict');
@@ -13,9 +16,9 @@ const { loadSectors, getSectorById } = require('../../utils/storage');
 const { publish, drain } = require('../comms/MessageBus');
 
 /**
- * ManagerAgent class
+ * ManagerAgent class - extends BaseAgent
  */
-class ManagerAgent {
+class ManagerAgent extends BaseAgent {
   /**
    * Creates a new ManagerAgent instance
    * @param {Object} config - Configuration object
@@ -30,23 +33,37 @@ class ManagerAgent {
     if (!sectorId) throw new Error('Sector ID is required');
     if (!name) throw new Error('Manager name is required');
 
-    this.id = id;
+    // Initialize BaseAgent
+    super({
+      id,
+      name,
+      role: 'manager',
+      personality,
+      performance: {}
+    });
+
     this.sectorId = sectorId;
-    this.name = name;
-    this.personality = {
-      riskTolerance: personality.riskTolerance || 'medium',
-      decisionStyle: personality.decisionStyle || 'balanced',
-      ...personality
-    };
     this.runtimeConfig = {
       tickInterval: runtimeConfig.tickInterval || 3000, // 3 seconds default
       conflictThreshold: runtimeConfig.conflictThreshold || 0.5,
       ...runtimeConfig
     };
 
-    // Internal state
+    // Manager-specific state (extends BaseAgent state)
+    this.state = {
+      ...this.state, // Inherit from BaseAgent
+      memory: this.memory, // Use BaseAgent memory
+      lastTick: null,
+      metrics: {
+        ...this.state.metrics,
+        decisionCount: 0,
+        lastDecisionTimestamp: null,
+        averageConfidence: 0
+      }
+    };
+
+    // Manager-specific properties
     this.lastDecisionTimestamp = null;
-    this.memory = []; // Historical observations
     this.sectorCache = null; // Cached sector data
     this.msgQueue = []; // Incoming message queue
     this.decisionHistory = []; // Past decisions
@@ -92,6 +109,35 @@ class ManagerAgent {
   }
 
   /**
+   * Send a cross-sector message
+   * @param {Object} message - Message object
+   * @param {string} message.to - Target manager ID or 'broadcast'
+   * @param {string} message.type - Message type
+   * @param {Object} message.payload - Message payload
+   * @returns {Promise<void>}
+   */
+  async sendCrossSectorMessage(message) {
+    try {
+      await publish({
+        from: this.id,
+        to: message.to || 'broadcast',
+        type: message.type || 'signal',
+        payload: message.payload || {}
+      });
+    } catch (error) {
+      console.error(`[ManagerAgent ${this.id}] Error sending cross-sector message:`, error);
+    }
+  }
+
+  /**
+   * Receive messages from the message bus
+   * @returns {Promise<Array>} Array of received messages
+   */
+  async receiveMessages() {
+    return this.getCrossSectorSignals();
+  }
+
+  /**
    * Make a decision based on agent signals and cross-sector information
    * @param {Array<{action: string, confidence: number, agentId?: string}>} signals - Agent signals
    * @param {Object} options - Optional configuration
@@ -127,7 +173,7 @@ class ManagerAgent {
       return {
         action: 'HOLD',
         confidence: 0,
-        reason: 'No agent signals available'
+        rationale: 'No agent signals available'
       };
     }
 
@@ -169,7 +215,7 @@ class ManagerAgent {
       return {
         action: 'HOLD',
         confidence: 0,
-        reason: `Voting failed: ${error.message}`
+        rationale: `Voting failed: ${error.message}`
       };
     }
 
@@ -202,21 +248,28 @@ class ManagerAgent {
 
     // If conflict requires review, return NEEDS_REVIEW
     if (conflictResult.needsReview && conflictResult.conflictScore > 0.7) {
-      return {
+      const decision = {
         action: 'NEEDS_REVIEW',
         confidence: finalConfidence,
-        reason: `High conflict detected (score: ${conflictResult.conflictScore.toFixed(2)}). Manual review required.`,
+        rationale: `High conflict detected (score: ${conflictResult.conflictScore.toFixed(2)}). Manual review required.`,
         conflictScore: conflictResult.conflictScore,
         voteBreakdown: votingResult.votes,
-        suggestedAction: finalAction
+        suggestedAction: finalAction,
+        timestamp: Date.now()
       };
+
+      // Store reasoning
+      this.storeReasoning(Date.now(), decision.rationale, { decision, signals: enrichedSignals });
+      
+      return decision;
     }
 
     // Store decision in history
     const decision = {
       action: finalAction,
       confidence: finalConfidence,
-      reason: reason,
+      rationale: reason,
+      reason: reason, // Keep both for backward compatibility
       voteBreakdown: votingResult.votes,
       conflictScore: conflictResult.conflictScore,
       timestamp: Date.now()
@@ -224,6 +277,15 @@ class ManagerAgent {
 
     this.decisionHistory.push(decision);
     this.lastDecisionTimestamp = Date.now();
+    this.updateLastTick(Date.now());
+    this.updateMetrics({
+      decisionCount: this.decisionHistory.length,
+      lastDecisionTimestamp: Date.now(),
+      averageConfidence: this.decisionHistory.reduce((sum, d) => sum + (d.confidence || 0), 0) / this.decisionHistory.length
+    });
+
+    // Store reasoning in memory
+    this.storeReasoning(Date.now(), reason, { decision, signals: enrichedSignals });
 
     // Keep only last 100 decisions
     if (this.decisionHistory.length > 100) {
@@ -240,6 +302,9 @@ class ManagerAgent {
    */
   async tick() {
     try {
+      const tickTimestamp = Date.now();
+      this.updateLastTick(tickTimestamp);
+
       // Refresh sector cache periodically
       if (!this.sectorCache || Math.random() < 0.1) { // 10% chance to refresh
         await this.loadSector();
@@ -269,12 +334,17 @@ class ManagerAgent {
       // Make decision
       const decision = await this.decide(signals);
 
-      // Update memory with observation
+      // Update memory with observation (using BaseAgent method)
       this.updateMemory({
-        timestamp: Date.now(),
+        timestamp: tickTimestamp,
+        type: 'observation',
         sectorId: this.sectorId,
         decision,
-        sectorData: this.sectorCache
+        sectorData: this.sectorCache ? {
+          id: this.sectorCache.id,
+          sectorName: this.sectorCache.sectorName || this.sectorCache.name,
+          currentPrice: this.sectorCache.currentPrice
+        } : null
       });
 
       return decision;
@@ -293,32 +363,11 @@ class ManagerAgent {
    * @returns {Promise<void>}
    */
   async broadcast(signal) {
-    try {
-      await publish({
-        from: this.id,
-        to: signal.target || 'broadcast',
-        type: signal.type || 'signal',
-        payload: signal.payload || {}
-      });
-    } catch (error) {
-      console.error(`[ManagerAgent ${this.id}] Error broadcasting:`, error);
-    }
-  }
-
-  /**
-   * Update memory with new observation
-   * @param {Object} observation - Observation data
-   */
-  updateMemory(observation) {
-    this.memory.push({
-      ...observation,
-      timestamp: observation.timestamp || Date.now()
+    return this.sendCrossSectorMessage({
+      to: signal.target || 'broadcast',
+      type: signal.type || 'signal',
+      payload: signal.payload || {}
     });
-
-    // Keep only last 1000 observations
-    if (this.memory.length > 1000) {
-      this.memory.shift();
-    }
   }
 
   /**
@@ -354,20 +403,18 @@ class ManagerAgent {
    */
   serialize() {
     return {
-      id: this.id,
+      ...super.toJSON(),
       sectorId: this.sectorId,
-      name: this.name,
-      personality: this.personality,
       runtimeConfig: this.runtimeConfig,
       lastDecisionTimestamp: this.lastDecisionTimestamp,
-      memorySize: this.memory.length,
       decisionHistorySize: this.decisionHistory.length,
       msgQueueSize: this.msgQueue.length,
       sectorCache: this.sectorCache ? {
         id: this.sectorCache.id,
-        sectorName: this.sectorCache.sectorName,
+        sectorName: this.sectorCache.sectorName || this.sectorCache.name,
         currentPrice: this.sectorCache.currentPrice
-      } : null
+      } : null,
+      state: this.getState()
     };
   }
 
@@ -384,7 +431,8 @@ class ManagerAgent {
         ? this.decisionHistory[this.decisionHistory.length - 1] 
         : null,
       decisionCount: this.decisionHistory.length,
-      memorySize: this.memory.length
+      memorySize: this.memory.length,
+      state: this.getState()
     };
   }
 }

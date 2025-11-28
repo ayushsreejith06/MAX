@@ -2,6 +2,10 @@ const { readDataFile, writeDataFile } = require('./persistence');
 
 const SECTORS_FILE = 'sectors.json';
 
+/**
+ * Load all sectors from storage
+ * @returns {Promise<Array>} Array of sector objects
+ */
 async function loadSectors() {
   try {
     const data = await readDataFile(SECTORS_FILE);
@@ -16,6 +20,11 @@ async function loadSectors() {
   }
 }
 
+/**
+ * Save all sectors to storage
+ * @param {Array} sectors - Array of sector objects
+ * @returns {Promise<void>}
+ */
 async function saveSectors(sectors) {
   await writeDataFile(SECTORS_FILE, sectors);
 }
@@ -35,9 +44,38 @@ async function getSectorById(id) {
   }
 }
 
+/**
+ * Update a sector in storage
+ * @param {string} id - Sector ID
+ * @param {Object} updates - Updates to apply to the sector
+ * @returns {Promise<Object|null>} Updated sector object or null if not found
+ */
+async function updateSector(id, updates) {
+  try {
+    const sectors = await loadSectors();
+    const sectorIndex = sectors.findIndex(s => s.id === id);
+    
+    if (sectorIndex === -1) {
+      return null;
+    }
+
+    // Merge updates with existing sector data
+    sectors[sectorIndex] = {
+      ...sectors[sectorIndex],
+      ...updates
+    };
+
+    await saveSectors(sectors);
+    return sectors[sectorIndex];
+  } catch (error) {
+    console.error('Error in updateSector:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   loadSectors,
   saveSectors,
-  getSectorById
+  getSectorById,
+  updateSector
 };
-
