@@ -1,58 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-// TODO: Replace with typed API client from src/lib/api.ts
-// import { getSectorById, getAgents, getDiscussions } from '@/src/lib/api';
-// import type { Sector, AgentWithSectorMeta, DiscussionSummary } from '@/src/lib/types';
-import { getSectorById, getAgents, getDiscussions, type Sector, type Agent, type Discussion } from "@/lib/api";
+import { useSector, useAgents, useDiscussions } from "@/src/lib/api";
+import type { SectorSummary } from "@/src/lib/types";
 
 export default function SectorDetailPage() {
   const params = useParams();
   const sectorId = params.id as string;
 
-  const [sector, setSector] = useState<Sector | null>(null);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { sector, loading: sectorLoading, error: sectorError } = useSector(sectorId);
+  const { agents, loading: agentsLoading } = useAgents({ sectorId });
+  const { discussions, loading: discussionsLoading } = useDiscussions({ sectorId });
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // TODO: Replace mock data with real API calls from src/lib/api.ts
-        // TODO: Update types to use Sector, AgentWithSectorMeta[], DiscussionSummary[] from src/lib/types.ts
-        const [sectorData, agentsData, discussionsData] = await Promise.all([
-          getSectorById(sectorId),
-          getAgents(sectorId),
-          getDiscussions(sectorId),
-        ]);
-
-        setSector(sectorData);
-        setAgents(agentsData);
-        setDiscussions(discussionsData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load sector data");
-        console.error("Error loading sector:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (sectorId) {
-      loadData();
-    }
-  }, [sectorId]);
+  const loading = sectorLoading || agentsLoading || discussionsLoading;
+  const error = sectorError;
 
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-8">
-          <p className="text-gray-400">Loading sector...</p>
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading sector data...</p>
+          </div>
         </div>
       </div>
     );
@@ -105,15 +76,16 @@ export default function SectorDetailPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {agents.map((agent) => (
-              <div
+              <Link
                 key={agent.id}
-                className="bg-gray-700 rounded-lg p-4 border border-gray-600"
+                href={`/agents/${agent.id}`}
+                className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors cursor-pointer"
               >
                 <h3 className="text-lg font-semibold text-white mb-2">
-                  {agent.role}
+                  {agent.name}
                 </h3>
-                <p className="text-sm text-gray-400 mb-2">
-                  ID: {agent.id.slice(0, 8)}...
+                <p className="text-sm text-gray-400 mb-2 capitalize">
+                  {agent.role}
                 </p>
                 {agent.personality && (
                   <div className="text-xs text-gray-500 mt-2">
@@ -121,7 +93,7 @@ export default function SectorDetailPage() {
                     <p>Style: {agent.personality.decisionStyle || "N/A"}</p>
                   </div>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -153,6 +125,10 @@ export default function SectorDetailPage() {
                         <span className="text-white font-medium capitalize">
                           {discussion.status}
                         </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Messages: </span>
+                        <span className="text-white">{discussion.messagesCount}</span>
                       </div>
                       {discussion.updatedAt && (
                         <div>
