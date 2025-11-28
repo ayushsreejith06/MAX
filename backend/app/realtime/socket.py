@@ -2,22 +2,12 @@
 Socket.IO server and broadcasting functions for realtime updates.
 
 This module provides a Socket.IO server instance and helper functions
-to broadcast events to connected clients. It also listens to Redis pub/sub
-channels to coordinate realtime events across multiple processes.
+to broadcast events to connected clients.
 """
 
 import socketio
-import json
-import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
-from app.core.redis import get_pubsub, close_redis
-from app.realtime.channels import (
-    CHANNEL_MARKET_UPDATES,
-    CHANNEL_SECTOR_CANDLES,
-    CHANNEL_DISCUSSION_MESSAGES,
-    CHANNEL_AGENT_STATUS,
-)
 
 # Create Socket.IO server instance
 # Using ASGI mode for FastAPI integration
@@ -26,11 +16,9 @@ sio = socketio.AsyncServer(
     async_mode="asgi",
 )
 
-# Store connected clients
+# Store connected clients (for single-process operation)
+# In the future, this can be replaced with Redis pub/sub
 _connected_clients: set = set()
-
-# Redis listener task
-_redis_listener_task: Optional[asyncio.Task] = None
 
 
 @sio.event
