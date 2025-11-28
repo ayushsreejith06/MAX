@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 
+from .enums import AgentStatus, DiscussionStatus
+
 
 class CandlePoint(BaseModel):
     """Represents a single candle data point (5-minute increment)."""
