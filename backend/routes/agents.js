@@ -61,7 +61,9 @@ module.exports = async (fastify) => {
       log(`Agent created successfully - ID: ${agent.id}, Role: ${agent.role}`);
 
       // Auto-sync to chain
-      if (process.env.MAX_REGISTRY && registry.write) {
+      if (!process.env.MAX_REGISTRY) {
+        console.warn("MAX_REGISTRY undefined — skipping chain sync");
+      } else {
         try {
           const agentId = parseInt(agent.id) || 0;
           const agentSectorId = parseInt(agent.sectorId) || 0;

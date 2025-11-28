@@ -68,7 +68,9 @@ module.exports = async (fastify) => {
       log(`Sector created successfully - ID: ${sector.id}, Name: ${sector.sectorName || sector.name}`);
 
       // Auto-sync to chain
-      if (process.env.MAX_REGISTRY && registry.write) {
+      if (!process.env.MAX_REGISTRY) {
+        console.warn("MAX_REGISTRY undefined — skipping chain sync");
+      } else {
         try {
           const sectorId = parseInt(sector.id) || 0;
           const name = sector.sectorName || sector.name || '';
