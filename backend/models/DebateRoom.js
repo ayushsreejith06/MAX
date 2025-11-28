@@ -7,7 +7,7 @@ class DebateRoom {
     this.title = title;
     this.agentIds = agentIds;
     this.messages = [];
-    this.status = 'created';
+    this.status = 'in_progress';
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
   }
@@ -16,7 +16,14 @@ class DebateRoom {
     const debateRoom = new DebateRoom(data.sectorId, data.title, data.agentIds);
     debateRoom.id = data.id;
     debateRoom.messages = data.messages || [];
-    debateRoom.status = data.status || 'created';
+    // Map old status values to new ones for backward compatibility
+    const statusMap = {
+      'created': 'in_progress',
+      'debating': 'in_progress',
+      'closed': 'closed',
+      'archived': 'archived'
+    };
+    debateRoom.status = statusMap[data.status] || data.status || 'in_progress';
     debateRoom.createdAt = data.createdAt;
     debateRoom.updatedAt = data.updatedAt;
     return debateRoom;
@@ -24,10 +31,13 @@ class DebateRoom {
 
   addMessage(message) {
     const messageEntry = {
+      id: message.id || `${this.id}-msg-${this.messages.length}`,
       agentId: message.agentId,
+      agentName: message.agentName || 'Unknown Agent',
       content: message.content,
       role: message.role,
-      createdAt: new Date().toISOString()
+      timestamp: message.timestamp || new Date().toISOString(),
+      createdAt: message.createdAt || new Date().toISOString()
     };
     this.messages.push(messageEntry);
     this.updatedAt = new Date().toISOString();
