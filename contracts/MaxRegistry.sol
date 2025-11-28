@@ -89,8 +89,16 @@ contract MaxRegistry {
         emit TradeLogged(tradeId, agentId, sectorId, action, amount, timestamp);
     }
 
-    function validateAction() external pure returns (bool) {
+    function validateAction(
+        uint256 agentId,
+        uint256 sectorId,
+        string calldata action,
+        uint256 amount
+    ) external view returns (bool) {
         // Placeholder - Phase 5 will enforce real MNEE rules
+        // For now, basic validation: agent and sector must exist
+        require(agents[agentId].id != 0, "Agent does not exist");
+        require(sectors[sectorId].id != 0, "Sector does not exist");
         return true;
     }
 }
