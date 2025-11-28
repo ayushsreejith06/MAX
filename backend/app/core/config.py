@@ -25,6 +25,12 @@ class Settings(BaseSettings):
         "redis://localhost:6379/0"
     )
     
+    # Market simulator configuration
+    ENABLE_MARKET_SIMULATOR: bool = os.getenv(
+        "ENABLE_MARKET_SIMULATOR",
+        "true"
+    ).lower() in ("true", "1", "yes")
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
