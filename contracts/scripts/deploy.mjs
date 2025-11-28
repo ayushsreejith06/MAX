@@ -3,9 +3,9 @@ import hre from "hardhat";
 async function main() {
   const MaxRegistry = await hre.ethers.getContractFactory("MaxRegistry");
   const registry = await MaxRegistry.deploy();
-  await registry.waitForDeployment();
+  await registry.deployed();
 
-  console.log("MaxRegistry deployed to:", registry.target);
+  console.log("MaxRegistry deployed to:", registry.address);
 }
 
 main().catch((error) => {
