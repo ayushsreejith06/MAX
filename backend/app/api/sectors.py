@@ -35,6 +35,41 @@ async def get_sectors():
             sector_discussions = [d for d in discussions_data if d.get("sectorId") == sector_id]
             discussions_count = len(sector_discussions)
             
+            # Calculate utilization (percentage of active agents / total agents, or 0 if no agents)
+            utilization = (active_agents_count / agents_count * 100.0) if agents_count > 0 else 0.0
+            
+            # Generate miniChart (last 20 points from candle data)
+            import sys
+            from pathlib import Path
+            models_path = Path(__file__).parent.parent.parent / "models"
+            if str(models_path) not in sys.path:
+                sys.path.insert(0, str(models_path))
+            from schemas import CandlePoint
+            import random
+            
+            candle_data = sector.get("candleData", [])
+            mini_chart = []
+            if candle_data:
+                # Take last 20 points if available
+                last_points = candle_data[-20:] if len(candle_data) > 20 else candle_data
+                for point in last_points:
+                    if isinstance(point, dict):
+                        mini_chart.append(CandlePoint(
+                            time=point.get("time", ""),
+                            value=point.get("value", 0.0)
+                        ))
+                    else:
+                        mini_chart.append(point)
+            else:
+                # Generate mock mini chart data if not present
+                base_price = sector.get("currentPrice", 100.0)
+                for i in range(20):
+                    hour = (i // 12) % 24
+                    minute = (i % 12) * 5
+                    time_str = f"{hour:02d}:{minute:02d}"
+                    base_price += random.uniform(-0.5, 0.5)
+                    mini_chart.append(CandlePoint(time=time_str, value=max(0, base_price)))
+            
             # Generate symbol from name (first 4 chars uppercase)
             symbol = sector.get("symbol") or sector.get("name", "")[:4].upper()
             
@@ -50,6 +85,8 @@ async def get_sectors():
                 agentsCount=agents_count,
                 activeAgentsCount=active_agents_count,
                 discussionsCount=discussions_count,
+                utilization=utilization,
+                miniChart=mini_chart,
             )
             sector_summaries.append(summary)
         
@@ -107,6 +144,18 @@ async def get_sector_by_id(sector_id: str):
             except ValueError:
                 status = AgentStatus.IDLE
             
+            # Generate performance history (last 30 days of performance data)
+            performance_history = agent_data.get("performanceHistory", [])
+            if not performance_history:
+                # Generate mock performance history based on current performance
+                import random
+                current_perf = agent_data.get("performance", 0.0)
+                performance_history = []
+                for i in range(30):
+                    # Random walk around current performance
+                    perf_value = current_perf + random.uniform(-2.0, 2.0)
+                    performance_history.append(round(perf_value, 2))
+            
             agent = AgentRead(
                 id=agent_data.get("id"),
                 name=agent_data.get("name", agent_data.get("role", "Unknown")),
@@ -119,6 +168,7 @@ async def get_sector_by_id(sector_id: str):
                 createdAt=agent_data.get("createdAt", ""),
                 sectorName=sector.get("name"),
                 sectorSymbol=symbol,
+                performanceHistory=performance_history,
             )
             agents_list.append(agent)
         
@@ -175,20 +225,32 @@ async def get_sector_by_id(sector_id: str):
             )
             discussions_list.append(discussion)
         
-        # Generate candle data (mock for now - 288 points, 5-minute increments)
-        candle_data = sector.get("candleData", [])
-        if not candle_data:
-            # Generate mock candle data if not present
-            import sys
-            from pathlib import Path
-            models_path = Path(__file__).parent.parent.parent / "models"
-            if str(models_path) not in sys.path:
-                sys.path.insert(0, str(models_path))
-            from schemas import CandlePoint
-            import random
+        # Generate candle data (24h history - 288 points, 5-minute increments)
+        import sys
+        from pathlib import Path
+        models_path = Path(__file__).parent.parent.parent / "models"
+        if str(models_path) not in sys.path:
+            sys.path.insert(0, str(models_path))
+        from schemas import CandlePoint
+        import random
+        
+        raw_candle_data = sector.get("candleData", [])
+        candle_data = []
+        
+        if raw_candle_data:
+            # Convert existing candle data to CandlePoint format and take last 288 points (24h)
+            for point in raw_candle_data[-288:]:
+                if isinstance(point, dict):
+                    candle_data.append(CandlePoint(
+                        time=point.get("time", ""),
+                        value=point.get("value", 0.0)
+                    ))
+                elif isinstance(point, CandlePoint):
+                    candle_data.append(point)
+        else:
+            # Generate mock candle data if not present (24h = 288 points, 5-minute increments)
             base_price = sector.get("currentPrice", 100.0)
-            candle_data = []
-            for i in range(288):  # 24 hours * 12 points/hour
+            for i in range(288):  # 24 hours * 12 points/hour = 288 points
                 hour = i // 12
                 minute = (i % 12) * 5
                 time_str = f"{hour:02d}:{minute:02d}"
