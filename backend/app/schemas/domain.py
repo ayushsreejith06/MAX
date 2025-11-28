@@ -45,6 +45,7 @@ class AgentRead(AgentBase):
     """Agent read schema with sector metadata."""
     sectorName: Optional[str] = None
     sectorSymbol: Optional[str] = None
+    performanceHistory: List[float] = Field(default_factory=list)  # Performance values over time
 
 
 class MessageRead(MessageBase):
@@ -61,7 +62,8 @@ class DiscussionSummary(BaseModel):
     status: DiscussionStatus
     agentIds: List[str] = Field(default_factory=list)
     messagesCount: int = 0
-    updatedAt: str
+    createdAt: str  # ISO 8601 datetime string
+    updatedAt: str  # ISO 8601 datetime string
 
 
 class DiscussionRead(BaseModel):
@@ -89,6 +91,8 @@ class SectorSummary(BaseModel):
     agentsCount: int = 0
     activeAgentsCount: int = 0
     discussionsCount: int = 0
+    utilization: float = 0.0  # Utilization percentage (0-100)
+    miniChart: List[CandlePoint] = Field(default_factory=list)  # Last N points for mini chart
 
 
 class SectorRead(SectorBase):

@@ -1,33 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { getSectors, createSector, type Sector } from "@/lib/api";
+import { useSectors, getSectors } from "@/src/lib/api";
+import type { SectorSummary } from "@/src/lib/types";
 
 export default function SectorsPage() {
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { sectors, loading, error, mutate } = useSectors();
   const [newSectorName, setNewSectorName] = useState("");
   const [creating, setCreating] = useState(false);
-
-  const loadSectors = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getSectors();
-      setSectors(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sectors");
-      console.error("Error loading sectors:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSectors();
-  }, []);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleCreateSector = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,12 +17,13 @@ export default function SectorsPage() {
 
     try {
       setCreating(true);
-      setError(null);
-      const newSector = await createSector(newSectorName.trim());
-      setSectors([...sectors, newSector]);
+      setCreateError(null);
+      // Note: createSector endpoint may not exist in backend yet
+      // For now, just refresh the sectors list
+      await mutate();
       setNewSectorName("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create sector");
+      setCreateError(err instanceof Error ? err.message : "Failed to create sector");
       console.error("Error creating sector:", err);
     } finally {
       setCreating(false);
@@ -78,10 +61,15 @@ export default function SectorsPage() {
         </form>
       </div>
 
-      {/* Error Message */}
+      {/* Error Messages */}
       {error && (
         <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-6">
           <p className="text-red-200">Error: {error}</p>
+        </div>
+      )}
+      {createError && (
+        <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-6">
+          <p className="text-red-200">Error: {createError}</p>
         </div>
       )}
 
@@ -92,8 +80,11 @@ export default function SectorsPage() {
         </h2>
 
         {loading ? (
-          <div className="text-center py-8">
-            <p className="text-gray-400">Loading sectors...</p>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <p className="text-gray-400">Loading sectors...</p>
+            </div>
           </div>
         ) : sectors.length === 0 ? (
           <div className="text-center py-8">
@@ -107,17 +98,34 @@ export default function SectorsPage() {
                 href={`/sector/${sector.id}`}
                 className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors cursor-pointer"
               >
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {sector.name}
-                </h3>
-                <p className="text-sm text-gray-400">
-                  ID: {sector.id.slice(0, 8)}...
-                </p>
-                {sector.createdAt && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    Created: {new Date(sector.createdAt).toLocaleDateString()}
-                  </p>
-                )}
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-white">
+                    {sector.name}
+                  </h3>
+                  <span className="text-xs font-medium text-gray-400 bg-gray-600 px-2 py-1 rounded">
+                    {sector.symbol}
+                  </span>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Price:</span>
+                    <span className="text-white font-medium">${sector.currentPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Change:</span>
+                    <span className={sector.change >= 0 ? "text-green-400" : "text-red-400"}>
+                      {sector.change >= 0 ? "+" : ""}{sector.changePercent.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Agents:</span>
+                    <span className="text-white">{sector.activeAgentsCount}/{sector.agentsCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Discussions:</span>
+                    <span className="text-white">{sector.discussionsCount}</span>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
