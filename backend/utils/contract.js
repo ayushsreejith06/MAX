@@ -1,4 +1,5 @@
-const { createPublicClient, createWalletClient, http, parseAbi, getContract, privateKeyToAccount } = require("viem");
+const { createPublicClient, createWalletClient, http, parseAbi, getContract } = require("viem");
+const { privateKeyToAccount } = require("viem/accounts");
 
 const ABI = parseAbi([
   "function registerSector(uint256,string,string)",
@@ -7,40 +8,31 @@ const ABI = parseAbi([
   "function validateAction(uint256,uint256,string,uint256) view returns (bool)"
 ]);
 
+const RPC_URL = process.env.RPC_URL || "http://localhost:8545";
+const CONTRACT_ADDRESS = process.env.MAX_REGISTRY;
+
 // Public client for reads
 const publicClient = createPublicClient({
   chain: { id: 31337 },
-  transport: http("http://localhost:8545")
+  transport: http(RPC_URL)
 });
 
-// Wallet client for writes (using default Hardhat account if no private key provided)
-const privateKey = process.env.PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // Hardhat account #0
-const account = privateKeyToAccount(privateKey);
-
+// Create account and wallet client for write operations
+const account = privateKeyToAccount(process.env.PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
 const walletClient = createWalletClient({
   account,
   chain: { id: 31337 },
-  transport: http("http://localhost:8545")
+  transport: http(RPC_URL)
 });
 
-const CONTRACT_ADDRESS = process.env.MAX_REGISTRY;
-
-// Read-only contract instance
-const readContract = getContract({
+// Single contract instance with both public and wallet clients
+const registry = getContract({
   address: CONTRACT_ADDRESS,
   abi: ABI,
-  client: publicClient
+  client: {
+    public: publicClient,
+    wallet: walletClient
+  }
 });
 
-// Write contract instance
-const writeContract = getContract({
-  address: CONTRACT_ADDRESS,
-  abi: ABI,
-  client: walletClient
-});
-
-// Combined registry with read and write namespaces
-module.exports.registry = {
-  read: readContract,
-  write: writeContract
-};
+module.exports.registry = registry;
