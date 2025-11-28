@@ -58,6 +58,24 @@ const start = async () => {
       fastify.log.error('Error registering MNEE route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/manager'), { prefix: '/api/manager' });
+      fastify.log.info('Manager route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering manager route:', err);
+      throw err;
+    }
+
+    // Bootstrap SimulationEngine
+    try {
+      const { getSimulationEngine } = require('./simulation/SimulationEngine');
+      const simulationEngine = getSimulationEngine();
+      await simulationEngine.initializeAllSectors();
+      fastify.log.info('SimulationEngine initialized successfully');
+    } catch (err) {
+      fastify.log.error('Error initializing SimulationEngine:', err);
+      // Don't throw - allow server to start even if simulation engine fails
+    }
 
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
@@ -72,6 +90,7 @@ const start = async () => {
     console.log(`📍 Debates API: http://${HOST}:${PORT}/api/debates`);
     console.log(`📍 Discussions API: http://${HOST}:${PORT}/api/discussions`);
     console.log(`📍 MNEE API: http://${HOST}:${PORT}/api/mnee`);
+    console.log(`📍 Manager API: http://${HOST}:${PORT}/api/manager`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

@@ -1,0 +1,135 @@
+/**
+ * Manager Routes
+ * 
+ * API endpoints for manager decision-making subsystem
+ */
+
+const ManagerAgent = require('../agents/ManagerAgent');
+const { loadAgents } = require('../utils/agentStorage');
+
+// Simple logger
+function log(message) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
+}
+
+module.exports = async (fastify) => {
+  /**
+   * POST /api/manager/decide
+   * 
+   * Makes a decision based on agent signals for a sector.
+   * 
+   * Input:
+   *   {
+   *     sectorId: string (required),
+   *     signals?: Array<{action: string, confidence: number, agentId?: string}> (optional),
+   *     conflictThreshold?: number (optional, 0-1)
+   *   }
+   * 
+   * If signals are not provided, the endpoint will attempt to generate mock signals
+   * from sector agents for testing purposes.
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     data: {
+   *       action: string (BUY | SELL | HOLD | NEEDS_REVIEW),
+   *       confidence: number (0-1),
+   *       reason: string,
+   *       voteBreakdown?: {BUY: number, SELL: number, HOLD: number},
+   *       conflictScore?: number,
+   *       suggestedAction?: string (if action is NEEDS_REVIEW)
+   *     }
+   *   }
+   */
+  fastify.post('/decide', async (request, reply) => {
+    try {
+      const { sectorId, signals, conflictThreshold } = request.body;
+
+      if (!sectorId) {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId is required'
+        });
+      }
+
+      log(`POST /api/manager/decide - Processing decision for sector ${sectorId}`);
+
+      // Create manager agent instance
+      const manager = new ManagerAgent(sectorId);
+
+      // Set conflict threshold if provided
+      if (typeof conflictThreshold === 'number') {
+        manager.setConflictThreshold(conflictThreshold);
+      }
+
+      // If signals are provided, use them directly
+      let agentSignals = signals;
+
+      // If signals are not provided, generate mock signals from sector agents
+      if (!agentSignals || !Array.isArray(agentSignals) || agentSignals.length === 0) {
+        log(`No signals provided, generating mock signals from sector agents`);
+        
+        try {
+          const agents = await loadAgents();
+          const sectorAgents = agents.filter(agent => agent.sectorId === sectorId);
+
+          if (sectorAgents.length === 0) {
+            return reply.status(404).send({
+              success: false,
+              error: `No agents found for sector ${sectorId}`
+            });
+          }
+
+          // Generate mock signals for testing
+          // In production, these would come from actual agent decision-making processes
+          const actions = ['BUY', 'SELL', 'HOLD'];
+          agentSignals = sectorAgents.map(agent => {
+            const randomAction = actions[Math.floor(Math.random() * actions.length)];
+            const randomConfidence = Math.random(); // 0-1
+            
+            return {
+              action: randomAction,
+              confidence: randomConfidence,
+              agentId: agent.id,
+              winRate: agent.performance?.winRate || 0
+            };
+          });
+
+          log(`Generated ${agentSignals.length} mock signals for ${sectorAgents.length} agents`);
+        } catch (error) {
+          log(`Error generating mock signals: ${error.message}`);
+          return reply.status(500).send({
+            success: false,
+            error: `Failed to generate signals: ${error.message}`
+          });
+        }
+      }
+
+      // Validate signals format
+      if (!Array.isArray(agentSignals) || agentSignals.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'No valid signals provided'
+        });
+      }
+
+      // Make decision
+      const decision = await manager.decide(agentSignals, { conflictThreshold });
+
+      log(`Decision made: ${decision.action} (confidence: ${decision.confidence.toFixed(2)})`);
+
+      return reply.status(200).send({
+        success: true,
+        data: decision
+      });
+    } catch (error) {
+      log(`Error in /api/manager/decide: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+};
+

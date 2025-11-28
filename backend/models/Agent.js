@@ -4,6 +4,7 @@ const path = require('path');
 
 const DEFAULT_PERFORMANCE = Object.freeze({ pnl: 0, winRate: 0 });
 const DEFAULT_PERSONALITY = Object.freeze({ riskTolerance: 'medium', decisionStyle: 'balanced' });
+const DEFAULT_MORALE = 50;
 
 function sanitizePerformance(performance = DEFAULT_PERFORMANCE) {
   return {
@@ -31,6 +32,8 @@ class Agent {
     performance = DEFAULT_PERFORMANCE,
     trades = [],
     personality = DEFAULT_PERSONALITY,
+    morale = DEFAULT_MORALE,
+    lastRewardTimestamp = null,
     createdAt = null
   }) {
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -51,6 +54,8 @@ class Agent {
     this.performance = sanitizePerformance(performance);
     this.trades = Array.isArray(trades) ? trades : [];
     this.personality = sanitizePersonality(personality);
+    this.morale = typeof morale === 'number' ? Math.max(0, Math.min(100, morale)) : DEFAULT_MORALE;
+    this.lastRewardTimestamp = lastRewardTimestamp || null;
     this.createdAt = createdAt || new Date().toISOString();
   }
 
@@ -66,6 +71,8 @@ class Agent {
       performance: this.performance,
       trades: this.trades,
       personality: this.personality,
+      morale: this.morale,
+      lastRewardTimestamp: this.lastRewardTimestamp,
       createdAt: this.createdAt
     };
   }
@@ -135,6 +142,8 @@ class Agent {
       performance: data.performance || DEFAULT_PERFORMANCE,
       trades: data.trades || [],
       personality: data.personality || DEFAULT_PERSONALITY,
+      morale: data.morale ?? DEFAULT_MORALE,
+      lastRewardTimestamp: data.lastRewardTimestamp || null,
       createdAt: data.createdAt
     });
   }
