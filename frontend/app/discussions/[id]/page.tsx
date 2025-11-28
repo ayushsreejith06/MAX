@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getDiscussionById, type Discussion } from "@/lib/api";
+import type { Discussion } from "@/src/lib/types";
+import { getMockDiscussion, getMockAgentsByIds } from "@/src/lib/mockData";
+import { MessageList } from "@/src/components/discussion/MessageList";
+import { AgentSidebar } from "@/src/components/discussion/AgentSidebar";
+import { StatusTag } from "@/src/components/discussion/StatusTag";
 
 export default function DiscussionDetailPage() {
   const params = useParams();
@@ -14,23 +18,24 @@ export default function DiscussionDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadDiscussion() {
-      if (!discussionId) return;
-
-      try {
-        setLoading(true);
-        setError(null);
-        const discussionData = await getDiscussionById(discussionId);
-        setDiscussion(discussionData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load discussion");
-        console.error("Error loading discussion:", err);
-      } finally {
+    // Simulate loading delay
+    const timer = setTimeout(() => {
+      if (!discussionId) {
+        setError("Discussion ID is required");
         setLoading(false);
+        return;
       }
-    }
 
-    loadDiscussion();
+      const discussionData = getMockDiscussion(discussionId);
+      if (!discussionData) {
+        setError("Discussion not found");
+      } else {
+        setDiscussion(discussionData);
+      }
+      setLoading(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [discussionId]);
 
   if (loading) {
@@ -67,12 +72,17 @@ export default function DiscussionDetailPage() {
     );
   }
 
-  // Sort messages chronologically by timestamp (fallback to createdAt if timestamp not available)
-  const sortedMessages = [...discussion.messages].sort((a, b) => {
-    const timeA = new Date((a as any).timestamp || (a as any).createdAt || 0).getTime();
-    const timeB = new Date((b as any).timestamp || (b as any).createdAt || 0).getTime();
-    return timeA - timeB;
-  });
+  // Get agents for sidebar
+  const agents = discussion ? getMockAgentsByIds(discussion.agentIds) : [];
+
+  // Sort messages chronologically by timestamp
+  const sortedMessages = discussion
+    ? [...discussion.messages].sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeA - timeB;
+      })
+    : [];
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -80,87 +90,49 @@ export default function DiscussionDetailPage() {
       <div className="mb-8">
         <Link
           href="/discussions"
-          className="text-blue-400 hover:text-blue-300 mb-4 inline-block"
+          className="text-blue-400 hover:text-blue-300 mb-4 inline-block text-sm"
         >
           ← Back to Discussions
         </Link>
-        <h1 className="text-4xl font-bold text-white mb-4">{discussion.title}</h1>
-        
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div>
-            <span className="text-gray-400">Status: </span>
-            <span className="px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-300 rounded capitalize">
-              {discussion.status}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Sector ID: </span>
-            <span className="text-gray-300">
-              {discussion.sectorId || <span className="text-gray-500 italic">None</span>}
-            </span>
-          </div>
-          {discussion.createdAt && (
-            <div>
-              <span className="text-gray-400">Created: </span>
-              <span className="text-gray-300">
-                {new Date(discussion.createdAt).toLocaleString()}
-              </span>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold text-white mb-3">{discussion.title}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <StatusTag status={discussion.status} />
+              {discussion.sectorSymbol && (
+                <span className="px-2 py-1 text-xs font-medium bg-gray-700/50 text-gray-300 rounded">
+                  {discussion.sectorSymbol}
+                </span>
+              )}
             </div>
-          )}
-          {discussion.updatedAt && (
-            <div>
-              <span className="text-gray-400">Updated: </span>
-              <span className="text-gray-300">
-                {new Date(discussion.updatedAt).toLocaleString()}
-              </span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Messages Section */}
-      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">
-          Messages ({sortedMessages.length})
-        </h2>
-        {sortedMessages.length === 0 ? (
-          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-8 text-center">
-            <p className="text-gray-400">No messages in this discussion yet.</p>
+      {/* Main Content with Sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Messages Section */}
+        <div className="lg:col-span-3">
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-white">
+                Messages ({sortedMessages.length})
+              </h2>
+            </div>
+            
+            {/* Scrollable message area */}
+            <div className="max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
+              <MessageList messages={sortedMessages} />
+            </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {sortedMessages.map((message, index) => {
-              const messageTimestamp = (message as any).timestamp || (message as any).createdAt;
-              return (
-                <div
-                  key={message.id || `message-${index}`}
-                  className="bg-gray-800/50 border border-gray-700 rounded-lg p-4"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <span className="text-sm font-medium text-white">
-                          {message.agentId}
-                        </span>
-                        <span className="text-sm text-gray-400 ml-2">
-                          ({message.role})
-                        </span>
-                      </div>
-                    </div>
-                    {messageTimestamp && (
-                      <div className="text-xs text-gray-500">
-                        {new Date(messageTimestamp).toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-gray-300 whitespace-pre-wrap">
-                    {message.content}
-                  </div>
-                </div>
-              );
-            })}
+        </div>
+
+        {/* Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-8">
+            <AgentSidebar agents={agents} />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
