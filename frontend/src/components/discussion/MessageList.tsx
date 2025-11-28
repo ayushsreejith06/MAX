@@ -19,7 +19,7 @@ export function MessageList({ messages }: MessageListProps) {
   if (messages.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-400 text-sm">No messages in this discussion yet.</p>
+        <p className="text-primary-text/60 text-sm">No messages in this discussion yet.</p>
       </div>
     );
   }

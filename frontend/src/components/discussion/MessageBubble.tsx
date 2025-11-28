@@ -26,7 +26,7 @@ export function MessageBubble({ message, isThreaded = false, threadLevel = 0 }: 
       {/* Avatar - only show if not threaded or first in thread */}
       {!isThreaded && (
         <div className="flex-shrink-0">
-          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-semibold text-sm shadow-lg ring-2 ring-gray-800`}>
+          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-primary-text font-semibold text-sm shadow-dark-lg ring-2 ring-background`}>
             {initials}
           </div>
         </div>
@@ -39,17 +39,17 @@ export function MessageBubble({ message, isThreaded = false, threadLevel = 0 }: 
       <div className="flex-1 min-w-0">
         {!isThreaded && (
           <div className="flex items-baseline gap-2 mb-1.5">
-            <span className="text-white font-semibold text-sm">{message.agentName}</span>
-            <span className="text-gray-400 text-xs">{timeString}</span>
+            <span className="text-primary-text font-semibold text-sm">{message.agentName}</span>
+            <span className="text-primary-text/60 text-xs">{timeString}</span>
           </div>
         )}
-        <div className="bg-gray-800/90 border border-gray-700/50 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md hover:border-gray-600/50 transition-colors">
-          <p className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap break-words">
+        <div className="bg-card border border-card rounded-2xl rounded-tl-sm px-4 py-3 shadow-dark-md hover:border-accent/50 transition-colors">
+          <p className="text-primary-text text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
             {message.content}
           </p>
         </div>
         {isThreaded && (
-          <div className="text-gray-500 text-xs mt-1 ml-1">{timeString}</div>
+          <div className="text-primary-text/40 text-xs mt-1 ml-1">{timeString}</div>
         )}
       </div>
     </div>
