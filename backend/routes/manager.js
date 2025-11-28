@@ -59,12 +59,50 @@ module.exports = async (fastify) => {
 
       log(`POST /api/manager/decide - Processing decision for sector ${sectorId}`);
 
-      // Create manager agent instance
-      const manager = new ManagerAgent(sectorId);
-
-      // Set conflict threshold if provided
-      if (typeof conflictThreshold === 'number') {
-        manager.setConflictThreshold(conflictThreshold);
+      // Try to get existing manager from runtime, or create a temporary one
+      let manager;
+      try {
+        const agentRuntime = getAgentRuntime();
+        manager = agentRuntime.getManagerBySector(sectorId);
+        
+        // If no manager found, create a temporary one for this request
+        if (!manager) {
+          // Try to find a manager agent in storage
+          const agents = await loadAgents();
+          const managerAgent = agents.find(a => 
+            (a.role === 'manager' || a.role?.toLowerCase().includes('manager')) && 
+            a.sectorId === sectorId
+          );
+          
+          if (managerAgent) {
+            const ManagerAgentClass = require('../agents/manager/ManagerAgent');
+            manager = new ManagerAgentClass({
+              id: managerAgent.id,
+              sectorId: managerAgent.sectorId,
+              name: managerAgent.name,
+              personality: managerAgent.personality || {},
+              runtimeConfig: { conflictThreshold: conflictThreshold || 0.5 }
+            });
+          } else {
+            // Fallback to old ManagerAgent for compatibility
+            manager = new ManagerAgent(sectorId);
+            if (typeof conflictThreshold === 'number') {
+              manager.setConflictThreshold(conflictThreshold);
+            }
+          }
+        } else {
+          // Set conflict threshold if provided
+          if (typeof conflictThreshold === 'number') {
+            manager.conflictThreshold = conflictThreshold;
+          }
+        }
+      } catch (error) {
+        log(`Error getting manager from runtime, using fallback: ${error.message}`);
+        // Fallback to old ManagerAgent
+        manager = new ManagerAgent(sectorId);
+        if (typeof conflictThreshold === 'number') {
+          manager.setConflictThreshold(conflictThreshold);
+        }
       }
 
       // If signals are provided, use them directly
