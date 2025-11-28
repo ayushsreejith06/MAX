@@ -79,5 +79,10 @@ contract MaxRegistry {
             timestamp: block.timestamp
         });
     }
+
+    function validateAction() external pure returns (bool) {
+        // Placeholder - Phase 5 will enforce real MNEE rules
+        return true;
+    }
 }
 
