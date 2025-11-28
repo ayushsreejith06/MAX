@@ -208,6 +208,63 @@ class AgentRuntime {
   }
 
   /**
+   * Reload agents from storage (useful when new agents are created)
+   * Only loads new manager agents that aren't already in the runtime
+   * @returns {Promise<number>} Number of new agents loaded
+   */
+  async reloadAgents() {
+    try {
+      const agents = await loadAgents();
+      const managerAgents = agents.filter(agent => 
+        agent.role === 'manager' || agent.role?.toLowerCase().includes('manager')
+      );
+
+      let newAgentsLoaded = 0;
+
+      for (const agentData of managerAgents) {
+        // Skip if already loaded
+        if (this.managers.has(agentData.id)) {
+          continue;
+        }
+
+        // Skip if no sectorId
+        if (!agentData.sectorId) {
+          console.warn(`[AgentRuntime] Skipping manager ${agentData.id} - no sectorId`);
+          continue;
+        }
+
+        try {
+          const manager = new ManagerAgent({
+            id: agentData.id,
+            sectorId: agentData.sectorId,
+            name: agentData.name,
+            personality: agentData.personality || {},
+            runtimeConfig: {
+              tickInterval: this.tickIntervalMs,
+              conflictThreshold: 0.5
+            }
+          });
+
+          this.managers.set(agentData.id, manager);
+          newAgentsLoaded++;
+          console.log(`[AgentRuntime] Reloaded manager ${agentData.name} (${agentData.id}) for sector ${agentData.sectorId}`);
+        } catch (error) {
+          console.error(`[AgentRuntime] Error reloading manager ${agentData.id}:`, error);
+        }
+      }
+
+      if (newAgentsLoaded > 0) {
+        console.log(`[AgentRuntime] Reloaded ${newAgentsLoaded} new manager agents`);
+      }
+
+      return newAgentsLoaded;
+    } catch (error) {
+      console.error('[AgentRuntime] Error reloading agents:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get runtime status
    * @returns {Object} Status object
    */

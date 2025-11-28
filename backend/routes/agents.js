@@ -3,6 +3,27 @@ const { createAgent } = require('../agents/pipeline/createAgent');
 const { registry } = require('../utils/contract');
 const { updateMorale } = require('../agents/morale');
 
+// Helper: deterministically map UUID -> uint-like BigInt
+function uuidToUint(uuid) {
+  if (typeof uuid !== 'string') {
+    throw new Error('uuidToUint expects a string');
+  }
+
+  // Remove dashes and lower-case
+  const hex = uuid.replace(/-/g, '').toLowerCase();
+
+  // Take first 16 hex chars (64 bits) to keep it simple and safe
+  const slice = hex.slice(0, 16) || '0';
+
+  // Convert to BigInt from hex
+  try {
+    return BigInt('0x' + slice);
+  } catch (err) {
+    console.warn('Failed to convert UUID to uint, defaulting to 0n', { uuid, err });
+    return 0n;
+  }
+}
+
 // Simple logger
 function log(message) {
   const timestamp = new Date().toISOString();
@@ -55,23 +76,59 @@ module.exports = async (fastify) => {
     try {
       const { prompt, sectorId } = request.body;
 
+      // Validate request body
+      if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'prompt is required and must be a non-empty string'
+        });
+      }
+
+      if (sectorId !== null && sectorId !== undefined && typeof sectorId !== 'string') {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId must be a string or null'
+        });
+      }
+
       log(`POST /agents/create - Creating agent with prompt: ${prompt}, sectorId: ${sectorId || 'null'}`);
 
-      const agent = await createAgent(prompt, sectorId);
+      const agent = await createAgent(prompt.trim(), sectorId || null);
 
       log(`Agent created successfully - ID: ${agent.id}, Role: ${agent.role}`);
+
+      // If this is a manager agent, reload it into the runtime
+      if (agent.role === 'manager' || agent.role?.toLowerCase().includes('manager')) {
+        try {
+          const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
+          const agentRuntime = getAgentRuntime();
+          await agentRuntime.reloadAgents();
+          log(`Manager agent ${agent.id} reloaded into runtime`);
+        } catch (runtimeError) {
+          log(`Warning: Failed to reload agent into runtime: ${runtimeError.message}`);
+          // Don't fail the request if runtime reload fails
+        }
+      }
 
       // Auto-sync to chain
       if (!process.env.MAX_REGISTRY) {
         console.warn("MAX_REGISTRY undefined — skipping chain sync");
       } else {
         try {
-          const agentId = parseInt(agent.id) || 0;
-          const agentSectorId = parseInt(agent.sectorId) || 0;
-          const role = agent.role || '';
+          const onChainAgentId = uuidToUint(agent.id);
+          const onChainSectorId = agent.sectorId ? uuidToUint(agent.sectorId) : 0n;
+          const role = agent.role || agent.name || 'agent';
+
+          console.log('[agents] registerAgent on-chain', {
+            uuid: agent.id,
+            onChainAgentId: onChainAgentId.toString(),
+            sectorUuid: agent.sectorId || null,
+            onChainSectorId: onChainSectorId.toString(),
+            role: role,
+          });
           
-          await registry.write.registerAgent([agentId, agentSectorId, role]);
-          log(`Agent ${agentId} registered on-chain`);
+          await registry.write.registerAgent([onChainAgentId, onChainSectorId, role]);
+          log(`Agent ${onChainAgentId.toString()} (UUID: ${agent.id}) registered on-chain`);
         } catch (chainError) {
           log(`Warning: Failed to register agent on-chain: ${chainError.message}`);
           // Don't fail the request if chain registration fails
