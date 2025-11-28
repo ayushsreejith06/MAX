@@ -65,6 +65,13 @@ const start = async () => {
       fastify.log.error('Error registering manager route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/execution'), { prefix: '/api/execution' });
+      fastify.log.info('Execution route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering execution route:', err);
+      throw err;
+    }
 
     // Bootstrap SimulationEngine
     try {
@@ -91,6 +98,7 @@ const start = async () => {
     console.log(`📍 Discussions API: http://${HOST}:${PORT}/api/discussions`);
     console.log(`📍 MNEE API: http://${HOST}:${PORT}/api/mnee`);
     console.log(`📍 Manager API: http://${HOST}:${PORT}/api/manager`);
+    console.log(`📍 Execution API: http://${HOST}:${PORT}/api/execution`);
     console.log(`📍 Simulation Engine: Initialized`);
   } catch (err) {
     fastify.log.error(err);

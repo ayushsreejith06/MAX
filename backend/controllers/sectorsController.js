@@ -2,6 +2,7 @@ const Sector = require('../models/Sector');
 const { loadSectors, saveSectors } = require('../utils/storage');
 const { loadAgents } = require('../utils/agentStorage');
 const { createAgent } = require('../agents/pipeline/createAgent');
+const { calculatePrice, applyVolatility, computeRiskScore } = require('../simulation/performance');
 
 function validateSectorPayload(payload = {}) {
   if (!payload.sectorName || typeof payload.sectorName !== 'string' || payload.sectorName.trim().length === 0) {
@@ -33,7 +34,10 @@ function normalizeSectorRecord(data) {
       activeAgents: typeof data?.activeAgents === 'number' ? data.activeAgents : 0,
       candleData: Array.isArray(data?.candleData) ? data.candleData : [],
       discussions: Array.isArray(data?.discussions) ? data.discussions : [],
-      agents: Array.isArray(data?.agents) ? data.agents : []
+      agents: Array.isArray(data?.agents) ? data.agents : [],
+      volatility: typeof data?.volatility === 'number' ? data.volatility : 0.02,
+      riskScore: typeof data?.riskScore === 'number' ? data.riskScore : 50,
+      lastSimulatedPrice: typeof data?.lastSimulatedPrice === 'number' ? data.lastSimulatedPrice : null
     };
   }
 }
@@ -134,9 +138,82 @@ async function getSectorById(id) {
   }
 }
 
+async function updateSectorPerformance(id) {
+  try {
+    const sectors = await loadSectors();
+    const sectorIndex = sectors.findIndex(entry => entry.id === id);
+    
+    if (sectorIndex === -1) {
+      throw new Error('Sector not found');
+    }
+
+    let agents = [];
+    try {
+      agents = await loadAgents();
+    } catch (agentError) {
+      console.error('Error loading agents in updateSectorPerformance:', agentError);
+    }
+
+    const sector = sectors[sectorIndex];
+    const sectorAgents = agents.filter(agent => agent.sectorId === sector.id);
+    
+    // Create sector object with agents for calculations
+    const sectorWithAgents = {
+      ...sector,
+      agents: sectorAgents
+    };
+
+    // Apply volatility calculation
+    const volatility = applyVolatility(sectorWithAgents);
+    
+    // Update sector with new volatility
+    sectorWithAgents.volatility = volatility;
+    
+    // Calculate new price
+    const newPrice = calculatePrice(sectorWithAgents);
+    
+    // Calculate price change
+    const oldPrice = sector.currentPrice || 100;
+    const priceChange = newPrice - oldPrice;
+    const priceChangePercent = oldPrice > 0 ? (priceChange / oldPrice) * 100 : 0;
+    
+    // Compute risk score
+    const riskScore = computeRiskScore({
+      ...sectorWithAgents,
+      currentPrice: newPrice,
+      changePercent: priceChangePercent
+    });
+    
+    // Update sector with new values
+    sectors[sectorIndex] = {
+      ...sector,
+      volatility: volatility,
+      riskScore: riskScore,
+      lastSimulatedPrice: newPrice,
+      currentPrice: newPrice,
+      change: priceChange,
+      changePercent: priceChangePercent
+    };
+    
+    await saveSectors(sectors);
+    
+    // Return updated sector with agents
+    const updatedSector = {
+      ...sectors[sectorIndex],
+      agents: sectorAgents
+    };
+    
+    return normalizeSectorRecord(updatedSector);
+  } catch (error) {
+    console.error('Error in updateSectorPerformance:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createSector,
   getSectors,
-  getSectorById
+  getSectorById,
+  updateSectorPerformance
 };
 
