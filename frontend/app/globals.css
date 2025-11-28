@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+:root {
+  --background: #06070E;
+  --card: #262730;
+  --primary-text: #FFF8F0;
+  --up-trend: #7FB069;
+  --down-trend: #ff4d4d;
+  --accent: #036016;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--primary-text);
+}
