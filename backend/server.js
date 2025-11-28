@@ -14,37 +14,45 @@ const start = async () => {
       return { status: 'ok' };
     });
 
-    // Register routes
-    await fastify.register(require('./routes/sectors'), { prefix: '/sectors' });
+    // Register routes under /api prefix
+    await fastify.register(require('./routes/sectors'), { prefix: '/api/sectors' });
     try {
-      await fastify.register(require('./routes/agents'), { prefix: '/agents' });
+      await fastify.register(require('./routes/agents'), { prefix: '/api/agents' });
       fastify.log.info('Agents route registered successfully');
     } catch (err) {
       fastify.log.error('Error registering agents route:', err);
       throw err;
     }
     try {
-      await fastify.register(require('./routes/research'), { prefix: '/research' });
+      await fastify.register(require('./routes/research'), { prefix: '/api/research' });
       fastify.log.info('Research route registered successfully');
     } catch (err) {
       fastify.log.error('Error registering research route:', err);
       throw err;
     }
     try {
-      await fastify.register(require('./routes/debates'), { prefix: '/debates' });
+      await fastify.register(require('./routes/debates'), { prefix: '/api/debates' });
       fastify.log.info('Debates route registered successfully');
     } catch (err) {
       fastify.log.error('Error registering debates route:', err);
+      throw err;
+    }
+    try {
+      await fastify.register(require('./routes/discussions'), { prefix: '/api/discussions' });
+      fastify.log.info('Discussions route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering discussions route:', err);
       throw err;
     }
 
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
     console.log(`📍 Health check: http://localhost:${PORT}/health`);
-    console.log(`📍 Sectors API: http://localhost:${PORT}/sectors`);
-    console.log(`📍 Agents API: http://localhost:${PORT}/agents`);
-    console.log(`📍 Research API: http://localhost:${PORT}/research`);
-    console.log(`📍 Debates API: http://localhost:${PORT}/debates`);
+    console.log(`📍 Sectors API: http://localhost:${PORT}/api/sectors`);
+    console.log(`📍 Agents API: http://localhost:${PORT}/api/agents`);
+    console.log(`📍 Research API: http://localhost:${PORT}/api/research`);
+    console.log(`📍 Debates API: http://localhost:${PORT}/api/debates`);
+    console.log(`📍 Discussions API: http://localhost:${PORT}/api/discussions`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
