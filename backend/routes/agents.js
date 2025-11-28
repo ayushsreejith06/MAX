@@ -1,5 +1,6 @@
-const { getAgents } = require('../controllers/agentsController');
+const { loadAgents } = require('../utils/agentStorage');
 const { createAgent } = require('../agents/pipeline/createAgent');
+const { registry } = require('../utils/contract');
 
 // Simple logger
 function log(message) {
@@ -8,37 +9,43 @@ function log(message) {
 }
 
 module.exports = async (fastify) => {
-  // GET /agents - Get all agents or filter by sectorId
+  // GET /api/agents - Returns agents with defaults
   fastify.get('/', async (request, reply) => {
     try {
-      const { sectorId } = request.query;
-      
-      if (sectorId) {
-        log(`GET /agents - Fetching agents for sectorId: ${sectorId}`);
-      } else {
-        log(`GET /agents - Fetching all agents`);
-      }
-      
-      let agents = await getAgents();
-      
-      // Filter by sectorId if provided
-      if (sectorId) {
-        agents = agents.filter(agent => agent.sectorId === sectorId);
-        log(`Found ${agents.length} agents for sectorId: ${sectorId}`);
-      } else {
-        log(`Found ${agents.length} agents`);
-      }
-      
-      return reply.status(200).send({
-        success: true,
-        data: agents
-      });
+      log('GET /api/agents - Fetching enriched agents');
+      const agents = await loadAgents();
+
+      const enrichedAgents = agents.map(agent => ({
+        ...agent,
+        status: agent.status || 'idle',
+        performance: agent.performance || { pnl: 0, winRate: 0 },
+        trades: agent.trades || []
+      }));
+
+      return reply.status(200).send(enrichedAgents);
     } catch (error) {
       log(`Error fetching agents: ${error.message}`);
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // GET /api/agents/:id - Returns a single agent
+  fastify.get('/:id', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      log(`GET /api/agents/${id} - Fetching single agent`);
+
+      const agent = (await loadAgents()).find(a => a.id === id);
+
+      if (!agent) {
+        log(`Agent ${id} not found`);
+        return reply.code(404).send({ error: 'Agent not found' });
+      }
+
+      return reply.status(200).send(agent);
+    } catch (error) {
+      log(`Error fetching agent: ${error.message}`);
+      return reply.status(500).send({ error: error.message });
     }
   });
 
@@ -52,6 +59,21 @@ module.exports = async (fastify) => {
       const agent = await createAgent(prompt, sectorId);
 
       log(`Agent created successfully - ID: ${agent.id}, Role: ${agent.role}`);
+
+      // Auto-sync to chain
+      if (process.env.MAX_REGISTRY && registry.write) {
+        try {
+          const agentId = parseInt(agent.id) || 0;
+          const agentSectorId = parseInt(agent.sectorId) || 0;
+          const role = agent.role || '';
+          
+          await registry.write.registerAgent([agentId, agentSectorId, role]);
+          log(`Agent ${agentId} registered on-chain`);
+        } catch (chainError) {
+          log(`Warning: Failed to register agent on-chain: ${chainError.message}`);
+          // Don't fail the request if chain registration fails
+        }
+      }
 
       return reply.status(201).send({
         success: true,
