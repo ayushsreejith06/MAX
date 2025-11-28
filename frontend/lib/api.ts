@@ -1,6 +1,6 @@
 import { Agent, ApiPayload, Discussion, Sector, CandleData } from './types';
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000';
 const API_BASE = `${BACKEND.replace(/\/$/, '')}/api`;
 
 function unwrapPayload<T>(payload: ApiPayload<T>): T {
@@ -42,7 +42,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (error instanceof Error) {
       // Check if it's a network error
       if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
-        throw new Error('Cannot connect to backend server. Please ensure the backend is running on port 8000.');
+        throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${BACKEND}.`);
       }
       throw error;
     }

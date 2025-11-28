@@ -18,7 +18,21 @@ const publicClient = createPublicClient({
 });
 
 // Create account and wallet client for write operations
-const account = privateKeyToAccount(process.env.PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+// Ensure private key has 0x prefix if provided
+let privateKey = process.env.PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+// Remove any comments or extra text from private key
+if (privateKey) {
+  privateKey = privateKey.split('#')[0].trim(); // Remove comments
+  if (!privateKey.startsWith("0x")) {
+    privateKey = "0x" + privateKey;
+  }
+}
+// Validate private key length (should be 66 chars with 0x prefix = 64 hex chars)
+if (privateKey && privateKey.length !== 66) {
+  console.warn(`Invalid private key length: ${privateKey.length}. Using default Hardhat account.`);
+  privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+}
+const account = privateKeyToAccount(privateKey);
 const walletClient = createWalletClient({
   account,
   chain: { id: 31337 },
@@ -26,13 +40,19 @@ const walletClient = createWalletClient({
 });
 
 // Single contract instance with both public and wallet clients
-const registry = getContract({
-  address: CONTRACT_ADDRESS,
-  abi: ABI,
-  client: {
-    public: publicClient,
-    wallet: walletClient
-  }
-});
+// Only create registry if contract address is provided
+let registry = null;
+if (CONTRACT_ADDRESS) {
+  registry = getContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    client: {
+      public: publicClient,
+      wallet: walletClient
+    }
+  });
+}
 
 module.exports.registry = registry;
+module.exports.publicClient = publicClient;
+module.exports.walletClient = walletClient;
