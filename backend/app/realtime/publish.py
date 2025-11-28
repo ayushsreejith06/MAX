@@ -114,4 +114,3 @@ async def publish_agent_status(
     redis_client = await get_redis()
     await redis_client.publish(CHANNEL_AGENT_STATUS, json.dumps(payload))
     print(f"Published agent status update to Redis for agent {agentId}: {status}")
-
