@@ -7,6 +7,7 @@
 const ManagerAgent = require('../agents/ManagerAgent');
 const ExecutionAgent = require('../agents/ExecutionAgent');
 const { loadAgents } = require('../utils/agentStorage');
+const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
 
 // Simple logger
 function log(message) {
@@ -149,6 +150,71 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error in /api/manager/decide: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * GET /api/manager/status
+   * 
+   * Returns the status of the agent runtime and all manager agents.
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     data: {
+   *       isRunning: boolean,
+   *       managerCount: number,
+   *       tickIntervalMs: number,
+   *       decisionLogSize: number,
+   *       managers: Array<{id, sectorId, name, lastDecision, decisionCount}>
+   *     }
+   *   }
+   */
+  fastify.get('/status', async (request, reply) => {
+    try {
+      const agentRuntime = getAgentRuntime();
+      const status = agentRuntime.getStatus();
+      
+      return reply.status(200).send({
+        success: true,
+        data: status
+      });
+    } catch (error) {
+      log(`Error in /api/manager/status: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * GET /api/manager/decisions/:sectorId
+   * 
+   * Returns all decisions made by the manager for a specific sector.
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     data: Array<{managerId, sectorId, decision, timestamp}>
+   *   }
+   */
+  fastify.get('/decisions/:sectorId', async (request, reply) => {
+    try {
+      const { sectorId } = request.params;
+      const agentRuntime = getAgentRuntime();
+      const decisions = agentRuntime.getDecisionsForSector(sectorId);
+      
+      return reply.status(200).send({
+        success: true,
+        data: decisions
+      });
+    } catch (error) {
+      log(`Error in /api/manager/decisions/:sectorId: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message
