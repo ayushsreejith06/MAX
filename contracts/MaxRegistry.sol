@@ -35,5 +35,19 @@ contract MaxRegistry {
     uint256 private sectorCounter;
     uint256 private agentCounter;
     uint256 private tradeCounter;
+
+    // Functions
+    function registerSector(
+        uint256 sectorId,
+        string calldata name,
+        string calldata symbol
+    ) external {
+        sectors[sectorId] = Sector({
+            id: sectorId,
+            name: name,
+            symbol: symbol,
+            creator: msg.sender
+        });
+    }
 }
 
