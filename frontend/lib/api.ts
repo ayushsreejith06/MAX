@@ -124,6 +124,8 @@ function normalizeAgent(raw: any): Agent {
       riskTolerance: raw?.personality?.riskTolerance ?? raw?.personality?.risk_tolerance ?? 'Unknown',
       decisionStyle: raw?.personality?.decisionStyle ?? raw?.personality?.decision_style ?? 'Unknown',
     },
+    morale: typeof raw?.morale === 'number' ? raw.morale : undefined,
+    rewardPoints: typeof raw?.rewardPoints === 'number' ? raw.rewardPoints : undefined,
     createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
     rawTrades: Array.isArray(raw?.trades) ? raw.trades : undefined,
     rawPerformance: typeof raw?.performance === 'object' ? raw.performance : undefined,
@@ -304,6 +306,95 @@ export async function fetchAgentById(id: string): Promise<Agent | null> {
 export async function fetchDiscussions(): Promise<Discussion[]> {
   const payload = await request<Discussion[]>('/discussions');
   return Array.isArray(payload) ? payload.map(normalizeDiscussion) : [];
+}
+
+export async function fetchDiscussionById(id: string): Promise<Discussion | null> {
+  if (!id) {
+    return null;
+  }
+
+  const payload = await request<Discussion>(`/discussions/${id}`);
+  return payload ? normalizeDiscussion(payload) : null;
+}
+
+export async function createDiscussion(
+  sectorId: string,
+  title: string,
+  agentIds: string[] = []
+): Promise<Discussion> {
+  const payload = await request<Discussion>('/discussions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sectorId,
+      title,
+      agentIds,
+    }),
+  });
+  return normalizeDiscussion(payload);
+}
+
+export interface AddMessageParams {
+  agentId: string;
+  content: string;
+  role?: string;
+  agentName?: string;
+}
+
+export async function addDiscussionMessage(
+  discussionId: string,
+  message: AddMessageParams
+): Promise<Discussion> {
+  const payload = await request<Discussion>(`/discussions/${discussionId}/message`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(message),
+  });
+  return normalizeDiscussion(payload);
+}
+
+export async function closeDiscussion(discussionId: string): Promise<Discussion> {
+  const payload = await request<Discussion>(`/discussions/${discussionId}/close`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return normalizeDiscussion(payload);
+}
+
+export async function archiveDiscussion(discussionId: string): Promise<Discussion> {
+  const payload = await request<Discussion>(`/discussions/${discussionId}/archive`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return normalizeDiscussion(payload);
+}
+
+export async function acceptDiscussion(discussionId: string): Promise<Discussion> {
+  const payload = await request<Discussion>(`/discussions/${discussionId}/accept`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return normalizeDiscussion(payload);
+}
+
+export async function rejectDiscussion(discussionId: string): Promise<Discussion> {
+  const payload = await request<Discussion>(`/discussions/${discussionId}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return normalizeDiscussion(payload);
 }
 
 export async function createSector(sectorName: string, sectorSymbol: string): Promise<Sector> {
