@@ -1,5 +1,6 @@
 const Agent = require('../base/Agent');
 const { loadAgents, saveAgents } = require('../../utils/agentStorage');
+const { loadSectors } = require('../../utils/storage');
 
 // Simple role inference based on keywords
 function inferRole(promptText) {
@@ -22,69 +23,98 @@ function inferRole(promptText) {
   return 'general'; // default role
 }
 
-// Default personality templates
+const STATUS_POOL = ['idle', 'active', 'processing'];
+
 function getDefaultPersonality(role) {
   const templates = {
-    'trader': {
-      riskTolerance: 'moderate',
-      decisionStyle: 'quick',
-      communicationStyle: 'direct'
+    trader: {
+      riskTolerance: 'high',
+      decisionStyle: 'rapid'
     },
-    'analyst': {
-      riskTolerance: 'conservative',
-      decisionStyle: 'thorough',
-      communicationStyle: 'detailed'
-    },
-    'manager': {
-      riskTolerance: 'balanced',
-      decisionStyle: 'strategic',
-      communicationStyle: 'authoritative'
-    },
-    'advisor': {
-      riskTolerance: 'cautious',
-      decisionStyle: 'deliberate',
-      communicationStyle: 'persuasive'
-    },
-    'arbitrage': {
+    analyst: {
       riskTolerance: 'low',
-      decisionStyle: 'precise',
-      communicationStyle: 'technical'
+      decisionStyle: 'studious'
     },
-    'general': {
-      riskTolerance: 'moderate',
-      decisionStyle: 'balanced',
-      communicationStyle: 'neutral'
+    manager: {
+      riskTolerance: 'medium',
+      decisionStyle: 'balanced'
+    },
+    advisor: {
+      riskTolerance: 'medium',
+      decisionStyle: 'deliberate'
+    },
+    arbitrage: {
+      riskTolerance: 'low',
+      decisionStyle: 'precise'
+    },
+    general: {
+      riskTolerance: 'medium',
+      decisionStyle: 'balanced'
     }
   };
 
-  return templates[role] || templates['general'];
+  return templates[role] || templates.general;
 }
 
-async function createAgent(promptText, sectorId = null) {
-  // Infer role from prompt
+function generateAgentName(role, sectorSymbol) {
+  const symbol = sectorSymbol || 'UNAS';
+  if (role === 'manager') {
+    return `${symbol}_manager`;
+  }
+  return `${symbol}_${role}`;
+}
+
+async function resolveSectorMetadata(sectorId) {
+  if (!sectorId) {
+    return {
+      sectorId: null,
+      sectorName: 'Unassigned',
+      sectorSymbol: 'UNAS'
+    };
+  }
+
+  const sectors = await loadSectors();
+  const sector = sectors.find(s => s.id === sectorId);
+
+  if (!sector) {
+    return {
+      sectorId: null,
+      sectorName: 'Unassigned',
+      sectorSymbol: 'UNAS'
+    };
+  }
+
+  const preferredName = sector.sectorName || sector.name || 'Unknown Sector';
+  const preferredSymbol = sector.sectorSymbol || sector.symbol || preferredName.slice(0, 4).toUpperCase();
+
+  return {
+    sectorId: sector.id,
+    sectorName: preferredName,
+    sectorSymbol: preferredSymbol
+  };
+}
+
+async function createAgent(promptText = '', sectorId = null) {
   const role = inferRole(promptText);
-  
-  // Assign default personality template
   const personality = getDefaultPersonality(role);
-  
-  // Create new Agent instance
-  const agent = new Agent(null, role, personality, sectorId);
-  
-  // Add initial memory from prompt
-  agent.addMemory({
-    type: 'creation',
-    content: promptText
+  const sectorMeta = await resolveSectorMetadata(sectorId);
+
+  const agent = new Agent({
+    name: generateAgentName(role, sectorMeta.sectorSymbol),
+    role,
+    sectorId: sectorMeta.sectorId,
+    sectorSymbol: sectorMeta.sectorSymbol,
+    sectorName: sectorMeta.sectorName,
+    status: 'idle', // Default status, will be updated when agent actually does something
+    performance: { pnl: 0, winRate: 0 }, // No mock performance data
+    trades: [],
+    personality
   });
-  
-  // Load existing agents
+
   const agents = await loadAgents();
-  
-  // Add new agent
   agents.push(agent.toJSON());
-  
-  // Save to JSON
   await saveAgents(agents);
-  
+
   return agent;
 }
 

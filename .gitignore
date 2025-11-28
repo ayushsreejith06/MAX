@@ -62,3 +62,23 @@ foundry.toml.local
 
 # OS
 Thumbs.db
+
+# Tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+frontend/out/
+frontend-out/
+
+# Desktop build artifacts
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.pkg
+*.tar.gz
+*.zip
+!src-tauri/icons/*.ico
+!src-tauri/icons/*.icns
+!src-tauri/icons/*.png

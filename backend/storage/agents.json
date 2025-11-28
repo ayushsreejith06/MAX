@@ -1,92 +1,21 @@
 [
   {
-    "id": "2ce79567-8b81-442c-a57f-95d525feee63",
-    "sectorId": null,
-    "role": "trader",
-    "memory": [
-      {
-        "type": "creation",
-        "content": "I want to create a trading agent that buys and sells stocks",
-        "timestamp": "2025-11-25T19:12:07.632Z"
-      }
-    ],
-    "personality": {
-      "riskTolerance": "moderate",
-      "decisionStyle": "quick",
-      "communicationStyle": "direct"
+    "id": "4d6a09cb-d995-4c53-ba04-d25fbeaf0950",
+    "name": "TECH_manager",
+    "role": "manager",
+    "sectorId": "be952e15-5b1d-416a-932f-8cd16f56275a",
+    "sectorSymbol": "TECH",
+    "sectorName": "Technology",
+    "status": "idle",
+    "performance": {
+      "pnl": 0,
+      "winRate": 0
     },
-    "createdAt": "2025-11-25T19:12:07.632Z"
-  },
-  {
-    "id": "74ad8d66-f360-4bfe-a7f6-1f0fd6ebaac7",
-    "sectorId": null,
-    "role": "trader",
-    "memory": [
-      {
-        "type": "creation",
-        "content": "Create an analyst that researches market trends and forecasts prices",
-        "timestamp": "2025-11-25T19:12:07.638Z"
-      }
-    ],
+    "trades": [],
     "personality": {
-      "riskTolerance": "moderate",
-      "decisionStyle": "quick",
-      "communicationStyle": "direct"
+      "riskTolerance": "medium",
+      "decisionStyle": "balanced"
     },
-    "createdAt": "2025-11-25T19:12:07.638Z"
-  },
-  {
-    "id": "d2abe159-644d-4f82-9108-c76d82d10ea2",
-    "sectorId": null,
-    "role": "general",
-    "memory": [
-      {
-        "type": "creation",
-        "content": "I need a general purpose agent",
-        "timestamp": "2025-11-25T19:12:07.641Z"
-      }
-    ],
-    "personality": {
-      "riskTolerance": "moderate",
-      "decisionStyle": "balanced",
-      "communicationStyle": "neutral"
-    },
-    "createdAt": "2025-11-25T19:12:07.641Z"
-  },
-  {
-    "id": "12497317-6df0-4f21-a20c-a580358e6f25",
-    "sectorId": null,
-    "role": "trader",
-    "memory": [
-      {
-        "type": "creation",
-        "content": "I need a trading agent that executes buy and sell orders",
-        "timestamp": "2025-11-25T19:12:37.274Z"
-      }
-    ],
-    "personality": {
-      "riskTolerance": "moderate",
-      "decisionStyle": "quick",
-      "communicationStyle": "direct"
-    },
-    "createdAt": "2025-11-25T19:12:37.274Z"
-  },
-  {
-    "id": "29875f47-7d8a-485d-b628-958ab7cc6a1f",
-    "sectorId": null,
-    "role": "analyst",
-    "memory": [
-      {
-        "type": "creation",
-        "content": "Create an analyst that performs research and analysis on financial data",
-        "timestamp": "2025-11-25T19:12:44.798Z"
-      }
-    ],
-    "personality": {
-      "riskTolerance": "conservative",
-      "decisionStyle": "thorough",
-      "communicationStyle": "detailed"
-    },
-    "createdAt": "2025-11-25T19:12:44.798Z"
+    "createdAt": "2025-11-28T18:24:30.488Z"
   }
 ]

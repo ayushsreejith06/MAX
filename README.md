@@ -89,6 +89,40 @@ Project documentation including:
 - Agent development guides
 - Deployment instructions
 
+### `/src-tauri`
+Tauri desktop application configuration and Rust code for building the Windows desktop version of MAX. See [DESKTOP_BUILD.md](./DESKTOP_BUILD.md) for detailed build instructions.
+
+## Desktop Application
+
+MAX is available as a Windows desktop application built with Tauri. The desktop app bundles the frontend, backend, and all dependencies into a single executable that runs without requiring Node.js or any development tools.
+
+### Features
+
+- **Self-Contained**: No need to install Node.js or npm
+- **Local Persistence**: Data stored in Windows app data directory
+- **Auto-Updates**: Built-in update mechanism via GitHub Releases
+- **GPU Acceleration**: Optional GPU-accelerated agent inference (requires ONNX Runtime)
+- **Offline Capable**: Runs completely offline after installation
+
+### Building the Desktop App
+
+See [DESKTOP_BUILD.md](./DESKTOP_BUILD.md) for complete build and distribution instructions.
+
+Quick start:
+```bash
+# Install dependencies
+npm run install:all
+npm install
+
+# Build for production
+npm run build:web:desktop
+npm run tauri:build
+```
+
+### Download
+
+Pre-built installers are available in [GitHub Releases](https://github.com/ayushsreejith06/MAX/releases).
+
 ## Development Setup
 
 ### Prerequisites

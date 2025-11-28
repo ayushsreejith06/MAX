@@ -2,7 +2,11 @@
 require('dotenv').config();
 
 const fastify = require('fastify')({ logger: true });
-const PORT = process.env.PORT || 8000;
+
+// Support desktop mode via environment variables
+const MAX_ENV = process.env.MAX_ENV || 'web';
+const PORT = process.env.MAX_PORT || process.env.PORT || (MAX_ENV === 'desktop' ? 4000 : 8000);
+const HOST = MAX_ENV === 'desktop' ? '127.0.0.1' : '0.0.0.0';
 
 // Start server
 const start = async () => {
@@ -12,9 +16,9 @@ const start = async () => {
       origin: true
     });
 
-    // Health check endpoint
+    // Health check endpoint (used by Tauri to verify backend is ready)
     fastify.get('/health', async (request, reply) => {
-      return { status: 'ok' };
+      return { ok: true, status: 'ok' };
     });
 
     // Register routes under /api prefix
@@ -55,15 +59,19 @@ const start = async () => {
       throw err;
     }
 
-    await fastify.listen({ port: PORT, host: '0.0.0.0' });
-    console.log(`🚀 MAX Backend Server listening on port ${PORT}`);
-    console.log(`📍 Health check: http://localhost:${PORT}/health`);
-    console.log(`📍 Sectors API: http://localhost:${PORT}/api/sectors`);
-    console.log(`📍 Agents API: http://localhost:${PORT}/api/agents`);
-    console.log(`📍 Research API: http://localhost:${PORT}/api/research`);
-    console.log(`📍 Debates API: http://localhost:${PORT}/api/debates`);
-    console.log(`📍 Discussions API: http://localhost:${PORT}/api/discussions`);
-    console.log(`📍 MNEE API: http://localhost:${PORT}/api/mnee`);
+    await fastify.listen({ port: PORT, host: HOST });
+    console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
+    console.log(`📍 Environment: ${MAX_ENV}`);
+    if (MAX_ENV === 'desktop') {
+      console.log(`📍 App Data Directory: ${process.env.MAX_APP_DATA_DIR || 'default'}`);
+    }
+    console.log(`📍 Health check: http://${HOST}:${PORT}/health`);
+    console.log(`📍 Sectors API: http://${HOST}:${PORT}/api/sectors`);
+    console.log(`📍 Agents API: http://${HOST}:${PORT}/api/agents`);
+    console.log(`📍 Research API: http://${HOST}:${PORT}/api/research`);
+    console.log(`📍 Debates API: http://${HOST}:${PORT}/api/debates`);
+    console.log(`📍 Discussions API: http://${HOST}:${PORT}/api/discussions`);
+    console.log(`📍 MNEE API: http://${HOST}:${PORT}/api/mnee`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

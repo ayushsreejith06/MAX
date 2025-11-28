@@ -1,36 +1,41 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import Navigation from "./components/Navigation";
+import type { Metadata } from 'next';
+import './globals.css';
+import Navbar from '@/components/Navbar';
+import { UpdaterModal } from '@/components/UpdaterModal';
+import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-space-grotesk',
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-plex-mono',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "MAX - Multi-Sector Agentic Financial Simulation",
-  description: "Multi-sector NYSE-style agentic financial simulation platform",
+  title: 'Stock Brokerage UI - Redesign',
+  description: 'Professional Stock Brokerage Interface',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-gray-900 text-gray-100 antialiased`}
-      >
-        <Navigation />
-        <main className="min-h-screen">{children}</main>
+    <html lang="en">
+      <body className={`${spaceGrotesk.variable} ${plexMono.variable} bg-pure-black text-floral-white`}>
+        <Navbar />
+        {children}
+        <UpdaterModal />
       </body>
     </html>
   );
 }
+

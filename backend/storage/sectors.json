@@ -1,22 +1,16 @@
 [
   {
-    "id": "806a63ed-1f07-4808-b743-9cb8b62784f8",
-    "name": "Technology",
-    "createdAt": "2025-11-25T19:12:05.317Z"
-  },
-  {
-    "id": "f47f2fad-d366-4090-a01b-699d43db947a",
-    "name": "Test-1764098662869",
-    "createdAt": "2025-11-25T19:24:22.880Z"
-  },
-  {
-    "id": "903fe76b-1475-409f-af4c-aea25f748a26",
-    "name": "Test-1764099222471",
-    "createdAt": "2025-11-25T19:33:42.472Z"
-  },
-  {
-    "id": "939f98de-10f9-411e-b853-498d86751a30",
-    "name": "finance",
-    "createdAt": "2025-11-25T19:35:13.930Z"
+    "id": "be952e15-5b1d-416a-932f-8cd16f56275a",
+    "sectorName": "Technology",
+    "sectorSymbol": "TECH",
+    "currentPrice": 100,
+    "change": 0,
+    "changePercent": 0,
+    "volume": 0,
+    "statusPercent": 0,
+    "activeAgents": 0,
+    "candleData": [],
+    "discussions": [],
+    "agents": []
   }
 ]

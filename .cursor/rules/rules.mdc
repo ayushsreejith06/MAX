@@ -1,47 +1,105 @@
 ---
 alwaysApply: true
 ---
-# GLOBAL PROJECT RULES FOR THE MAX PROJECT
+# GLOBAL PROJECT RULES FOR THE MAX PROJECT  
+# MAIN-BRANCH ONLY COMMITS + PARALLEL AGENT PROTECTION
 
 ## Branch Safety
-1. No agent may ever commit directly to the main branch.
-2. All work must occur in feature/<task-name> branches.
-3. If a feature branch already exists:
-   - git checkout <branch>
-   - git pull to sync the workspace.
-4. If the branch does not exist:
-   - git checkout -b <branch> and push it.
+1. ALL commits MUST be made directly to the `main` branch.
+2. Agents MUST work on the `main` branch:
+   - git checkout main
+   - Ensure you are on main before any commits
+3. NO feature branches are allowed - all work happens on `main`.
+4. If you are not on main:
+   - git checkout main
+   - git pull origin main (to sync with latest)
+
+## Parallel Work Protection (Critical - Must Execute Before Every Commit)
+5. BEFORE EVERY COMMIT, agents MUST execute these safety checks:
+   - git fetch origin main
+   - git pull origin main
+   - Review what other agents have committed since your last pull
+   - Check for any conflicts or overlapping changes
+   - If conflicts exist: STOP and ask for user guidance
+6. No agent may modify, rewrite, or delete code authored by another agent unless:
+   - The file is assigned to them,
+   - Or the human explicitly approves the change.
+7. If two agents have touched the same files:
+   - The agent committing SECOND must review the FIRST agent's changes
+   - Ensure your changes are compatible and don't overwrite their work
+   - If unsure: STOP and ask for clarification
+8. If any agent detects potential conflicts or overlapping changes:
+   - STOP immediately and ask for clarification.
+   - DO NOT commit until conflicts are resolved with user guidance.
 
 ## Commit Discipline
-5. After EVERY small change:
-   - git add .
-   - git commit -m "<clear descriptive message>"
-   - git push
-6. Avoid large diffs — each atomic operation (file creation, function creation, config change) MUST be its own commit.
+9. Before EVERY commit, execute the safety protocol:
+   - git fetch origin main
+   - git pull origin main
+   - Review git log to see recent commits by other agents
+   - Check git status to ensure no conflicts
+   - Only proceed if the branch is clean and up-to-date
+10. After safety checks pass, commit:
+    - git add .
+    - git commit -m "<clear descriptive message>"
+    - git push origin main
+11. All commits must be atomic:
+    - One function = one commit
+    - One file creation = one commit
+    - One fix = one commit
+    - NO multi-file refactors in a single commit.
 
 ## Sync Rules
-7. Before starting any task, agents must:
-   - git fetch
-   - git pull
-   - confirm branch alignment
-8. If conflicts occur:
-   - agents should STOP and ask before overriding or resolving.
+12. Before starting any task, agents must:
+    - git checkout main
+    - git fetch origin main
+    - git pull origin main
+    - Confirm they are on main and up-to-date.
+13. If merge conflicts appear during pull:
+    - STOP immediately.
+    - DO NOT attempt to resolve automatically.
+    - Ask the user for instructions before touching anything.
+14. After pulling, always review:
+    - git log --oneline -10 (to see recent commits)
+    - Check if other agents modified files you plan to change
+    - Adjust your approach if needed to avoid conflicts
 
 ## Merge Policy
-9. No agent is allowed to merge anything into main.
-10. Only merge into dev via PR-style workflow or manual approval.
-11. main should only receive merges at stable milestones.
+15. All work is committed directly to `main` - no merging required.
+16. The safety protocol (fetch, pull, review) replaces the need for separate branches.
+17. If main has diverged significantly, coordinate with user before proceeding.
 
 ## Coding Conventions
-12. Always format code before committing.
-13. Keep file naming consistent (camelCase for JS, PascalCase for classes, kebab-case for components).
-14. Document new folders or modules when added.
+18. Maintain consistent styling:
+    - Classes = PascalCase
+    - Functions + variables = camelCase
+    - Components = kebab-case (for frontend files)
+19. Format code automatically before every commit.
+20. Document ANY new folders or modules in the README or docs.
 
 ## Agent Coordination
-15. Each agent should announce which branch they are working on.
-16. If two agents work on same subsystem, they must use the same feature branch.
-17. Agents should avoid touching unrelated files.
+21. Each agent must announce:
+    - That they are working on main branch
+    - Files they are modifying
+    - Scope of their work
+22. Agents must avoid touching unrelated files.
+23. Agents working in parallel on main must:
+    - Always pull before committing (safety protocol)
+    - Review other agents' recent commits
+    - Coordinate if touching the same files
+    - Communicate scope to avoid conflicts
 
 ## Safety Rules
-18. No destructive operations without confirmation.
-19. Never delete files or large blocks of code without explicit user approval.
+24. No destructive operations without explicit human approval:
+    - No deleting folders
+    - No removing large sections of code
+    - No rewriting someone else's implementation
+25. No force pushes (git push -f) allowed - EVER.
+26. The safety protocol (fetch, pull, review) is MANDATORY before every commit.
+27. If unsure — STOP and ask.
+28. If you see commits from other agents that conflict with your planned changes:
+    - STOP and review their changes carefully
+    - Adjust your approach to be compatible
+    - Ask user if you're uncertain about compatibility
+
+# END OF RULES

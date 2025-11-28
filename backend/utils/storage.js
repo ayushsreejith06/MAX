@@ -1,30 +1,15 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { readDataFile, writeDataFile } = require('./persistence');
 
-const STORAGE_DIR = path.join(__dirname, '..', 'storage');
-const SECTORS_FILE = path.join(STORAGE_DIR, 'sectors.json');
-
-async function ensureStorageDir() {
-  try {
-    await fs.mkdir(STORAGE_DIR, { recursive: true });
-  } catch (error) {
-    // Directory already exists or other error
-    if (error.code !== 'EEXIST') {
-      throw error;
-    }
-  }
-}
+const SECTORS_FILE = 'sectors.json';
 
 async function loadSectors() {
   try {
-    await ensureStorageDir();
-    const data = await fs.readFile(SECTORS_FILE, 'utf8');
-    return JSON.parse(data);
+    const data = await readDataFile(SECTORS_FILE);
+    return Array.isArray(data) ? data : [];
   } catch (error) {
+    // If file doesn't exist, return empty array and create it
     if (error.code === 'ENOENT') {
-      // File doesn't exist, return empty array
-      await ensureStorageDir();
-      await fs.writeFile(SECTORS_FILE, JSON.stringify([], null, 2));
+      await writeDataFile(SECTORS_FILE, []);
       return [];
     }
     throw error;
@@ -32,8 +17,7 @@ async function loadSectors() {
 }
 
 async function saveSectors(sectors) {
-  await ensureStorageDir();
-  await fs.writeFile(SECTORS_FILE, JSON.stringify(sectors, null, 2), 'utf8');
+  await writeDataFile(SECTORS_FILE, sectors);
 }
 
 module.exports = {

@@ -1,30 +1,15 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { readDataFile, writeDataFile } = require('./persistence');
 
-const STORAGE_DIR = path.join(__dirname, '..', 'storage');
-const DEBATES_FILE = path.join(STORAGE_DIR, 'debates.json');
-
-async function ensureStorageDir() {
-  try {
-    await fs.mkdir(STORAGE_DIR, { recursive: true });
-  } catch (error) {
-    // Directory already exists or other error
-    if (error.code !== 'EEXIST') {
-      throw error;
-    }
-  }
-}
+const DEBATES_FILE = 'debates.json';
 
 async function loadDebates() {
   try {
-    await ensureStorageDir();
-    const data = await fs.readFile(DEBATES_FILE, 'utf8');
-    return JSON.parse(data);
+    const data = await readDataFile(DEBATES_FILE);
+    return Array.isArray(data) ? data : [];
   } catch (error) {
+    // If file doesn't exist, return empty array and create it
     if (error.code === 'ENOENT') {
-      // File doesn't exist, return empty array
-      await ensureStorageDir();
-      await fs.writeFile(DEBATES_FILE, JSON.stringify([], null, 2));
+      await writeDataFile(DEBATES_FILE, []);
       return [];
     }
     throw error;
@@ -32,8 +17,7 @@ async function loadDebates() {
 }
 
 async function saveDebates(debates) {
-  await ensureStorageDir();
-  await fs.writeFile(DEBATES_FILE, JSON.stringify(debates, null, 2), 'utf8');
+  await writeDataFile(DEBATES_FILE, debates);
 }
 
 async function findDebateById(id) {

@@ -1,0 +1,21 @@
+{
+  "name": "max-desktop",
+  "version": "1.0.0",
+  "description": "MAX Desktop Application",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:web:desktop": "node scripts/build-frontend-desktop.js",
+    "tauri:dev": "npx tauri dev",
+    "tauri:build": "npx tauri build",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install && cd ../contracts && npm install"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

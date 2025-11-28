@@ -2,12 +2,38 @@
 
 const { loadDebates, saveDebate } = require('../../utils/debateStorage');
 const DebateRoom = require('../../models/DebateRoom');
+const Discussion = require('../../models/Discussion');
+
+const personalityStyles = ['aggressive', 'balanced', 'conservative'];
+const riskLevels = ['low', 'medium', 'high'];
+
+function applyPersonalityDefaults(agent) {
+  if (!agent) {
+    return agent;
+  }
+
+  const hasRisk = agent.personality && agent.personality.riskTolerance;
+  const hasDecision = agent.personality && agent.personality.decisionStyle;
+
+  if (hasRisk && hasDecision) {
+    return agent;
+  }
+
+  const updated = { ...agent };
+  updated.personality = {
+    riskTolerance: hasRisk ? agent.personality.riskTolerance : riskLevels[Math.floor(Math.random() * riskLevels.length)],
+    decisionStyle: hasDecision ? agent.personality.decisionStyle : personalityStyles[Math.floor(Math.random() * personalityStyles.length)]
+  };
+
+  return updated;
+}
 
 class ManagerAgent {
   constructor(sectorId) {
     this.sectorId = sectorId;
     this.agents = [];
     this.debates = [];
+    this.discussions = [];
     this.state = {};
   }
 
@@ -19,6 +45,11 @@ class ManagerAgent {
     this.debates = allDebates
       .filter(debate => debate.sectorId === this.sectorId)
       .map(debate => DebateRoom.fromData(debate));
+
+    // Convert debates to discussion objects for UI consumption
+    this.discussions = this.debates
+      .map(debate => this.createDiscussionFromDebate(debate))
+      .filter(Boolean);
   }
 
   saveState() {
@@ -41,8 +72,10 @@ class ManagerAgent {
     return debate;
   }
 
-  addAgent(agentId) {
-    // Empty stub
+  addAgent(agent) {
+    const enrichedAgent = applyPersonalityDefaults(agent);
+    this.agents.push(enrichedAgent);
+    return enrichedAgent;
   }
 
   removeAgent(agentId) {
@@ -55,6 +88,43 @@ class ManagerAgent {
 
   crossSectorComms() {
     // Empty stub - placeholder
+  }
+
+  createDiscussionFromDebate(debate) {
+    if (!debate) {
+      return null;
+    }
+
+    const logs = debate.logs || debate.messages || [];
+    return new Discussion({
+      id: `disc-${debate.id}`,
+      sectorId: debate.sectorId,
+      status: debate.status || 'active',
+      timestamp: Date.now(),
+      participants: Array.isArray(debate.agentIds) ? debate.agentIds : [],
+      messages: logs.map(log => ({
+        sender: log.agentId || log.sender,
+        content: log.message || log.content || '',
+        timestamp: log.timestamp || log.createdAt || Date.now()
+      }))
+    });
+  }
+
+  recordDiscussionFromDebate(debate, sector) {
+    const discussion = this.createDiscussionFromDebate(debate);
+
+    if (discussion) {
+      this.discussions.push(discussion);
+      if (sector) {
+        if (!Array.isArray(sector.discussions)) {
+          sector.discussions = [];
+        }
+        // Attach discussion to the sector for UI consumption
+        sector.discussions.push(discussion);
+      }
+    }
+
+    return discussion;
   }
 
   getDebateSummary() {

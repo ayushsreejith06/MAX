@@ -1,28 +1,15 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { readDataFile, writeDataFile } = require('./persistence');
 
-const STORAGE_DIR = path.join(__dirname, '..', 'storage');
-const AGENTS_FILE = path.join(STORAGE_DIR, 'agents.json');
-
-async function ensureStorageDir() {
-  try {
-    await fs.mkdir(STORAGE_DIR, { recursive: true });
-  } catch (error) {
-    if (error.code !== 'EEXIST') {
-      throw error;
-    }
-  }
-}
+const AGENTS_FILE = 'agents.json';
 
 async function loadAgents() {
   try {
-    await ensureStorageDir();
-    const data = await fs.readFile(AGENTS_FILE, 'utf8');
-    return JSON.parse(data);
+    const data = await readDataFile(AGENTS_FILE);
+    return Array.isArray(data) ? data : [];
   } catch (error) {
+    // If file doesn't exist, return empty array and create it
     if (error.code === 'ENOENT') {
-      await ensureStorageDir();
-      await fs.writeFile(AGENTS_FILE, JSON.stringify([], null, 2));
+      await writeDataFile(AGENTS_FILE, []);
       return [];
     }
     throw error;
@@ -30,8 +17,7 @@ async function loadAgents() {
 }
 
 async function saveAgents(agents) {
-  await ensureStorageDir();
-  await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2), 'utf8');
+  await writeDataFile(AGENTS_FILE, agents);
 }
 
 module.exports = {

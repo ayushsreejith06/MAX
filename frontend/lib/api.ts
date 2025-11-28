@@ -1,7 +1,21 @@
 import { Agent, ApiPayload, Discussion, Sector, CandleData } from './types';
+import { getApiBaseUrl, getBackendBaseUrl } from './desktopEnv';
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000';
-const API_BASE = `${BACKEND.replace(/\/$/, '')}/api`;
+// Use desktop-aware base URL
+const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    // Client-side: use dynamic detection
+    return getApiBaseUrl();
+  }
+  // Server-side: use environment variable or default
+  const backend = process.env.NEXT_PUBLIC_MAX_BACKEND_URL || 
+                  process.env.NEXT_PUBLIC_BACKEND_URL || 
+                  'http://localhost:8000';
+  return `${backend.replace(/\/$/, '')}/api`;
+};
+
+const API_BASE = getApiBase();
+const BACKEND = getBackendBaseUrl();
 
 function unwrapPayload<T>(payload: ApiPayload<T>): T {
   if (payload && typeof payload === 'object' && 'data' in payload) {
@@ -13,7 +27,9 @@ function unwrapPayload<T>(payload: ApiPayload<T>): T {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE}${path}`, {
+    // Get API base URL dynamically (handles desktop vs web mode)
+    const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
+    const response = await fetch(`${apiBase}${path}`, {
       cache: 'no-store',
       ...init,
     });
@@ -42,7 +58,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (error instanceof Error) {
       // Check if it's a network error
       if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
-        throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${BACKEND}.`);
+        const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
+        throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${backendUrl}.`);
       }
       throw error;
     }
@@ -155,7 +172,7 @@ function normalizeSector(raw: any): Sector {
   const candleData = Array.isArray(raw?.candleData)
     ? raw.candleData
         .map((entry: any, index: number) => normalizeCandleData(entry, index, basePrice))
-        .filter((point): point is CandleData => Boolean(point))
+        .filter((point: any): point is CandleData => Boolean(point))
     : [];
 
   const discussions = Array.isArray(raw?.discussions)
@@ -178,7 +195,7 @@ function normalizeSector(raw: any): Sector {
     changePercent: Number(raw?.changePercent ?? raw?.change_percent ?? 0),
     volume: Number(raw?.volume ?? 0),
     agents,
-    activeAgents: Number(raw?.activeAgents ?? raw?.active_agents ?? agents.filter(agent => agent.status === 'active').length),
+    activeAgents: Number(raw?.activeAgents ?? raw?.active_agents ?? agents.filter((agent: any) => agent.status === 'active').length),
     buyAgents: Number(raw?.buyAgents ?? raw?.buy_agents ?? 0),
     sellAgents: Number(raw?.sellAgents ?? raw?.sell_agents ?? 0),
     statusPercent: Number(raw?.statusPercent ?? raw?.status_percent ?? 0),

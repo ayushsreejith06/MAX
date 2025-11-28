@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stock Brokerage UI - Redesign
+
+A professional stock brokerage interface built with Next.js, React, and TypeScript, matching the Figma design specifications exactly.
+
+## Features
+
+- **Dashboard**: Overview of all market sectors with scrollable carousel and detailed charts
+- **Line Charts**: Segment-based dynamic coloring (green for upward trends, red for downward)
+  - Adjustable time increments (5, 10, 15, 30, 60 minutes)
+  - Configurable window sizes (1, 2, 4, 6, 12, 24 hours)
+  - Navigation controls for time windows
+- **Discussions**: Terminal-style interface with color-coded agent names
+  - Tabular layout with filtering by status and sector
+  - Expandable conversation histories
+  - Professional terminal aesthetic
+
+## Color Scheme
+
+- `#06070E` - Pure black (backgrounds)
+- `#7FB069` - Sage green (primary/upward trends)
+- `#036016` - Dark emerald (accents)
+- `#FFF8F0` - Floral white (text)
+- `#262730` - Shadow grey (cards/borders)
+- `#EF4444` - Red (downward trends)
 
 ## Getting Started
 
-First, run the development server:
-
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Run the development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+├── app/                    # Next.js app directory
+│   ├── layout.tsx         # Root layout with navbar
+│   ├── page.tsx           # Dashboard page
+│   └── discussions/       # Discussions page
+├── components/            # React components
+│   ├── Dashboard.tsx      # Main dashboard
+│   ├── LineChart.tsx      # Chart component with settings
+│   ├── DiscussionsPage.tsx # Discussions interface
+│   └── Navbar.tsx         # Navigation bar
+├── lib/                   # Utilities and shared logic
+│   ├── api.ts            # Backend fetch helpers
+│   └── types.ts          # Shared TypeScript contracts
+└── styles/                # Global styles
+    └── globals.css        # CSS with color tokens
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Technologies
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- Recharts (for line charts)
+- Lucide React (for icons)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
