@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+// TODO: Replace with typed API client from src/lib/api.ts
+// import { getAgents } from '@/src/lib/api';
+// import type { AgentWithSectorMeta } from '@/src/lib/types';
 import { getAgents, type Agent } from '@/lib/api';
 
 export default function AgentsPage() {
@@ -13,6 +16,8 @@ export default function AgentsPage() {
       try {
         setLoading(true);
         setError(null);
+        // TODO: Replace mock data with real API call getAgents() from src/lib/api.ts
+        // TODO: Update type to use AgentWithSectorMeta[] from src/lib/types.ts
         const agentsData = await getAgents();
         setAgents(agentsData);
       } catch (err) {

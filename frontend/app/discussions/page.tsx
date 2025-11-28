@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+// TODO: Replace with typed API client from src/lib/api.ts
+// import { getDiscussions } from '@/src/lib/api';
+// import type { DiscussionSummary } from '@/src/lib/types';
 import { getDiscussions, type Discussion } from "@/lib/api";
 
 export default function DiscussionsPage() {
@@ -14,6 +17,8 @@ export default function DiscussionsPage() {
       try {
         setLoading(true);
         setError(null);
+        // TODO: Replace mock data with real API call getDiscussions() from src/lib/api.ts
+        // TODO: Update type to use DiscussionSummary[] from src/lib/types.ts
         const discussionsData = await getDiscussions();
         setDiscussions(discussionsData);
       } catch (err) {

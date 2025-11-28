@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+// TODO: Replace with typed API client from src/lib/api.ts
+// import { getSectorById, getAgents, getDiscussions } from '@/src/lib/api';
+// import type { Sector, AgentWithSectorMeta, DiscussionSummary } from '@/src/lib/types';
 import { getSectorById, getAgents, getDiscussions, type Sector, type Agent, type Discussion } from "@/lib/api";
 
 export default function SectorDetailPage() {
@@ -21,6 +24,8 @@ export default function SectorDetailPage() {
         setLoading(true);
         setError(null);
 
+        // TODO: Replace mock data with real API calls from src/lib/api.ts
+        // TODO: Update types to use Sector, AgentWithSectorMeta[], DiscussionSummary[] from src/lib/types.ts
         const [sectorData, agentsData, discussionsData] = await Promise.all([
           getSectorById(sectorId),
           getAgents(sectorId),
