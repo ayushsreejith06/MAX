@@ -91,6 +91,7 @@ const start = async () => {
     console.log(`📍 Discussions API: http://${HOST}:${PORT}/api/discussions`);
     console.log(`📍 MNEE API: http://${HOST}:${PORT}/api/mnee`);
     console.log(`📍 Manager API: http://${HOST}:${PORT}/api/manager`);
+    console.log(`📍 Simulation Engine: Initialized`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

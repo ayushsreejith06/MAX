@@ -3,6 +3,7 @@
 const { loadDebates, saveDebate } = require('../../utils/debateStorage');
 const DebateRoom = require('../../models/DebateRoom');
 const Discussion = require('../../models/Discussion');
+const { processDecisionResult, applyMoraleConfidenceModifier } = require('../AgentEngine');
 
 const personalityStyles = ['aggressive', 'balanced', 'conservative'];
 const riskLevels = ['low', 'medium', 'high'];
@@ -84,6 +85,31 @@ class ManagerAgent {
 
   decisionLoop() {
     // Empty stub - placeholder
+    // When implementing, use processDecisionResult() from AgentEngine
+    // to update morale based on decision outcomes
+  }
+
+  /**
+   * Process agent decision with morale integration
+   * This method should be called when an agent makes a decision that affects sector profit/loss
+   * @param {string} agentId - Agent ID
+   * @param {number} baseConfidence - Base confidence from decision model (0-1)
+   * @param {number} profitLoss - Profit (positive) or loss (negative) from decision
+   * @returns {Promise<{confidence: number, morale: number, status: string}>} Decision result with morale modifiers
+   */
+  async processAgentDecision(agentId, baseConfidence, profitLoss) {
+    // Apply morale-based confidence modifier
+    const modifiedConfidence = await applyMoraleConfidenceModifier(agentId, baseConfidence);
+    
+    // Update morale based on decision outcome
+    const moraleResult = await processDecisionResult(agentId, profitLoss);
+    
+    return {
+      confidence: modifiedConfidence,
+      morale: moraleResult.morale,
+      status: moraleResult.status,
+      confidenceModifier: moraleResult.confidenceModifier
+    };
   }
 
   crossSectorComms() {
