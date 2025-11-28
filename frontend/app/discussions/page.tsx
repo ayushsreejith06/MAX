@@ -2,33 +2,23 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-// TODO: Replace with typed API client from src/lib/api.ts
-// import { getDiscussions } from '@/src/lib/api';
-// import type { DiscussionSummary } from '@/src/lib/types';
-import { getDiscussions, type Discussion } from "@/lib/api";
+import type { DiscussionSummary } from "@/src/lib/types";
+import { mockDiscussions } from "@/src/lib/mockData";
+import { StatusTag } from "@/src/components/discussion/StatusTag";
+import { formatDate } from "@/src/components/discussion/utils";
 
 export default function DiscussionsPage() {
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [discussions, setDiscussions] = useState<DiscussionSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchDiscussions() {
-      try {
-        setLoading(true);
-        setError(null);
-        // TODO: Replace mock data with real API call getDiscussions() from src/lib/api.ts
-        // TODO: Update type to use DiscussionSummary[] from src/lib/types.ts
-        const discussionsData = await getDiscussions();
-        setDiscussions(discussionsData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load discussions");
-      } finally {
-        setLoading(false);
-      }
-    }
+    // Simulate loading delay
+    const timer = setTimeout(() => {
+      setDiscussions(mockDiscussions);
+      setLoading(false);
+    }, 300);
 
-    fetchDiscussions();
+    return () => clearTimeout(timer);
   }, []);
 
   if (loading) {
@@ -38,21 +28,6 @@ export default function DiscussionsPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
             <p className="text-gray-400">Loading discussions...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-          <div className="text-center">
-            <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-6 max-w-md">
-              <h2 className="text-xl font-semibold text-red-400 mb-2">Error</h2>
-              <p className="text-gray-300">{error}</p>
-            </div>
           </div>
         </div>
       </div>
@@ -74,42 +49,40 @@ export default function DiscussionsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {discussions.map((discussion) => (
-            <Link
-              key={discussion.id}
-              href={`/discussions/${discussion.id}`}
-              className="block bg-gray-800/50 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-xl font-semibold text-white">{discussion.title}</h3>
-                    <span className="px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-300 rounded capitalize">
-                      {discussion.status}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-400">Sector ID: </span>
-                      <span className="text-sm text-gray-300">
-                        {discussion.sectorId || <span className="text-gray-500 italic">None</span>}
-                      </span>
+          {discussions.map((discussion) => {
+            // Generate summary from first message or use default
+            const summary = `${discussion.messagesCount} message${discussion.messagesCount !== 1 ? 's' : ''} • ${discussion.agentIds.length} participant${discussion.agentIds.length !== 1 ? 's' : ''}`;
+            
+            return (
+              <Link
+                key={discussion.id}
+                href={`/discussions/${discussion.id}`}
+                className="block bg-gray-800/50 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="text-xl font-semibold text-white">{discussion.title}</h3>
+                      <StatusTag status={discussion.status} />
                     </div>
-
-                    {discussion.updatedAt && (
-                      <div>
-                        <span className="text-sm text-gray-400">Updated: </span>
-                        <span className="text-sm text-gray-300">
-                          {new Date(discussion.updatedAt).toLocaleString()}
+                    
+                    <p className="text-sm text-gray-400 mb-3">{summary}</p>
+                    
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      {discussion.sectorSymbol && (
+                        <span className="px-2 py-1 bg-gray-700/50 rounded">
+                          {discussion.sectorSymbol}
                         </span>
-                      </div>
-                    )}
+                      )}
+                      {discussion.updatedAt && (
+                        <span>Updated {formatDate(discussion.updatedAt)}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
