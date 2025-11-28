@@ -110,6 +110,7 @@ export interface DiscussionSummary {
 export interface Discussion {
   id: string;
   sectorId: string;
+  sectorSymbol?: string;
   title: string;
   status: DiscussionStatus;
   agentIds: string[];
