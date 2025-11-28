@@ -14,13 +14,13 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/75">
+    <nav className="border-b border-card bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link
               href="/"
-              className="text-xl font-bold text-white hover:text-gray-300 transition-colors"
+              className="text-xl font-bold text-accent hover:text-up-trend transition-colors"
             >
               MAX
             </Link>
@@ -32,10 +32,10 @@ export default function Navigation() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 text-sm font-medium transition-colors uppercase ${
                     isActive
-                      ? "text-white border-b-2 border-blue-500"
-                      : "text-gray-400 hover:text-gray-300"
+                      ? "text-accent border-b-2 border-accent"
+                      : "text-primary-text/60 hover:text-primary-text"
                   }`}
                 >
                   {item.label}
