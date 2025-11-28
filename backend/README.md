@@ -14,6 +14,140 @@ The MAX backend provides:
 pip install -r requirements.txt
 ```
 
+## Redis Setup
+
+The MAX backend uses Redis as a message bus for coordinating realtime events across multiple processes/workers. This enables background workers (like market simulators) to publish updates that are then broadcast to WebSocket clients.
+
+### Configuration
+
+Redis connection is configured via the `REDIS_URL` environment variable:
+
+```bash
+export REDIS_URL="redis://localhost:6379/0"
+```
+
+Default (for local development):
+```
+redis://localhost:6379/0
+```
+
+You can also add it to your `.env` file in the `backend/` directory:
+```
+REDIS_URL=redis://localhost:6379/0
+```
+
+### Running Redis Locally
+
+#### Option 1: Docker (Recommended)
+
+```bash
+docker run -d --name redis-max -p 6379:6379 redis:7-alpine
+```
+
+#### Option 2: Docker Compose
+
+Create a `docker-compose.yml` in the project root:
+
+```yaml
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
+```
+
+Then run:
+```bash
+docker-compose up -d redis
+```
+
+#### Option 3: Local Installation
+
+**macOS:**
+```bash
+brew install redis
+brew services start redis
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update
+sudo apt-get install redis-server
+sudo systemctl start redis-server
+```
+
+**Windows:**
+Download and install from [Redis for Windows](https://github.com/microsoftarchive/redis/releases) or use WSL.
+
+### Redis Pub/Sub Channels
+
+The backend uses the following Redis channels for realtime events:
+
+- **`market_updates`** - Market index and sector value updates
+- **`sector_candles`** - Sector candle/OHLC data updates
+- **`discussion_messages`** - New messages in discussion rooms
+- **`agent_status`** - Agent status changes (active, idle, processing, etc.)
+
+### Message Format
+
+All messages published to Redis channels are JSON-encoded strings with camelCase keys for frontend compatibility. The WebSocket server automatically subscribes to these channels and broadcasts received messages to connected clients.
+
+### Publishing Events to Redis
+
+Background workers and other processes can publish events using the helper functions:
+
+```python
+from app.realtime.publish import (
+    publish_market_update,
+    publish_sector_candle,
+    publish_discussion_message,
+    publish_agent_status,
+)
+
+# Publish market update
+await publish_market_update(
+    sectorId="tech-001",
+    indexValue=1250.50
+)
+
+# Publish sector candle
+await publish_sector_candle(
+    sectorId="tech-001",
+    candle={
+        "timestamp": "2025-01-15T10:30:00.000Z",
+        "value": 1250.50,
+        "open": 1245.00,
+        "high": 1255.00,
+        "low": 1240.00,
+        "close": 1250.50
+    }
+)
+
+# Publish discussion message
+await publish_discussion_message(
+    discussionId="disc-123",
+    message={
+        "id": "msg-456",
+        "content": "Hello!",
+        "authorId": "agent-789",
+        "timestamp": "2025-01-15T10:30:00.000Z"
+    }
+)
+
+# Publish agent status
+await publish_agent_status(
+    agentId="agent-789",
+    sectorId="tech-001",
+    status="active"
+)
+```
+
 ## Database Setup
 
 The MAX backend uses PostgreSQL with SQLAlchemy ORM and Alembic for migrations.
@@ -249,7 +383,11 @@ socket.on('agent:status_update', (data) => {
 
 ### Broadcasting Events (Server-Side)
 
-To broadcast events from your application code:
+There are two ways to broadcast events:
+
+#### 1. Direct Broadcasting (Single Process)
+
+For broadcasting from within the same process as the WebSocket server:
 
 ```python
 from app.realtime import (
@@ -293,16 +431,25 @@ await broadcastAgentStatusUpdate(
 )
 ```
 
+#### 2. Redis Publishing (Multi-Process/Background Workers)
+
+For publishing from background workers or separate processes, use the Redis publish helpers (see Redis Setup section above). The WebSocket server automatically subscribes to Redis channels and broadcasts messages to connected clients.
+
 ## Architecture
 
 ### Realtime Module
 
 The `app/realtime/` module provides:
 - Socket.IO server instance (`sio`)
-- Broadcasting helper functions
+- Direct broadcasting helper functions (for same-process use)
+- Redis pub/sub integration for multi-process coordination
 - Connection management
 
-Currently operates in single-process mode. Future enhancements will include Redis pub/sub for multi-process scaling.
+**Architecture:**
+- The WebSocket server automatically subscribes to Redis pub/sub channels on startup
+- Background workers can publish events to Redis channels
+- The WebSocket server receives Redis messages and broadcasts them to connected clients
+- This enables horizontal scaling across multiple processes/workers
 
 ## Development
 
@@ -314,11 +461,15 @@ backend/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI app entrypoint
 │   ├── api/                 # REST API routers
-│   ├── core/                # Core configuration (db, settings)
+│   ├── core/                # Core configuration (db, settings, redis)
+│   │   ├── config.py        # Application settings
+│   │   └── redis.py         # Redis client helpers
 │   ├── models/              # Data models
 │   └── realtime/            # WebSocket/Socket.IO module
 │       ├── __init__.py
-│       └── socket.py        # Socket.IO server and broadcast functions
+│       ├── socket.py        # Socket.IO server and broadcast functions
+│       ├── publish.py       # Redis publish helpers
+│       └── channels.py      # Redis channel name constants
 ├── requirements.txt
 └── README.md
 ```
@@ -326,5 +477,6 @@ backend/
 ## Notes
 
 - CORS is currently configured to allow all origins (`*`). Configure appropriately for production.
-- The Socket.IO server operates in single-process mode. For production scaling, consider Redis pub/sub integration.
+- The Socket.IO server automatically subscribes to Redis pub/sub channels on startup for multi-process coordination.
 - All timestamps are in ISO 8601 format with UTC timezone (ending in 'Z').
+- Redis is required for the backend to function properly. Make sure Redis is running before starting the server.

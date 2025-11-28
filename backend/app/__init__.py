@@ -1,0 +1,3 @@
+"""
+MAX Backend FastAPI Application
+"""
