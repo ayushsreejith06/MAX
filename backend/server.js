@@ -84,6 +84,18 @@ const start = async () => {
       // Don't throw - allow server to start even if simulation engine fails
     }
 
+    // Bootstrap AgentRuntime
+    try {
+      const { getAgentRuntime } = require('./agents/runtime/agentRuntime');
+      const agentRuntime = getAgentRuntime();
+      await agentRuntime.initialize();
+      await agentRuntime.start(3000); // Start with 3 second intervals
+      fastify.log.info('AgentRuntime initialized and started successfully');
+    } catch (err) {
+      fastify.log.error('Error initializing AgentRuntime:', err);
+      // Don't throw - allow server to start even if agent runtime fails
+    }
+
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
     console.log(`📍 Environment: ${MAX_ENV}`);
