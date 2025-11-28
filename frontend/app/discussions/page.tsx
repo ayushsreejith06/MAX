@@ -1,25 +1,12 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { DiscussionSummary } from "@/src/lib/types";
-import { mockDiscussions } from "@/src/lib/mockData";
+import { useDiscussions } from "@/src/lib/api";
 import { StatusTag } from "@/src/components/discussion/StatusTag";
 import { formatDate } from "@/src/components/discussion/utils";
 
 export default function DiscussionsPage() {
-  const [discussions, setDiscussions] = useState<DiscussionSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => {
-      setDiscussions(mockDiscussions);
-      setLoading(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, []);
+  const { discussions, loading, error } = useDiscussions();
 
   if (loading) {
     return (
@@ -28,6 +15,21 @@ export default function DiscussionsPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
             <p className="text-gray-400">Loading discussions...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+          <div className="text-center">
+            <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-6 max-w-md">
+              <h2 className="text-xl font-semibold text-red-400 mb-2">Error</h2>
+              <p className="text-gray-300">{error}</p>
+            </div>
           </div>
         </div>
       </div>

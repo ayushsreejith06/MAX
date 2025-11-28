@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getSectorById, getAgents, getDiscussions } from '@/src/lib/api';
-import type { Sector, AgentWithSectorMeta, DiscussionSummary } from '@/src/lib/types';
+import { useSector, useAgents, useDiscussions } from '@/src/lib/api';
 import LineChart from '@/src/components/sector/LineChart';
 import SectorSummaryHeader from '@/src/components/sector/SectorSummaryHeader';
 import AgentPreviewList from '@/src/components/sector/AgentPreviewList';
@@ -14,41 +12,12 @@ export default function SectorDetailPage() {
   const params = useParams();
   const sectorId = params.id as string;
 
-  const [sector, setSector] = useState<Sector | null>(null);
-  const [agents, setAgents] = useState<AgentWithSectorMeta[]>([]);
-  const [discussions, setDiscussions] = useState<DiscussionSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { sector, loading: sectorLoading, error: sectorError } = useSector(sectorId);
+  const { agents, loading: agentsLoading } = useAgents({ sectorId });
+  const { discussions, loading: discussionsLoading } = useDiscussions({ sectorId });
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [sectorData, agentsData, discussionsData] = await Promise.all([
-          getSectorById(sectorId),
-          getAgents({ sectorId }),
-          getDiscussions({ sectorId }),
-        ]);
-
-        setSector(sectorData);
-        setAgents(agentsData);
-        setDiscussions(discussionsData);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load sector data'
-        );
-        console.error('Error loading sector:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (sectorId) {
-      loadData();
-    }
-  }, [sectorId]);
+  const loading = sectorLoading || agentsLoading || discussionsLoading;
+  const error = sectorError;
 
   if (loading) {
     return (

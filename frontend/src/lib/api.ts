@@ -3,6 +3,7 @@
  * Provides type-safe functions to interact with the backend REST API.
  */
 
+import useSWR from 'swr';
 import type {
   Sector,
   SectorSummary,
@@ -244,3 +245,150 @@ export async function getDiscussionById(id: string): Promise<Discussion> {
   }
 }
 
+// ============================================================================
+// SWR Hooks for React Components
+// ============================================================================
+
+/**
+ * SWR fetcher function for use with useSWR hook.
+ */
+const fetcher = async <T>(url: string): Promise<T> => {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return handleResponse<T>(response);
+};
+
+/**
+ * Hook to fetch all sectors with SWR caching.
+ */
+export function useSectors() {
+  const { data, error, isLoading, mutate } = useSWR<SectorSummary[]>(
+    `${API_BASE_URL}${API_PREFIX}/sectors`,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000, // Dedupe requests within 5 seconds
+    }
+  );
+
+  return {
+    sectors: data || [],
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : 'Failed to load sectors') : null,
+    mutate,
+  };
+}
+
+/**
+ * Hook to fetch a single sector by ID with SWR caching.
+ */
+export function useSector(id: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<Sector>(
+    id ? `${API_BASE_URL}${API_PREFIX}/sectors/${id}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
+
+  return {
+    sector: data || null,
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : 'Failed to load sector') : null,
+    mutate,
+  };
+}
+
+/**
+ * Hook to fetch agents with optional filters and SWR caching.
+ */
+export function useAgents(params?: { sectorId?: string; status?: AgentStatus }) {
+  const queryParams: Record<string, string | undefined> = {};
+  if (params?.sectorId) {
+    queryParams.sectorId = params.sectorId;
+  }
+  if (params?.status) {
+    queryParams.status = params.status;
+  }
+
+  const queryString = buildQueryString(queryParams);
+  const key = `${API_BASE_URL}${API_PREFIX}/agents${queryString}`;
+
+  const { data, error, isLoading, mutate } = useSWR<AgentWithSectorMeta[]>(
+    key,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
+    }
+  );
+
+  return {
+    agents: data || [],
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : 'Failed to load agents') : null,
+    mutate,
+  };
+}
+
+/**
+ * Hook to fetch discussions with optional filters and SWR caching.
+ */
+export function useDiscussions(params?: { sectorId?: string; status?: DiscussionStatus }) {
+  const queryParams: Record<string, string | undefined> = {};
+  if (params?.sectorId) {
+    queryParams.sectorId = params.sectorId;
+  }
+  if (params?.status) {
+    queryParams.status = params.status;
+  }
+
+  const queryString = buildQueryString(queryParams);
+  const key = `${API_BASE_URL}${API_PREFIX}/discussions${queryString}`;
+
+  const { data, error, isLoading, mutate } = useSWR<DiscussionSummary[]>(
+    key,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
+    }
+  );
+
+  return {
+    discussions: data || [],
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : 'Failed to load discussions') : null,
+    mutate,
+  };
+}
+
+/**
+ * Hook to fetch a single discussion by ID with SWR caching.
+ */
+export function useDiscussion(id: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<Discussion>(
+    id ? `${API_BASE_URL}${API_PREFIX}/discussions/${id}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
+
+  return {
+    discussion: data || null,
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : 'Failed to load discussion') : null,
+    mutate,
+  };
+}

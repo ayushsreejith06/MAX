@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import type { Discussion } from "@/src/lib/types";
-import { getMockDiscussion, getMockAgentsByIds } from "@/src/lib/mockData";
+import { useDiscussion, useAgents } from "@/src/lib/api";
 import { MessageList } from "@/src/components/discussion/MessageList";
 import { AgentSidebar } from "@/src/components/discussion/AgentSidebar";
 import { StatusTag } from "@/src/components/discussion/StatusTag";
@@ -13,30 +11,12 @@ export default function DiscussionDetailPage() {
   const params = useParams();
   const discussionId = params.id as string;
 
-  const [discussion, setDiscussion] = useState<Discussion | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => {
-      if (!discussionId) {
-        setError("Discussion ID is required");
-        setLoading(false);
-        return;
-      }
-
-      const discussionData = getMockDiscussion(discussionId);
-      if (!discussionData) {
-        setError("Discussion not found");
-      } else {
-        setDiscussion(discussionData);
-      }
-      setLoading(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [discussionId]);
+  const { discussion, loading, error } = useDiscussion(discussionId);
+  
+  // Get agents for sidebar
+  const agentIds = discussion?.agentIds || [];
+  const { agents: allAgents } = useAgents();
+  const agents = allAgents.filter((agent) => agentIds.includes(agent.id));
 
   if (loading) {
     return (
@@ -71,9 +51,6 @@ export default function DiscussionDetailPage() {
       </div>
     );
   }
-
-  // Get agents for sidebar
-  const agents = discussion ? getMockAgentsByIds(discussion.agentIds) : [];
 
   // Sort messages chronologically by timestamp
   const sortedMessages = discussion
