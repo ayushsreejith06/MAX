@@ -4,8 +4,10 @@
 
 const http = require('http');
 
-const BASE_URL = process.env.MAX_BACKEND_URL || 'http://localhost:4000';
-const PORT = process.env.MAX_PORT || 4000;
+// Detect port from environment or use defaults
+const PORT = process.env.MAX_PORT || process.env.PORT || 3001;
+const HOST = process.env.MAX_HOST || 'localhost';
+const BASE_URL = process.env.MAX_BACKEND_URL || `http://${HOST}:${PORT}`;
 
 function makeRequest(path, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
