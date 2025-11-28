@@ -1,32 +1,363 @@
-const { loadSectors } = require('../utils/storage');
+const DebateRoom = require('../models/DebateRoom');
+const { loadDebates, saveDebates } = require('../utils/debateStorage');
+const { loadAgents } = require('../utils/agentStorage');
 
-async function collectDiscussions() {
-  const sectors = await loadSectors();
-  const discussions = [];
+// Simple logger
+function log(message) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
+}
 
-  sectors.forEach((sector) => {
-    if (Array.isArray(sector.discussions)) {
-      discussions.push(...sector.discussions);
+// Helper to enrich discussion with agent names
+async function enrichDiscussion(discussion) {
+  try {
+    const agents = await loadAgents();
+    const agentMap = new Map(agents.map(agent => [agent.id, agent]));
+
+    // Enrich messages with agent names
+    const enrichedMessages = discussion.messages.map(msg => {
+      const agent = agentMap.get(msg.agentId);
+      return {
+        ...msg,
+        agentName: agent?.name || msg.agentName || 'Unknown Agent',
+        timestamp: msg.timestamp || msg.createdAt
+      };
+    });
+
+    return {
+      ...discussion,
+      messages: enrichedMessages
+    };
+  } catch (error) {
+    log(`Error enriching discussion: ${error.message}`);
+    return discussion;
+  }
+}
+
+module.exports = async (fastify) => {
+  // GET /discussions - Get all discussions, optionally filtered by sectorId
+  fastify.get('/', async (request, reply) => {
+    try {
+      const { sectorId } = request.query;
+
+      if (sectorId) {
+        log(`GET /discussions - Fetching discussions for sectorId: ${sectorId}`);
+      } else {
+        log(`GET /discussions - Fetching all discussions`);
+      }
+
+      let discussions = await loadDebates();
+
+      // Filter by sectorId if provided
+      if (sectorId) {
+        discussions = discussions.filter(discussion => discussion.sectorId === sectorId);
+        log(`Found ${discussions.length} discussions for sectorId: ${sectorId}`);
+      } else {
+        log(`Found ${discussions.length} discussions`);
+      }
+
+      // Enrich all discussions with agent names
+      const enrichedDiscussions = await Promise.all(
+        discussions.map(discussion => enrichDiscussion(discussion))
+      );
+
+      // Sort by newest first (by updatedAt, then createdAt)
+      enrichedDiscussions.sort((a, b) => {
+        const dateA = new Date(b.updatedAt || b.createdAt);
+        const dateB = new Date(a.updatedAt || a.createdAt);
+        return dateA - dateB;
+      });
+
+      return reply.status(200).send(enrichedDiscussions);
+    } catch (error) {
+      log(`Error fetching discussions: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
     }
   });
 
-  return discussions;
-}
-
-module.exports = function (fastify, opts, done) {
-  const handler = async (req, reply) => {
+  // GET /discussions/:id - Get a single discussion by id
+  fastify.get('/:id', async (request, reply) => {
     try {
-      const discussions = await collectDiscussions();
-      reply.send(discussions);
+      const { id } = request.params;
+      log(`GET /discussions/${id} - Fetching discussion by ID`);
+
+      const discussions = await loadDebates();
+      const discussion = discussions.find(d => d.id === id);
+
+      if (!discussion) {
+        log(`Discussion with ID ${id} not found`);
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const enriched = await enrichDiscussion(discussion);
+      log(`Found discussion - ID: ${enriched.id}, Title: ${enriched.title}`);
+      return reply.status(200).send(enriched);
     } catch (error) {
-      fastify.log.error('Failed to load discussions', error);
-      reply.status(500).send({ error: 'Failed to load discussions' });
+      log(`Error fetching discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
     }
-  };
+  });
 
-  // GET /api/discussions - Fetch all discussions
-  fastify.get('/', handler);
+  // POST /discussions - Create a new discussion
+  fastify.post('/', async (request, reply) => {
+    try {
+      const { sectorId, title, agentIds } = request.body;
 
-  done();
+      if (!sectorId || !title) {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId and title are required'
+        });
+      }
+
+      log(`POST /discussions - Creating discussion with sectorId: ${sectorId}, title: ${title}`);
+
+      const discussionRoom = new DebateRoom(sectorId, title, agentIds || []);
+      
+      // Load existing discussions, add new one, and save
+      const discussions = await loadDebates();
+      discussions.push(discussionRoom.toJSON());
+      await saveDebates(discussions);
+
+      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+
+      log(`Discussion created successfully - ID: ${enriched.id}, Title: ${enriched.title}`);
+
+      return reply.status(201).send(enriched);
+    } catch (error) {
+      log(`Error creating discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/message - Add a message to a discussion
+  fastify.post('/:id/message', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { agentId, content, role, agentName } = request.body;
+
+      if (!agentId || !content) {
+        return reply.status(400).send({
+          success: false,
+          error: 'agentId and content are required'
+        });
+      }
+
+      log(`POST /discussions/${id}/message - Adding message to discussion: ${id}`);
+
+      const discussions = await loadDebates();
+      const discussionIndex = discussions.findIndex(d => d.id === id);
+
+      if (discussionIndex === -1) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const discussionData = discussions[discussionIndex];
+      const discussionRoom = DebateRoom.fromData(discussionData);
+
+      // Add message
+      discussionRoom.addMessage({ 
+        agentId, 
+        content, 
+        role: role || 'agent',
+        agentName: agentName || undefined
+      });
+
+      // Ensure status is in_progress if it was created
+      if (discussionRoom.status === 'created') {
+        discussionRoom.status = 'in_progress';
+      }
+
+      // Update the discussion in the array
+      discussions[discussionIndex] = discussionRoom.toJSON();
+      await saveDebates(discussions);
+
+      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+
+      log(`Message added successfully to discussion: ${id}`);
+
+      return reply.status(200).send(enriched);
+    } catch (error) {
+      log(`Error adding message: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/close - Close a discussion
+  fastify.post('/:id/close', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`POST /discussions/${id}/close - Closing discussion: ${id}`);
+
+      const discussions = await loadDebates();
+      const discussionIndex = discussions.findIndex(d => d.id === id);
+
+      if (discussionIndex === -1) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const discussionData = discussions[discussionIndex];
+      const discussionRoom = DebateRoom.fromData(discussionData);
+
+      discussionRoom.status = 'closed';
+      discussionRoom.updatedAt = new Date().toISOString();
+
+      discussions[discussionIndex] = discussionRoom.toJSON();
+      await saveDebates(discussions);
+
+      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+
+      log(`Discussion closed successfully: ${id}`);
+
+      return reply.status(200).send(enriched);
+    } catch (error) {
+      log(`Error closing discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/archive - Archive a discussion
+  fastify.post('/:id/archive', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`POST /discussions/${id}/archive - Archiving discussion: ${id}`);
+
+      const discussions = await loadDebates();
+      const discussionIndex = discussions.findIndex(d => d.id === id);
+
+      if (discussionIndex === -1) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const discussionData = discussions[discussionIndex];
+      const discussionRoom = DebateRoom.fromData(discussionData);
+
+      discussionRoom.status = 'archived';
+      discussionRoom.updatedAt = new Date().toISOString();
+
+      discussions[discussionIndex] = discussionRoom.toJSON();
+      await saveDebates(discussions);
+
+      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+
+      log(`Discussion archived successfully: ${id}`);
+
+      return reply.status(200).send(enriched);
+    } catch (error) {
+      log(`Error archiving discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/accept - Accept a discussion (set status to accepted)
+  fastify.post('/:id/accept', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`POST /discussions/${id}/accept - Accepting discussion: ${id}`);
+
+      const discussions = await loadDebates();
+      const discussionIndex = discussions.findIndex(d => d.id === id);
+
+      if (discussionIndex === -1) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const discussionData = discussions[discussionIndex];
+      const discussionRoom = DebateRoom.fromData(discussionData);
+
+      discussionRoom.status = 'accepted';
+      discussionRoom.updatedAt = new Date().toISOString();
+
+      discussions[discussionIndex] = discussionRoom.toJSON();
+      await saveDebates(discussions);
+
+      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+
+      log(`Discussion accepted successfully: ${id}`);
+
+      return reply.status(200).send(enriched);
+    } catch (error) {
+      log(`Error accepting discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/reject - Reject a discussion (set status to rejected)
+  fastify.post('/:id/reject', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`POST /discussions/${id}/reject - Rejecting discussion: ${id}`);
+
+      const discussions = await loadDebates();
+      const discussionIndex = discussions.findIndex(d => d.id === id);
+
+      if (discussionIndex === -1) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const discussionData = discussions[discussionIndex];
+      const discussionRoom = DebateRoom.fromData(discussionData);
+
+      discussionRoom.status = 'rejected';
+      discussionRoom.updatedAt = new Date().toISOString();
+
+      discussions[discussionIndex] = discussionRoom.toJSON();
+      await saveDebates(discussions);
+
+      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+
+      log(`Discussion rejected successfully: ${id}`);
+
+      return reply.status(200).send(enriched);
+    } catch (error) {
+      log(`Error rejecting discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 };
-
