@@ -3,6 +3,9 @@ const { registry } = require("../utils/contract");
 module.exports = function (fastify, opts, done) {
   fastify.post("/register-sector", async (req, reply) => {
     try {
+      if (!registry) {
+        return reply.status(503).send({ success: false, error: "Contract not initialized. Check MAX_REGISTRY environment variable." });
+      }
       const { id, name, symbol } = req.body;
       await registry.write.registerSector([id, name, symbol]);
       reply.send({ success: true });
@@ -14,6 +17,9 @@ module.exports = function (fastify, opts, done) {
 
   fastify.post("/register-agent", async (req, reply) => {
     try {
+      if (!registry) {
+        return reply.status(503).send({ success: false, error: "Contract not initialized. Check MAX_REGISTRY environment variable." });
+      }
       const { id, sectorId, role } = req.body;
       await registry.write.registerAgent([id, sectorId, role]);
       reply.send({ success: true });
@@ -25,6 +31,9 @@ module.exports = function (fastify, opts, done) {
 
   fastify.post("/log-trade", async (req, reply) => {
     try {
+      if (!registry) {
+        return reply.status(503).send({ success: false, error: "Contract not initialized. Check MAX_REGISTRY environment variable." });
+      }
       const { id, agentId, sectorId, action, amount } = req.body;
       await registry.write.logTrade([id, agentId, sectorId, action, amount]);
       reply.send({ success: true });
@@ -36,6 +45,9 @@ module.exports = function (fastify, opts, done) {
 
   fastify.post("/validate", async (req, reply) => {
     try {
+      if (!registry) {
+        return reply.status(503).send({ success: false, error: "Contract not initialized. Check MAX_REGISTRY environment variable." });
+      }
       const { agentId, sectorId, action, amount } = req.body;
       const valid = await registry.read.validateAction([agentId, sectorId, action, amount]);
       reply.send({ success: true, valid });
