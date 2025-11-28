@@ -125,6 +125,8 @@ function normalizeAgent(raw: any): Agent {
       decisionStyle: raw?.personality?.decisionStyle ?? raw?.personality?.decision_style ?? 'Unknown',
     },
     createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
+    rawTrades: Array.isArray(raw?.trades) ? raw.trades : undefined,
+    rawPerformance: typeof raw?.performance === 'object' ? raw.performance : undefined,
   };
 }
 
@@ -231,6 +233,60 @@ export async function fetchSectorById(id: string): Promise<Sector | null> {
   return payload ? normalizeSector(payload) : null;
 }
 
+// Manager Agent API functions
+export interface ManagerStatus {
+  isRunning: boolean;
+  managerCount: number;
+  tickIntervalMs: number;
+  decisionLogSize: number;
+  managers: Array<{
+    id: string;
+    sectorId: string;
+    name: string;
+    lastDecision: {
+      action: string;
+      confidence: number;
+      reason: string;
+      timestamp: number;
+    } | null;
+    decisionCount: number;
+  }>;
+}
+
+export interface ManagerDecision {
+  managerId: string;
+  sectorId: string;
+  decision: {
+    action: string;
+    confidence: number;
+    reason: string;
+    voteBreakdown?: { BUY: number; SELL: number; HOLD: number };
+    conflictScore?: number;
+    timestamp: number;
+  };
+  timestamp: number;
+}
+
+export async function fetchManagerStatus(): Promise<ManagerStatus | null> {
+  try {
+    const payload = await request<{ success: boolean; data: ManagerStatus }>('/manager/status');
+    return payload && payload.success ? payload.data : null;
+  } catch (error) {
+    console.error('Error fetching manager status:', error);
+    return null;
+  }
+}
+
+export async function fetchManagerDecisions(sectorId: string): Promise<ManagerDecision[]> {
+  try {
+    const payload = await request<{ success: boolean; data: ManagerDecision[] }>(`/manager/decisions/${sectorId}`);
+    return payload && payload.success ? payload.data : [];
+  } catch (error) {
+    console.error('Error fetching manager decisions:', error);
+    return [];
+  }
+}
+
 export async function fetchAgents(): Promise<Agent[]> {
   const payload = await request<Agent[]>('/agents');
   return Array.isArray(payload) ? payload.map(agent => normalizeAgent(agent)) : [];
@@ -264,6 +320,51 @@ export async function createSector(sectorName: string, sectorSymbol: string): Pr
   return normalizeSector(payload);
 }
 
+export async function createAgent(
+  prompt: string,
+  sectorId: string | null
+): Promise<Agent> {
+  try {
+    const payload = await request<unknown>('/agents/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        sectorId,
+      }),
+    });
+
+    // Handle both `{ success: true, data: Agent }` and direct `Agent`
+    let rawAgent: unknown;
+
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'success' in payload &&
+      (payload as any).success === true &&
+      'data' in payload
+    ) {
+      rawAgent = (payload as any).data;
+    } else {
+      rawAgent = payload;
+    }
+
+    // At this point we expect `rawAgent` to be an Agent-like object
+    const agent = normalizeAgent(rawAgent as Agent);
+    return agent;
+  } catch (error: any) {
+    // Optionally inspect error.response / error.message depending on `request` helper
+    const message =
+      (error && error.message) ||
+      'Failed to create agent. Please try again.';
+
+    // Re-throw as a standard Error for callers (modals/pages) to handle
+    throw new Error(message);
+  }
+}
+
 export interface SimulateTickResult {
   sectorId: string;
   timestamp: number;
@@ -278,7 +379,7 @@ export interface SimulateTickResult {
 }
 
 export async function simulateTick(sectorId: string, decisions: any[] = []): Promise<SimulateTickResult> {
-  const payload = await request<SimulateTickResult>(`/sectors/${sectorId}/simulate-tick`, {
+  const payload = await request<{ success: boolean; data: SimulateTickResult } | SimulateTickResult>(`/sectors/${sectorId}/simulate-tick`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -287,16 +388,27 @@ export async function simulateTick(sectorId: string, decisions: any[] = []): Pro
       decisions,
     }),
   });
-  return payload;
+  
+  // Handle both wrapped and unwrapped responses
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    return (payload as { success: boolean; data: SimulateTickResult }).data;
+  }
+  return payload as SimulateTickResult;
 }
 
 export async function updateSectorPerformance(sectorId: string): Promise<Sector> {
-  const payload = await request<Sector>(`/sectors/${sectorId}/update-performance`, {
+  const payload = await request<{ success: boolean; data: Sector } | Sector>(`/sectors/${sectorId}/update-performance`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
-  return normalizeSector(payload);
+  
+  // Handle both wrapped and unwrapped responses
+  let sectorData: any = payload;
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    sectorData = (payload as { success: boolean; data: Sector }).data;
+  }
+  return normalizeSector(sectorData);
 }
 

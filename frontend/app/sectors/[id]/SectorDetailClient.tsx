@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, HelpCircle, Play, AlertCircle } from 'lucide-react';
 import LineChart from '@/components/LineChart';
-import { fetchSectorById, simulateTick, updateSectorPerformance, type SimulateTickResult } from '@/lib/api';
+import { CreateAgentModal } from '@/components/CreateAgentModal';
+import { fetchSectorById, simulateTick, updateSectorPerformance, type SimulateTickResult, fetchManagerStatus, fetchManagerDecisions, type ManagerStatus, type ManagerDecision } from '@/lib/api';
 import type { Sector } from '@/lib/types';
 
 export default function SectorDetailClient() {
@@ -15,6 +16,11 @@ export default function SectorDetailClient() {
   const [error, setError] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulateTickResult | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [managerStatus, setManagerStatus] = useState<ManagerStatus | null>(null);
+  const [managerDecisions, setManagerDecisions] = useState<ManagerDecision[]>([]);
+  const [loadingManagerData, setLoadingManagerData] = useState(false);
 
   // Extract ID from dynamic route
   const sectorId = params?.id as string | undefined;
@@ -110,6 +116,21 @@ export default function SectorDetailClient() {
     day: 'numeric', 
     year: 'numeric' 
   }) : 'N/A';
+
+  const reloadSector = async () => {
+    if (!sector?.id) return;
+    try {
+      setIsRefreshing(true);
+      const fresh = await fetchSectorById(sector.id);
+      if (fresh) {
+        setSector(fresh);
+      }
+    } catch (error) {
+      console.error('Failed to reload sector', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-pure-black p-8">
@@ -235,7 +256,7 @@ export default function SectorDetailClient() {
             </div>
             {sector.riskScore !== undefined && (
               <div className={`text-sm font-mono mt-1 ${
-                sector.riskScore >= 70 ? 'text-error-red' : sector.riskScore >= 40 ? 'text-yellow-400' : 'text-sage-green'
+                sector.riskScore >= 70 ? 'text-error-red' : sector.riskScore >= 40 ? 'text-warning-amber' : 'text-sage-green'
               }`}>
                 {sector.riskScore >= 70 ? 'High Risk' : sector.riskScore >= 40 ? 'Moderate Risk' : 'Low Risk'}
               </div>
@@ -261,7 +282,18 @@ export default function SectorDetailClient() {
 
         {/* SECTOR AGENTS Table - Always show */}
         <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
-          <h2 className="text-xl font-bold text-floral-white font-mono mb-4">SECTOR AGENTS ({sector.agents?.length || 0})</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.35em] text-ink-400">
+              SECTOR AGENTS ({sector.agents?.length || 0})
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="rounded-2xl bg-sage-green px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-pure-black hover:bg-sage-green/90"
+            >
+              Create Agent
+            </button>
+          </div>
           {sector.agents && sector.agents.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
@@ -280,8 +312,8 @@ export default function SectorDetailClient() {
                   {sector.agents.map((agent, index) => {
                     const statusColors = {
                       active: 'bg-sage-green/20 text-sage-green border-sage-green/50',
-                      idle: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
-                      processing: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+                      idle: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
+                      processing: 'bg-sky-blue/20 text-sky-blue border-sky-blue/50',
                     };
                     const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.idle;
                     
@@ -344,7 +376,7 @@ export default function SectorDetailClient() {
             <div className="space-y-3">
               {sector.discussions.map((discussion) => {
                 const statusColors = {
-                  in_progress: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+                  in_progress: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
                   accepted: 'bg-sage-green/20 text-sage-green border-sage-green/50',
                   rejected: 'bg-error-red/20 text-error-red border-error-red/50',
                   archived: 'bg-floral-white/10 text-floral-white/50 border-floral-white/30',
@@ -405,16 +437,24 @@ export default function SectorDetailClient() {
                   setError(null);
                   try {
                     // Update performance metrics
-                    const updatedSector = await updateSectorPerformance(sectorId);
+                    const updatedSector = await updateSectorPerformance(String(sectorId));
                     setSector(updatedSector);
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Failed to update performance');
+                  } catch (err: any) {
+                    console.error('Update performance error:', err);
+                    const errorMessage = err?.message || 'Failed to update performance';
+                    if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+                      setError(`Sector not found. Please ensure the sector ID is correct.`);
+                    } else if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
+                      setError(`Invalid request. Please check the sector data.`);
+                    } else {
+                      setError(errorMessage);
+                    }
                   } finally {
                     setSimulating(false);
                   }
                 }}
                 disabled={simulating || !sectorId}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-floral-white font-mono font-semibold rounded transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-sky-blue hover:bg-sky-blue/80 disabled:bg-sky-blue/50 disabled:cursor-not-allowed text-pure-black font-mono font-semibold rounded transition-colors flex items-center gap-2"
               >
                 <BarChart3 className="w-4 h-4" />
                 {simulating ? 'Updating...' : 'Update Performance'}
@@ -425,15 +465,23 @@ export default function SectorDetailClient() {
                   setSimulating(true);
                   setError(null);
                   try {
-                    const result = await simulateTick(sectorId, []);
+                    const result = await simulateTick(String(sectorId), []);
                     setSimulationResult(result);
                     // Reload sector data to show updated price
-                    const updatedSector = await fetchSectorById(sectorId);
+                    const updatedSector = await fetchSectorById(String(sectorId));
                     if (updatedSector) {
                       setSector(updatedSector);
                     }
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Failed to run simulation');
+                  } catch (err: any) {
+                    console.error('Simulation tick error:', err);
+                    const errorMessage = err?.message || 'Failed to run simulation';
+                    if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+                      setError(`Sector not found. Please ensure the sector ID is correct.`);
+                    } else if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
+                      setError(`Invalid request. Please check the sector data.`);
+                    } else {
+                      setError(errorMessage);
+                    }
                   } finally {
                     setSimulating(false);
                   }
@@ -531,14 +579,122 @@ export default function SectorDetailClient() {
 
         {/* MANAGER AGENT Section */}
         <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold text-floral-white font-mono mb-2">MANAGER AGENT</h2>
-              <p className="text-sm text-floral-white/60 font-mono">Manager Agent functionality coming soon...</p>
+              {loadingManagerData ? (
+                <p className="text-sm text-floral-white/60 font-mono">Loading...</p>
+              ) : managerStatus && managerStatus.managers.length > 0 ? (
+                <p className="text-sm text-sage-green font-mono">Active • {managerStatus.managers.length} manager(s) running</p>
+              ) : (
+                <p className="text-sm text-floral-white/60 font-mono">No manager agent found for this sector</p>
+              )}
             </div>
             <HelpCircle className="w-6 h-6 text-floral-white/40" />
           </div>
+
+          {managerStatus && managerStatus.managers.length > 0 && (
+            <div className="space-y-4">
+              {managerStatus.managers
+                .filter(m => m.sectorId === sectorId)
+                .map(manager => {
+                  const sectorDecisions = managerDecisions.filter(d => d.managerId === manager.id);
+                  const latestDecision = manager.lastDecision || (sectorDecisions.length > 0 ? sectorDecisions[sectorDecisions.length - 1].decision : null);
+                  
+                  return (
+                    <div key={manager.id} className="space-y-3">
+                      {/* Manager Info */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-floral-white font-semibold">{manager.name}</p>
+                          <p className="text-xs text-floral-white/60 font-mono">ID: {manager.id.substring(0, 8)}...</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-floral-white/60 font-mono">Decisions: {manager.decisionCount}</p>
+                          <p className="text-xs text-sage-green font-mono">
+                            {managerStatus.isRunning ? '● Running' : '○ Stopped'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Latest Decision */}
+                      {latestDecision && (
+                        <div className="bg-ink-600/50 rounded-lg p-4 border border-ink-500">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-floral-white/60 font-mono uppercase tracking-wider">Latest Decision</span>
+                            <span className={`text-xs font-mono px-2 py-1 rounded ${
+                              latestDecision.action === 'BUY' ? 'bg-sage-green/20 text-sage-green border border-sage-green/50' :
+                              latestDecision.action === 'SELL' ? 'bg-error-red/20 text-error-red border border-error-red/50' :
+                              'bg-floral-white/10 text-floral-white/70 border border-floral-white/30'
+                            }`}>
+                              {latestDecision.action}
+                            </span>
+                          </div>
+                          <p className="text-sm text-floral-white mb-1">{latestDecision.reason}</p>
+                          <div className="flex items-center gap-4 text-xs text-floral-white/60 font-mono">
+                            <span>Confidence: {(latestDecision.confidence * 100).toFixed(1)}%</span>
+                            {latestDecision.conflictScore !== undefined && (
+                              <span>Conflict: {(latestDecision.conflictScore * 100).toFixed(1)}%</span>
+                            )}
+                            {latestDecision.timestamp && (
+                              <span>{new Date(latestDecision.timestamp).toLocaleTimeString()}</span>
+                            )}
+                          </div>
+                          {latestDecision.voteBreakdown && (
+                            <div className="mt-2 pt-2 border-t border-ink-500 flex gap-4 text-xs text-floral-white/60 font-mono">
+                              <span>BUY: {latestDecision.voteBreakdown.BUY}</span>
+                              <span>SELL: {latestDecision.voteBreakdown.SELL}</span>
+                              <span>HOLD: {latestDecision.voteBreakdown.HOLD}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Recent Decisions */}
+                      {sectorDecisions.length > 0 && (
+                        <div>
+                          <p className="text-xs text-floral-white/60 font-mono uppercase tracking-wider mb-2">
+                            Recent Decisions ({sectorDecisions.length})
+                          </p>
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {sectorDecisions.slice(-5).reverse().map((decision, idx) => (
+                              <div key={idx} className="bg-ink-600/30 rounded p-2 border border-ink-500/50">
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+                                    decision.decision.action === 'BUY' ? 'bg-sage-green/20 text-sage-green' :
+                                    decision.decision.action === 'SELL' ? 'bg-error-red/20 text-error-red' :
+                                    'bg-floral-white/10 text-floral-white/70'
+                                  }`}>
+                                    {decision.decision.action}
+                                  </span>
+                                  <span className="text-xs text-floral-white/60 font-mono">
+                                    {(decision.decision.confidence * 100).toFixed(0)}%
+                                  </span>
+                                  <span className="text-xs text-floral-white/40 font-mono">
+                                    {new Date(decision.timestamp).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
+
+        <CreateAgentModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          preselectedSectorId={sector?.id}
+          onSuccess={async () => {
+            setShowCreateModal(false);
+            await reloadSector();
+          }}
+        />
       </div>
     </div>
   );
