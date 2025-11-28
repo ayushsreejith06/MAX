@@ -68,6 +68,7 @@ async def get_discussions(
                 status=disc_status,
                 agentIds=disc_data.get("agentIds", []),
                 messagesCount=len(messages),
+                createdAt=disc_data.get("createdAt", ""),
                 updatedAt=disc_data.get("updatedAt", disc_data.get("createdAt", "")),
             )
             summaries.append(summary)
@@ -156,6 +157,54 @@ async def create_discussion():
     Not exposed to end-users.
     """
     raise HTTPException(status_code=501, detail="Not implemented - use manager agent")
+
+
+@router.get("/{discussion_id}/messages", response_model=ApiResponse[List[MessageRead]])
+async def get_discussion_messages(discussion_id: str):
+    """
+    Get full message history for a discussion.
+    Returns messages in chronological order with timestamp and agent ID.
+    """
+    try:
+        discussions_data = load_discussions()
+        
+        # Find discussion
+        disc_data = next((d for d in discussions_data if d.get("id") == discussion_id), None)
+        if not disc_data:
+            raise HTTPException(status_code=404, detail="Discussion not found")
+        
+        # Convert messages
+        messages_data = disc_data.get("messages", [])
+        messages_list = []
+        
+        # Load agents to get agent names
+        agents_data = load_agents()
+        agent_lookup = {a.get("id"): a for a in agents_data}
+        
+        for idx, msg_data in enumerate(messages_data):
+            agent_id = msg_data.get("agentId", "")
+            agent_data = agent_lookup.get(agent_id)
+            agent_name = agent_data.get("name") if agent_data else msg_data.get("role", "Unknown")
+            
+            # Handle different message formats
+            message = MessageRead(
+                id=msg_data.get("id", f"{discussion_id}-msg-{idx}"),
+                discussionId=disc_data.get("id"),
+                agentId=agent_id,
+                agentName=agent_name,
+                content=msg_data.get("content", ""),
+                timestamp=msg_data.get("timestamp", msg_data.get("createdAt", "")),
+            )
+            messages_list.append(message)
+        
+        # Sort messages by timestamp (chronological order)
+        messages_list.sort(key=lambda x: x.timestamp)
+        
+        return ApiResponse(success=True, data=messages_list)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{discussion_id}/close")
