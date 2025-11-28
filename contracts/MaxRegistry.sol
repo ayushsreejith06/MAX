@@ -49,5 +49,18 @@ contract MaxRegistry {
             creator: msg.sender
         });
     }
+
+    function registerAgent(
+        uint256 agentId,
+        uint256 sectorId,
+        string calldata role
+    ) external {
+        agents[agentId] = Agent({
+            id: agentId,
+            sectorId: sectorId,
+            role: role,
+            creator: msg.sender
+        });
+    }
 }
 
