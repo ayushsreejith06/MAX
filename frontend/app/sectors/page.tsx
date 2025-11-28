@@ -104,7 +104,7 @@ export default function SectorsPage() {
             {sectors.map((sector) => (
               <Link
                 key={sector.id}
-                href={`/sectors/${sector.id}`}
+                href={`/sector/${sector.id}`}
                 className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 hover:bg-gray-650 transition-colors cursor-pointer"
               >
                 <h3 className="text-lg font-semibold text-white mb-2">
