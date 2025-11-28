@@ -14,6 +14,60 @@ The MAX backend provides:
 pip install -r requirements.txt
 ```
 
+## Database Setup
+
+The MAX backend uses PostgreSQL with SQLAlchemy ORM and Alembic for migrations.
+
+### Configuration
+
+Database connection is configured via the `DATABASE_URL` environment variable:
+
+```bash
+export DATABASE_URL="postgresql+psycopg2://user:password@localhost:5432/max"
+```
+
+Default (for local development):
+```
+postgresql+psycopg2://postgres:postgres@localhost:5432/max
+```
+
+You can also create a `.env` file in the `backend/` directory:
+```
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/max
+```
+
+### Running Migrations
+
+To apply database migrations:
+
+```bash
+# Apply all pending migrations
+alembic upgrade head
+
+# Create a new migration (after model changes)
+alembic revision --autogenerate -m "Description of changes"
+
+# Rollback one migration
+alembic downgrade -1
+
+# View current migration status
+alembic current
+
+# View migration history
+alembic history
+```
+
+### TimescaleDB Support
+
+The `sector_candles` table is designed to be TimescaleDB-compatible. To convert it to a hypertable in production:
+
+```sql
+-- Run this SQL command after migrations (requires TimescaleDB extension)
+SELECT create_hypertable('sector_candles', 'timestamp');
+```
+
+**Note:** TimescaleDB hypertable conversion is a deployment concern and not required for local development. The table structure is compatible with both standard PostgreSQL and TimescaleDB.
+
 ## Running the Server
 
 ```bash
