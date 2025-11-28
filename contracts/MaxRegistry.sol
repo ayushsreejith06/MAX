@@ -62,5 +62,22 @@ contract MaxRegistry {
             creator: msg.sender
         });
     }
+
+    function logTrade(
+        uint256 tradeId,
+        uint256 agentId,
+        uint256 sectorId,
+        string calldata action,
+        uint256 amount
+    ) external {
+        trades[tradeId] = Trade({
+            id: tradeId,
+            agentId: agentId,
+            sectorId: sectorId,
+            action: action,
+            amount: amount,
+            timestamp: block.timestamp
+        });
+    }
 }
 
