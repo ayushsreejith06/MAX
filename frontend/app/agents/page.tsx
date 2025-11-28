@@ -35,8 +35,8 @@ export default function AgentsPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-gray-400">Loading agents...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
+            <p className="text-primary-text/60">Loading agents...</p>
           </div>
         </div>
       </div>
@@ -48,9 +48,9 @@ export default function AgentsPage() {
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-            <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-6 max-w-md">
-              <h2 className="text-xl font-semibold text-red-400 mb-2">Error</h2>
-              <p className="text-gray-300">{error}</p>
+            <div className="bg-down-trend/10 border border-down-trend/50 rounded-lg p-6 max-w-md">
+              <h2 className="text-xl font-semibold text-down-trend mb-2">Error</h2>
+              <p className="text-primary-text/80">{error}</p>
             </div>
           </div>
         </div>
@@ -61,48 +61,48 @@ export default function AgentsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-4xl font-bold text-white">Agents</h1>
-        <div className="text-sm text-gray-400">
+        <h1 className="text-4xl font-bold text-primary-text">Agents</h1>
+        <div className="text-sm text-primary-text/60">
           {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
         </div>
       </div>
 
       {agents.length === 0 ? (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-12 text-center">
-          <p className="text-gray-400 text-lg">No agents created yet.</p>
+        <div className="bg-card border border-card rounded-lg p-12 text-center shadow-dark-md">
+          <p className="text-primary-text/60 text-lg">No agents created yet.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors"
+              className="bg-card border border-card rounded-lg p-6 hover:border-accent transition-colors shadow-dark-md"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-xl font-semibold text-white capitalize">{agent.role}</h3>
-                    <span className="px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-300 rounded">
+                    <h3 className="text-xl font-semibold text-primary-text capitalize">{agent.role}</h3>
+                    <span className="px-2 py-1 text-xs font-medium bg-accent/20 text-accent rounded">
                       {agent.id.slice(0, 8)}
                     </span>
                   </div>
                   
                   <div className="space-y-2">
                     <div>
-                      <span className="text-sm text-gray-400">Sector ID: </span>
-                      <span className="text-sm text-gray-300">
-                        {agent.sectorId || <span className="text-gray-500 italic">None</span>}
+                      <span className="text-sm text-primary-text/60">Sector ID: </span>
+                      <span className="text-sm text-primary-text/80">
+                        {agent.sectorId || <span className="text-primary-text/40 italic">None</span>}
                       </span>
                     </div>
                     
                     {agent.personality && Object.keys(agent.personality).length > 0 && (
                       <div>
-                        <span className="text-sm text-gray-400">Personality: </span>
+                        <span className="text-sm text-primary-text/60">Personality: </span>
                         <div className="flex flex-wrap gap-2 mt-1">
                           {Object.entries(agent.personality).map(([key, value]) => (
                             <span
                               key={key}
-                              className="px-2 py-1 text-xs bg-gray-700/50 text-gray-300 rounded"
+                              className="px-2 py-1 text-xs bg-background text-primary-text/80 rounded"
                             >
                               {key}: {String(value)}
                             </span>
@@ -112,16 +112,16 @@ export default function AgentsPage() {
                     )}
                     
                     <div>
-                      <span className="text-sm text-gray-400">Created: </span>
-                      <span className="text-sm text-gray-300">
+                      <span className="text-sm text-primary-text/60">Created: </span>
+                      <span className="text-sm text-primary-text/80">
                         {new Date(agent.createdAt).toLocaleString()}
                       </span>
                     </div>
                     
                     {agent.memory && agent.memory.length > 0 && (
                       <div>
-                        <span className="text-sm text-gray-400">Memory entries: </span>
-                        <span className="text-sm text-gray-300">{agent.memory.length}</span>
+                        <span className="text-sm text-primary-text/60">Memory entries: </span>
+                        <span className="text-sm text-primary-text/80">{agent.memory.length}</span>
                       </div>
                     )}
                   </div>
