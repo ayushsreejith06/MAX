@@ -26,6 +26,11 @@ contract MaxRegistry {
         uint256 timestamp;
     }
 
+    // Events
+    event SectorRegistered(uint256 indexed id, string name, string symbol, address creator);
+    event AgentRegistered(uint256 indexed id, uint256 indexed sectorId, string role, address creator);
+    event TradeLogged(uint256 indexed id, uint256 indexed agentId, uint256 indexed sectorId, string action, uint256 amount, uint256 timestamp);
+
     // Storage
     mapping(uint256 => Sector) public sectors;
     mapping(uint256 => Agent) public agents;
@@ -48,6 +53,7 @@ contract MaxRegistry {
             symbol: symbol,
             creator: msg.sender
         });
+        emit SectorRegistered(sectorId, name, symbol, msg.sender);
     }
 
     function registerAgent(
@@ -61,6 +67,7 @@ contract MaxRegistry {
             role: role,
             creator: msg.sender
         });
+        emit AgentRegistered(agentId, sectorId, role, msg.sender);
     }
 
     function logTrade(
@@ -70,14 +77,16 @@ contract MaxRegistry {
         string calldata action,
         uint256 amount
     ) external {
+        uint256 timestamp = block.timestamp;
         trades[tradeId] = Trade({
             id: tradeId,
             agentId: agentId,
             sectorId: sectorId,
             action: action,
             amount: amount,
-            timestamp: block.timestamp
+            timestamp: timestamp
         });
+        emit TradeLogged(tradeId, agentId, sectorId, action, amount, timestamp);
     }
 
     function validateAction() external pure returns (bool) {
