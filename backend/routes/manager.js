@@ -5,6 +5,7 @@
  */
 
 const ManagerAgent = require('../agents/ManagerAgent');
+const ExecutionAgent = require('../agents/ExecutionAgent');
 const { loadAgents } = require('../utils/agentStorage');
 
 // Simple logger
@@ -23,7 +24,9 @@ module.exports = async (fastify) => {
    *   {
    *     sectorId: string (required),
    *     signals?: Array<{action: string, confidence: number, agentId?: string}> (optional),
-   *     conflictThreshold?: number (optional, 0-1)
+   *     conflictThreshold?: number (optional, 0-1),
+   *     autoExecute?: boolean (optional, default: false) - If true, automatically execute the decision
+   *     executionOptions?: Object (optional) - Options for execution if autoExecute is true
    *   }
    * 
    * If signals are not provided, the endpoint will attempt to generate mock signals
@@ -119,9 +122,30 @@ module.exports = async (fastify) => {
 
       log(`Decision made: ${decision.action} (confidence: ${decision.confidence.toFixed(2)})`);
 
+      // If autoExecute is enabled, execute the decision
+      const { autoExecute, executionOptions = {} } = request.body;
+      let executionResult = null;
+
+      if (autoExecute && decision.action !== 'HOLD' && decision.action !== 'NEEDS_REVIEW') {
+        try {
+          log(`Auto-executing decision for sector ${sectorId}`);
+          const executionAgent = new ExecutionAgent(sectorId);
+          executionResult = await executionAgent.execute(decision, executionOptions);
+          log(`Execution result: ${executionResult.status}`);
+        } catch (error) {
+          log(`Error auto-executing decision: ${error.message}`);
+          executionResult = {
+            success: false,
+            status: 'ERROR',
+            reason: error.message
+          };
+        }
+      }
+
       return reply.status(200).send({
         success: true,
-        data: decision
+        data: decision,
+        execution: executionResult
       });
     } catch (error) {
       log(`Error in /api/manager/decide: ${error.message}`);

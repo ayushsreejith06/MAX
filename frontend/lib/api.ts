@@ -58,7 +58,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (error instanceof Error) {
       // Check if it's a network error
       if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
-        const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
+        // Always use dynamic detection for error messages
+        const backendUrl = getBackendBaseUrl();
         throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${backendUrl}.`);
       }
       throw error;
@@ -202,6 +203,9 @@ function normalizeSector(raw: any): Sector {
     candleData,
     discussions,
     createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
+    volatility: typeof raw?.volatility === 'number' ? Number(raw.volatility.toFixed(4)) : undefined,
+    riskScore: typeof raw?.riskScore === 'number' ? Number(raw.riskScore) : undefined,
+    lastSimulatedPrice: typeof raw?.lastSimulatedPrice === 'number' ? Number(raw.lastSimulatedPrice.toFixed(2)) : null,
   };
 }
 
@@ -256,6 +260,42 @@ export async function createSector(sectorName: string, sectorSymbol: string): Pr
       sectorName,
       sectorSymbol,
     }),
+  });
+  return normalizeSector(payload);
+}
+
+export interface SimulateTickResult {
+  sectorId: string;
+  timestamp: number;
+  newPrice: number;
+  riskScore: number;
+  executedTrades: any[];
+  rejectedTrades: any[];
+  orderbook: any;
+  lastTrade: any;
+  priceChange: number;
+  priceChangePercent: number;
+}
+
+export async function simulateTick(sectorId: string, decisions: any[] = []): Promise<SimulateTickResult> {
+  const payload = await request<SimulateTickResult>(`/sectors/${sectorId}/simulate-tick`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      decisions,
+    }),
+  });
+  return payload;
+}
+
+export async function updateSectorPerformance(sectorId: string): Promise<Sector> {
+  const payload = await request<Sector>(`/sectors/${sectorId}/update-performance`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
   return normalizeSector(payload);
 }

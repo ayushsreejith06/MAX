@@ -62,6 +62,9 @@ export interface Sector {
   candleData: CandleData[];
   discussions: Discussion[];
   createdAt: string;
+  volatility?: number;
+  riskScore?: number;
+  lastSimulatedPrice?: number | null;
 }
 
 export type ApiPayload<T> = T | { data: T } | { success: boolean; data: T };
