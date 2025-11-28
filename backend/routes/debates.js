@@ -74,9 +74,9 @@ module.exports = async (fastify) => {
       // Add message
       debateRoom.addMessage({ agentId, content, role });
 
-      // Set status to "debating" if it was "created"
+      // Ensure status is in_progress if it was created
       if (debateRoom.status === 'created') {
-        debateRoom.status = 'debating';
+        debateRoom.status = 'in_progress';
       }
 
       // Update the debate in the array
