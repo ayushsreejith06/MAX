@@ -11,9 +11,11 @@ const BaseAgent = require('../base/BaseAgent');
 const { vote } = require('../../manager/voting');
 const { aggregateConfidenceForAction } = require('../../manager/confidence');
 const { detectConflict, resolveConflict } = require('../../manager/conflict');
-const { loadAgents } = require('../../utils/agentStorage');
+const { loadAgents, saveAgents } = require('../../utils/agentStorage');
 const { loadSectors, getSectorById } = require('../../utils/storage');
 const { publish, drain } = require('../comms/MessageBus');
+const { rewardForProfit, penalizeForLoss } = require('../morale');
+const { ResearchAgent } = require('../research');
 
 /**
  * ManagerAgent class - extends BaseAgent
@@ -28,18 +30,19 @@ class ManagerAgent extends BaseAgent {
    * @param {Object} config.personality - Personality configuration
    * @param {Object} config.runtimeConfig - Runtime configuration
    */
-  constructor({ id, sectorId, name, personality = {}, runtimeConfig = {} }) {
+  constructor({ id, sectorId, name, personality = {}, performance = {}, memory = [], runtimeConfig = {} }) {
     if (!id) throw new Error('Manager agent ID is required');
     if (!sectorId) throw new Error('Sector ID is required');
     if (!name) throw new Error('Manager name is required');
 
-    // Initialize BaseAgent
+    // Initialize BaseAgent with memory from stored data
     super({
       id,
       name,
       role: 'manager',
       personality,
-      performance: {}
+      performance,
+      memory
     });
 
     this.sectorId = sectorId;
@@ -67,6 +70,11 @@ class ManagerAgent extends BaseAgent {
     this.sectorCache = null; // Cached sector data
     this.msgQueue = []; // Incoming message queue
     this.decisionHistory = []; // Past decisions
+
+    // Morale tracking
+    this.lastDecisionPrice = null; // Price when last decision was made
+    this.lastDecisionAction = null; // Action of last decision (BUY/SELL/HOLD)
+    this.consecutiveWins = 0; // Count of consecutive successful decisions
 
     // Conflict threshold
     this.conflictThreshold = this.runtimeConfig.conflictThreshold;
@@ -149,6 +157,36 @@ class ManagerAgent extends BaseAgent {
       await this.loadSector();
     }
 
+    // If no signals provided, try to get them from sector agents
+    if (!signals || signals.length === 0) {
+      try {
+        const agents = await loadAgents();
+        const sectorAgents = agents.filter(a => a.sectorId === this.sectorId && a.role !== 'manager');
+        
+        if (sectorAgents.length === 0) {
+          return {
+            action: 'HOLD',
+            confidence: 0,
+            reason: 'No other agents in sector to provide signals. Create trader/analyst agents for the manager to make decisions.',
+            voteBreakdown: { BUY: 0, SELL: 0, HOLD: 0 },
+            conflictScore: 0,
+            timestamp: Date.now()
+          };
+        }
+        
+        // Generate placeholder signals from sector agents
+        sectorAgents.forEach(agent => {
+          signals.push({
+            action: 'HOLD',
+            confidence: 0.5,
+            agentId: agent.id
+          });
+        });
+      } catch (error) {
+        console.warn(`[ManagerAgent ${this.id}] Error loading agents for signals:`, error.message);
+      }
+    }
+
     // Get cross-sector signals
     const crossSignals = await this.getCrossSectorSignals();
 
@@ -156,14 +194,78 @@ class ManagerAgent extends BaseAgent {
     if (!signals || signals.length === 0) {
       try {
         const agents = await loadAgents();
-        const sectorAgents = agents.filter(a => a.sectorId === this.sectorId);
+        const sectorAgents = agents.filter(a => a.sectorId === this.sectorId && a.role !== 'manager');
         
-        // Generate mock signals from agents (can be enhanced with actual agent decision logic)
-        signals = sectorAgents.map(agent => ({
-          action: 'HOLD',
-          confidence: 0.5,
-          agentId: agent.id
-        }));
+        // Collect actual signals from agents
+        for (const agent of sectorAgents) {
+          try {
+            // Special handling for research agents
+            if (agent.role === 'research') {
+              try {
+                // Instantiate ResearchAgent from stored agent data
+                const researchAgent = new ResearchAgent({
+                  id: agent.id,
+                  name: agent.name,
+                  sectorId: agent.sectorId,
+                  personality: agent.personality || {},
+                  performance: agent.performance || {}
+                });
+
+                // Get research signal
+                const signal = await researchAgent.getSignal();
+                if (signal && signal.action) {
+                  signals.push({
+                    action: signal.action,
+                    confidence: signal.confidence || 0.5,
+                    agentId: agent.id,
+                    type: signal.type || 'research',
+                    rationale: signal.rationale,
+                    metadata: signal.metadata,
+                    timestamp: Date.now()
+                  });
+                  continue;
+                }
+              } catch (researchError) {
+                console.warn(`[ManagerAgent ${this.id}] Error getting research signal from ${agent.id}:`, researchError.message);
+                // Fall through to placeholder signal generation
+              }
+            }
+
+            // For other agent types, generate placeholder signals based on agent state
+            // (This can be enhanced when other agent types implement getSignal methods)
+            const winRate = agent.performance?.winRate || 0.5;
+            const riskTolerance = agent.personality?.riskTolerance || 'medium';
+            
+            let action = 'HOLD';
+            let confidence = 0.5;
+            
+            if (winRate > 0.6) {
+              confidence = 0.6 + (winRate - 0.6) * 0.4;
+              if (riskTolerance === 'high') {
+                action = Math.random() > 0.5 ? 'BUY' : 'SELL';
+              }
+            } else if (winRate < 0.4) {
+              confidence = 0.3 + winRate * 0.4;
+              action = 'HOLD';
+            }
+
+            signals.push({
+              action,
+              confidence: Math.max(0, Math.min(1, confidence)),
+              agentId: agent.id,
+              timestamp: Date.now()
+            });
+          } catch (error) {
+            console.warn(`[ManagerAgent ${this.id}] Error getting signal from agent ${agent.id}:`, error.message);
+            // Add a default HOLD signal if agent signal collection fails
+            signals.push({
+              action: 'HOLD',
+              confidence: 0.5,
+              agentId: agent.id,
+              timestamp: Date.now()
+            });
+          }
+        }
       } catch (error) {
         console.warn(`[ManagerAgent ${this.id}] Failed to load agents:`, error.message);
       }
@@ -287,12 +389,95 @@ class ManagerAgent extends BaseAgent {
     // Store reasoning in memory
     this.storeReasoning(Date.now(), reason, { decision, signals: enrichedSignals });
 
+    // Store decision in memory as well
+    this.updateMemory({
+      timestamp: Date.now(),
+      type: 'decision',
+      reasoning: reason,
+      data: {
+        action: decision.action,
+        confidence: decision.confidence,
+        voteBreakdown: decision.voteBreakdown,
+        conflictScore: decision.conflictScore
+      }
+    });
+
+    // Persist memory and decision to storage
+    await this.persistMemoryAndDecision(decision);
+
     // Keep only last 100 decisions
     if (this.decisionHistory.length > 100) {
       this.decisionHistory.shift();
     }
 
     return decision;
+  }
+
+  /**
+   * Evaluate previous decision outcome and update morale
+   * @param {number} currentPrice - Current sector price
+   * @returns {Promise<void>}
+   */
+  async evaluatePreviousDecision(currentPrice) {
+    // Skip if no previous decision to evaluate
+    if (this.lastDecisionPrice === null || this.lastDecisionAction === null) {
+      return;
+    }
+
+    // Skip HOLD decisions (no clear win/loss)
+    if (this.lastDecisionAction === 'HOLD') {
+      return;
+    }
+
+    const priceChange = currentPrice - this.lastDecisionPrice;
+    const priceChangePercent = this.lastDecisionPrice > 0 
+      ? (priceChange / this.lastDecisionPrice) * 100 
+      : 0;
+
+    let isGoodDecision = false;
+
+    // Evaluate decision quality based on action and price movement
+    if (this.lastDecisionAction === 'BUY' && priceChangePercent > 0) {
+      // Bought and price went up - good decision
+      isGoodDecision = true;
+    } else if (this.lastDecisionAction === 'SELL' && priceChangePercent < 0) {
+      // Sold and price went down - good decision
+      isGoodDecision = true;
+    } else if (this.lastDecisionAction === 'BUY' && priceChangePercent < 0) {
+      // Bought and price went down - bad decision
+      isGoodDecision = false;
+    } else if (this.lastDecisionAction === 'SELL' && priceChangePercent > 0) {
+      // Sold and price went up - bad decision
+      isGoodDecision = false;
+    }
+
+    // Update morale based on decision outcome
+    try {
+      if (isGoodDecision) {
+        // Good decision: reward agent
+        this.consecutiveWins += 1;
+        
+        // Calculate bonus multiplier for consecutive wins (1.0x, 1.2x, 1.5x, 2.0x max)
+        const multiplier = Math.min(2.0, 1.0 + (this.consecutiveWins - 1) * 0.2);
+        
+        // Reward based on price change magnitude (1-5 points, with multiplier)
+        const rewardAmount = Math.min(5, Math.max(1, Math.abs(priceChangePercent) / 2));
+        await rewardForProfit(this.id, rewardAmount, multiplier);
+        
+        console.log(`[ManagerAgent ${this.id}] Good decision! Morale +${Math.floor(rewardAmount * multiplier)} (${this.consecutiveWins} consecutive wins)`);
+      } else {
+        // Bad decision: penalize agent
+        this.consecutiveWins = 0; // Reset consecutive wins
+        
+        // Penalize based on price change magnitude (1-10 points)
+        const penaltyAmount = Math.min(10, Math.max(1, Math.abs(priceChangePercent) / 2));
+        await penalizeForLoss(this.id, penaltyAmount);
+        
+        console.log(`[ManagerAgent ${this.id}] Bad decision. Morale -${penaltyAmount}`);
+      }
+    } catch (error) {
+      console.error(`[ManagerAgent ${this.id}] Error updating morale:`, error);
+    }
   }
 
   /**
@@ -310,29 +495,19 @@ class ManagerAgent extends BaseAgent {
         await this.loadSector();
       }
 
-      // Get agent signals (in a real implementation, this would come from sector agents)
-      const signals = [];
-      
-      // Try to get signals from sector agents
-      try {
-        const agents = await loadAgents();
-        const sectorAgents = agents.filter(a => a.sectorId === this.sectorId && a.role !== 'manager');
-        
-        // For now, generate placeholder signals
-        // In a full implementation, agents would provide their signals
-        sectorAgents.forEach(agent => {
-          signals.push({
-            action: 'HOLD',
-            confidence: 0.5,
-            agentId: agent.id
-          });
-        });
-      } catch (error) {
-        console.warn(`[ManagerAgent ${this.id}] Error getting agent signals:`, error.message);
+      // Evaluate previous decision outcome before making new decision
+      if (this.sectorCache && this.sectorCache.currentPrice) {
+        await this.evaluatePreviousDecision(this.sectorCache.currentPrice);
       }
 
-      // Make decision
-      const decision = await this.decide(signals);
+      // Make decision (decide() will collect signals from agents if not provided)
+      const decision = await this.decide([]);
+
+      // Store decision info for next evaluation
+      if (this.sectorCache && this.sectorCache.currentPrice) {
+        this.lastDecisionPrice = this.sectorCache.currentPrice;
+        this.lastDecisionAction = decision.action;
+      }
 
       // Update memory with observation (using BaseAgent method)
       this.updateMemory({
@@ -395,6 +570,35 @@ class ManagerAgent extends BaseAgent {
       }
       return enriched;
     });
+  }
+
+  /**
+   * Persist memory and last decision to storage
+   * @param {Object} decision - Decision object
+   * @returns {Promise<void>}
+   */
+  async persistMemoryAndDecision(decision) {
+    try {
+      const agents = await loadAgents();
+      const agentIndex = agents.findIndex(a => a.id === this.id);
+      
+      if (agentIndex >= 0) {
+        // Update agent with memory and decision
+        agents[agentIndex] = {
+          ...agents[agentIndex],
+          memory: this.memory, // Persist memory array
+          lastDecision: decision, // Store last decision
+          lastDecisionAt: decision.timestamp || Date.now() // Store timestamp
+        };
+        
+        await saveAgents(agents);
+      } else {
+        console.warn(`[ManagerAgent ${this.id}] Agent not found in storage for memory persistence`);
+      }
+    } catch (error) {
+      console.error(`[ManagerAgent ${this.id}] Error persisting memory and decision:`, error);
+      // Don't throw - memory persistence failure shouldn't break decision making
+    }
   }
 
   /**

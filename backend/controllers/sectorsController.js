@@ -37,7 +37,8 @@ function normalizeSectorRecord(data) {
       agents: Array.isArray(data?.agents) ? data.agents : [],
       volatility: typeof data?.volatility === 'number' ? data.volatility : 0.02,
       riskScore: typeof data?.riskScore === 'number' ? data.riskScore : 50,
-      lastSimulatedPrice: typeof data?.lastSimulatedPrice === 'number' ? data.lastSimulatedPrice : null
+      lastSimulatedPrice: typeof data?.lastSimulatedPrice === 'number' ? data.lastSimulatedPrice : null,
+      balance: typeof data?.balance === 'number' ? data.balance : 0
     };
   }
 }

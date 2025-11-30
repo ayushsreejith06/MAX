@@ -1,5 +1,13 @@
-const DebateRoom = require('../models/DebateRoom');
-const { loadDebates, saveDebates } = require('../utils/debateStorage');
+const DiscussionRoom = require('../models/DiscussionRoom');
+const { loadDiscussions, saveDiscussions, saveDiscussion, findDiscussionById } = require('../utils/discussionStorage');
+const {
+  startDiscussion,
+  collectArguments,
+  aggregateVotes,
+  produceDecision,
+  closeDiscussion,
+  archiveDiscussion
+} = require('../agents/discussion/discussionLifecycle');
 
 // Simple logger
 function log(message) {
@@ -8,7 +16,7 @@ function log(message) {
 }
 
 module.exports = async (fastify) => {
-  // POST /debates/start - Create a new debate room
+  // POST /debates/start - Create a new discussion room (legacy endpoint)
   fastify.post('/start', async (request, reply) => {
     try {
       const { sectorId, title, agentIds } = request.body;
@@ -20,23 +28,18 @@ module.exports = async (fastify) => {
         });
       }
 
-      log(`POST /debates/start - Creating debate with sectorId: ${sectorId}, title: ${title}`);
+      log(`POST /debates/start - Creating discussion with sectorId: ${sectorId}, title: ${title}`);
 
-      const debateRoom = new DebateRoom(sectorId, title, agentIds || []);
-      
-      // Load existing debates, add new one, and save
-      const debates = await loadDebates();
-      debates.push(debateRoom.toJSON());
-      await saveDebates(debates);
+      const discussionRoom = await startDiscussion(sectorId, title, agentIds);
 
-      log(`Debate created successfully - ID: ${debateRoom.id}, Title: ${debateRoom.title}`);
+      log(`Discussion created successfully - ID: ${discussionRoom.id}, Title: ${discussionRoom.title}`);
 
       return reply.status(201).send({
         success: true,
-        data: debateRoom.toJSON()
+        data: discussionRoom.toJSON()
       });
     } catch (error) {
-      log(`Error creating debate: ${error.message}`);
+      log(`Error creating discussion: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message
@@ -44,50 +47,46 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /debates/message - Add a message to a debate
+  // POST /debates/message - Add a message to a discussion (legacy endpoint)
   fastify.post('/message', async (request, reply) => {
     try {
       const { debateId, agentId, content, role } = request.body;
+      const discussionId = debateId; // Map legacy parameter name
 
-      if (!debateId || !agentId || !content || !role) {
+      if (!discussionId || !agentId || !content || !role) {
         return reply.status(400).send({
           success: false,
-          error: 'debateId, agentId, content, and role are required'
+          error: 'debateId (discussionId), agentId, content, and role are required'
         });
       }
 
-      log(`POST /debates/message - Adding message to debate: ${debateId}`);
+      log(`POST /debates/message - Adding message to discussion: ${discussionId}`);
 
-      const debates = await loadDebates();
-      const debateIndex = debates.findIndex(d => d.id === debateId);
-
-      if (debateIndex === -1) {
+      const discussionData = await findDiscussionById(discussionId);
+      if (!discussionData) {
         return reply.status(404).send({
           success: false,
-          error: 'Debate not found'
+          error: 'Discussion not found'
         });
       }
 
-      const debateData = debates[debateIndex];
-      const debateRoom = DebateRoom.fromData(debateData);
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
 
       // Add message
-      debateRoom.addMessage({ agentId, content, role });
+      discussionRoom.addMessage({ agentId, content, role });
 
       // Ensure status is in_progress if it was created
-      if (debateRoom.status === 'created') {
-        debateRoom.status = 'in_progress';
+      if (discussionRoom.status === 'created') {
+        discussionRoom.status = 'in_progress';
       }
 
-      // Update the debate in the array
-      debates[debateIndex] = debateRoom.toJSON();
-      await saveDebates(debates);
+      await saveDiscussion(discussionRoom);
 
-      log(`Message added successfully to debate: ${debateId}`);
+      log(`Message added successfully to discussion: ${discussionId}`);
 
       return reply.status(200).send({
         success: true,
-        data: debateRoom.toJSON()
+        data: discussionRoom.toJSON()
       });
     } catch (error) {
       log(`Error adding message: ${error.message}`);
@@ -98,47 +97,31 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /debates/close - Close a debate
+  // POST /debates/close - Close a discussion (legacy endpoint)
   fastify.post('/close', async (request, reply) => {
     try {
       const { debateId } = request.body;
+      const discussionId = debateId; // Map legacy parameter name
 
-      if (!debateId) {
+      if (!discussionId) {
         return reply.status(400).send({
           success: false,
-          error: 'debateId is required'
+          error: 'debateId (discussionId) is required'
         });
       }
 
-      log(`POST /debates/close - Closing debate: ${debateId}`);
+      log(`POST /debates/close - Closing discussion: ${discussionId}`);
 
-      const debates = await loadDebates();
-      const debateIndex = debates.findIndex(d => d.id === debateId);
+      const discussionRoom = await closeDiscussion(discussionId);
 
-      if (debateIndex === -1) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Debate not found'
-        });
-      }
-
-      const debateData = debates[debateIndex];
-      const debateRoom = DebateRoom.fromData(debateData);
-
-      debateRoom.status = 'closed';
-      debateRoom.updatedAt = new Date().toISOString();
-
-      debates[debateIndex] = debateRoom.toJSON();
-      await saveDebates(debates);
-
-      log(`Debate closed successfully: ${debateId}`);
+      log(`Discussion closed successfully: ${discussionId}`);
 
       return reply.status(200).send({
         success: true,
-        data: debateRoom.toJSON()
+        data: discussionRoom.toJSON()
       });
     } catch (error) {
-      log(`Error closing debate: ${error.message}`);
+      log(`Error closing discussion: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message
@@ -146,47 +129,31 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /debates/archive - Archive a debate
+  // POST /debates/archive - Archive a discussion (legacy endpoint)
   fastify.post('/archive', async (request, reply) => {
     try {
       const { debateId } = request.body;
+      const discussionId = debateId; // Map legacy parameter name
 
-      if (!debateId) {
+      if (!discussionId) {
         return reply.status(400).send({
           success: false,
-          error: 'debateId is required'
+          error: 'debateId (discussionId) is required'
         });
       }
 
-      log(`POST /debates/archive - Archiving debate: ${debateId}`);
+      log(`POST /debates/archive - Archiving discussion: ${discussionId}`);
 
-      const debates = await loadDebates();
-      const debateIndex = debates.findIndex(d => d.id === debateId);
+      const discussionRoom = await archiveDiscussion(discussionId);
 
-      if (debateIndex === -1) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Debate not found'
-        });
-      }
-
-      const debateData = debates[debateIndex];
-      const debateRoom = DebateRoom.fromData(debateData);
-
-      debateRoom.status = 'archived';
-      debateRoom.updatedAt = new Date().toISOString();
-
-      debates[debateIndex] = debateRoom.toJSON();
-      await saveDebates(debates);
-
-      log(`Debate archived successfully: ${debateId}`);
+      log(`Discussion archived successfully: ${discussionId}`);
 
       return reply.status(200).send({
         success: true,
-        data: debateRoom.toJSON()
+        data: discussionRoom.toJSON()
       });
     } catch (error) {
-      log(`Error archiving debate: ${error.message}`);
+      log(`Error archiving discussion: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message
@@ -194,29 +161,29 @@ module.exports = async (fastify) => {
     }
   });
 
-  // GET /debates - Get all debates, optionally filtered by sectorId
+  // GET /debates - Get all discussions, optionally filtered by sectorId (legacy endpoint)
   fastify.get('/', async (request, reply) => {
     try {
       const { sectorId } = request.query;
 
       if (sectorId) {
-        log(`GET /debates - Fetching debates for sectorId: ${sectorId}`);
+        log(`GET /debates - Fetching discussions for sectorId: ${sectorId}`);
       } else {
-        log(`GET /debates - Fetching all debates`);
+        log(`GET /debates - Fetching all discussions`);
       }
 
-      let debates = await loadDebates();
+      let discussions = await loadDiscussions();
 
       // Filter by sectorId if provided
       if (sectorId) {
-        debates = debates.filter(debate => debate.sectorId === sectorId);
-        log(`Found ${debates.length} debates for sectorId: ${sectorId}`);
+        discussions = discussions.filter(discussion => discussion.sectorId === sectorId);
+        log(`Found ${discussions.length} discussions for sectorId: ${sectorId}`);
       } else {
-        log(`Found ${debates.length} debates`);
+        log(`Found ${discussions.length} discussions`);
       }
 
       // Sort by newest first (by createdAt, then updatedAt)
-      debates.sort((a, b) => {
+      discussions.sort((a, b) => {
         const dateA = new Date(b.updatedAt || b.createdAt);
         const dateB = new Date(a.updatedAt || a.createdAt);
         return dateA - dateB;
@@ -224,10 +191,10 @@ module.exports = async (fastify) => {
 
       return reply.status(200).send({
         success: true,
-        data: debates
+        data: discussions
       });
     } catch (error) {
-      log(`Error fetching debates: ${error.message}`);
+      log(`Error fetching discussions: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message
@@ -235,30 +202,30 @@ module.exports = async (fastify) => {
     }
   });
 
-  // GET /debates/:id - Get a single debate by id
+  // GET /debates/:id - Get a single discussion by id (legacy endpoint)
   fastify.get('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      log(`GET /debates/${id} - Fetching debate by ID`);
+      log(`GET /debates/${id} - Fetching discussion by ID`);
 
-      const debates = await loadDebates();
-      const debate = debates.find(d => d.id === id);
+      const discussions = await loadDiscussions();
+      const discussion = discussions.find(d => d.id === id);
 
-      if (!debate) {
-        log(`Debate with ID ${id} not found`);
+      if (!discussion) {
+        log(`Discussion with ID ${id} not found`);
         return reply.status(404).send({
           success: false,
-          error: 'Debate not found'
+          error: 'Discussion not found'
         });
       }
 
-      log(`Found debate - ID: ${debate.id}, Title: ${debate.title}`);
+      log(`Found discussion - ID: ${discussion.id}, Title: ${discussion.title}`);
       return reply.status(200).send({
         success: true,
-        data: debate
+        data: discussion
       });
     } catch (error) {
-      log(`Error fetching debate: ${error.message}`);
+      log(`Error fetching discussion: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

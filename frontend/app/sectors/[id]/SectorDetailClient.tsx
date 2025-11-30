@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, HelpCircle, Play, AlertCircle } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus } from 'lucide-react';
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
-import { fetchSectorById, simulateTick, updateSectorPerformance, type SimulateTickResult, fetchManagerStatus, fetchManagerDecisions, type ManagerStatus, type ManagerDecision } from '@/lib/api';
+import { fetchSectorById, simulateTick, depositSector, type SimulateTickResult } from '@/lib/api';
 import type { Sector } from '@/lib/types';
 
 export default function SectorDetailClient() {
@@ -18,9 +18,14 @@ export default function SectorDetailClient() {
   const [simulationResult, setSimulationResult] = useState<SimulateTickResult | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [managerStatus, setManagerStatus] = useState<ManagerStatus | null>(null);
-  const [managerDecisions, setManagerDecisions] = useState<ManagerDecision[]>([]);
-  const [loadingManagerData, setLoadingManagerData] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositing, setDepositing] = useState(false);
+  const [performance, setPerformance] = useState<{
+    startingCapital: number;
+    currentCapital: number;
+    pnl: number;
+    recentTrades: any[];
+  } | null>(null);
 
   // Extract ID from dynamic route
   const sectorId = params?.id as string | undefined;
@@ -78,6 +83,32 @@ export default function SectorDetailClient() {
     return () => {
       isMounted = false;
     };
+  }, [sectorId]);
+
+  // Auto-poll simulation performance
+  useEffect(() => {
+    if (!sectorId) return;
+
+    async function loadPerformance() {
+      try {
+        const { getApiBaseUrl } = await import('@/lib/desktopEnv');
+        const apiBase = typeof window !== 'undefined' 
+          ? getApiBaseUrl()
+          : '/api';
+        const res = await fetch(`${apiBase}/simulation/performance?sectorId=${sectorId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPerformance(data);
+        }
+      } catch (err) {
+        console.error('Failed to load simulation performance:', err);
+      }
+    }
+
+    loadPerformance();
+    const interval = setInterval(loadPerformance, 3000);
+
+    return () => clearInterval(interval);
   }, [sectorId]);
 
   if (loading) {
@@ -169,8 +200,66 @@ export default function SectorDetailClient() {
           </div>
         </div>
 
-        {/* Metrics Grid - 4 cards matching the image */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Metrics Grid - 5 cards including balance */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">BALANCE</span>
+              <DollarSign className="w-5 h-5 text-sage-green" />
+            </div>
+            <div className="text-3xl font-bold text-floral-white font-mono mb-4">
+              ${formatPrice(sector.balance || 0)}
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Deposit form submitted', { sectorId, depositAmount });
+                if (!sectorId || !depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
+                  console.log('Validation failed');
+                  return;
+                }
+                setDepositing(true);
+                setError(null);
+                try {
+                  console.log('Calling depositSector API...', { sectorId, amount: parseFloat(depositAmount) });
+                  const updatedSector = await depositSector(String(sectorId), parseFloat(depositAmount));
+                  console.log('Deposit successful', updatedSector);
+                  setSector(updatedSector);
+                  setDepositAmount('');
+                } catch (err: any) {
+                  console.error('Deposit error:', err);
+                  const errorMessage = err?.message || 'Failed to deposit funds';
+                  setError(errorMessage);
+                  // Don't navigate on error - just show the error message
+                  alert(`Deposit failed: ${errorMessage}`);
+                } finally {
+                  setDepositing(false);
+                }
+              }}
+              className="space-y-2"
+            >
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-3 py-2 bg-pure-black border border-ink-500/30 rounded text-floral-white font-mono text-sm focus:outline-none focus:border-sage-green"
+                disabled={depositing}
+              />
+              <button
+                type="submit"
+                disabled={depositing || !depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0}
+                className="w-full px-3 py-2 bg-sage-green hover:bg-sage-green/80 disabled:bg-sage-green/50 disabled:cursor-not-allowed text-pure-black font-mono text-xs font-semibold rounded transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                {depositing ? 'Depositing...' : 'Deposit'}
+              </button>
+            </form>
+          </div>
+
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
             <div className="flex items-center justify-between mb-2">
               <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">VOLUME</span>
@@ -299,7 +388,7 @@ export default function SectorDetailClient() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-ink-500/30">
-                    <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">AGENT ID</th>
+                    <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">AGENT NAME</th>
                     <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">ROLE</th>
                     <th className="px-4 py-3 text-center text-floral-white/70 font-mono text-sm font-semibold">STATUS</th>
                     <th className="px-4 py-3 text-right text-floral-white/70 font-mono text-sm font-semibold">PERFORMANCE</th>
@@ -332,7 +421,7 @@ export default function SectorDetailClient() {
                         onClick={() => router.push(`/agents?agent=${agent.id}`)}
                       >
                         <td className="px-4 py-3 text-floral-white font-mono text-sm">
-                          {agent.id}
+                          {agent.name || agent.id}
                         </td>
                         <td className="px-4 py-3 text-floral-white/85 font-mono text-sm">
                           {agent.role}
@@ -436,35 +525,6 @@ export default function SectorDetailClient() {
                   setSimulating(true);
                   setError(null);
                   try {
-                    // Update performance metrics
-                    const updatedSector = await updateSectorPerformance(String(sectorId));
-                    setSector(updatedSector);
-                  } catch (err: any) {
-                    console.error('Update performance error:', err);
-                    const errorMessage = err?.message || 'Failed to update performance';
-                    if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-                      setError(`Sector not found. Please ensure the sector ID is correct.`);
-                    } else if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
-                      setError(`Invalid request. Please check the sector data.`);
-                    } else {
-                      setError(errorMessage);
-                    }
-                  } finally {
-                    setSimulating(false);
-                  }
-                }}
-                disabled={simulating || !sectorId}
-                className="px-4 py-2 bg-sky-blue hover:bg-sky-blue/80 disabled:bg-sky-blue/50 disabled:cursor-not-allowed text-pure-black font-mono font-semibold rounded transition-colors flex items-center gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                {simulating ? 'Updating...' : 'Update Performance'}
-              </button>
-              <button
-                onClick={async () => {
-                  if (!sectorId || simulating) return;
-                  setSimulating(true);
-                  setError(null);
-                  try {
                     const result = await simulateTick(String(sectorId), []);
                     setSimulationResult(result);
                     // Reload sector data to show updated price
@@ -494,6 +554,24 @@ export default function SectorDetailClient() {
               </button>
             </div>
           </div>
+
+          {/* Auto-updating Performance Display */}
+          <section className="mt-10 rounded-2xl border border-ink-500/40 p-6 bg-pure-black/40">
+            <h2 className="text-xl font-semibold tracking-widest text-floral-white mb-4">
+              SIMULATION PERFORMANCE
+            </h2>
+
+            {performance ? (
+              <div className="space-y-3 text-floral-white/90 text-sm">
+                <p>Starting Capital: <span className="text-sage-green">${performance.startingCapital.toFixed(2)}</span></p>
+                <p>Current Capital: <span className="text-sage-green">${performance.currentCapital.toFixed(2)}</span></p>
+                <p>Total P/L: <span className={performance.pnl >= 0 ? "text-sage-green" : "text-red-500"}>${performance.pnl.toFixed(2)}</span></p>
+                <p>Recent Trades: {performance.recentTrades?.length || 0}</p>
+              </div>
+            ) : (
+              <p className="text-ink-500">Simulation not started.</p>
+            )}
+          </section>
 
           {simulationResult && (
             <div className="space-y-4 mt-4">
@@ -577,115 +655,6 @@ export default function SectorDetailClient() {
           )}
         </div>
 
-        {/* MANAGER AGENT Section */}
-        <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-floral-white font-mono mb-2">MANAGER AGENT</h2>
-              {loadingManagerData ? (
-                <p className="text-sm text-floral-white/60 font-mono">Loading...</p>
-              ) : managerStatus && managerStatus.managers.length > 0 ? (
-                <p className="text-sm text-sage-green font-mono">Active • {managerStatus.managers.length} manager(s) running</p>
-              ) : (
-                <p className="text-sm text-floral-white/60 font-mono">No manager agent found for this sector</p>
-              )}
-            </div>
-            <HelpCircle className="w-6 h-6 text-floral-white/40" />
-          </div>
-
-          {managerStatus && managerStatus.managers.length > 0 && (
-            <div className="space-y-4">
-              {managerStatus.managers
-                .filter(m => m.sectorId === sectorId)
-                .map(manager => {
-                  const sectorDecisions = managerDecisions.filter(d => d.managerId === manager.id);
-                  const latestDecision = manager.lastDecision || (sectorDecisions.length > 0 ? sectorDecisions[sectorDecisions.length - 1].decision : null);
-                  
-                  return (
-                    <div key={manager.id} className="space-y-3">
-                      {/* Manager Info */}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-floral-white font-semibold">{manager.name}</p>
-                          <p className="text-xs text-floral-white/60 font-mono">ID: {manager.id.substring(0, 8)}...</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-floral-white/60 font-mono">Decisions: {manager.decisionCount}</p>
-                          <p className="text-xs text-sage-green font-mono">
-                            {managerStatus.isRunning ? '● Running' : '○ Stopped'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Latest Decision */}
-                      {latestDecision && (
-                        <div className="bg-ink-600/50 rounded-lg p-4 border border-ink-500">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-floral-white/60 font-mono uppercase tracking-wider">Latest Decision</span>
-                            <span className={`text-xs font-mono px-2 py-1 rounded ${
-                              latestDecision.action === 'BUY' ? 'bg-sage-green/20 text-sage-green border border-sage-green/50' :
-                              latestDecision.action === 'SELL' ? 'bg-error-red/20 text-error-red border border-error-red/50' :
-                              'bg-floral-white/10 text-floral-white/70 border border-floral-white/30'
-                            }`}>
-                              {latestDecision.action}
-                            </span>
-                          </div>
-                          <p className="text-sm text-floral-white mb-1">{latestDecision.reason}</p>
-                          <div className="flex items-center gap-4 text-xs text-floral-white/60 font-mono">
-                            <span>Confidence: {(latestDecision.confidence * 100).toFixed(1)}%</span>
-                            {latestDecision.conflictScore !== undefined && (
-                              <span>Conflict: {(latestDecision.conflictScore * 100).toFixed(1)}%</span>
-                            )}
-                            {latestDecision.timestamp && (
-                              <span>{new Date(latestDecision.timestamp).toLocaleTimeString()}</span>
-                            )}
-                          </div>
-                          {latestDecision.voteBreakdown && (
-                            <div className="mt-2 pt-2 border-t border-ink-500 flex gap-4 text-xs text-floral-white/60 font-mono">
-                              <span>BUY: {latestDecision.voteBreakdown.BUY}</span>
-                              <span>SELL: {latestDecision.voteBreakdown.SELL}</span>
-                              <span>HOLD: {latestDecision.voteBreakdown.HOLD}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Recent Decisions */}
-                      {sectorDecisions.length > 0 && (
-                        <div>
-                          <p className="text-xs text-floral-white/60 font-mono uppercase tracking-wider mb-2">
-                            Recent Decisions ({sectorDecisions.length})
-                          </p>
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {sectorDecisions.slice(-5).reverse().map((decision, idx) => (
-                              <div key={idx} className="bg-ink-600/30 rounded p-2 border border-ink-500/50">
-                                <div className="flex items-center justify-between">
-                                  <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                                    decision.decision.action === 'BUY' ? 'bg-sage-green/20 text-sage-green' :
-                                    decision.decision.action === 'SELL' ? 'bg-error-red/20 text-error-red' :
-                                    'bg-floral-white/10 text-floral-white/70'
-                                  }`}>
-                                    {decision.decision.action}
-                                  </span>
-                                  <span className="text-xs text-floral-white/60 font-mono">
-                                    {(decision.decision.confidence * 100).toFixed(0)}%
-                                  </span>
-                                  <span className="text-xs text-floral-white/40 font-mono">
-                                    {new Date(decision.timestamp).toLocaleTimeString()}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
-
         <CreateAgentModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
@@ -695,6 +664,7 @@ export default function SectorDetailClient() {
             await reloadSector();
           }}
         />
+
       </div>
     </div>
   );

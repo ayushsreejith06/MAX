@@ -176,7 +176,11 @@ export default function SectorsPage() {
             {sectors.map((sector) => (
               <div
                 key={sector.id}
-                onClick={() => router.push(`/sectors/${sector.id}`)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('Navigating to sector:', sector.id);
+                  router.push(`/sectors/${sector.id}`);
+                }}
                 className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey hover:border-sage-green/50 transition-colors cursor-pointer"
               >
                 {/* Header */}

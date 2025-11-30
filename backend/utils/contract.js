@@ -5,7 +5,13 @@ const ABI = parseAbi([
   "function registerSector(uint256,string,string)",
   "function registerAgent(uint256,uint256,string)",
   "function logTrade(uint256,uint256,uint256,string,uint256)",
-  "function validateAction(uint256,uint256,string,uint256) view returns (bool)"
+  "function validateAction(uint256,uint256,string,uint256) view returns (bool)",
+  "function sectors(uint256) view returns (uint256 id, string name, string symbol, address creator)",
+  "function agents(uint256) view returns (uint256 id, uint256 sectorId, string role, address creator)",
+  "function trades(uint256) view returns (uint256 id, uint256 agentId, uint256 sectorId, string action, uint256 amount, uint256 timestamp)",
+  "event SectorRegistered(uint256 indexed id, string name, string symbol, address creator)",
+  "event AgentRegistered(uint256 indexed id, uint256 indexed sectorId, string role, address creator)",
+  "event TradeLogged(uint256 indexed id, uint256 indexed agentId, uint256 indexed sectorId, string action, uint256 amount, uint256 timestamp)"
 ]);
 
 const RPC_URL = process.env.RPC_URL || "http://localhost:8545";

@@ -5,6 +5,13 @@ const path = require('path');
 const DEFAULT_PERFORMANCE = Object.freeze({ pnl: 0, winRate: 0 });
 const DEFAULT_PERSONALITY = Object.freeze({ riskTolerance: 'medium', decisionStyle: 'balanced' });
 const DEFAULT_MORALE = 50;
+const DEFAULT_REWARD_POINTS = 0;
+const DEFAULT_PREFERENCES = Object.freeze({
+  riskWeight: 0.5,
+  profitWeight: 0.5,
+  speedWeight: 0.5,
+  accuracyWeight: 0.5
+});
 
 function sanitizePerformance(performance = DEFAULT_PERFORMANCE) {
   return {
@@ -20,11 +27,21 @@ function sanitizePersonality(personality = DEFAULT_PERSONALITY) {
   };
 }
 
+function sanitizePreferences(preferences = DEFAULT_PREFERENCES) {
+  return {
+    riskWeight: typeof preferences.riskWeight === 'number' ? preferences.riskWeight : DEFAULT_PREFERENCES.riskWeight,
+    profitWeight: typeof preferences.profitWeight === 'number' ? preferences.profitWeight : DEFAULT_PREFERENCES.profitWeight,
+    speedWeight: typeof preferences.speedWeight === 'number' ? preferences.speedWeight : DEFAULT_PREFERENCES.speedWeight,
+    accuracyWeight: typeof preferences.accuracyWeight === 'number' ? preferences.accuracyWeight : DEFAULT_PREFERENCES.accuracyWeight
+  };
+}
+
 class Agent {
   constructor({
     id = randomUUID(),
     name,
     role = 'general',
+    prompt = '',
     sectorId = null,
     sectorSymbol = 'GEN',
     sectorName = 'General',
@@ -32,7 +49,12 @@ class Agent {
     performance = DEFAULT_PERFORMANCE,
     trades = [],
     personality = DEFAULT_PERSONALITY,
+    preferences = DEFAULT_PREFERENCES,
+    memory = [],
+    lastDecision = null,
+    lastDecisionAt = null,
     morale = DEFAULT_MORALE,
+    rewardPoints = DEFAULT_REWARD_POINTS,
     lastRewardTimestamp = null,
     createdAt = null
   }) {
@@ -47,6 +69,7 @@ class Agent {
     this.id = id;
     this.name = name.trim();
     this.role = role.trim();
+    this.prompt = typeof prompt === 'string' ? prompt : '';
     this.sectorId = sectorId;
     this.sectorSymbol = sectorSymbol;
     this.sectorName = sectorName;
@@ -54,7 +77,12 @@ class Agent {
     this.performance = sanitizePerformance(performance);
     this.trades = Array.isArray(trades) ? trades : [];
     this.personality = sanitizePersonality(personality);
+    this.preferences = sanitizePreferences(preferences);
+    this.memory = Array.isArray(memory) ? memory : [];
+    this.lastDecision = lastDecision || null;
+    this.lastDecisionAt = lastDecisionAt || null;
     this.morale = typeof morale === 'number' ? Math.max(0, Math.min(100, morale)) : DEFAULT_MORALE;
+    this.rewardPoints = typeof rewardPoints === 'number' ? Math.max(0, rewardPoints) : DEFAULT_REWARD_POINTS;
     this.lastRewardTimestamp = lastRewardTimestamp || null;
     this.createdAt = createdAt || new Date().toISOString();
   }
@@ -64,6 +92,7 @@ class Agent {
       id: this.id,
       name: this.name,
       role: this.role,
+      prompt: this.prompt,
       sectorId: this.sectorId,
       sectorSymbol: this.sectorSymbol,
       sectorName: this.sectorName,
@@ -71,7 +100,12 @@ class Agent {
       performance: this.performance,
       trades: this.trades,
       personality: this.personality,
+      preferences: this.preferences,
+      memory: this.memory,
+      lastDecision: this.lastDecision,
+      lastDecisionAt: this.lastDecisionAt,
       morale: this.morale,
+      rewardPoints: this.rewardPoints,
       lastRewardTimestamp: this.lastRewardTimestamp,
       createdAt: this.createdAt
     };
@@ -135,6 +169,7 @@ class Agent {
       id: data.id,
       name: data.name,
       role: data.role,
+      prompt: data.prompt || '',
       sectorId: data.sectorId ?? null,
       sectorSymbol: data.sectorSymbol || 'GEN',
       sectorName: data.sectorName || 'General',
@@ -142,7 +177,12 @@ class Agent {
       performance: data.performance || DEFAULT_PERFORMANCE,
       trades: data.trades || [],
       personality: data.personality || DEFAULT_PERSONALITY,
+      preferences: data.preferences || DEFAULT_PREFERENCES,
+      memory: data.memory || [],
+      lastDecision: data.lastDecision || null,
+      lastDecisionAt: data.lastDecisionAt || null,
       morale: data.morale ?? DEFAULT_MORALE,
+      rewardPoints: data.rewardPoints ?? DEFAULT_REWARD_POINTS,
       lastRewardTimestamp: data.lastRewardTimestamp || null,
       createdAt: data.createdAt
     });

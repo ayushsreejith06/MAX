@@ -3,6 +3,27 @@
     "id": "be952e15-5b1d-416a-932f-8cd16f56275a",
     "sectorName": "Technology",
     "sectorSymbol": "TECH",
+    "currentPrice": 99.87531984161485,
+    "change": 0,
+    "changePercent": 0,
+    "volume": 0,
+    "statusPercent": 0,
+    "activeAgents": 0,
+    "candleData": [
+      {
+        "open": 99.87531984161485,
+        "close": 99.87531984161485,
+        "high": 99.87531984161485,
+        "low": 99.87531984161485
+      }
+    ],
+    "discussions": [],
+    "agents": []
+  },
+  {
+    "id": "test-sector-1",
+    "sectorName": "Test Sector",
+    "sectorSymbol": "TEST",
     "currentPrice": 100,
     "change": 0,
     "changePercent": 0,

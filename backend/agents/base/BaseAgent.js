@@ -18,7 +18,7 @@ class BaseAgent {
    * @param {Object} config.personality - Personality configuration
    * @param {Object} config.performance - Performance metrics
    */
-  constructor({ id, name, role, personality = {}, performance = {} }) {
+  constructor({ id, name, role, personality = {}, performance = {}, memory = [] }) {
     if (!id) throw new Error('Agent ID is required');
     if (!name) throw new Error('Agent name is required');
     if (!role) throw new Error('Agent role is required');
@@ -42,11 +42,12 @@ class BaseAgent {
     };
 
     // Memory system - stores reasoning history and observations
-    this.memory = [];
+    // Load from stored data if provided, otherwise initialize empty
+    this.memory = Array.isArray(memory) ? [...memory] : [];
 
     // Internal state
     this.state = {
-      memory: [],
+      memory: Array.isArray(memory) ? [...memory] : [],
       lastTick: null,
       metrics: {
         decisionCount: 0,

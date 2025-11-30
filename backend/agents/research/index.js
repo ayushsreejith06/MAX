@@ -1,6 +1,7 @@
 const NewsResearcher = require('./NewsResearcher');
 const SentimentAgent = require('./SentimentAgent');
 const DataSourceAgent = require('./DataSourceAgent');
+const ResearchAgent = require('./ResearchAgent');
 
 /**
  * Runs all research agents in parallel and returns combined results
@@ -38,5 +39,6 @@ module.exports = {
   runResearchBundle,
   NewsResearcher,
   SentimentAgent,
-  DataSourceAgent
+  DataSourceAgent,
+  ResearchAgent
 };

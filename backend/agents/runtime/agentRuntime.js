@@ -46,6 +46,8 @@ class AgentRuntime {
             sectorId: agentData.sectorId,
             name: agentData.name,
             personality: agentData.personality || {},
+            performance: agentData.performance || {},
+            memory: agentData.memory || [],
             runtimeConfig: {
               tickInterval: this.tickIntervalMs,
               conflictThreshold: 0.5
@@ -239,6 +241,8 @@ class AgentRuntime {
             sectorId: agentData.sectorId,
             name: agentData.name,
             personality: agentData.personality || {},
+            performance: agentData.performance || {},
+            memory: agentData.memory || [],
             runtimeConfig: {
               tickInterval: this.tickIntervalMs,
               conflictThreshold: 0.5

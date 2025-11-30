@@ -30,9 +30,10 @@ async function getMorale(agentId) {
  * Update agent morale by a delta amount
  * @param {string} agentId - Agent ID
  * @param {number} delta - Change in morale (can be positive or negative)
- * @returns {Promise<{morale: number, status: string}>} Updated morale and status
+ * @param {number} rewardPointsDelta - Optional change in reward points (default: 0)
+ * @returns {Promise<{morale: number, rewardPoints: number, status: string}>} Updated morale and status
  */
-async function updateMorale(agentId, delta) {
+async function updateMorale(agentId, delta, rewardPointsDelta = 0) {
   const agents = await loadAgents();
   const agentIndex = agents.findIndex(a => a.id === agentId);
   
@@ -42,12 +43,17 @@ async function updateMorale(agentId, delta) {
   
   const agentData = agents[agentIndex];
   const currentMorale = typeof agentData.morale === 'number' ? agentData.morale : DEFAULT_MORALE;
+  const currentRewardPoints = typeof agentData.rewardPoints === 'number' ? agentData.rewardPoints : 0;
   
   // Calculate new morale with bounds
   const newMorale = Math.max(MIN_MORALE, Math.min(MAX_MORALE, currentMorale + delta));
   
+  // Calculate new reward points (cannot go below 0)
+  const newRewardPoints = Math.max(0, currentRewardPoints + rewardPointsDelta);
+  
   // Update agent data
   agentData.morale = newMorale;
+  agentData.rewardPoints = newRewardPoints;
   agentData.lastRewardTimestamp = new Date().toISOString();
   
   // Determine morale status
@@ -63,6 +69,7 @@ async function updateMorale(agentId, delta) {
   
   return {
     morale: newMorale,
+    rewardPoints: newRewardPoints,
     status
   };
 }
@@ -72,17 +79,22 @@ async function updateMorale(agentId, delta) {
  * Increases morale based on profit amount
  * @param {string} agentId - Agent ID
  * @param {number} profitAmount - Profit amount (positive number)
- * @returns {Promise<{morale: number, status: string}>} Updated morale and status
+ * @param {number} multiplier - Optional multiplier for consecutive wins (default: 1)
+ * @returns {Promise<{morale: number, rewardPoints: number, status: string}>} Updated morale and status
  */
-async function rewardForProfit(agentId, profitAmount) {
+async function rewardForProfit(agentId, profitAmount, multiplier = 1) {
   if (typeof profitAmount !== 'number' || profitAmount <= 0) {
     throw new Error('profitAmount must be a positive number');
   }
   
-  // Scale reward: 1 point per 1% profit, capped at 10 points per reward
-  const reward = Math.min(10, Math.max(1, Math.floor(profitAmount)));
+  // Scale reward: 1-5 points based on profit, with multiplier for consecutive wins
+  const baseReward = Math.min(5, Math.max(1, Math.floor(profitAmount / 2)));
+  const reward = Math.floor(baseReward * multiplier);
   
-  return await updateMorale(agentId, reward);
+  // Reward points equal to morale reward
+  const rewardPoints = reward;
+  
+  return await updateMorale(agentId, reward, rewardPoints);
 }
 
 /**
@@ -90,17 +102,17 @@ async function rewardForProfit(agentId, profitAmount) {
  * Decreases morale based on loss amount
  * @param {string} agentId - Agent ID
  * @param {number} lossAmount - Loss amount (positive number)
- * @returns {Promise<{morale: number, status: string}>} Updated morale and status
+ * @returns {Promise<{morale: number, rewardPoints: number, status: string}>} Updated morale and status
  */
 async function penalizeForLoss(agentId, lossAmount) {
   if (typeof lossAmount !== 'number' || lossAmount <= 0) {
     throw new Error('lossAmount must be a positive number');
   }
   
-  // Scale penalty: -1 point per 1% loss, capped at -10 points per penalty
-  const penalty = Math.max(-10, Math.min(-1, -Math.floor(lossAmount)));
+  // Scale penalty: -1 to -10 points based on loss severity
+  const penalty = Math.max(-10, Math.min(-1, -Math.floor(lossAmount / 2)));
   
-  return await updateMorale(agentId, penalty);
+  return await updateMorale(agentId, penalty, 0);
 }
 
 /**

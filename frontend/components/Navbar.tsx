@@ -31,6 +31,7 @@ export default function Navbar() {
     { href: '/sectors', label: 'SECTORS' },
     { href: '/agents', label: 'AGENTS' },
     { href: '/discussions', label: 'DISCUSSIONS' },
+    { href: '/contract-activity', label: 'ON-CHAIN' },
   ];
 
   return (
@@ -59,7 +60,9 @@ export default function Navbar() {
                   key={item.href}
                   href={item.href}
                   className={`text-sm font-semibold uppercase tracking-wide transition-colors font-mono ${
-                    pathname === item.href || (item.href === '/sectors' && pathname?.startsWith('/sectors'))
+                    pathname === item.href || 
+                    (item.href === '/sectors' && pathname?.startsWith('/sectors')) ||
+                    (item.href === '/contract-activity' && pathname?.startsWith('/contract-activity'))
                       ? 'text-sage-green border-b-2 border-sage-green pb-1'
                       : 'text-floral-white hover:text-sage-green/80'
                   }`}

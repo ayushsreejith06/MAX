@@ -46,7 +46,28 @@ This will:
 
 ## Building for Production
 
-### Step 1: Build the Frontend
+### Quick Build (For Testing - Faster)
+
+For faster builds when you just want to test the production executable:
+
+```bash
+npm run tauri:build:quick
+```
+
+This will:
+- Build the frontend static files
+- Compile the Rust application in release mode
+- Create the executable (`MAX Desktop.exe`)
+- **Skip installer creation** (saves 3-5 minutes)
+- **Time: ~5-8 minutes** (vs 10-15 minutes for full build)
+
+**Output:** `src-tauri/target/release/MAX Desktop.exe`
+
+### Full Production Build (For Distribution)
+
+For creating distributable installers:
+
+#### Step 1: Build the Frontend
 
 Build the frontend as a static export:
 ```bash
@@ -55,7 +76,7 @@ npm run build:web:desktop
 
 This creates a static build in `frontend/out/` that Tauri will bundle.
 
-### Step 2: Build the Tauri Application
+#### Step 2: Build the Tauri Application
 
 Build the desktop application:
 ```bash
@@ -67,13 +88,23 @@ This will:
 - Bundle the frontend static files
 - Bundle the backend code as a resource
 - Create Windows installers (`.exe` and `.msi`) in `src-tauri/target/release/`
+- **Time: ~10-15 minutes**
 
 ### Output Files
 
-After building, you'll find:
-- `src-tauri/target/release/max-desktop.exe` - Portable executable
-- `src-tauri/target/release/bundle/nsis/max-desktop_*.exe` - NSIS installer
-- `src-tauri/target/release/bundle/msi/max-desktop_*.msi` - MSI installer
+After a **full build** (`npm run tauri:build`), you'll find:
+- `src-tauri/target/release/MAX Desktop.exe` - Portable executable
+- `src-tauri/target/release/bundle/nsis/MAX Desktop_*.exe` - NSIS installer
+- `src-tauri/target/release/bundle/msi/MAX Desktop_*.msi` - MSI installer
+
+After a **quick build** (`npm run tauri:build:quick`), you'll find:
+- `src-tauri/target/release/MAX Desktop.exe` - Portable executable only (no installers)
+
+### When to Use Which Build
+
+- **`npm run tauri:dev`** - Daily development (fastest, hot reload)
+- **`npm run tauri:build:quick`** - Testing production builds (faster, no installers)
+- **`npm run tauri:build`** - Creating distributable installers (slowest, full build)
 
 ## Distribution
 
@@ -127,7 +158,7 @@ In desktop mode, data is stored in:
 Files stored:
 - `sectors.json`
 - `agents.json`
-- `debates.json`
+- `debates.json` (discussions data - legacy filename)
 
 ### GPU Acceleration
 
@@ -166,6 +197,23 @@ The system will automatically:
 - Check that all dependencies are installed: `npm install`
 - Verify Windows SDK is installed (for Windows builds)
 - Check `src-tauri/Cargo.toml` for correct dependencies
+
+### "Access is denied" Error During Build
+
+If you see an error like `failed to rename ... Access is denied (os error 5)`:
+
+1. **Close any running instances** of the MAX Desktop application
+2. **Manually stop processes** (if needed):
+   ```powershell
+   Get-Process | Where-Object { $_.ProcessName -like "*max-desktop*" } | Stop-Process -Force
+   ```
+3. **Delete the existing executable** (if it exists):
+   ```powershell
+   Remove-Item "src-tauri\target\release\MAX Desktop.exe" -Force -ErrorAction SilentlyContinue
+   ```
+4. **Retry the build**: `npm run tauri:build`
+
+The build script now automatically handles this by stopping running instances before building.
 
 ### Icons Not Showing
 

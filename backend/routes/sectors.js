@@ -8,6 +8,9 @@ function log(message) {
 }
 
 module.exports = async (fastify) => {
+  // Log route registration for debugging
+  console.log('[Sectors Routes] Registering routes...');
+  
   // GET /sectors - Fetch all sectors
   fastify.get('/', async (request, reply) => {
     try {
@@ -20,36 +23,6 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error fetching sectors: ${error.message}`);
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // GET /sectors/:id - Get sector by ID
-  fastify.get('/:id', async (request, reply) => {
-    try {
-      const { id } = request.params;
-      log(`GET /sectors/${id} - Fetching sector by ID`);
-
-      const sector = await getSectorById(id);
-
-      if (!sector) {
-        log(`Sector with ID ${id} not found`);
-        return reply.status(404).send({
-          success: false,
-          error: 'Sector not found'
-        });
-      }
-
-      log(`Found sector - ID: ${sector.id}, Name: ${sector.sectorName}`);
-      return reply.status(200).send({
-        success: true,
-        data: sector
-      });
-    } catch (error) {
-      log(`Error fetching sector: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message
@@ -93,6 +66,53 @@ module.exports = async (fastify) => {
       log(`Error creating sector: ${error.message}`);
 
       return reply.status(400).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /sectors/:id/deposit - Deposit money into a sector (MUST come before /:id route)
+  fastify.post('/:id/deposit', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { amount } = request.body || {};
+
+      console.log(`[DEPOSIT ROUTE] POST /sectors/${id}/deposit called with amount: ${amount}`);
+      log(`POST /sectors/${id}/deposit - Depositing ${amount} into sector`);
+
+      // Validate amount
+      if (!amount || typeof amount !== 'number' || amount <= 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid amount. Amount must be a positive number.'
+        });
+      }
+
+      // Get sector
+      const sector = await getSectorById(id);
+      if (!sector) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Sector not found'
+        });
+      }
+
+      // Update balance
+      const { updateSector } = require('../utils/storage');
+      const updatedSector = await updateSector(id, {
+        balance: (sector.balance || 0) + amount
+      });
+
+      log(`Deposit successful - Sector ID: ${id}, Amount: ${amount}, New Balance: ${updatedSector.balance}`);
+
+      return reply.status(200).send({
+        success: true,
+        data: updatedSector
+      });
+    } catch (error) {
+      log(`Error depositing into sector: ${error.message}`);
+      return reply.status(500).send({
         success: false,
         error: error.message
       });
@@ -171,6 +191,36 @@ module.exports = async (fastify) => {
         });
       }
 
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // GET /sectors/:id - Get sector by ID (MUST come after all specific routes)
+  fastify.get('/:id', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      log(`GET /sectors/${id} - Fetching sector by ID`);
+
+      const sector = await getSectorById(id);
+
+      if (!sector) {
+        log(`Sector with ID ${id} not found`);
+        return reply.status(404).send({
+          success: false,
+          error: 'Sector not found'
+        });
+      }
+
+      log(`Found sector - ID: ${sector.id}, Name: ${sector.sectorName}`);
+      return reply.status(200).send({
+        success: true,
+        data: sector
+      });
+    } catch (error) {
+      log(`Error fetching sector: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

@@ -53,22 +53,22 @@ export function UpdaterModal() {
         )}
 
         {status.error && (
-          <div className="mb-4 p-3 bg-red-900 bg-opacity-50 border border-red-700 rounded text-red-200 text-sm">
+          <div className="mb-4 p-3 bg-error-red/20 border border-error-red/50 rounded text-error-red text-sm">
             {status.error}
           </div>
         )}
 
         {status.downloading && (
           <div className="mb-4">
-            <div className="flex items-center space-x-2 text-gray-300">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <div className="flex items-center space-x-2 text-floral-white/70">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sage-green"></div>
               <span>Downloading update...</span>
             </div>
           </div>
         )}
 
         {status.downloaded && (
-          <div className="mb-4 p-3 bg-green-900 bg-opacity-50 border border-green-700 rounded text-green-200 text-sm">
+          <div className="mb-4 p-3 bg-sage-green/20 border border-sage-green/50 rounded text-sage-green text-sm">
             Update downloaded. The app will restart to apply the update.
           </div>
         )}
@@ -84,7 +84,7 @@ export function UpdaterModal() {
           <button
             onClick={handleUpdateNow}
             disabled={status.downloading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
+            className="px-4 py-2 bg-sky-blue hover:bg-sky-blue/80 disabled:opacity-50 disabled:cursor-not-allowed text-floral-white rounded transition-colors"
           >
             {status.downloaded ? 'Restart Now' : 'Update Now'}
           </button>

@@ -8,8 +8,10 @@
     "dev:backend": "cd backend && npm run dev",
     "build:web:desktop": "node scripts/build-frontend-desktop.js",
     "tauri:dev": "npx tauri dev",
-    "tauri:build": "npx tauri build",
-    "install:all": "cd frontend && npm install && cd ../backend && npm install && cd ../contracts && npm install"
+    "tauri:build": "powershell -ExecutionPolicy Bypass -File scripts/pre-build-desktop.ps1 && npx tauri build",
+    "tauri:build:quick": "powershell -ExecutionPolicy Bypass -File scripts/build-quick.ps1 && npm run build:web:desktop && npx tauri build --bundles none",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install && cd ../contracts && npm install",
+    "verify:phase1": "node scripts/verify-phase1.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0"

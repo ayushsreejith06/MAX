@@ -22,25 +22,25 @@ async function run() {
   header("Loading ManagerAgent State");
   await manager.loadState();
 
-  console.log("Loaded debates for sector:", manager.debates);
+  console.log("Loaded discussions for sector:", manager.discussions || manager.debates);
 
-  header("Summary Before New Debate");
+  header("Summary Before New Discussion");
   console.log(manager.getSummary());
 
-  // Open a new debate
-  header("Opening New Debate");
-  const newDebate = await manager.openDebate(
-    "Manager Test Debate",
+  // Open a new discussion
+  header("Opening New Discussion");
+  const newDiscussion = await (manager.openDiscussion || manager.openDebate)(
+    "Manager Test Discussion",
     ["agent1", "agent2"]
   );
 
-  console.log("New Debate Created:");
-  console.log(newDebate);
+  console.log("New Discussion Created:");
+  console.log(newDiscussion);
 
   // Reload to confirm persistence
   header("Reloading After Save");
   await manager.loadState();
-  console.log("Debates Now:", manager.debates);
+  console.log("Discussions Now:", manager.discussions || manager.debates);
 
   header("Final Summary");
   console.log(manager.getSummary());

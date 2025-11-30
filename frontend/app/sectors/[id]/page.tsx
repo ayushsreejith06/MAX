@@ -8,6 +8,8 @@ export async function generateStaticParams() {
   return [{ id: 'placeholder' }];
 }
 
+// Server component wrapper that renders the client component
+// This is required for static export with dynamic routes
 export default function SectorDetailPage() {
   return <SectorDetailClient />;
 }

@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Activity, Filter, Search, Target, UsersRound, Zap } from 'lucide-react';
 import { fetchAgents, fetchSectors } from '@/lib/api';
 import type { Agent, Sector } from '@/lib/types';
+import { CreateAgentModal } from '@/components/CreateAgentModal';
 
 type AgentWithSector = Agent & {
   sectorSymbol: string;
@@ -30,52 +31,41 @@ export default function Agents() {
   const [statusFilter, setStatusFilter] = useState<(typeof statusFilters)[number]['id']>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const loadAgents = async () => {
+    try {
+      setLoading(true);
+      const [sectorData, agentData] = await Promise.all([
+        fetchSectors(),
+        fetchAgents(),
+      ]);
+
+      const sectorMap = new Map<string, Sector>(
+        (sectorData as Sector[]).map(sector => [sector.id, sector]),
+      );
+
+      const enrichedAgents: AgentWithSector[] = (agentData as Agent[]).map(agent => {
+        const sector = agent.sectorId ? sectorMap.get(agent.sectorId) : undefined;
+        return {
+          ...agent,
+          sectorSymbol: sector?.symbol ?? '—',
+          sectorName: sector?.name ?? 'Unknown',
+        };
+      });
+
+      setAgents(enrichedAgents);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch agents', err);
+      setError('Unable to load agents. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadAgents = async () => {
-      try {
-        setLoading(true);
-        const [sectorData, agentData] = await Promise.all([
-          fetchSectors(),
-          fetchAgents(),
-        ]);
-
-        if (!isMounted) return;
-
-        const sectorMap = new Map<string, Sector>(
-          (sectorData as Sector[]).map(sector => [sector.id, sector]),
-        );
-
-        const enrichedAgents: AgentWithSector[] = (agentData as Agent[]).map(agent => {
-          const sector = agent.sectorId ? sectorMap.get(agent.sectorId) : undefined;
-          return {
-            ...agent,
-            sectorSymbol: sector?.symbol ?? '—',
-            sectorName: sector?.name ?? 'Unknown',
-          };
-        });
-
-        setAgents(enrichedAgents);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to fetch agents', err);
-        if (isMounted) {
-          setError('Unable to load agents. Please try again.');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadAgents();
-
-    return () => {
-      isMounted = false;
-    };
+    void loadAgents();
   }, []);
 
   const filteredAgents = useMemo(() => {
@@ -166,7 +156,10 @@ export default function Agents() {
                 <button className="rounded-2xl border border-sage-green/40 bg-transparent px-5 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-sage-green transition-colors hover:border-sage-green">
                   Deploy Brief
                 </button>
-                <button className="rounded-2xl bg-sage-green px-5 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-pure-black hover:bg-sage-green/90">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="rounded-2xl bg-sage-green px-5 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-pure-black hover:bg-sage-green/90"
+                >
                   Spin New Agent
                 </button>
               </div>
@@ -276,9 +269,9 @@ export default function Agents() {
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr]">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-3">
               {filteredAgents.length === 0 && (
-                <div className="col-span-full rounded-2xl border border-ink-500 bg-pure-black/60 p-8 text-center text-floral-white/60">
+                <div className="rounded-2xl border border-ink-500 bg-pure-black/60 p-8 text-center text-floral-white/60">
                   No agents match your filters.
                 </div>
               )}
@@ -286,27 +279,19 @@ export default function Agents() {
                 <button
                   key={agent.id}
                   onClick={() => setSelectedAgentId(agent.id)}
-                  className={`flex h-full flex-col rounded-2xl border px-4 py-4 text-left transition-all ${
+                  className={`flex items-center justify-between rounded-xl border px-5 py-3 text-left transition-all ${
                     selectedAgentId === agent.id
                       ? 'border-sage-green bg-pure-black/80 shadow-[0_0_25px_rgba(20,177,22,0.25)]'
                       : 'border-ink-500 bg-pure-black/40 hover:border-sage-green/40'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-floral-white">{agent.name}</p>
-                    <span className={`rounded-full px-3 py-1 text-[0.6rem] uppercase tracking-[0.3em] ${statusPills[agent.status]}`}>
-                      {agent.status}
-                    </span>
+                  <div className="flex items-center gap-4">
+                    <p className="text-base font-semibold text-floral-white">{agent.name}</p>
+                    <p className="text-sm uppercase tracking-[0.2em] text-floral-white/50">{agent.role}</p>
                   </div>
-                  <p className="mt-1 text-xs uppercase tracking-[0.3em] text-floral-white/50">{agent.role}</p>
-                  <div className="mt-4 flex items-center justify-between text-sm text-floral-white/80">
-                    <span>{agent.sectorSymbol}</span>
-                    <span>{agent.trades} trades</span>
-                    <span className={agent.performance >= 0 ? 'text-sage-green' : 'text-error-red'}>
-                      {agent.performance >= 0 ? '+' : ''}
-                      {agent.performance}%
-                    </span>
-                  </div>
+                  <span className={`rounded-full px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${statusPills[agent.status]}`}>
+                    {agent.status}
+                  </span>
                 </button>
               ))}
             </div>
@@ -321,37 +306,73 @@ export default function Agents() {
                       {selectedAgent.role} • {selectedAgent.sectorSymbol}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
-                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Performance</p>
-                      <p className={`text-xl font-bold ${selectedAgent.performance >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
-                        {selectedAgent.performance >= 0 ? '+' : ''}
-                        {selectedAgent.performance}%
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
-                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Trades</p>
-                      <p className="text-xl font-bold text-floral-white">{selectedAgent.trades}</p>
-                    </div>
-                    <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
-                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Risk tolerance</p>
-                      <p className="text-xl font-bold text-floral-white">{selectedAgent.personality.riskTolerance}</p>
-                    </div>
-                    <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
-                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Decision style</p>
-                      <p className="text-xl font-bold text-floral-white">{selectedAgent.personality.decisionStyle}</p>
+                  
+                  {/* Trades Section with Good/Bad Breakdown */}
+                  <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
+                    <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50 mb-2"># Trades</p>
+                    <p className="text-2xl font-bold text-floral-white mb-2">{selectedAgent.trades}</p>
+                    {(() => {
+                      const winRate = selectedAgent.rawPerformance?.winRate ?? 0;
+                      const totalTrades = selectedAgent.trades;
+                      const goodTrades = Math.round(totalTrades * (winRate / 100));
+                      const badTrades = totalTrades - goodTrades;
+                      return (
+                        <div className="flex gap-3 mt-2">
+                          <div className="flex-1">
+                            <p className="text-xs text-floral-white/60">Good</p>
+                            <p className="text-lg font-bold text-sage-green">{goodTrades}</p>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs text-floral-white/60">Bad</p>
+                            <p className="text-lg font-bold text-error-red">{badTrades}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Current Performance */}
+                  <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
+                    <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Current Performance</p>
+                    <p className={`text-2xl font-bold ${selectedAgent.performance >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
+                      {selectedAgent.performance >= 0 ? '+' : ''}
+                      {selectedAgent.performance.toFixed(2)}%
+                    </p>
+                  </div>
+
+                  {/* Activity Status */}
+                  <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
+                    <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Activity Status</p>
+                    <div className="mt-2">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${statusPills[selectedAgent.status]}`}>
+                        {selectedAgent.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-ink-500 bg-card-bg/70 p-4">
-                    <div className="flex items-center gap-2 text-sm text-floral-white/70">
-                      <Zap className="h-4 w-4 text-sage-green" />
-                      Playbooks attached
+
+                  {/* Morale Indicator */}
+                  <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Morale</p>
+                      <p className="text-xs font-semibold text-floral-white/70">
+                        {Math.round(selectedAgent.morale ?? 50)}/100
+                      </p>
                     </div>
-                    <ul className="mt-3 space-y-1 text-sm text-floral-white/80">
-                      <li>• Liquidity funnel for {selectedAgent.sectorName}</li>
-                      <li>• Counter-trend hedge overlay</li>
-                      <li>• Auto-escalation to MAX macro desk</li>
-                    </ul>
+                    <div className="w-full bg-ink-500/20 rounded-full h-2 mb-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          (selectedAgent.morale ?? 50) >= 80
+                            ? 'bg-sage-green'
+                            : (selectedAgent.morale ?? 50) >= 50
+                            ? 'bg-warning-amber'
+                            : 'bg-error-red'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, selectedAgent.morale ?? 50))}%` }}
+                      />
+                    </div>
+                    {selectedAgent.rewardPoints !== undefined && selectedAgent.rewardPoints > 0 && (
+                      <p className="text-xs text-floral-white/60">Reward Points: {selectedAgent.rewardPoints}</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -361,6 +382,15 @@ export default function Agents() {
           </div>
         </div>
       </div>
+
+      <CreateAgentModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          void loadAgents();
+        }}
+      />
     </div>
   );
 }

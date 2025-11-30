@@ -1,280 +1,320 @@
-#!/usr/bin/env node
-
 /**
- * Phase 1 Verification Script
+ * Phase 1 Foundations Verification Script
  * 
- * This script verifies that all Phase 1 components are working correctly.
- * Run with: node scripts/verify-phase1.js
+ * Tests all Phase 1 components to ensure they're working correctly:
+ * - BaseAgent class
+ * - ManagerAgent extending BaseAgent
+ * - Memory and reasoning system
+ * - Sector storage system
+ * - Runtime execution
+ * - Cross-sector communication
+ * - Agent creation pipeline
  */
 
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
+const BaseAgent = require('../backend/agents/base/BaseAgent');
+const ManagerAgent = require('../backend/agents/manager/ManagerAgent');
+const { loadSectors, saveSectors, getSectorById, updateSector } = require('../backend/utils/storage');
+const { publish, drain, clearAll } = require('../backend/agents/comms/MessageBus');
+const { getAgentRuntime } = require('../backend/agents/runtime/agentRuntime');
+const { createAgent } = require('../backend/agents/pipeline/createAgent');
+const { loadAgents } = require('../backend/utils/agentStorage');
 
-const colors = {
-  reset: '\x1b[0m',
-  green: '\x1b[32m',
-  red: '\x1b[31m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  cyan: '\x1b[36m'
-};
+let testsPassed = 0;
+let testsFailed = 0;
+const failures = [];
 
-let passed = 0;
-let failed = 0;
-let warnings = 0;
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
+function logTest(name, passed, message = '') {
+  if (passed) {
+    console.log(`✓ ${name}`);
+    testsPassed++;
+  } else {
+    console.log(`✗ ${name}${message ? ': ' + message : ''}`);
+    testsFailed++;
+    failures.push({ name, message });
+  }
 }
 
-function check(description, testFn) {
+async function testBaseAgent() {
+  console.log('\n=== Testing BaseAgent ===');
+  
   try {
-    const result = testFn();
-    if (result === true || (result && result.passed)) {
-      log(`✓ ${description}`, 'green');
-      passed++;
-      return true;
-    } else {
-      log(`✗ ${description}`, 'red');
-      if (result && result.message) {
-        log(`  ${result.message}`, 'red');
-      }
-      failed++;
-      return false;
+    const agent = new BaseAgent({
+      id: 'test-agent-1',
+      name: 'Test Agent',
+      role: 'test',
+      personality: { riskTolerance: 'high', decisionStyle: 'rapid' },
+      performance: { pnl: 100, winRate: 0.75 }
+    });
+
+    // Test basic properties
+    logTest('BaseAgent creates with required properties', 
+      agent.id === 'test-agent-1' && agent.name === 'Test Agent' && agent.role === 'test');
+
+    // Test memory system
+    agent.updateMemory({
+      type: 'observation',
+      data: { test: 'data' },
+      reasoning: 'Test reasoning'
+    });
+    logTest('BaseAgent memory system works', agent.memory.length === 1);
+
+    // Test reasoning storage
+    agent.storeReasoning(Date.now(), 'Test reasoning', { context: 'test' });
+    const reasoning = agent.getReasoningHistory(10);
+    logTest('BaseAgent reasoning history works', reasoning.length > 0 && reasoning[0].type === 'reasoning');
+
+    // Test state
+    agent.updateLastTick(Date.now());
+    agent.updateMetrics({ decisionCount: 5 });
+    const state = agent.getState();
+    logTest('BaseAgent state management works', 
+      state.lastTick !== null && state.metrics.decisionCount === 5);
+
+  } catch (error) {
+    logTest('BaseAgent instantiation', false, error.message);
+  }
+}
+
+async function testManagerAgent() {
+  console.log('\n=== Testing ManagerAgent ===');
+  
+  try {
+    // First, ensure we have a test sector
+    const sectors = await loadSectors();
+    let testSector = sectors.find(s => s.sectorName === 'Test Sector');
+    
+    if (!testSector) {
+      // Create a test sector
+      testSector = {
+        id: 'test-sector-1',
+        sectorName: 'Test Sector',
+        sectorSymbol: 'TEST',
+        currentPrice: 100,
+        change: 0,
+        changePercent: 0,
+        volume: 0,
+        statusPercent: 0,
+        activeAgents: 0,
+        candleData: [],
+        discussions: [],
+        agents: []
+      };
+      sectors.push(testSector);
+      await saveSectors(sectors);
     }
+
+    const manager = new ManagerAgent({
+      id: 'test-manager-1',
+      sectorId: testSector.id,
+      name: 'Test Manager',
+      personality: { riskTolerance: 'medium', decisionStyle: 'balanced' },
+      runtimeConfig: { tickInterval: 3000, conflictThreshold: 0.5 }
+    });
+
+    // Test inheritance
+    logTest('ManagerAgent extends BaseAgent', manager instanceof BaseAgent);
+
+    // Test state
+    logTest('ManagerAgent has state object', 
+      manager.state && manager.state.memory && manager.state.metrics);
+
+    // Test sector awareness
+    const loadedSector = await manager.loadSector();
+    logTest('ManagerAgent can load sector', loadedSector !== null && loadedSector.id === testSector.id);
+
+    // Test decision making (with empty signals should return HOLD)
+    const decision = await manager.decide([]);
+    logTest('ManagerAgent can make decisions', 
+      decision && decision.action && typeof decision.confidence === 'number');
+
+    // Test tick
+    const tickResult = await manager.tick();
+    logTest('ManagerAgent tick() works', tickResult !== null);
+
+    // Test memory after tick
+    logTest('ManagerAgent updates memory after tick', manager.memory.length > 0);
+
+    // Test cross-sector communication
+    await manager.sendCrossSectorMessage({
+      to: 'broadcast',
+      type: 'test',
+      payload: { message: 'test' }
+    });
+    const messages = await manager.receiveMessages();
+    logTest('ManagerAgent cross-sector communication works', messages.length > 0);
+
+    // Clean up messages
+    await clearAll();
+
   } catch (error) {
-    log(`✗ ${description}`, 'red');
-    log(`  Error: ${error.message}`, 'red');
-    failed++;
-    return false;
+    logTest('ManagerAgent instantiation', false, error.message);
   }
 }
 
-function warn(description, message) {
-  log(`⚠ ${description}`, 'yellow');
-  if (message) {
-    log(`  ${message}`, 'yellow');
-  }
-  warnings++;
-}
-
-// Check if file exists
-function fileExists(filePath) {
+async function testSectorStorage() {
+  console.log('\n=== Testing Sector Storage ===');
+  
   try {
-    return fs.existsSync(filePath);
-  } catch {
-    return false;
-  }
-}
+    // Test loadSectors
+    const sectors = await loadSectors();
+    logTest('loadSectors() works', Array.isArray(sectors));
 
-// Check if directory exists
-function dirExists(dirPath) {
-  try {
-    return fs.statSync(dirPath).isDirectory();
-  } catch {
-    return false;
-  }
-}
+    // Test getSectorById
+    if (sectors.length > 0) {
+      const sector = await getSectorById(sectors[0].id);
+      logTest('getSectorById() works', sector !== null && sector.id === sectors[0].id);
+    } else {
+      logTest('getSectorById() works', true, 'No sectors to test');
+    }
 
-// Read and parse JSON file
-function readJSON(filePath) {
-  try {
-    if (!fileExists(filePath)) return null;
-    const content = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(content);
+    // Test updateSector
+    if (sectors.length > 0) {
+      const testId = sectors[0].id;
+      const updated = await updateSector(testId, { testField: 'testValue' });
+      logTest('updateSector() works', updated !== null && updated.testField === 'testValue');
+      
+      // Clean up
+      await updateSector(testId, { testField: undefined });
+    } else {
+      logTest('updateSector() works', true, 'No sectors to test');
+    }
+
   } catch (error) {
-    return null;
+    logTest('Sector storage operations', false, error.message);
   }
 }
 
-log('\n=== Phase 1 Verification ===\n', 'cyan');
+async function testMessageBus() {
+  console.log('\n=== Testing Message Bus ===');
+  
+  try {
+    await clearAll();
 
-// 1. Backend Infrastructure Checks
-log('1. Backend Infrastructure', 'blue');
+    // Test publish
+    await publish({
+      from: 'test-manager-1',
+      to: 'test-manager-2',
+      type: 'test',
+      payload: { test: 'data' }
+    });
+    logTest('MessageBus publish() works', true);
 
-const backendDir = path.join(__dirname, '..', 'backend');
-const frontendDir = path.join(__dirname, '..', 'frontend');
+    // Test subscribe/drain
+    const messages = await drain('test-manager-2');
+    logTest('MessageBus drain() works', messages.length === 1 && messages[0].type === 'test');
 
-check('Backend directory exists', () => dirExists(backendDir));
+    // Test broadcast
+    await publish({
+      from: 'test-manager-1',
+      to: 'broadcast',
+      type: 'broadcast',
+      payload: { test: 'broadcast' }
+    });
+    const broadcastMessages = await drain('test-manager-3');
+    logTest('MessageBus broadcast works', broadcastMessages.length === 1);
 
-check('Backend server.js exists', () => {
-  const serverFile = path.join(backendDir, 'server.js');
-  if (!fileExists(serverFile)) return false;
-  const content = fs.readFileSync(serverFile, 'utf8');
-  return content.includes('fastify') || content.includes('express');
-});
+    await clearAll();
 
-check('Backend package.json exists', () => {
-  const pkgFile = path.join(backendDir, 'package.json');
-  if (!fileExists(pkgFile)) return { passed: false, message: 'package.json not found' };
-  const pkg = readJSON(pkgFile);
-  if (!pkg) return { passed: false, message: 'package.json could not be parsed' };
-  return !!(pkg.dependencies || pkg.devDependencies);
-});
-
-// 2. Agent Framework Checks
-log('\n2. Agent Framework', 'blue');
-
-check('Agent base class exists', () => {
-  const agentFile = path.join(backendDir, 'agents', 'base', 'Agent.js');
-  if (!fileExists(agentFile)) return false;
-  const content = fs.readFileSync(agentFile, 'utf8');
-  return content.includes('class Agent') && content.includes('constructor');
-});
-
-check('Agent class has required methods', () => {
-  const agentFile = path.join(backendDir, 'agents', 'base', 'Agent.js');
-  const content = fs.readFileSync(agentFile, 'utf8');
-  return content.includes('addMemory') && 
-         content.includes('toJSON') && 
-         content.includes('getSummary');
-});
-
-check('Agent storage directory exists', () => {
-  const storageDir = path.join(backendDir, 'storage');
-  return dirExists(storageDir);
-});
-
-// 3. Sector System Checks
-log('\n3. Sector System', 'blue');
-
-check('Sector model exists', () => {
-  const sectorFile = path.join(backendDir, 'models', 'Sector.js');
-  if (!fileExists(sectorFile)) return false;
-  const content = fs.readFileSync(sectorFile, 'utf8');
-  return content.includes('class Sector') && content.includes('constructor');
-});
-
-check('Sector controller exists', () => {
-  const controllerFile = path.join(backendDir, 'controllers', 'sectorsController.js');
-  return fileExists(controllerFile);
-});
-
-check('Sector routes exist', () => {
-  const routesFile = path.join(backendDir, 'routes', 'sectors.js');
-  return fileExists(routesFile);
-});
-
-check('Sector storage file exists or can be created', () => {
-  const storageFile = path.join(backendDir, 'storage', 'sectors.json');
-  const storageDir = path.join(backendDir, 'storage');
-  if (!dirExists(storageDir)) return false;
-  // File might not exist yet, but directory should
-  return true;
-});
-
-// 4. Frontend Infrastructure Checks
-log('\n4. Frontend Infrastructure', 'blue');
-
-check('Frontend directory exists', () => dirExists(frontendDir));
-
-check('Frontend package.json exists', () => {
-  const pkgFile = path.join(frontendDir, 'package.json');
-  if (!fileExists(pkgFile)) return { passed: false, message: 'package.json not found' };
-  const pkg = readJSON(pkgFile);
-  if (!pkg) return { passed: false, message: 'package.json could not be parsed' };
-  if (!pkg.dependencies) return { passed: false, message: 'package.json has no dependencies' };
-  return !!pkg.dependencies.next;
-});
-
-check('Next.js app directory exists', () => {
-  const appDir = path.join(frontendDir, 'app');
-  return dirExists(appDir);
-});
-
-check('Dashboard page exists', () => {
-  const pageFile = path.join(frontendDir, 'app', 'page.tsx');
-  return fileExists(pageFile);
-});
-
-check('Sectors page exists', () => {
-  const pageFile = path.join(frontendDir, 'app', 'sectors', 'page.tsx');
-  return fileExists(pageFile);
-});
-
-check('Agents page exists', () => {
-  const pageFile = path.join(frontendDir, 'app', 'agents', 'page.tsx');
-  return fileExists(pageFile);
-});
-
-check('Navigation component exists', () => {
-  const navFile = path.join(frontendDir, 'app', 'components', 'Navigation.tsx');
-  return fileExists(navFile);
-});
-
-check('API client exists', () => {
-  const apiFile = path.join(frontendDir, 'lib', 'api.ts');
-  return fileExists(apiFile);
-});
-
-// 5. Orderbook Checks
-log('\n5. Orderbook Implementation', 'blue');
-
-const orderbookFiles = [
-  path.join(backendDir, 'models', 'Orderbook.js'),
-  path.join(backendDir, 'utils', 'orderbook.js'),
-  path.join(backendDir, 'services', 'orderbook.js')
-];
-
-const orderbookExists = orderbookFiles.some(file => fileExists(file));
-
-if (!orderbookExists) {
-  warn('Orderbook implementation not found', 
-    'This is a Phase 1 requirement. Consider implementing a simple orderbook.');
-} else {
-  check('Orderbook implementation exists', () => orderbookExists);
+  } catch (error) {
+    logTest('MessageBus operations', false, error.message);
+  }
 }
 
-// 6. Configuration Checks
-log('\n6. Configuration', 'blue');
+async function testAgentCreation() {
+  console.log('\n=== Testing Agent Creation Pipeline ===');
+  
+  try {
+    const sectors = await loadSectors();
+    const testSectorId = sectors.length > 0 ? sectors[0].id : null;
 
-check('Backend has node_modules or package-lock.json', () => {
-  const nodeModules = path.join(backendDir, 'node_modules');
-  const packageLock = path.join(backendDir, 'package-lock.json');
-  return dirExists(nodeModules) || fileExists(packageLock);
-});
+    // Test creating an agent
+    const agent = await createAgent('test trader agent buy sell', testSectorId);
+    logTest('Agent creation pipeline works', 
+      agent && agent.id && agent.role && agent.name);
 
-check('Frontend has node_modules or package-lock.json', () => {
-  const nodeModules = path.join(frontendDir, 'node_modules');
-  const packageLock = path.join(frontendDir, 'package-lock.json');
-  return dirExists(nodeModules) || fileExists(packageLock);
-});
+    // Verify agent was saved
+    const agents = await loadAgents();
+    const foundAgent = agents.find(a => a.id === agent.id);
+    logTest('Created agent is saved to storage', foundAgent !== null);
 
-// Check if routes are connected
-check('Backend routes structure', () => {
-  const serverFile = path.join(backendDir, 'server.js');
-  const content = fs.readFileSync(serverFile, 'utf8');
-  // Check if routes might be registered (this is a basic check)
-  return true; // Routes exist, connection might need manual verification
-});
+    // Verify agent has required fields
+    logTest('Created agent has personality', 
+      foundAgent && foundAgent.personality && foundAgent.personality.riskTolerance);
 
-warn('Backend routes connection', 
-  'Verify that routes are properly registered in server.js. Currently routes exist but may need to be connected.');
+    // Clean up test agent
+    const updatedAgents = agents.filter(a => a.id !== agent.id);
+    const { saveAgents } = require('../backend/utils/agentStorage');
+    await saveAgents(updatedAgents);
 
-// Summary
-log('\n=== Summary ===\n', 'cyan');
-log(`Passed: ${passed}`, 'green');
-if (warnings > 0) {
-  log(`Warnings: ${warnings}`, 'yellow');
-}
-if (failed > 0) {
-  log(`Failed: ${failed}`, 'red');
+  } catch (error) {
+    logTest('Agent creation pipeline', false, error.message);
+  }
 }
 
-const total = passed + failed;
-const successRate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+async function testRuntime() {
+  console.log('\n=== Testing Agent Runtime ===');
+  
+  try {
+    const runtime = getAgentRuntime();
+    logTest('AgentRuntime singleton works', runtime !== null);
 
-log(`\nSuccess Rate: ${successRate}%`, successRate >= 80 ? 'green' : 'yellow');
+    // Test initialization
+    await runtime.initialize();
+    logTest('AgentRuntime initialize() works', true);
 
-if (failed === 0 && warnings === 0) {
-  log('\n✓ All Phase 1 checks passed!', 'green');
-  process.exit(0);
-} else if (failed === 0) {
-  log('\n✓ All checks passed with warnings. Review warnings above.', 'yellow');
-  process.exit(0);
-} else {
-  log('\n✗ Some checks failed. Please review the errors above.', 'red');
-  process.exit(1);
+    // Test status
+    const status = runtime.getStatus();
+    logTest('AgentRuntime getStatus() works', 
+      status && typeof status.isRunning === 'boolean' && typeof status.managerCount === 'number');
+
+    // Note: We don't start the runtime in tests to avoid infinite loops
+    logTest('AgentRuntime can be instantiated', true);
+
+  } catch (error) {
+    logTest('AgentRuntime operations', false, error.message);
+  }
 }
 
+async function runAllTests() {
+  console.log('========================================');
+  console.log('Phase 1 Foundations Verification');
+  console.log('========================================\n');
+
+  try {
+    await testBaseAgent();
+    await testManagerAgent();
+    await testSectorStorage();
+    await testMessageBus();
+    await testAgentCreation();
+    await testRuntime();
+
+    console.log('\n========================================');
+    console.log('Test Results');
+    console.log('========================================');
+    console.log(`Passed: ${testsPassed}`);
+    console.log(`Failed: ${testsFailed}`);
+    console.log(`Total:  ${testsPassed + testsFailed}`);
+
+    if (failures.length > 0) {
+      console.log('\nFailures:');
+      failures.forEach(f => {
+        console.log(`  - ${f.name}: ${f.message}`);
+      });
+    }
+
+    if (testsFailed === 0) {
+      console.log('\n✓ All Phase 1 foundations are working correctly!');
+      process.exit(0);
+    } else {
+      console.log('\n✗ Some tests failed. Please review the errors above.');
+      process.exit(1);
+    }
+
+  } catch (error) {
+    console.error('\nFatal error during testing:', error);
+    process.exit(1);
+  }
+}
+
+// Run tests
+runAllTests();

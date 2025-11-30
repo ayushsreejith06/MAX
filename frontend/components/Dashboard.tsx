@@ -2,8 +2,9 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { fetchSectors } from '@/lib/api';
+import { fetchContractEvents } from '@/lib/mnee';
 import type { CandleData, Sector } from '@/lib/types';
-import { ChevronLeft, ChevronRight, Download, RefreshCcw, ChevronDown, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, RefreshCcw, ChevronDown, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import LineChart from './LineChart';
 
@@ -67,6 +68,8 @@ export default function Dashboard() {
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
   const exportOptionsRef = useRef<HTMLDivElement | null>(null);
   const [selectedChartSectors, setSelectedChartSectors] = useState<string[]>([]);
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
+  const [contractCounts, setContractCounts] = useState({ sectors: 0, agents: 0, trades: 0 });
   const itemsPerPage = 6;
   const sectorsById = useMemo(() => {
     const map = new Map<string, Sector>();
@@ -101,6 +104,27 @@ export default function Dashboard() {
   useEffect(() => {
     loadSectors(true);
   }, [loadSectors]);
+
+  /**
+   * Load contract activity counts for the On-Chain Activity card
+   */
+  useEffect(() => {
+    const loadContractCounts = async () => {
+      try {
+        const response = await fetchContractEvents();
+        if (response.success && response.counts) {
+          setContractCounts(response.counts);
+        }
+      } catch (error) {
+        // Silently fail - contract may not be configured
+        console.debug('Could not load contract counts:', error);
+      }
+    };
+    loadContractCounts();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadContractCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
 
   // All hooks must be called before any early returns
@@ -616,6 +640,33 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* On-Chain Activity Card */}
+        <div className="mb-4">
+          <div 
+            onClick={() => router.push('/contract-activity')}
+            className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey cursor-pointer hover:border-sage-green transition-colors"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase text-floral-white/70 tracking-wide font-mono">ON-CHAIN ACTIVITY</span>
+              <LinkIcon className="w-4 h-4 text-sage-green" />
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div>
+                <div className="text-2xl font-bold text-sage-green font-mono">{contractCounts.sectors}</div>
+                <div className="text-xs text-floral-white/50 font-mono mt-1">Sectors on chain</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-warning-amber font-mono">{contractCounts.agents}</div>
+                <div className="text-xs text-floral-white/50 font-mono mt-1">Agents on chain</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-sky-blue font-mono">{contractCounts.trades}</div>
+                <div className="text-xs text-floral-white/50 font-mono mt-1">On-chain trades</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Cross-Sector Navigator & Overview */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -903,6 +954,101 @@ export default function Dashboard() {
           </div>
           <div className="px-5 py-3 border-t border-ink-500/70 text-xs uppercase tracking-[0.3em] text-floral-white/60 font-mono">
             Viewing {currentRangeStart}-{currentRangeEnd} of {filteredSectors.length || 0} • Page {Math.min(sectorTablePage + 1, totalPages)} / {totalPages}
+          </div>
+        </div>
+
+        {/* Agents Table */}
+        <div className="bg-card-bg/80 rounded-2xl border border-ink-500 mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b border-ink-500/70 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-floral-white uppercase tracking-[0.32em] font-mono">AGENTS DATA</h3>
+              <p className="text-xs text-floral-white/60 font-mono mt-1">All agents from visible sectors</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <span className="text-floral-white/60">Total: {paginatedSectors.reduce((sum, sector) => sum + (sector.agents?.length || 0), 0)} agents</span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border border-ink-500 bg-card-bg font-mono text-[0.85rem]">
+              <thead>
+                <tr className="bg-ink-600 text-floral-white/70 uppercase tracking-[0.2em]">
+                  {['Name', 'Role', 'Sector', 'Status', 'Performance', 'Trades', 'Risk Tolerance', 'Decision Style', 'Created'].map((heading) => (
+                    <th key={heading} className="px-4 py-3 border border-ink-500 text-left text-[0.6rem]">
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const allAgents = paginatedSectors.flatMap(sector => 
+                    (sector.agents || []).map(agent => ({ ...agent, sectorSymbol: sector.symbol, sectorName: sector.name }))
+                  );
+                  
+                  if (allAgents.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={9} className="px-4 py-8 text-center text-floral-white/60 font-mono">
+                          No agents found in visible sectors.
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  return allAgents.map((agent, index) => {
+                    const statusColors = {
+                      active: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+                      idle: 'bg-floral-white/10 text-floral-white/70 border-floral-white/30',
+                      processing: 'bg-sky-blue/20 text-sky-blue border-sky-blue/50',
+                    };
+                    const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.idle;
+                    const createdDate = agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : 'N/A';
+                    
+                    return (
+                      <tr
+                        key={agent.id}
+                        className={`transition-colors ${
+                          index % 2 === 0 ? 'bg-shadow-grey/60' : 'bg-shadow-grey/40'
+                        } hover:bg-shadow-grey/80 cursor-pointer`}
+                        onClick={() => router.push(`/agents?agent=${agent.id}`)}
+                      >
+                        <td className="px-4 py-3 border border-ink-500 text-floral-white font-semibold">
+                          {agent.name}
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-floral-white/85 text-sm">
+                          {agent.role}
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-floral-white/80">
+                          {agent.sectorSymbol || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-center">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wider border ${statusColor}`}>
+                            {agent.status}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 border border-ink-500 text-right font-semibold ${
+                          agent.performance >= 0 ? 'text-sage-green' : 'text-error-red'
+                        }`}>
+                          {agent.performance >= 0 ? '+' : ''}{agent.performance.toFixed(2)}%
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-right text-floral-white">
+                          {agent.trades}
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-floral-white/70 text-sm">
+                          {agent.personality?.riskTolerance || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-floral-white/70 text-sm">
+                          {agent.personality?.decisionStyle || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-3 border border-ink-500 text-floral-white/60 text-xs">
+                          {createdDate}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
           </div>
         </div>
 

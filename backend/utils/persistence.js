@@ -57,7 +57,7 @@ async function readDataFile(filename) {
   } catch (error) {
     if (error.code === 'ENOENT') {
       // File doesn't exist, return empty array for list files, null for single items
-      return filename.endsWith('.json') && (filename.includes('sectors') || filename.includes('agents') || filename.includes('debates') || filename.includes('discussions')) ? [] : null;
+      return filename.endsWith('.json') && (filename.includes('sectors') || filename.includes('agents') || filename.includes('discussions')) ? [] : null;
     }
     throw error;
   }

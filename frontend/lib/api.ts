@@ -210,6 +210,7 @@ function normalizeSector(raw: any): Sector {
     volatility: typeof raw?.volatility === 'number' ? Number(raw.volatility.toFixed(4)) : undefined,
     riskScore: typeof raw?.riskScore === 'number' ? Number(raw.riskScore) : undefined,
     lastSimulatedPrice: typeof raw?.lastSimulatedPrice === 'number' ? Number(raw.lastSimulatedPrice.toFixed(2)) : null,
+    balance: typeof raw?.balance === 'number' ? Number(raw.balance.toFixed(2)) : 0,
   };
 }
 
@@ -493,6 +494,23 @@ export async function updateSectorPerformance(sectorId: string): Promise<Sector>
     headers: {
       'Content-Type': 'application/json',
     },
+  });
+  
+  // Handle both wrapped and unwrapped responses
+  let sectorData: any = payload;
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    sectorData = (payload as { success: boolean; data: Sector }).data;
+  }
+  return normalizeSector(sectorData);
+}
+
+export async function depositSector(sectorId: string, amount: number): Promise<Sector> {
+  const payload = await request<{ success: boolean; data: Sector } | Sector>(`/sectors/${sectorId}/deposit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ amount }),
   });
   
   // Handle both wrapped and unwrapped responses

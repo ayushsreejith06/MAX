@@ -1,0 +1,99 @@
+const { v4: uuidv4 } = require('uuid');
+
+class DiscussionRoom {
+  constructor(sectorId, title, agentIds = []) {
+    this.id = uuidv4();
+    this.sectorId = sectorId;
+    this.title = title;
+    this.agentIds = agentIds;
+    this.messages = [];
+    this.status = 'in_progress';
+    this.createdAt = new Date().toISOString();
+    this.updatedAt = new Date().toISOString();
+    // Decision fields
+    this.finalDecision = null;
+    this.rationale = null;
+    this.confidence = null;
+    this.selectedAgent = null;
+    this.voteBreakdown = null;
+    this.conflictScore = null;
+    this.decidedAt = null;
+  }
+
+  static fromData(data) {
+    const discussionRoom = new DiscussionRoom(data.sectorId, data.title, data.agentIds);
+    discussionRoom.id = data.id;
+    discussionRoom.messages = data.messages || [];
+    // Map old status values to new ones for backward compatibility
+    const statusMap = {
+      'created': 'in_progress',
+      'debating': 'in_progress',
+      'open': 'in_progress',
+      'decided': 'decided',
+      'closed': 'closed',
+      'archived': 'archived'
+    };
+    discussionRoom.status = statusMap[data.status] || data.status || 'in_progress';
+    discussionRoom.createdAt = data.createdAt;
+    discussionRoom.updatedAt = data.updatedAt;
+    // Decision fields
+    discussionRoom.finalDecision = data.finalDecision || null;
+    discussionRoom.rationale = data.rationale || null;
+    discussionRoom.confidence = data.confidence || null;
+    discussionRoom.selectedAgent = data.selectedAgent || null;
+    discussionRoom.voteBreakdown = data.voteBreakdown || null;
+    discussionRoom.conflictScore = data.conflictScore || null;
+    discussionRoom.decidedAt = data.decidedAt || null;
+    return discussionRoom;
+  }
+
+  addMessage(message) {
+    const messageEntry = {
+      id: message.id || `${this.id}-msg-${this.messages.length}`,
+      agentId: message.agentId,
+      agentName: message.agentName || 'Unknown Agent',
+      content: message.content,
+      role: message.role,
+      timestamp: message.timestamp || new Date().toISOString(),
+      createdAt: message.createdAt || new Date().toISOString()
+    };
+    this.messages.push(messageEntry);
+    this.updatedAt = new Date().toISOString();
+  }
+
+  setDecision(decision) {
+    this.finalDecision = decision.action || decision.finalDecision;
+    this.rationale = decision.rationale || decision.reason;
+    this.confidence = decision.confidence;
+    this.selectedAgent = decision.selectedAgent || null;
+    this.voteBreakdown = decision.voteBreakdown || null;
+    this.conflictScore = decision.conflictScore || null;
+    this.decidedAt = new Date().toISOString();
+    this.updatedAt = new Date().toISOString();
+    this.status = 'decided';
+  }
+
+  toJSON() {
+    return {
+      id: this.id,
+      sectorId: this.sectorId,
+      title: this.title,
+      agentIds: this.agentIds,
+      messages: this.messages,
+      status: this.status,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      // Decision fields
+      finalDecision: this.finalDecision,
+      rationale: this.rationale,
+      confidence: this.confidence,
+      selectedAgent: this.selectedAgent,
+      voteBreakdown: this.voteBreakdown,
+      conflictScore: this.conflictScore,
+      decidedAt: this.decidedAt
+    };
+  }
+}
+
+module.exports = DiscussionRoom;
+

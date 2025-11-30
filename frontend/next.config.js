@@ -15,10 +15,11 @@ const nextConfig = {
   // Configure webpack to handle Tauri API imports
   webpack: (config, { isServer }) => {
     // Ignore Tauri API modules during build (they're only available in Tauri runtime)
+    // These are dynamically imported at runtime, so we need to ignore them during build
     if (!isServer) {
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@tauri-apps\/api\/updater$/,
+          resourceRegExp: /^@tauri-apps\/api\/(updater|event)$/,
         })
       );
     }

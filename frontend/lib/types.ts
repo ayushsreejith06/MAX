@@ -21,7 +21,11 @@ export interface Agent {
   sectorSymbol?: string;
   sectorName?: string;
   personality: AgentPersonality;
+  morale?: number; // Morale value (0-100)
+  rewardPoints?: number; // Reward points accumulated
   createdAt?: string;
+  rawTrades?: any[]; // Raw trades array for detailed analysis
+  rawPerformance?: { pnl?: number; winRate?: number }; // Raw performance object
 }
 
 export interface Message {
@@ -65,6 +69,7 @@ export interface Sector {
   volatility?: number;
   riskScore?: number;
   lastSimulatedPrice?: number | null;
+  balance?: number;
 }
 
 export type ApiPayload<T> = T | { data: T } | { success: boolean; data: T };

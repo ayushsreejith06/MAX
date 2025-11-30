@@ -8,7 +8,7 @@
     "distDir": "../frontend/out",
     "devPath": "http://localhost:3000",
     "beforeDevCommand": "",
-    "beforeBuildCommand": "node ../scripts/build-frontend-desktop.js"
+    "beforeBuildCommand": "node scripts/build-frontend-desktop.js"
   },
   "tauri": {
     "allowlist": {

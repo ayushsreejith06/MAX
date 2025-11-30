@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { UpdaterModal } from '@/components/UpdaterModal';
+import { BackendLoader } from '@/components/BackendLoader';
 import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 
 const spaceGrotesk = Space_Grotesk({
@@ -31,9 +32,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${plexMono.variable} bg-pure-black text-floral-white`}>
-        <Navbar />
-        {children}
-        <UpdaterModal />
+        <BackendLoader>
+          <Navbar />
+          {children}
+          <UpdaterModal />
+        </BackendLoader>
       </body>
     </html>
   );

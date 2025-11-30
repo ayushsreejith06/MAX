@@ -1,5 +1,13 @@
-const DebateRoom = require('../models/DebateRoom');
-const { loadDebates, saveDebates } = require('../utils/debateStorage');
+const DiscussionRoom = require('../models/DiscussionRoom');
+const { loadDiscussions, saveDiscussions, saveDiscussion, findDiscussionById } = require('../utils/discussionStorage');
+const {
+  startDiscussion,
+  collectArguments,
+  aggregateVotes,
+  produceDecision,
+  closeDiscussion,
+  archiveDiscussion
+} = require('../agents/discussion/discussionLifecycle');
 const { loadAgents } = require('../utils/agentStorage');
 
 // Simple logger
@@ -46,7 +54,7 @@ module.exports = async (fastify) => {
         log(`GET /discussions - Fetching all discussions`);
       }
 
-      let discussions = await loadDebates();
+      let discussions = await loadDiscussions();
 
       // Filter by sectorId if provided
       if (sectorId) {
@@ -84,7 +92,7 @@ module.exports = async (fastify) => {
       const { id } = request.params;
       log(`GET /discussions/${id} - Fetching discussion by ID`);
 
-      const discussions = await loadDebates();
+      const discussions = await loadDiscussions();
       const discussion = discussions.find(d => d.id === id);
 
       if (!discussion) {
@@ -121,12 +129,7 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions - Creating discussion with sectorId: ${sectorId}, title: ${title}`);
 
-      const discussionRoom = new DebateRoom(sectorId, title, agentIds || []);
-      
-      // Load existing discussions, add new one, and save
-      const discussions = await loadDebates();
-      discussions.push(discussionRoom.toJSON());
-      await saveDebates(discussions);
+      const discussionRoom = await startDiscussion(sectorId, title, agentIds);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -157,18 +160,15 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/${id}/message - Adding message to discussion: ${id}`);
 
-      const discussions = await loadDebates();
-      const discussionIndex = discussions.findIndex(d => d.id === id);
-
-      if (discussionIndex === -1) {
+      const discussionData = await findDiscussionById(id);
+      if (!discussionData) {
         return reply.status(404).send({
           success: false,
           error: 'Discussion not found'
         });
       }
 
-      const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
 
       // Add message
       discussionRoom.addMessage({ 
@@ -183,9 +183,7 @@ module.exports = async (fastify) => {
         discussionRoom.status = 'in_progress';
       }
 
-      // Update the discussion in the array
-      discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      await saveDiscussion(discussionRoom);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -208,24 +206,7 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/${id}/close - Closing discussion: ${id}`);
 
-      const discussions = await loadDebates();
-      const discussionIndex = discussions.findIndex(d => d.id === id);
-
-      if (discussionIndex === -1) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Discussion not found'
-        });
-      }
-
-      const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
-
-      discussionRoom.status = 'closed';
-      discussionRoom.updatedAt = new Date().toISOString();
-
-      discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      const discussionRoom = await closeDiscussion(id);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -248,24 +229,7 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/${id}/archive - Archiving discussion: ${id}`);
 
-      const discussions = await loadDebates();
-      const discussionIndex = discussions.findIndex(d => d.id === id);
-
-      if (discussionIndex === -1) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Discussion not found'
-        });
-      }
-
-      const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
-
-      discussionRoom.status = 'archived';
-      discussionRoom.updatedAt = new Date().toISOString();
-
-      discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      const discussionRoom = await archiveDiscussion(id);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -288,24 +252,18 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/${id}/accept - Accepting discussion: ${id}`);
 
-      const discussions = await loadDebates();
-      const discussionIndex = discussions.findIndex(d => d.id === id);
-
-      if (discussionIndex === -1) {
+      const discussionData = await findDiscussionById(id);
+      if (!discussionData) {
         return reply.status(404).send({
           success: false,
           error: 'Discussion not found'
         });
       }
 
-      const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
-
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
       discussionRoom.status = 'accepted';
       discussionRoom.updatedAt = new Date().toISOString();
-
-      discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      await saveDiscussion(discussionRoom);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -328,24 +286,18 @@ module.exports = async (fastify) => {
 
       log(`POST /discussions/${id}/reject - Rejecting discussion: ${id}`);
 
-      const discussions = await loadDebates();
-      const discussionIndex = discussions.findIndex(d => d.id === id);
-
-      if (discussionIndex === -1) {
+      const discussionData = await findDiscussionById(id);
+      if (!discussionData) {
         return reply.status(404).send({
           success: false,
           error: 'Discussion not found'
         });
       }
 
-      const discussionData = discussions[discussionIndex];
-      const discussionRoom = DebateRoom.fromData(discussionData);
-
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
       discussionRoom.status = 'rejected';
       discussionRoom.updatedAt = new Date().toISOString();
-
-      discussions[discussionIndex] = discussionRoom.toJSON();
-      await saveDebates(discussions);
+      await saveDiscussion(discussionRoom);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -354,6 +306,60 @@ module.exports = async (fastify) => {
       return reply.status(200).send(enriched);
     } catch (error) {
       log(`Error rejecting discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/collect-arguments - Manually trigger argument collection
+  fastify.post('/:id/collect-arguments', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`POST /discussions/${id}/collect-arguments - Collecting arguments for discussion: ${id}`);
+
+      const arguments = await collectArguments(id);
+      const discussionData = await findDiscussionById(id);
+      const enriched = await enrichDiscussion(discussionData);
+
+      log(`Arguments collected successfully: ${arguments.length} arguments`);
+
+      return reply.status(200).send({
+        success: true,
+        arguments: arguments,
+        discussion: enriched
+      });
+    } catch (error) {
+      log(`Error collecting arguments: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/produce-decision - Manually trigger decision production
+  fastify.post('/:id/produce-decision', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`POST /discussions/${id}/produce-decision - Producing decision for discussion: ${id}`);
+
+      const decision = await produceDecision(id);
+      const discussionData = await findDiscussionById(id);
+      const enriched = await enrichDiscussion(discussionData);
+
+      log(`Decision produced successfully: ${decision.action} (confidence: ${decision.confidence})`);
+
+      return reply.status(200).send({
+        success: true,
+        decision: decision,
+        discussion: enriched
+      });
+    } catch (error) {
+      log(`Error producing decision: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

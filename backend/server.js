@@ -38,13 +38,6 @@ const start = async () => {
       throw err;
     }
     try {
-      await fastify.register(require('./routes/debates'), { prefix: '/api/debates' });
-      fastify.log.info('Debates route registered successfully');
-    } catch (err) {
-      fastify.log.error('Error registering debates route:', err);
-      throw err;
-    }
-    try {
       await fastify.register(require('./routes/discussions'), { prefix: '/api/discussions' });
       fastify.log.info('Discussions route registered successfully');
     } catch (err) {
@@ -72,6 +65,13 @@ const start = async () => {
       fastify.log.error('Error registering execution route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/simulation'), { prefix: '/api/simulation' });
+      fastify.log.info('Simulation route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering simulation route:', err);
+      throw err;
+    }
 
     // Bootstrap SimulationEngine
     try {
@@ -96,6 +96,19 @@ const start = async () => {
       // Don't throw - allow server to start even if agent runtime fails
     }
 
+    // Bootstrap Discussion Lifecycle (auto-discussion loop)
+    try {
+      const { autoDiscussionLoop } = require('./agents/discussion/discussionLifecycle');
+      const discussionLoop = autoDiscussionLoop(15000); // Run every 15 seconds
+      discussionLoop.start();
+      fastify.log.info('Discussion lifecycle auto-loop initialized and started successfully');
+      // Store reference for graceful shutdown if needed
+      fastify.discussionLoop = discussionLoop;
+    } catch (err) {
+      fastify.log.error('Error initializing Discussion Lifecycle:', err);
+      // Don't throw - allow server to start even if discussion lifecycle fails
+    }
+
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
     console.log(`📍 Environment: ${MAX_ENV}`);
@@ -106,7 +119,6 @@ const start = async () => {
     console.log(`📍 Sectors API: http://${HOST}:${PORT}/api/sectors`);
     console.log(`📍 Agents API: http://${HOST}:${PORT}/api/agents`);
     console.log(`📍 Research API: http://${HOST}:${PORT}/api/research`);
-    console.log(`📍 Debates API: http://${HOST}:${PORT}/api/debates`);
     console.log(`📍 Discussions API: http://${HOST}:${PORT}/api/discussions`);
     console.log(`📍 MNEE API: http://${HOST}:${PORT}/api/mnee`);
     console.log(`📍 Manager API: http://${HOST}:${PORT}/api/manager`);

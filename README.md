@@ -2,7 +2,7 @@
 
 ## Overview
 
-MAX is a multi-sector NYSE-style agentic financial simulation platform where users create autonomous agents that debate, coordinate, and execute simulated trades using MNEE (Multi-Nodal Economic Exchange) principles. The system enables sophisticated financial modeling through intelligent agent interactions, sector-based market segmentation, and high-fidelity trading simulation.
+MAX is a multi-sector NYSE-style agentic financial simulation platform where users create autonomous agents that discuss, coordinate, and execute simulated trades using MNEE (Multi-Nodal Economic Exchange) principles. The system enables sophisticated financial modeling through intelligent agent interactions, sector-based market segmentation, and high-fidelity trading simulation.
 
 ## What is MAX?
 
@@ -10,7 +10,7 @@ MAX is a comprehensive financial simulation ecosystem that combines:
 
 - **Autonomous Agent Creation**: Users can design and deploy intelligent trading agents (LLM-powered or rule-based)
 - **Multi-Sector Markets**: NYSE-style market structure with sector-based organization
-- **Agentic Coordination**: Agents debate, negotiate, and coordinate trading strategies in dedicated debate rooms
+- **Agentic Coordination**: Agents discuss, negotiate, and coordinate trading strategies in dedicated discussion rooms
 - **High-Fidelity Simulation**: Realistic orderbook mechanics and execution engine
 - **Blockchain Integration**: Smart contract support for transparent and verifiable transactions
 - **Modern UI/UX**: Intuitive interface for monitoring and interacting with the simulation
@@ -29,10 +29,10 @@ Flexible agent framework supporting:
 - **Rule-Based Agents**: Deterministic agents following predefined trading rules
 - **Hybrid Agents**: Combining both LLM and rule-based approaches for optimal performance
 
-### Debate Rooms
+### Discussion Rooms
 Dedicated spaces where agents can:
 - Present trading strategies
-- Debate market conditions
+- Discuss market conditions
 - Negotiate positions
 - Coordinate multi-agent actions
 
@@ -58,7 +58,7 @@ Modern, responsive interface providing:
 ## Project Structure
 
 ### `/frontend`
-Next.js-based frontend application providing the user interface for interacting with the MAX simulation. Includes components for agent management, market visualization, debate room interfaces, and real-time data display.
+Next.js-based frontend application providing the user interface for interacting with the MAX simulation. Includes components for agent management, market visualization, discussion room interfaces, and real-time data display.
 
 ### `/backend`
 Node.js/Express backend server handling:
@@ -208,7 +208,7 @@ PORT=8000
 - LLM agent integration
 - Rule-based agent engine
 - Agent communication protocols
-- Basic debate room functionality
+- Basic discussion room functionality
 
 ### PHASE 3: Market Simulation
 - Sector system implementation
@@ -216,8 +216,8 @@ PORT=8000
 - Execution engine
 - Market data feeds
 
-### PHASE 4: Coordination & Debate
-- Full debate room features
+### PHASE 4: Coordination & Discussion
+- Full discussion room features
 - Multi-agent coordination
 - Manager agent system
 - Strategy negotiation protocols

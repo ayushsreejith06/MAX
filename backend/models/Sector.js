@@ -33,7 +33,8 @@ class Sector {
     agents = [],
     volatility = 0.02,
     riskScore = 50,
-    lastSimulatedPrice = null
+    lastSimulatedPrice = null,
+    balance = 0
   } = {}) {
     if (!sectorName || typeof sectorName !== 'string') {
       throw new Error('sectorName is required');
@@ -64,6 +65,7 @@ class Sector {
     this.volatility = typeof volatility === 'number' ? volatility : 0.02;
     this.riskScore = typeof riskScore === 'number' ? riskScore : 50;
     this.lastSimulatedPrice = typeof lastSimulatedPrice === 'number' ? lastSimulatedPrice : null;
+    this.balance = typeof balance === 'number' ? balance : 0;
   }
 
   static fromData(data = {}) {
@@ -85,7 +87,8 @@ class Sector {
       agents: Array.isArray(data.agents) ? data.agents : [],
       volatility: typeof data.volatility === 'number' ? data.volatility : 0.02,
       riskScore: typeof data.riskScore === 'number' ? data.riskScore : 50,
-      lastSimulatedPrice: typeof data.lastSimulatedPrice === 'number' ? data.lastSimulatedPrice : null
+      lastSimulatedPrice: typeof data.lastSimulatedPrice === 'number' ? data.lastSimulatedPrice : null,
+      balance: typeof data.balance === 'number' ? data.balance : 0
     });
   }
 
@@ -105,7 +108,8 @@ class Sector {
       agents: this.agents,
       volatility: this.volatility,
       riskScore: this.riskScore,
-      lastSimulatedPrice: this.lastSimulatedPrice
+      lastSimulatedPrice: this.lastSimulatedPrice,
+      balance: this.balance
     };
   }
 }
