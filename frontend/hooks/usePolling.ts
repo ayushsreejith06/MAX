@@ -31,6 +31,8 @@ export interface UsePollingOptions {
  * - Ensures minimum interval between API calls (2500ms minimum)
  * - Pauses when page is not visible (using Visibility API)
  * - Prevents multiple simultaneous calls (overlapping requests)
+ * - Waits for previous request to finish before scheduling next one
+ * - Handles rate-limited requests (skipped: true) by waiting full interval
  * - Properly cleans up on unmount
  * - Only runs in useEffect (never in render cycle)
  */
@@ -44,7 +46,6 @@ export function usePolling({
   // Ensure minimum interval of 2500ms
   const actualInterval = Math.max(2500, interval);
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
   const lastCallTimeRef = useRef<number>(0);
@@ -71,14 +72,58 @@ export function usePolling({
   useEffect(() => {
     isMountedRef.current = true;
 
+    const scheduleNextPoll = (wasSkipped: boolean = false) => {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      const now = Date.now();
+      const timeSinceLastCall = now - lastCallTimeRef.current;
+
+      // If request was skipped, always wait the full interval from now
+      // This prevents rapid retries when rate limited
+      if (wasSkipped) {
+        console.debug(`[usePolling] Request was skipped, waiting full interval (${actualInterval}ms) before next poll`);
+        timeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current && enabledRef.current) {
+            void executeCallback();
+          }
+        }, actualInterval);
+        return;
+      }
+
+      // For successful requests, ensure minimum interval is respected
+      // Calculate when the next poll should happen: lastCallTime + interval
+      const nextPollTime = lastCallTimeRef.current + actualInterval;
+      const remainingTime = Math.max(0, nextPollTime - now);
+
+      // Schedule for the remaining time (executeCallback will double-check the interval)
+      console.debug(`[usePolling] Scheduling next poll in ${remainingTime}ms (timeSinceLastCall: ${timeSinceLastCall}ms)`);
+
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current && enabledRef.current) {
+          void executeCallback();
+        }
+      }, remainingTime);
+    };
+
     const executeCallback = async () => {
       // Prevent multiple simultaneous calls
-      if (isFetchingRef.current || !isMountedRef.current) {
+      if (isFetchingRef.current) {
+        console.debug('[usePolling] Skipping poll - previous request still in progress');
+        return;
+      }
+
+      if (!isMountedRef.current) {
+        console.debug('[usePolling] Skipping poll - component unmounted');
         return;
       }
 
       // Check if polling is enabled
       if (!enabledRef.current) {
+        console.debug('[usePolling] Skipping poll - polling disabled');
         return;
       }
 
@@ -88,28 +133,42 @@ export function usePolling({
       if (timeSinceLastCall < actualInterval && lastCallTimeRef.current > 0) {
         // Schedule next call after remaining time
         const remainingTime = actualInterval - timeSinceLastCall;
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        timeoutRef.current = setTimeout(() => {
-          if (isMountedRef.current && enabledRef.current) {
-            void executeCallback();
-          }
-        }, remainingTime);
+        console.debug(`[usePolling] Too soon since last call (${timeSinceLastCall}ms < ${actualInterval}ms), scheduling in ${remainingTime}ms`);
+        scheduleNextPoll(false);
         return;
       }
 
       // Check visibility
       if (pauseWhenHiddenRef.current && !isVisibleRef.current) {
+        console.debug('[usePolling] Skipping poll - page not visible');
+        // Schedule next poll anyway, in case visibility changes
+        scheduleNextPoll(false);
         return;
       }
 
       try {
         isFetchingRef.current = true;
         lastCallTimeRef.current = Date.now();
-        await callbackRef.current();
+        console.debug('[usePolling] Executing poll callback');
+        
+        const result = await callbackRef.current();
+        
+        // Check if the callback returned { skipped: true } (rate limited)
+        const wasSkipped = result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true;
+        
+        if (wasSkipped) {
+          console.debug('[usePolling] Poll was skipped (rate limited), waiting full interval before next poll');
+        } else {
+          console.debug('[usePolling] Poll completed successfully');
+        }
+
+        // Schedule next poll after current one finishes
+        // If skipped, wait full interval; otherwise respect minimum interval
+        scheduleNextPoll(wasSkipped);
       } catch (error) {
-        console.error('Polling callback error:', error);
+        console.debug('[usePolling] Poll callback error:', error);
+        // On error, still schedule next poll after full interval
+        scheduleNextPoll(false);
       } finally {
         isFetchingRef.current = false;
       }
@@ -123,6 +182,7 @@ export function usePolling({
         
         // If page becomes visible and we're enabled, trigger immediate update
         if (!document.hidden && enabledRef.current && isMountedRef.current && !isFetchingRef.current) {
+          console.debug('[usePolling] Page became visible, triggering immediate poll');
           // Reset last call time to allow immediate update when tab becomes visible
           lastCallTimeRef.current = 0;
           void executeCallback();
@@ -137,28 +197,15 @@ export function usePolling({
     if (enabled && immediate) {
       lastCallTimeRef.current = 0; // Allow immediate execution
       void executeCallback();
-    }
-
-    // Set up polling interval
-    if (enabled) {
-      intervalRef.current = setInterval(() => {
-        if (isMountedRef.current && enabledRef.current) {
-          // Check visibility before executing
-          if (!pauseWhenHiddenRef.current || isVisibleRef.current) {
-            void executeCallback();
-          }
-        }
-      }, actualInterval);
+    } else if (enabled) {
+      // If not immediate, schedule first poll
+      scheduleNextPoll(false);
     }
 
     return () => {
       isMountedRef.current = false;
       if (handleVisibilityChange) {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-      }
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
       }
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);

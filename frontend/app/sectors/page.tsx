@@ -35,6 +35,15 @@ export default function SectorsPage() {
         setLoading(true);
       }
       const data = await fetchSectors();
+      
+      // If fetch returned empty array during polling (not initial load), 
+      // and we already have data, don't update state (prevents flicker from skipped calls)
+      if (!showLoading && Array.isArray(data) && data.length === 0 && sectors.length > 0) {
+        // Likely skipped during polling - don't update state, just return
+        isFetchingRef.current = false;
+        return;
+      }
+      
       // Use deep equality check to prevent re-renders when data is structurally identical
       setSectors(prevSectors => {
         if (isEqual(prevSectors, data)) {
@@ -44,9 +53,10 @@ export default function SectorsPage() {
       });
       setError(null);
     } catch (err: any) {
-      // Don't show rate limit errors to users - they're handled automatically
+      // Only handle actual server rate limit errors (HTTP 429)
+      // Skipped calls from rateLimitedFetch return empty arrays, not errors
       if (isRateLimitError(err)) {
-        console.debug('Rate limited, will retry automatically');
+        console.debug('Server rate limited, will retry automatically');
         return;
       }
       console.error('Failed to fetch sectors', err);
@@ -92,12 +102,22 @@ export default function SectorsPage() {
 
     try {
       const newSector = await createSector(formData.sectorName, formData.sectorSymbol);
-      setSectors(prev => [...prev, newSector]);
-      setShowCreateForm(false);
-      setFormData({ sectorName: '', sectorSymbol: '' });
+      
+      // Verify the sector was created with a valid ID
+      if (!newSector || !newSector.id) {
+        throw new Error('Failed to create sector: Invalid response from server');
+      }
+      
       // Reload sectors to get the manager agent that was created
       const data = await fetchSectors();
       setSectors(data);
+      
+      // Close the form
+      setShowCreateForm(false);
+      setFormData({ sectorName: '', sectorSymbol: '' });
+      
+      // Redirect to the sector detail page
+      router.push(`/sectors/${newSector.id}`);
     } catch (err: any) {
       setCreateError(err.message || 'Failed to create sector');
     } finally {

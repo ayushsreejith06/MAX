@@ -28,8 +28,32 @@ async function getAllSectors() {
  */
 async function getSectorById(id) {
   try {
+    if (!id || typeof id !== 'string') {
+      console.warn('[getSectorById] Invalid ID provided:', id, typeof id);
+      return null;
+    }
+    
     const sectors = await getAllSectors();
-    return sectors.find(s => s.id === id) || null;
+    const trimmedId = id.trim();
+    
+    // Try exact match first
+    let sector = sectors.find(s => s && s.id === trimmedId);
+    
+    // If not found, try with trimmed comparison (in case of whitespace issues)
+    if (!sector) {
+      sector = sectors.find(s => s && s.id && String(s.id).trim() === trimmedId);
+    }
+    
+    // If still not found, try case-insensitive match (shouldn't be needed for UUIDs, but just in case)
+    if (!sector) {
+      sector = sectors.find(s => s && s.id && String(s.id).toLowerCase() === trimmedId.toLowerCase());
+    }
+    
+    if (!sector) {
+      console.warn(`[getSectorById] Sector with ID "${trimmedId}" not found. Total sectors: ${sectors.length}`);
+    }
+    
+    return sector || null;
   } catch (error) {
     console.error('Error in getSectorById:', error);
     return null;
@@ -42,9 +66,19 @@ async function getSectorById(id) {
  * @returns {Promise<Object>} Created sector object
  */
 async function createSector(data) {
+  // Ensure we have a valid ID
+  const sectorId = data.id || uuidv4();
+  console.log(`[createSector] Creating sector with ID: ${sectorId}`);
+  
   const sectors = await atomicUpdate(SECTORS_FILE, (currentSectors) => {
+    // Ensure currentSectors is an array
+    if (!Array.isArray(currentSectors)) {
+      console.warn('[createSector] currentSectors is not an array, initializing:', typeof currentSectors);
+      currentSectors = [];
+    }
+    
     const newSector = {
-      id: data.id || uuidv4(),
+      id: sectorId,
       name: data.name || data.sectorName || '',
       sectorName: data.sectorName || data.name || '',
       sectorSymbol: (data.sectorSymbol || data.symbol || '').trim(),
@@ -53,12 +87,30 @@ async function createSector(data) {
       performance: data.performance || {}
     };
     
+    console.log(`[createSector] Adding sector to array. Current length: ${currentSectors.length}, New sector ID: ${newSector.id}`);
     currentSectors.push(newSector);
+    console.log(`[createSector] Array length after push: ${currentSectors.length}`);
     return currentSectors;
   });
 
-  // Return the newly created sector
-  return sectors[sectors.length - 1];
+  // Verify the sector was added
+  if (!Array.isArray(sectors) || sectors.length === 0) {
+    console.error('[createSector] ERROR: sectors array is empty or invalid after creation!', sectors);
+    throw new Error('Failed to create sector: sectors array is invalid');
+  }
+
+  const createdSector = sectors[sectors.length - 1];
+  if (!createdSector || createdSector.id !== sectorId) {
+    console.error('[createSector] ERROR: Created sector ID mismatch!', {
+      expected: sectorId,
+      actual: createdSector?.id,
+      allIds: sectors.map(s => s.id)
+    });
+    throw new Error(`Failed to create sector: ID mismatch. Expected ${sectorId}, got ${createdSector?.id}`);
+  }
+
+  console.log(`[createSector] Successfully created sector with ID: ${createdSector.id}`);
+  return createdSector;
 }
 
 /**
@@ -68,24 +120,43 @@ async function createSector(data) {
  * @returns {Promise<Object|null>} Updated sector object or null if not found
  */
 async function updateSector(id, updates) {
+  console.log(`[updateSector] Updating sector with ID: ${id}`);
+  
   const sectors = await atomicUpdate(SECTORS_FILE, (currentSectors) => {
-    const sectorIndex = currentSectors.findIndex(s => s.id === id);
+    // Ensure currentSectors is an array
+    if (!Array.isArray(currentSectors)) {
+      console.warn('[updateSector] currentSectors is not an array:', typeof currentSectors);
+      return currentSectors;
+    }
+    
+    const sectorIndex = currentSectors.findIndex(s => s && s.id === id);
     
     if (sectorIndex === -1) {
+      console.warn(`[updateSector] Sector with ID ${id} not found in array. Available IDs:`, currentSectors.map(s => s?.id));
       return currentSectors; // Return unchanged if not found
     }
 
-    // Merge updates with existing sector data
-    currentSectors[sectorIndex] = {
+    // Merge updates with existing sector data, but NEVER overwrite the ID
+    const updatedSector = {
       ...currentSectors[sectorIndex],
-      ...updates
+      ...updates,
+      id: currentSectors[sectorIndex].id // Always preserve the original ID
     };
+
+    console.log(`[updateSector] Updated sector at index ${sectorIndex}, ID: ${updatedSector.id}`);
+    currentSectors[sectorIndex] = updatedSector;
 
     return currentSectors;
   });
 
   // Find and return the updated sector
-  return sectors.find(s => s.id === id) || null;
+  const updatedSector = sectors.find(s => s && s.id === id) || null;
+  if (!updatedSector) {
+    console.error(`[updateSector] ERROR: Sector with ID ${id} not found after update! Available IDs:`, sectors.map(s => s?.id));
+  } else {
+    console.log(`[updateSector] Successfully updated sector with ID: ${updatedSector.id}`);
+  }
+  return updatedSector;
 }
 
 /**

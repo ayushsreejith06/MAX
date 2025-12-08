@@ -3,13 +3,24 @@ const Sector = require('../models/Sector');
 
 function normalizeSectorRecord(data = {}) {
   try {
+    // Ensure ID is preserved - it's critical for lookups
+    if (!data.id) {
+      console.error("normalizeSectorRecord: Missing ID in data:", data);
+    }
+    
     // Use Sector.fromData() to ensure all required fields are present with defaults
     const sector = Sector.fromData(data);
     const normalized = sector.toJSON();
     
+    // Ensure ID is always present (use original data.id if sector model didn't preserve it)
+    const finalId = normalized.id || data.id;
+    if (!finalId) {
+      console.error("normalizeSectorRecord: No ID found after normalization. Original data:", data);
+    }
+    
     // Ensure all required fields exist (fromData already handles this, but double-check)
     return {
-      id: normalized.id,
+      id: finalId || normalized.id, // Ensure ID is always present
       sectorName: normalized.sectorName,
       sectorSymbol: normalized.sectorSymbol,
       currentPrice: normalized.currentPrice,
@@ -33,9 +44,13 @@ function normalizeSectorRecord(data = {}) {
   } catch (error) {
     console.error("Error normalizing sector record:", error, "Data:", data);
     
-    // Fallback: create a fully valid sector with all defaults
+    // Fallback: create a fully valid sector with all defaults, but preserve original ID if available
     const fallbackSector = Sector.fromData({});
-    return fallbackSector.toJSON();
+    const fallbackJson = fallbackSector.toJSON();
+    if (data.id) {
+      fallbackJson.id = data.id; // Preserve original ID
+    }
+    return fallbackJson;
   }
 }
 

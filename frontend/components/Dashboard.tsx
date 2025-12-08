@@ -96,7 +96,20 @@ export default function Dashboard() {
           setLoading(true);
         }
         setIsSyncing(true);
-        const data = await fetchSectors();
+        const data = await fetchSectors() as Sector[];
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[Dashboard] fetch result:', data);
+        }
+        
+        // If fetch returned empty array during polling (not initial load), 
+        // and we already have data, don't update state (prevents flicker from skipped calls)
+        if (!showSpinner && Array.isArray(data) && data.length === 0 && sectors.length > 0) {
+          // Likely skipped during polling - don't update state, just return
+          isFetchingRef.current = false;
+          setIsSyncing(false);
+          return;
+        }
+        
         // Use deep equality check to prevent re-renders when data is structurally identical
         setSectors(prevSectors => {
           if (isEqual(prevSectors, data)) {
@@ -107,9 +120,10 @@ export default function Dashboard() {
         setError(null);
         setLastUpdated(new Date());
       } catch (err: any) {
-        // Don't show rate limit errors to users - they're handled automatically
+        // Only handle actual server rate limit errors (HTTP 429)
+        // Skipped calls from rateLimitedFetch return empty arrays, not errors
         if (isRateLimitError(err)) {
-          console.debug('Rate limited, will retry automatically');
+          console.debug('Server rate limited, will retry automatically');
           return;
         }
         console.error('Failed to fetch sectors', err);
@@ -175,8 +189,9 @@ export default function Dashboard() {
   }, [loadContractCounts]);
 
   // Use actual sector data - no mock transformations
+  // adjustedSectors contains ALL sectors from the backend - no filtering applied
   const adjustedSectors = useMemo(() => {
-    return sectors; // Return sectors as-is, no mock data transformations
+    return sectors; // Return all sectors as-is, no mock data transformations or filtering
   }, [sectors]);
 
   // Calculate filtered and paginated sectors (needed by paginatedSectorIds and useEffect)
@@ -259,8 +274,10 @@ export default function Dashboard() {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       } catch (err) {
-        // Silently fail for rate limit errors - don't spam console
-        if (err instanceof Error && !err.message.includes('rate limited')) {
+        // Only log non-rate-limit errors
+        // Server rate limit errors (HTTP 429) are handled by isRateLimitError
+        // Skipped calls from rateLimitedFetch return null, not errors
+        if (!isRateLimitError(err)) {
           console.error(`Failed to update confidence for sector ${sector.id}:`, err);
         }
         // Continue with next sector even if one fails
@@ -321,19 +338,25 @@ export default function Dashboard() {
     return hours * 60 + minutes;
   };
 
+  // Aggregate data from ALL sectors - sums volumes, agents, and calculates averages across all sectors
   const aggregatedOverview = useMemo(() => {
     if (!adjustedSectors.length) {
       return { marketIndex: 0, marketIndexChange: 0, totalVolume: 0, totalAgents: 0, activeAgents: 0 };
     }
 
+    // Sum all volumes across all sectors
     const totalVolume = adjustedSectors.reduce((sum, sector) => sum + sector.volume, 0);
+    // Sum all agents across all sectors
     const totalAgents = adjustedSectors.reduce((sum, sector) => sum + sector.agents.length, 0);
+    // Sum all active agents across all sectors
     const activeAgents = adjustedSectors.reduce((sum, sector) => sum + sector.activeAgents, 0);
-    const averagePrice = adjustedSectors.reduce((sum, sector) => sum + sector.currentPrice, 0) / adjustedSectors.length;
+    // Sum all sector prices (total market value across all sectors)
+    const totalMarketValue = adjustedSectors.reduce((sum, sector) => sum + sector.currentPrice, 0);
+    // Calculate average change percent across all sectors
     const averageChangePercent = adjustedSectors.reduce((sum, sector) => sum + sector.changePercent, 0) / adjustedSectors.length;
 
     return {
-      marketIndex: Number((averagePrice * 6.93).toFixed(2)),
+      marketIndex: Number(totalMarketValue.toFixed(2)),
       marketIndexChange: Number(averageChangePercent.toFixed(2)),
       totalVolume,
       totalAgents,

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus, Trash2 } from 'lucide-react';
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
-import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, type SimulateTickResult, type ConfidenceTickResult } from '@/lib/api';
+import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
 import type { Sector, Agent } from '@/lib/types';
 import { PollingManager } from '@/utils/PollingManager';
 
@@ -214,22 +214,52 @@ export default function SectorDetailClient() {
       return;
     }
 
-    const loadSector = async () => {
+    const loadSector = async (showLoading = false, retryCount = 0) => {
       try {
-        if (isMounted) {
+        if (isMounted && showLoading && retryCount === 0) {
           setLoading(true);
           setError(null);
         }
         
         const data = await fetchSectorById(sectorId);
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[SectorDetail] fetch result:', data);
+        }
+        
+        // Check if request was skipped - do not update UI if skipped
+        if (isSkippedResult(data)) {
+          console.debug('[SectorDetail] Request skipped (rate-limited), not updating UI');
+          // Clear loading state if it was set, but don't update other state
+          if (isMounted && showLoading && retryCount === 0) {
+            setLoading(false);
+          }
+          return; // Do not update state
+        }
         
         if (isMounted) {
           if (data) {
             setSector(data);
             setError(null);
+            if (showLoading) {
+              setLoading(false);
+            }
           } else {
+            // If sector not found and we haven't retried yet, retry once after a short delay
+            // This handles cases where the sector was just created and might not be immediately available
+            if (retryCount < 1) {
+              console.debug('[SectorDetail] Sector not found, retrying after delay...');
+              setTimeout(() => {
+                if (isMounted) {
+                  loadSector(showLoading, retryCount + 1);
+                }
+              }, 500);
+              return;
+            }
             setError('Sector not found');
             setSector(null);
+            if (showLoading) {
+              setLoading(false);
+            }
           }
         }
       } catch (err) {
@@ -238,19 +268,57 @@ export default function SectorDetailClient() {
           const errorMessage = err instanceof Error ? err.message : 'Unable to load sector. Please try again later.';
           setError(errorMessage);
           setSector(null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+          if (showLoading) {
+            setLoading(false);
+          }
         }
       }
     };
 
-    loadSector();
+    loadSector(true); // Initial load with loading state
     return () => {
       isMounted = false;
     };
   }, [sectorId]);
+
+  // Auto-poll sector data using centralized polling (without loading state)
+  const pollSector = useCallback(async () => {
+    if (!sectorId) return;
+    const loadSectorNoLoading = async () => {
+      try {
+        const data = await fetchSectorById(sectorId);
+        
+        // Check if request was skipped - do not update UI if skipped
+        if (isSkippedResult(data)) {
+          console.debug('[SectorDetail] Poll skipped (rate-limited), not updating UI');
+          return; // Do not update state
+        }
+        
+        if (data) {
+          setSector(prevSector => {
+            // Use deep equality check to prevent re-renders when data is structurally identical
+            if (prevSector && JSON.stringify(prevSector) === JSON.stringify(data)) {
+              return prevSector;
+            }
+            return data;
+          });
+        }
+      } catch (err) {
+        // Silently handle errors during polling - don't show to user
+        console.debug('Failed to poll sector:', err);
+      }
+    };
+    await loadSectorNoLoading();
+  }, [sectorId]);
+
+  // Use global PollingManager for sector polling
+  useEffect(() => {
+    if (!sectorId) return;
+    PollingManager.register(`sector-${sectorId}`, pollSector, 2500);
+    return () => {
+      PollingManager.unregister(`sector-${sectorId}`);
+    };
+  }, [sectorId, pollSector]);
 
   // Auto-poll simulation performance using centralized polling
   const loadPerformance = useCallback(async () => {
@@ -290,8 +358,14 @@ export default function SectorDetailClient() {
 
     try {
       runningConfidenceTickRef.current = true;
-      setRunningConfidenceTick(true);
+      // Do NOT set loading state for polling - only for manual actions
       const result = await runConfidenceTick(String(sectorId));
+      
+      // Check if request was skipped - do not update UI if skipped
+      if (!result) {
+        console.debug('[SectorDetail] Confidence tick skipped (rate-limited), not updating UI');
+        return; // Do not update state
+      }
       
       // Update agent confidences map only (don't reload full sector to prevent flicker)
       setAgentConfidences(prev => {
@@ -315,7 +389,7 @@ export default function SectorDetailClient() {
       // Don't show error to user for auto-updates, just log it
     } finally {
       runningConfidenceTickRef.current = false;
-      setRunningConfidenceTick(false);
+      // Do NOT set loading state for polling
     }
   }, [sectorId]);
 
@@ -370,6 +444,13 @@ export default function SectorDetailClient() {
     try {
       setIsRefreshing(true);
       const fresh = await fetchSectorById(sector.id);
+      
+      // Check if request was skipped - do not update UI if skipped
+      if (isSkippedResult(fresh)) {
+        console.debug('[SectorDetail] Reload skipped (rate-limited), not updating UI');
+        return; // Do not update state
+      }
+      
       if (fresh) {
         setSector(fresh);
       }

@@ -107,6 +107,18 @@ export default function DiscussionsPage() {
 
         if (!isMounted) return;
 
+        // If both calls returned empty arrays and we already have data, 
+        // don't update state (prevents flicker from skipped calls)
+        if (Array.isArray(sectorResponse) && sectorResponse.length === 0 &&
+            Array.isArray(discussionResponse) && discussionResponse.length === 0 &&
+            (sectorsData.length > 0 || discussions.length > 0)) {
+          // Likely skipped - don't update state, just return
+          if (isMounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
         const sectorsList = sectorResponse as Sector[];
         const sectorMap = new Map<string, Sector>(sectorsList.map(sector => [sector.id, sector]));
 
@@ -124,9 +136,10 @@ export default function DiscussionsPage() {
         setDiscussions(discussionsWithSector);
         setError(null);
       } catch (err) {
-        // Don't show rate limit errors to users - they're handled automatically
+        // Only handle actual server rate limit errors (HTTP 429)
+        // Skipped calls from rateLimitedFetch return empty arrays, not errors
         if (isRateLimitError(err)) {
-          console.debug('Rate limited, will retry automatically');
+          console.debug('Server rate limited, will retry automatically');
           return;
         }
         console.error('Failed to fetch discussions', err);

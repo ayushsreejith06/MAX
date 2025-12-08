@@ -56,6 +56,9 @@ export default function DiscussionDetailClient() {
       setError(null);
       
       const data = await fetchDiscussionById(discussionId);
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[DiscussionDetail] fetch result:', data);
+      }
       
       if (data) {
         setDiscussion(data);

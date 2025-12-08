@@ -15,6 +15,13 @@ export function isRateLimitError(error: any): boolean {
   );
 }
 
+/**
+ * Check if a result indicates a skipped request (rate-limited)
+ */
+export function isSkippedResult<T>(result: T | { skipped: true }): result is { skipped: true } {
+  return result !== null && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true;
+}
+
 // Use desktop-aware base URL
 const getApiBase = () => {
   if (typeof window !== 'undefined') {
@@ -427,6 +434,11 @@ export async function fetchDiscussionById(id: string): Promise<Discussion | null
     return null;
   }
   
+  // Handle rate limiting - return null when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return null;
+  }
+  
   const payload = result as Discussion;
   return payload ? normalizeDiscussion(payload) : null;
 }
@@ -436,7 +448,7 @@ export async function createDiscussion(
   title: string,
   agentIds: string[] = []
 ): Promise<Discussion> {
-  const payload = await request<Discussion>('/discussions', {
+  const result = await request<Discussion>('/discussions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -447,6 +459,13 @@ export async function createDiscussion(
       agentIds,
     }),
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
   return normalizeDiscussion(payload);
 }
 
@@ -461,58 +480,93 @@ export async function addDiscussionMessage(
   discussionId: string,
   message: AddMessageParams
 ): Promise<Discussion> {
-  const payload = await request<Discussion>(`/discussions/${discussionId}/message`, {
+  const result = await request<Discussion>(`/discussions/${discussionId}/message`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(message),
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
   return normalizeDiscussion(payload);
 }
 
 export async function closeDiscussion(discussionId: string): Promise<Discussion> {
-  const payload = await request<Discussion>(`/discussions/${discussionId}/close`, {
+  const result = await request<Discussion>(`/discussions/${discussionId}/close`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
   return normalizeDiscussion(payload);
 }
 
 export async function archiveDiscussion(discussionId: string): Promise<Discussion> {
-  const payload = await request<Discussion>(`/discussions/${discussionId}/archive`, {
+  const result = await request<Discussion>(`/discussions/${discussionId}/archive`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
   return normalizeDiscussion(payload);
 }
 
 export async function acceptDiscussion(discussionId: string): Promise<Discussion> {
-  const payload = await request<Discussion>(`/discussions/${discussionId}/accept`, {
+  const result = await request<Discussion>(`/discussions/${discussionId}/accept`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
   return normalizeDiscussion(payload);
 }
 
 export async function rejectDiscussion(discussionId: string): Promise<Discussion> {
-  const payload = await request<Discussion>(`/discussions/${discussionId}/reject`, {
+  const result = await request<Discussion>(`/discussions/${discussionId}/reject`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
   return normalizeDiscussion(payload);
 }
 
 export async function createSector(sectorName: string, sectorSymbol: string): Promise<Sector> {
-  const payload = await request<Sector>('/sectors', {
+  const result = await request<Sector>('/sectors', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -522,6 +576,13 @@ export async function createSector(sectorName: string, sectorSymbol: string): Pr
       sectorSymbol,
     }),
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Sector;
   return normalizeSector(payload);
 }
 
@@ -531,7 +592,7 @@ export async function createAgent(
   role?: string | null
 ): Promise<Agent> {
   try {
-    const payload = await request<unknown>('/agents', {
+    const result = await request<unknown>('/agents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -542,6 +603,13 @@ export async function createAgent(
         role: role || null,
       }),
     });
+
+    // Handle rate limiting - throw generic error for mutations
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      throw new Error('Request was skipped. Please try again.');
+    }
+
+    const payload = result as unknown;
 
     // Handle both `{ success: true, data: Agent }` and direct `Agent`
     let rawAgent: unknown;
@@ -586,7 +654,7 @@ export interface SimulateTickResult {
 }
 
 export async function simulateTick(sectorId: string, decisions: any[] = []): Promise<SimulateTickResult> {
-  const payload = await request<{ success: boolean; data: SimulateTickResult } | SimulateTickResult>(`/simulation/tick`, {
+  const result = await request<{ success: boolean; data: SimulateTickResult } | SimulateTickResult>(`/simulation/tick`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -596,6 +664,13 @@ export async function simulateTick(sectorId: string, decisions: any[] = []): Pro
       decisions,
     }),
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as { success: boolean; data: SimulateTickResult } | SimulateTickResult;
   
   // Handle both wrapped and unwrapped responses
   if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
@@ -653,30 +728,49 @@ export async function updateAgent(agentId: string, updates: {
     accuracyWeight?: number;
   };
 }): Promise<Agent> {
-  const payload = await request<Agent>(`/agents/${agentId}`, {
+  const result = await request<Agent>(`/agents/${agentId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(updates),
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Agent;
   return normalizeAgent(payload);
 }
 
 export async function deleteAgent(agentId: string): Promise<void> {
-  await request<{ success: boolean; message?: string }>(`/agents/${agentId}`, {
+  const result = await request<{ success: boolean; message?: string }>(`/agents/${agentId}`, {
     method: 'DELETE',
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
 }
 
 export async function deleteSector(sectorId: string, confirmationCode: string): Promise<{ success: boolean; message?: string; withdrawnBalance?: number }> {
-  const payload = await request<{ success: boolean; message?: string; withdrawnBalance?: number }>(`/sectors/${sectorId}`, {
+  const result = await request<{ success: boolean; message?: string; withdrawnBalance?: number }>(`/sectors/${sectorId}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ confirmationCode }),
   });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as { success: boolean; message?: string; withdrawnBalance?: number };
   return payload;
 }
 

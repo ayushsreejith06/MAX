@@ -76,9 +76,10 @@ export default function ContractActivity() {
         setLastUpdated(new Date());
       }
     } catch (err: any) {
-      // Don't show rate limit errors to users - they're handled automatically
+      // Only handle actual server rate limit errors (HTTP 429)
+      // Skipped calls from rateLimitedFetch don't throw errors
       if (isRateLimitError(err)) {
-        console.debug('Rate limited, will retry automatically');
+        console.debug('Server rate limited, will retry automatically');
         return;
       }
       console.error('Failed to fetch contract events', err);

@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, memo, useRef, useCallback } from 'react';
 import { Activity, Filter, Search, Target, UsersRound, Zap, Trash2, Settings } from 'lucide-react';
 import isEqual from 'lodash.isequal';
-import { fetchAgents, fetchSectors, deleteAgent, isRateLimitError } from '@/lib/api';
+import { fetchAgents, fetchSectors, deleteAgent, isRateLimitError, isSkippedResult } from '@/lib/api';
 import type { Agent, Sector } from '@/lib/types';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { AgentSettingsForm } from '@/components/AgentSettingsForm';
@@ -146,6 +146,18 @@ export default function Agents() {
         fetchSectors(),
         fetchAgents(),
       ]);
+      
+      // Check if either request was skipped - do not update UI if skipped
+      if (isSkippedResult(sectorData) || isSkippedResult(agentData)) {
+        console.debug('[Agents Page] Request skipped (rate-limited), not updating UI');
+        // Clear loading state if it was set, but don't update other state
+        if (showLoading) {
+          setLoading(false);
+        }
+        isFetchingRef.current = false; // Clear the flag so polling can retry
+        return; // Do not update state
+      }
+      
       console.log('[Agents Page] Fetched data:', { 
         sectors: Array.isArray(sectorData) ? sectorData.length : 0,
         agents: Array.isArray(agentData) ? agentData.length : 0 
@@ -174,17 +186,17 @@ export default function Agents() {
       });
       setError(null);
     } catch (err) {
-      // Only silently handle rate limit errors during polling (not initial loads)
-      // This ensures initial loads show errors if they fail
+      // Only handle actual server rate limit errors (HTTP 429)
+      // Skipped calls from rateLimitedFetch are handled by returning empty arrays, not errors
       if (isRateLimitError(err)) {
         if (!showLoading) {
           // During polling, silently skip - will retry on next poll
-          console.debug('Rate limited during polling, will retry automatically');
+          console.debug('Server rate limited during polling, will retry automatically');
           isFetchingRef.current = false; // Clear the flag so polling can retry
           return;
         } else {
           // During initial load, wait a bit and retry once
-          console.debug('Rate limited on initial load, retrying after delay...');
+          console.debug('Server rate limited on initial load, retrying after delay...');
           isFetchingRef.current = false; // Clear flag before retry
           setTimeout(() => {
             void loadAgents(showLoading);
@@ -193,14 +205,10 @@ export default function Agents() {
         }
       }
       console.error('[Agents Page] Failed to fetch agents:', err);
-      console.error('[Agents Page] Error details:', {
-        message: err instanceof Error ? err.message : String(err),
-        isRateLimit: isRateLimitError(err),
-        showLoading
-      });
       setError('Unable to load agents. Please try again.');
     } finally {
-      if (showLoading) {
+      // Only clear loading state if we actually set it (not for skipped requests)
+      if (showLoading && isFetchingRef.current) {
         setLoading(false);
       }
       isFetchingRef.current = false;
@@ -223,6 +231,7 @@ export default function Agents() {
     enabled: true,
     pauseWhenHidden: true,
     immediate: false, // Don't call immediately since we already loaded above
+    endpoint: 'agents',
   });
 
   const filteredAgents = useMemo(() => {

@@ -65,9 +65,28 @@ module.exports = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
+      
+      // Debug logging
+      console.log(`[GET /sectors/:id] Looking for sector with ID: ${id}`);
+      
       const sector = await getSectorById(id);
       
       if (!sector) {
+        // Debug: log all available sector IDs to help diagnose
+        try {
+          const allSectors = await getAllSectors();
+          const availableIds = allSectors.map(s => s.id);
+          console.log(`[GET /sectors/:id] Sector not found. Available sector IDs:`, availableIds);
+          console.log(`[GET /sectors/:id] Requested ID type: ${typeof id}, value: "${id}"`);
+          if (availableIds.length > 0) {
+            console.log(`[GET /sectors/:id] First available ID type: ${typeof availableIds[0]}, value: "${availableIds[0]}"`);
+            console.log(`[GET /sectors/:id] IDs match? ${id === availableIds[0]}`);
+            console.log(`[GET /sectors/:id] IDs match (trimmed)? ${id.trim() === availableIds[0].trim()}`);
+          }
+        } catch (debugError) {
+          console.error('[GET /sectors/:id] Error during debug logging:', debugError);
+        }
+        
         return reply.status(404).send({
           error: 'Sector not found'
         });
@@ -145,7 +164,10 @@ module.exports = async (fastify) => {
         sectorName: finalSectorName,
         sectorSymbol: finalSectorSymbol
       };
+      
+      console.log(`[POST /sectors] Creating sector with ID: ${sectorData.id}`);
       const savedSector = await createSector(sectorData);
+      console.log(`[POST /sectors] Sector created with ID: ${savedSector.id}`);
 
       // Auto-create manager agent - save to both agents.json and sector.agents
       const managerAgentId = uuidv4();
@@ -216,7 +238,27 @@ module.exports = async (fastify) => {
         // Don't fail the request if runtime reload fails
       }
 
-      return reply.status(201).send(updatedSector);
+      // Normalize the sector before sending to ensure all fields are properly formatted
+      const normalizedSector = normalizeSectorRecord(updatedSector);
+      
+      // Verify the ID is present before sending
+      if (!normalizedSector.id) {
+        console.error('[POST /sectors] ERROR: Normalized sector missing ID!', normalizedSector);
+        throw new Error('Failed to create sector: ID missing from response');
+      }
+      
+      // Verify we can actually retrieve the sector we just created
+      const verifySector = await getSectorById(normalizedSector.id);
+      if (!verifySector) {
+        console.error(`[POST /sectors] ERROR: Cannot retrieve sector ${normalizedSector.id} immediately after creation!`);
+        // Try to get all sectors to see what's in storage
+        const allSectors = await getAllSectors();
+        console.error(`[POST /sectors] Available sectors in storage:`, allSectors.map(s => ({ id: s.id, name: s.name || s.sectorName })));
+        throw new Error(`Failed to verify sector creation: sector ${normalizedSector.id} not found in storage`);
+      }
+      
+      console.log(`[POST /sectors] Successfully created and verified sector with ID: ${normalizedSector.id}`);
+      return reply.status(201).send(normalizedSector);
     } catch (error) {
       return reply.status(500).send({
         error: error.message
