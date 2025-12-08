@@ -23221,6 +23221,990 @@
           "conflictScore": 0
         },
         "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162820002,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162820015
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162820002,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162820015
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162823024,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162823024,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162823024
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162823024,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162823024,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162823024
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162823024,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162823024,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162823007,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162823024
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162823007,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162823024
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162826022,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162826022,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162826022
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162826022,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162826022,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162826022
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162826022,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162826022,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162826007,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162826022
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162826007,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162826022
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162829025,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162829025,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162829025
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162829025,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162829025,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162829025
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162829025,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162829025,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162829009,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162829025
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162829009,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162829025
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162832029,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162832029,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162832029
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162832029,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162832029,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162832029
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162832029,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162832029,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162832016,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162832029
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162832016,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162832029
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162835030,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162835030,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162835030
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162835030,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162835030,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162835030
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162835030,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162835030,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162835017,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162835030
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162835017,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "697a8e73-3850-49bb-8da5-750b61b5856a",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 3 agents voted HOLD",
+          "reason": "Majority vote: 3 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0,
+          "timestamp": 1765162835030
+        },
+        "sectorData": {
+          "id": "697a8e73-3850-49bb-8da5-750b61b5856a",
+          "sectorName": "Technology"
+        }
+      },
+      {
+        "timestamp": 1765162838045,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162838045,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162838045
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162838045,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765162838045,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 3 agents voted HOLD",
+              "reason": "Majority vote: 3 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 3
+              },
+              "conflictScore": 0,
+              "timestamp": 1765162838045
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL1",
+                "winRate": 0
+              },
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_GENERAL2",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162838045,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765162838045,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 3
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 3 agents voted HOLD"
       }
     ],
     "lastDecision": {
@@ -23234,9 +24218,9 @@
         "HOLD": 3
       },
       "conflictScore": 0,
-      "timestamp": 1765162820015
+      "timestamp": 1765162838045
     },
-    "lastDecisionAt": 1765162820015,
+    "lastDecisionAt": 1765162838045,
     "morale": 50,
     "rewardPoints": 0,
     "lastRewardTimestamp": null,
