@@ -9,9 +9,12 @@ const ABI = parseAbi([
   "function sectors(uint256) view returns (uint256 id, string name, string symbol, address creator)",
   "function agents(uint256) view returns (uint256 id, uint256 sectorId, string role, address creator)",
   "function trades(uint256) view returns (uint256 id, uint256 agentId, uint256 sectorId, string action, uint256 amount, uint256 timestamp)",
+  "function owner() view returns (address)",
+  "function transferOwnership(address)",
   "event SectorRegistered(uint256 indexed id, string name, string symbol, address creator)",
   "event AgentRegistered(uint256 indexed id, uint256 indexed sectorId, string role, address creator)",
-  "event TradeLogged(uint256 indexed id, uint256 indexed agentId, uint256 indexed sectorId, string action, uint256 amount, uint256 timestamp)"
+  "event TradeLogged(uint256 indexed id, uint256 indexed agentId, uint256 indexed sectorId, string action, uint256 amount, uint256 timestamp)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ]);
 
 const RPC_URL = process.env.RPC_URL || "http://localhost:8545";
@@ -24,6 +27,8 @@ const publicClient = createPublicClient({
 });
 
 // Create account and wallet client for write operations
+// NOTE: The private key must be the owner's private key for contract interactions
+// All write operations (registerSector, registerAgent, logTrade) require owner access
 // Ensure private key has 0x prefix if provided
 let privateKey = process.env.PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 // Remove any comments or extra text from private key

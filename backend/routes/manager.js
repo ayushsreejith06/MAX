@@ -4,7 +4,7 @@
  * API endpoints for manager decision-making subsystem
  */
 
-const ManagerAgent = require('../agents/ManagerAgent');
+const ManagerAgent = require('../agents/manager/ManagerAgent');
 const ExecutionAgent = require('../agents/ExecutionAgent');
 const { loadAgents } = require('../utils/agentStorage');
 const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
@@ -75,34 +75,49 @@ module.exports = async (fastify) => {
           );
           
           if (managerAgent) {
-            const ManagerAgentClass = require('../agents/manager/ManagerAgent');
-            manager = new ManagerAgentClass({
+            manager = new ManagerAgent({
               id: managerAgent.id,
               sectorId: managerAgent.sectorId,
               name: managerAgent.name,
               personality: managerAgent.personality || {},
+              performance: managerAgent.performance || {},
+              memory: managerAgent.memory || [],
               runtimeConfig: { conflictThreshold: conflictThreshold || 0.5 }
             });
           } else {
-            // Fallback to old ManagerAgent for compatibility
-            manager = new ManagerAgent(sectorId);
-            if (typeof conflictThreshold === 'number') {
-              manager.setConflictThreshold(conflictThreshold);
-            }
+            // Create a temporary manager instance for this request
+            // Generate a temporary ID and name since ManagerAgent requires these
+            const tempId = `temp-manager-${sectorId}-${Date.now()}`;
+            manager = new ManagerAgent({
+              id: tempId,
+              sectorId: sectorId,
+              name: `Temporary Manager for ${sectorId}`,
+              personality: {},
+              performance: {},
+              memory: [],
+              runtimeConfig: { conflictThreshold: conflictThreshold || 0.5 }
+            });
           }
         } else {
           // Set conflict threshold if provided
           if (typeof conflictThreshold === 'number') {
             manager.conflictThreshold = conflictThreshold;
+            manager.runtimeConfig.conflictThreshold = conflictThreshold;
           }
         }
       } catch (error) {
         log(`Error getting manager from runtime, using fallback: ${error.message}`);
-        // Fallback to old ManagerAgent
-        manager = new ManagerAgent(sectorId);
-        if (typeof conflictThreshold === 'number') {
-          manager.setConflictThreshold(conflictThreshold);
-        }
+        // Create a temporary manager instance as fallback
+        const tempId = `temp-manager-${sectorId}-${Date.now()}`;
+        manager = new ManagerAgent({
+          id: tempId,
+          sectorId: sectorId,
+          name: `Temporary Manager for ${sectorId}`,
+          personality: {},
+          performance: {},
+          memory: [],
+          runtimeConfig: { conflictThreshold: conflictThreshold || 0.5 }
+        });
       }
 
       // If signals are provided, use them directly

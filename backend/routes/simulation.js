@@ -79,7 +79,6 @@ module.exports = async (fastify) => {
       
       // Use sector balance as starting capital
       // In a more sophisticated system, we'd track the initial balance when simulation starts
-      const startingCapital = sector.balance || 0;
       
       // Calculate P/L based on price change
       // This is a simplified calculation - in production, you'd track actual positions

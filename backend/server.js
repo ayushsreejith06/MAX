@@ -22,7 +22,13 @@ const start = async () => {
     });
 
     // Register routes under /api prefix
-    await fastify.register(require('./routes/sectors'), { prefix: '/api/sectors' });
+    try {
+      await fastify.register(require('./routes/sectors'), { prefix: '/api/sectors' });
+      fastify.log.info('Sectors route registered successfully');
+    } catch (err) {
+      fastify.log.error('Error registering sectors route:', err);
+      throw err;
+    }
     try {
       await fastify.register(require('./routes/agents'), { prefix: '/api/agents' });
       fastify.log.info('Agents route registered successfully');

@@ -1,4 +1,4 @@
-const { readDataFile, writeDataFile } = require('./persistence');
+const { readDataFile, writeDataFile, atomicUpdate } = require('./persistence');
 
 const SECTORS_FILE = 'sectors.json';
 
@@ -45,28 +45,32 @@ async function getSectorById(id) {
 }
 
 /**
- * Update a sector in storage
+ * Update a sector in storage (atomic read-modify-write operation)
  * @param {string} id - Sector ID
  * @param {Object} updates - Updates to apply to the sector
  * @returns {Promise<Object|null>} Updated sector object or null if not found
  */
 async function updateSector(id, updates) {
   try {
-    const sectors = await loadSectors();
-    const sectorIndex = sectors.findIndex(s => s.id === id);
-    
-    if (sectorIndex === -1) {
-      return null;
-    }
+    const updatedSectors = await atomicUpdate(SECTORS_FILE, (sectors) => {
+      const sectorIndex = sectors.findIndex(s => s.id === id);
+      
+      if (sectorIndex === -1) {
+        return sectors; // Return unchanged if not found
+      }
 
-    // Merge updates with existing sector data
-    sectors[sectorIndex] = {
-      ...sectors[sectorIndex],
-      ...updates
-    };
+      // Merge updates with existing sector data
+      sectors[sectorIndex] = {
+        ...sectors[sectorIndex],
+        ...updates
+      };
 
-    await saveSectors(sectors);
-    return sectors[sectorIndex];
+      return sectors;
+    });
+
+    // Find and return the updated sector
+    const updatedSector = updatedSectors.find(s => s.id === id);
+    return updatedSector || null;
   } catch (error) {
     console.error('Error in updateSector:', error);
     throw error;

@@ -1,228 +1,96 @@
-const { createSector, getSectors, getSectorById, updateSectorPerformance } = require('../controllers/sectorsController');
-const { registry } = require('../utils/contract');
-const { getSimulationEngine } = require('../simulation/SimulationEngine');
-
-function log(message) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${message}`);
-}
+const Sector = require('../models/Sector');
+const { getAllSectors, createSector, updateSector } = require('../utils/sectorStorage');
+const { normalizeSectorRecord, getSectorById } = require('../controllers/sectorsController');
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = async (fastify) => {
-  // Log route registration for debugging
-  console.log('[Sectors Routes] Registering routes...');
-  
-  // GET /sectors - Fetch all sectors
+  // GET /sectors - List all sectors
   fastify.get('/', async (request, reply) => {
     try {
-      log('GET /sectors - Fetching all sectors');
-      const sectors = await getSectors();
-      log(`Found ${sectors.length} sectors`);
-      return reply.status(200).send({
-        success: true,
-        data: sectors
-      });
+      const sectors = await getAllSectors();
+      // Normalize all sectors to ensure sectorSymbol is included
+      const normalizedSectors = sectors.map(sector => normalizeSectorRecord(sector));
+      return reply.status(200).send(normalizedSectors);
     } catch (error) {
-      log(`Error fetching sectors: ${error.message}`);
       return reply.status(500).send({
-        success: false,
         error: error.message
       });
     }
   });
 
-  // POST /sectors - Create new sector
-  fastify.post('/', async (request, reply) => {
-    try {
-      const payload = request.body || {};
-
-      log(`POST /sectors - Creating sector with name: ${payload.sectorName}`);
-
-      const sector = await createSector(payload);
-
-      log(`Sector created successfully - ID: ${sector.id}, Name: ${sector.sectorName || sector.name}`);
-
-      // Auto-sync to chain
-      if (!process.env.MAX_REGISTRY) {
-        console.warn("MAX_REGISTRY undefined — skipping chain sync");
-      } else {
-        try {
-          const sectorId = parseInt(sector.id) || 0;
-          const name = sector.sectorName || sector.name || '';
-          const symbol = sector.sectorSymbol || sector.symbol || '';
-          
-          await registry.write.registerSector([sectorId, name, symbol]);
-          log(`Sector ${sectorId} registered on-chain`);
-        } catch (chainError) {
-          log(`Warning: Failed to register sector on-chain: ${chainError.message}`);
-          // Don't fail the request if chain registration fails
-        }
-      }
-
-      return reply.status(201).send({
-        success: true,
-        data: sector
-      });
-    } catch (error) {
-      log(`Error creating sector: ${error.message}`);
-
-      return reply.status(400).send({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // POST /sectors/:id/deposit - Deposit money into a sector (MUST come before /:id route)
-  fastify.post('/:id/deposit', async (request, reply) => {
-    try {
-      const { id } = request.params;
-      const { amount } = request.body || {};
-
-      console.log(`[DEPOSIT ROUTE] POST /sectors/${id}/deposit called with amount: ${amount}`);
-      log(`POST /sectors/${id}/deposit - Depositing ${amount} into sector`);
-
-      // Validate amount
-      if (!amount || typeof amount !== 'number' || amount <= 0) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Invalid amount. Amount must be a positive number.'
-        });
-      }
-
-      // Get sector
-      const sector = await getSectorById(id);
-      if (!sector) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Sector not found'
-        });
-      }
-
-      // Update balance
-      const { updateSector } = require('../utils/storage');
-      const updatedSector = await updateSector(id, {
-        balance: (sector.balance || 0) + amount
-      });
-
-      log(`Deposit successful - Sector ID: ${id}, Amount: ${amount}, New Balance: ${updatedSector.balance}`);
-
-      return reply.status(200).send({
-        success: true,
-        data: updatedSector
-      });
-    } catch (error) {
-      log(`Error depositing into sector: ${error.message}`);
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // POST /sectors/:id/simulate-tick - Run a simulation tick for a sector
-  fastify.post('/:id/simulate-tick', async (request, reply) => {
-    try {
-      const { id } = request.params;
-      const { decisions = [] } = request.body || {};
-
-      log(`POST /sectors/${id}/simulate-tick - Running simulation tick`);
-
-      // Get sector to ensure it exists
-      const sector = await getSectorById(id);
-      if (!sector) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Sector not found'
-        });
-      }
-
-      // Get simulation engine
-      const simulationEngine = getSimulationEngine();
-
-      // Initialize sector if not already initialized
-      const sectorState = simulationEngine.getSectorState(id);
-      if (!sectorState) {
-        await simulationEngine.initializeSector(
-          id,
-          sector.currentPrice || 100,
-          0.02 // Default volatility
-        );
-      }
-
-      // Run simulation tick
-      const tickResult = await simulationEngine.simulateTick(id, decisions);
-
-      log(`Simulation tick completed for sector ${id}: ${tickResult.executedTrades.length} trades executed`);
-
-      return reply.status(200).send({
-        success: true,
-        data: tickResult
-      });
-    } catch (error) {
-      log(`Error running simulation tick: ${error.message}`);
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // POST /sectors/:id/update-performance - Update sector performance metrics
-  fastify.post('/:id/update-performance', async (request, reply) => {
-    try {
-      const { id } = request.params;
-      log(`POST /sectors/${id}/update-performance - Updating sector performance`);
-
-      const updatedSector = await updateSectorPerformance(id);
-
-      log(`Sector performance updated - ID: ${updatedSector.id}, New Price: ${updatedSector.currentPrice}, Volatility: ${updatedSector.volatility}, Risk Score: ${updatedSector.riskScore}`);
-
-      return reply.status(200).send({
-        success: true,
-        data: updatedSector
-      });
-    } catch (error) {
-      log(`Error updating sector performance: ${error.message}`);
-      
-      if (error.message === 'Sector not found') {
-        return reply.status(404).send({
-          success: false,
-          error: error.message
-        });
-      }
-
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // GET /sectors/:id - Get sector by ID (MUST come after all specific routes)
+  // GET /sectors/:id - Get a single sector by ID
   fastify.get('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      log(`GET /sectors/${id} - Fetching sector by ID`);
-
       const sector = await getSectorById(id);
-
+      
       if (!sector) {
-        log(`Sector with ID ${id} not found`);
         return reply.status(404).send({
-          success: false,
           error: 'Sector not found'
         });
       }
-
-      log(`Found sector - ID: ${sector.id}, Name: ${sector.sectorName}`);
-      return reply.status(200).send({
-        success: true,
-        data: sector
-      });
+      
+      return reply.status(200).send(sector);
     } catch (error) {
-      log(`Error fetching sector: ${error.message}`);
       return reply.status(500).send({
-        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // POST /sectors - Create a sector
+  fastify.post('/', async (request, reply) => {
+    try {
+      const { name, sectorName, symbol, sectorSymbol, description, agents, performance } = request.body || {};
+
+      // Extract sectorName and sectorSymbol from either field name
+      const finalSectorName = (sectorName || name || '').trim();
+      const finalSectorSymbol = (sectorSymbol || symbol || '').trim();
+
+      // Create sector using the model
+      const sector = new Sector({
+        name: finalSectorName,
+        description: description || '',
+        agents: agents || [],
+        performance: performance || {}
+      });
+
+      // Save to storage with sectorName and sectorSymbol
+      const sectorData = {
+        ...sector.toJSON(),
+        sectorName: finalSectorName,
+        sectorSymbol: finalSectorSymbol
+      };
+      const savedSector = await createSector(sectorData);
+
+      // Auto-create manager agent
+      const managerAgent = {
+        id: uuidv4(),
+        type: 'manager',
+        name: 'Manager',
+        description: 'Autogenerated manager agent for sector.',
+        confidence: 0,
+        role: 'manager',
+        createdAt: Date.now()
+      };
+
+      // Add manager agent to sector's agents array
+      const updatedAgents = [...(savedSector.agents || []), managerAgent];
+
+      // Update sector with manager agent, preserving sectorName and sectorSymbol
+      const updatedSector = await updateSector(savedSector.id, {
+        agents: updatedAgents,
+        sectorName: finalSectorName,
+        sectorSymbol: finalSectorSymbol
+      });
+
+      if (!updatedSector) {
+        throw new Error('Failed to update sector with manager agent');
+      }
+
+      return reply.status(201).send(updatedSector);
+    } catch (error) {
+      return reply.status(500).send({
         error: error.message
       });
     }

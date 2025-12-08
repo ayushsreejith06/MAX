@@ -1,4 +1,4 @@
-const { readDataFile, writeDataFile } = require('./persistence');
+const { readDataFile, writeDataFile, atomicUpdate } = require('./persistence');
 
 const DISCUSSIONS_FILE = 'discussions.json';
 
@@ -26,18 +26,19 @@ async function findDiscussionById(id) {
 }
 
 async function saveDiscussion(discussion) {
-  const discussions = await loadDiscussions();
-  const idx = discussions.findIndex(d => d.id === discussion.id);
-
   const data = discussion.toJSON ? discussion.toJSON() : discussion;
 
-  if (idx >= 0) {
-    discussions[idx] = data;
-  } else {
-    discussions.push(data);
-  }
+  await atomicUpdate(DISCUSSIONS_FILE, (discussions) => {
+    const idx = discussions.findIndex(d => d.id === discussion.id);
 
-  await saveDiscussions(discussions);
+    if (idx >= 0) {
+      discussions[idx] = data;
+    } else {
+      discussions.push(data);
+    }
+
+    return discussions;
+  });
 }
 
 module.exports = {
