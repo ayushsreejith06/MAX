@@ -7,7 +7,9 @@ const { Orderbook } = require('./orderbook');
 const PriceSimulator = require('./priceSimulator');
 const ExecutionEngine = require('./execution');
 const CrossSignals = require('./crossSignals');
-const { loadSectors, saveSectors } = require('../utils/storage');
+const { loadSectors } = require('../utils/storage');
+const { updateSector } = require('../utils/sectorStorage');
+const { updateAgentsConfidenceForSector } = require('./confidence');
 
 class SimulationEngine {
   constructor() {
@@ -91,8 +93,13 @@ class SimulationEngine {
     const { orderbook, priceSimulator, executionEngine } = sectorState;
 
     // Step 1: Generate new price
+    const oldPrice = priceSimulator.getPrice() || priceSimulator.currentPrice;
     const newPrice = priceSimulator.generateNextPrice();
     priceSimulator.setPrice(newPrice);
+
+    // Step 1.5: Calculate price change for confidence updates
+    const priceChange = newPrice - oldPrice;
+    const priceChangePercent = oldPrice > 0 ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
 
     // Step 2: Calculate risk score from recent price history
     const recentTrades = orderbook.getTradeHistory(30);
@@ -159,13 +166,36 @@ class SimulationEngine {
       orderbook: orderbookSummary,
       lastTrade,
       priceChange: orderbook.lastPrice ? newPrice - orderbook.lastPrice : 0,
-      priceChangePercent: orderbook.lastPrice ? ((newPrice - orderbook.lastPrice) / orderbook.lastPrice) * 100 : 0
+      priceChangePercent: orderbook.lastPrice ? ((newPrice - orderbook.lastPrice) / orderbook.lastPrice) : priceChangePercent
     };
 
     sectorState.lastSimulationTick = tickResult;
 
     // Update sector in storage
     await this.updateSectorData(sectorId, tickResult);
+
+    // Step 6: Update agent confidence based on price changes
+    let updatedAgents = [];
+    try {
+      // Get previous volatility for comparison
+      const sectors = await loadSectors();
+      const sector = sectors.find(s => s.id === sectorId);
+      const previousVolatility = sector?.volatility || priceSimulator.volatility;
+      const volatilityChange = priceSimulator.volatility - previousVolatility;
+
+      updatedAgents = await updateAgentsConfidenceForSector(sectorId, {
+        priceChangePercent: tickResult.priceChangePercent,
+        volatilityChange: volatilityChange,
+        previousPrice: oldPrice,
+        currentPrice: newPrice,
+        sectorData: sector
+      });
+    } catch (error) {
+      console.error(`[SimulationEngine] Error updating agent confidence:`, error);
+    }
+
+    // Add updated agents to tick result
+    tickResult.updatedAgents = updatedAgents;
 
     return tickResult;
   }
@@ -184,47 +214,47 @@ class SimulationEngine {
   async updateSectorData(sectorId, tickResult) {
     try {
       const sectors = await loadSectors();
-      const sectorIndex = sectors.findIndex(s => s.id === sectorId);
+      const sector = sectors.find(s => s.id === sectorId);
       
-      if (sectorIndex !== -1) {
-        const sector = sectors[sectorIndex];
-        
-        // Update price and related fields
-        sector.currentPrice = tickResult.newPrice;
-        sector.change = tickResult.priceChange;
-        sector.changePercent = tickResult.priceChangePercent;
-        
-        // Update volume (sum of all trade quantities)
-        const totalVolume = tickResult.executedTrades.reduce((sum, trade) => sum + trade.quantity, 0);
-        sector.volume = (sector.volume || 0) + totalVolume;
-
-        // Update candle data (simplified - in production, would aggregate by time window)
-        if (!sector.candleData) {
-          sector.candleData = [];
-        }
-        
-        // Add new candle entry
-        const lastCandle = sector.candleData.length > 0 
-          ? sector.candleData[sector.candleData.length - 1]
-          : { open: tickResult.newPrice, close: tickResult.newPrice, high: tickResult.newPrice, low: tickResult.newPrice };
-        
-        const newCandle = {
-          open: lastCandle.close,
-          close: tickResult.newPrice,
-          high: Math.max(lastCandle.close, tickResult.newPrice),
-          low: Math.min(lastCandle.close, tickResult.newPrice)
-        };
-        
-        sector.candleData.push(newCandle);
-        
-        // Keep only last 100 candles
-        if (sector.candleData.length > 100) {
-          sector.candleData = sector.candleData.slice(-100);
-        }
-
-        sectors[sectorIndex] = sector;
-        await saveSectors(sectors);
+      if (!sector) {
+        console.warn(`Sector ${sectorId} not found for update`);
+        return;
       }
+      
+      // Prepare updates
+      const updates = {
+        currentPrice: tickResult.newPrice,
+        change: tickResult.priceChange,
+        changePercent: tickResult.priceChangePercent
+      };
+      
+      // Update volume (sum of all trade quantities)
+      const totalVolume = tickResult.executedTrades.reduce((sum, trade) => sum + trade.quantity, 0);
+      updates.volume = (sector.volume || 0) + totalVolume;
+
+      // Update candle data (simplified - in production, would aggregate by time window)
+      const existingCandleData = Array.isArray(sector.candleData) ? sector.candleData : [];
+      
+      // Add new candle entry
+      const lastCandle = existingCandleData.length > 0 
+        ? existingCandleData[existingCandleData.length - 1]
+        : { open: tickResult.newPrice, close: tickResult.newPrice, high: tickResult.newPrice, low: tickResult.newPrice };
+      
+      const newCandle = {
+        open: lastCandle.close,
+        close: tickResult.newPrice,
+        high: Math.max(lastCandle.close, tickResult.newPrice),
+        low: Math.min(lastCandle.close, tickResult.newPrice)
+      };
+      
+      // Add new candle and keep only last 100
+      const updatedCandleData = [...existingCandleData, newCandle];
+      updates.candleData = updatedCandleData.length > 100 
+        ? updatedCandleData.slice(-100)
+        : updatedCandleData;
+
+      // Use updateSector for atomic update
+      await updateSector(sectorId, updates);
     } catch (error) {
       console.error(`Failed to update sector data for ${sectorId}:`, error);
     }

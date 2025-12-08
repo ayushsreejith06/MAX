@@ -581,6 +581,9 @@ video {
 .ml-2 {
   margin-left: 0.5rem;
 }
+.ml-3 {
+  margin-left: 0.75rem;
+}
 .ml-4 {
   margin-left: 1rem;
 }
@@ -629,8 +632,17 @@ video {
 .grid {
   display: grid;
 }
+.hidden {
+  display: none;
+}
+.h-1\.5 {
+  height: 0.375rem;
+}
 .h-2 {
   height: 0.5rem;
+}
+.h-24 {
+  height: 6rem;
 }
 .h-28 {
   height: 7rem;
@@ -665,8 +677,20 @@ video {
 .max-h-96 {
   max-height: 24rem;
 }
+.max-h-\[calc\(100vh-2rem\)\] {
+  max-height: calc(100vh - 2rem);
+}
+.min-h-0 {
+  min-height: 0px;
+}
 .min-h-screen {
   min-height: 100vh;
+}
+.w-12 {
+  width: 3rem;
+}
+.w-16 {
+  width: 4rem;
 }
 .w-2 {
   width: 0.5rem;
@@ -724,6 +748,9 @@ video {
 }
 .flex-1 {
   flex: 1 1 0%;
+}
+.flex-shrink-0 {
+  flex-shrink: 0;
 }
 .border-collapse {
   border-collapse: collapse;
@@ -958,6 +985,9 @@ video {
 .border-ink-500\/40 {
   border-color: rgb(45 45 45 / 0.4);
 }
+.border-ink-500\/50 {
+  border-color: rgb(45 45 45 / 0.5);
+}
 .border-ink-500\/60 {
   border-color: rgb(45 45 45 / 0.6);
 }
@@ -1020,6 +1050,9 @@ video {
 }
 .bg-black\/30 {
   background-color: rgb(0 0 0 / 0.3);
+}
+.bg-black\/80 {
+  background-color: rgb(0 0 0 / 0.8);
 }
 .bg-card-bg {
   --tw-bg-opacity: 1;
@@ -1095,10 +1128,6 @@ video {
 }
 .bg-muted-text\/10 {
   background-color: rgb(189 189 189 / 0.1);
-}
-.bg-neutral-800 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(38 38 38 / var(--tw-bg-opacity, 1));
 }
 .bg-pure-black {
   --tw-bg-opacity: 1;
@@ -1224,6 +1253,10 @@ video {
   padding-left: 1.25rem;
   padding-right: 1.25rem;
 }
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
 .px-8 {
   padding-left: 2rem;
   padding-right: 2rem;
@@ -1283,6 +1316,9 @@ video {
 }
 .pr-10 {
   padding-right: 2.5rem;
+}
+.pt-4 {
+  padding-top: 1rem;
 }
 .text-left {
   text-align: left;
@@ -1354,6 +1390,9 @@ video {
 }
 .uppercase {
   text-transform: uppercase;
+}
+.lowercase {
+  text-transform: lowercase;
 }
 .normal-case {
   text-transform: none;
@@ -1674,6 +1713,10 @@ a {
   background-color: rgb(189 0 0 / 0.3);
 }
 
+.hover\:bg-error-red\/90:hover {
+  background-color: rgb(189 0 0 / 0.9);
+}
+
 .hover\:bg-gray-600:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(75 85 99 / var(--tw-bg-opacity, 1));
@@ -1730,6 +1773,11 @@ a {
   color: rgb(20 177 22 / 0.8);
 }
 
+.focus\:border-error-red:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(189 0 0 / var(--tw-border-opacity, 1));
+}
+
 .focus\:border-sage-green:focus {
   --tw-border-opacity: 1;
   border-color: rgb(20 177 22 / var(--tw-border-opacity, 1));
@@ -1750,6 +1798,11 @@ a {
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.focus\:ring-error-red:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(189 0 0 / var(--tw-ring-opacity, 1));
 }
 
 .focus\:ring-sage-green:focus {

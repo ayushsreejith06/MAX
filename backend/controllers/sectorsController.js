@@ -1,54 +1,41 @@
 const { getSectorById: getSectorByIdStorage } = require('../utils/sectorStorage');
+const Sector = require('../models/Sector');
 
 function normalizeSectorRecord(data = {}) {
   try {
-    // Direct JSON structure normalization (no Sector.fromData)
-    // Preserve sectorSymbol if it exists, don't overwrite with "UNK"
-    const sectorSymbol = (data.sectorSymbol || data.symbol || '').trim();
+    // Use Sector.fromData() to ensure all required fields are present with defaults
+    const sector = Sector.fromData(data);
+    const normalized = sector.toJSON();
+    
+    // Ensure all required fields exist (fromData already handles this, but double-check)
     return {
-      id: data.id,
-      sectorName: data.sectorName || data.name || "Unknown Sector",
-      sectorSymbol: sectorSymbol || "UNK",
-
-      currentPrice: typeof data.currentPrice === "number" ? data.currentPrice : 100,
-      change: typeof data.change === "number" ? data.change : 0,
-      changePercent: typeof data.changePercent === "number" ? data.changePercent : 0,
-      volume: typeof data.volume === "number" ? data.volume : 0,
-
-      statusPercent: typeof data.statusPercent === "number" ? data.statusPercent : 0,
-      volatility: typeof data.volatility === "number" ? data.volatility : 0.02,
-      riskScore: typeof data.riskScore === "number" ? data.riskScore : 50,
-
-      lastSimulatedPrice: typeof data.lastSimulatedPrice === "number" ? data.lastSimulatedPrice : null,
-      balance: typeof data.balance === "number" ? data.balance : 0,
-
-      agents: Array.isArray(data.agents) ? data.agents : [],
-      discussions: Array.isArray(data.discussions) ? data.discussions : [],
-      candleData: Array.isArray(data.candleData) ? data.candleData : []
+      id: normalized.id,
+      sectorName: normalized.sectorName,
+      sectorSymbol: normalized.sectorSymbol,
+      currentPrice: normalized.currentPrice,
+      change: normalized.change,
+      changePercent: normalized.changePercent,
+      volatility: normalized.volatility,
+      riskScore: normalized.riskScore,
+      agents: normalized.agents,
+      performance: normalized.performance,
+      balance: normalized.balance,
+      // Additional fields
+      volume: normalized.volume || 0,
+      statusPercent: normalized.statusPercent || 0,
+      lastSimulatedPrice: normalized.lastSimulatedPrice !== undefined ? normalized.lastSimulatedPrice : null,
+      discussions: normalized.discussions || [],
+      candleData: normalized.candleData || [],
+      description: normalized.description || '',
+      name: normalized.name || normalized.sectorName,
+      symbol: normalized.symbol || normalized.sectorSymbol
     };
   } catch (error) {
     console.error("Error normalizing sector record:", error, "Data:", data);
-
-    // Preserve sectorSymbol if it exists in error case too
-    const sectorSymbol = (data?.sectorSymbol || data?.symbol || '').trim();
-    return {
-      id: data?.id || "unknown",
-      sectorName: data?.sectorName || "Unknown Sector",
-      sectorSymbol: sectorSymbol || "UNK",
-      currentPrice: 100,
-      change: 0,
-      changePercent: 0,
-      volume: 0,
-      statusPercent: 0,
-      activeAgents: 0,
-      candleData: [],
-      discussions: [],
-      agents: [],
-      volatility: 0.02,
-      riskScore: 50,
-      lastSimulatedPrice: null,
-      balance: 0
-    };
+    
+    // Fallback: create a fully valid sector with all defaults
+    const fallbackSector = Sector.fromData({});
+    return fallbackSector.toJSON();
   }
 }
 

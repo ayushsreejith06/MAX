@@ -1,5 +1,6 @@
 import { Agent, ApiPayload, Discussion, Sector, CandleData } from './types';
 import { getApiBaseUrl, getBackendBaseUrl } from './desktopEnv';
+import { rateLimitedFetch } from './rateLimit';
 
 // Use desktop-aware base URL
 const getApiBase = () => {
@@ -46,11 +47,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       });
     }
     
-    const response = await fetch(fullUrl, {
+    const responseResult = await rateLimitedFetch(fullUrl, 2500, {
       cache: 'no-store',
       credentials: 'omit',
       ...init,
     });
+
+    // Handle rate limiting
+    if (responseResult && typeof responseResult === 'object' && 'skipped' in responseResult && (responseResult as any).skipped === true) {
+      throw new Error('Request rate limited. Please try again in a moment.');
+    }
+
+    const response = responseResult as Response;
 
     if (!response.ok) {
       let errorMessage = `Request failed: ${response.status}`;
@@ -157,6 +165,13 @@ function normalizeAgent(raw: any): Agent {
       riskTolerance: raw?.personality?.riskTolerance ?? raw?.personality?.risk_tolerance ?? 'Unknown',
       decisionStyle: raw?.personality?.decisionStyle ?? raw?.personality?.decision_style ?? 'Unknown',
     },
+    prompt: typeof raw?.prompt === 'string' ? raw.prompt : undefined,
+    preferences: raw?.preferences ? {
+      riskWeight: typeof raw.preferences.riskWeight === 'number' ? raw.preferences.riskWeight : undefined,
+      profitWeight: typeof raw.preferences.profitWeight === 'number' ? raw.preferences.profitWeight : undefined,
+      speedWeight: typeof raw.preferences.speedWeight === 'number' ? raw.preferences.speedWeight : undefined,
+      accuracyWeight: typeof raw.preferences.accuracyWeight === 'number' ? raw.preferences.accuracyWeight : undefined,
+    } : undefined,
     morale: typeof raw?.morale === 'number' ? raw.morale : undefined,
     rewardPoints: typeof raw?.rewardPoints === 'number' ? raw.rewardPoints : undefined,
     confidence: typeof raw?.confidence === 'number' ? raw.confidence : 0,
@@ -306,7 +321,7 @@ export interface ManagerDecision {
 
 export async function fetchManagerStatus(): Promise<ManagerStatus | null> {
   try {
-    const payload = await request<{ success: boolean; data: ManagerStatus }>('/manager/status');
+    const payload = await request<{ success: boolean; data: ManagerStatus }>('/simulation/status');
     return payload && payload.success ? payload.data : null;
   } catch (error) {
     console.error('Error fetching manager status:', error);
@@ -316,7 +331,7 @@ export async function fetchManagerStatus(): Promise<ManagerStatus | null> {
 
 export async function fetchManagerDecisions(sectorId: string): Promise<ManagerDecision[]> {
   try {
-    const payload = await request<{ success: boolean; data: ManagerDecision[] }>(`/manager/decisions/${sectorId}`);
+    const payload = await request<{ success: boolean; data: ManagerDecision[] }>(`/simulation/decisions/${sectorId}`);
     return payload && payload.success ? payload.data : [];
   } catch (error) {
     console.error('Error fetching manager decisions:', error);
@@ -448,10 +463,11 @@ export async function createSector(sectorName: string, sectorSymbol: string): Pr
 
 export async function createAgent(
   prompt: string,
-  sectorId: string | null
+  sectorId: string | null,
+  role?: string | null
 ): Promise<Agent> {
   try {
-    const payload = await request<unknown>('/agents/create', {
+    const payload = await request<unknown>('/agents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -459,6 +475,7 @@ export async function createAgent(
       body: JSON.stringify({
         prompt,
         sectorId,
+        role: role || null,
       }),
     });
 
@@ -505,12 +522,13 @@ export interface SimulateTickResult {
 }
 
 export async function simulateTick(sectorId: string, decisions: any[] = []): Promise<SimulateTickResult> {
-  const payload = await request<{ success: boolean; data: SimulateTickResult } | SimulateTickResult>(`/sectors/${sectorId}/simulate-tick`, {
+  const payload = await request<{ success: boolean; data: SimulateTickResult } | SimulateTickResult>(`/simulation/tick`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
+      sectorId,
       decisions,
     }),
   });
@@ -523,7 +541,7 @@ export async function simulateTick(sectorId: string, decisions: any[] = []): Pro
 }
 
 export async function updateSectorPerformance(sectorId: string): Promise<Sector> {
-  const payload = await request<{ success: boolean; data: Sector } | Sector>(`/sectors/${sectorId}/update-performance`, {
+  const payload = await request<{ success: boolean; data: Sector } | Sector>(`/simulation/${sectorId}/performance`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -553,5 +571,91 @@ export async function depositSector(sectorId: string, amount: number): Promise<S
     sectorData = (payload as { success: boolean; data: Sector }).data;
   }
   return normalizeSector(sectorData);
+}
+
+export async function updateAgent(agentId: string, updates: {
+  name?: string;
+  role?: string;
+  prompt?: string;
+  sectorId?: string | null;
+  personality?: {
+    riskTolerance?: string;
+    decisionStyle?: string;
+  };
+  preferences?: {
+    riskWeight?: number;
+    profitWeight?: number;
+    speedWeight?: number;
+    accuracyWeight?: number;
+  };
+}): Promise<Agent> {
+  const payload = await request<Agent>(`/agents/${agentId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+  return normalizeAgent(payload);
+}
+
+export async function deleteAgent(agentId: string): Promise<void> {
+  await request<{ success: boolean; message?: string }>(`/agents/${agentId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function deleteSector(sectorId: string, confirmationCode: string): Promise<{ success: boolean; message?: string; withdrawnBalance?: number }> {
+  const payload = await request<{ success: boolean; message?: string; withdrawnBalance?: number }>(`/sectors/${sectorId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ confirmationCode }),
+  });
+  return payload;
+}
+
+export async function getUserBalance(): Promise<number> {
+  try {
+    const { getApiBaseUrl } = await import('./desktopEnv');
+    const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : '/api';
+    const resResult = await rateLimitedFetch(`${apiBase}/user/balance`, 2500);
+    
+    // Handle rate limiting
+    if (resResult && typeof resResult === 'object' && 'skipped' in resResult && (resResult as any).skipped === true) {
+      return 0;
+    }
+    
+    const res = resResult as Response;
+    if (res.ok) {
+      const data = await res.json();
+      return typeof data.balance === 'number' ? data.balance : 0;
+    }
+    return 0;
+  } catch (error) {
+    console.error('Failed to fetch user balance:', error);
+    return 0;
+  }
+}
+
+export interface ConfidenceTickResult {
+  agents: Array<{
+    id: string;
+    name: string;
+    confidence: number;
+  }>;
+  discussionReady: boolean;
+}
+
+export async function runConfidenceTick(sectorId: string): Promise<ConfidenceTickResult> {
+  const payload = await request<ConfidenceTickResult>(`/sectors/${sectorId}/confidence-tick`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+  return payload;
 }
 

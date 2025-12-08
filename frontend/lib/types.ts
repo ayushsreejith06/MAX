@@ -10,6 +10,13 @@ export interface AgentPersonality {
   decisionStyle: string;
 }
 
+export interface AgentPreferences {
+  riskWeight?: number;
+  profitWeight?: number;
+  speedWeight?: number;
+  accuracyWeight?: number;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -21,6 +28,8 @@ export interface Agent {
   sectorSymbol?: string;
   sectorName?: string;
   personality: AgentPersonality;
+  prompt?: string; // Agent prompt/instructions
+  preferences?: AgentPreferences; // Agent preferences for decision-making
   morale?: number; // Morale value (0-100)
   rewardPoints?: number; // Reward points accumulated
   confidence?: number; // Confidence value (-100 to +100)

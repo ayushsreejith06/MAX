@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus, Trash2 } from 'lucide-react';
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
-import { fetchSectorById, simulateTick, depositSector, type SimulateTickResult } from '@/lib/api';
-import type { Sector } from '@/lib/types';
+import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, type SimulateTickResult, type ConfidenceTickResult } from '@/lib/api';
+import type { Sector, Agent } from '@/lib/types';
+import { PollingManager } from '@/utils/PollingManager';
 
 export default function SectorDetailClient() {
   const params = useParams();
@@ -20,12 +21,19 @@ export default function SectorDetailClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [depositing, setDepositing] = useState(false);
+  const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
+  const [deletingSector, setDeletingSector] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmationCode, setDeleteConfirmationCode] = useState('');
   const [performance, setPerformance] = useState<{
     startingCapital: number;
     currentCapital: number;
     pnl: number;
     recentTrades: any[];
   } | null>(null);
+  const [runningConfidenceTick, setRunningConfidenceTick] = useState(false);
+  const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
+  const runningConfidenceTickRef = useRef(false);
 
   // Extract ID from dynamic route
   const sectorId = params?.id as string | undefined;
@@ -85,31 +93,81 @@ export default function SectorDetailClient() {
     };
   }, [sectorId]);
 
-  // Auto-poll simulation performance
+  // Auto-poll simulation performance using centralized polling
+  const loadPerformance = useCallback(async () => {
+    if (!sectorId) return;
+    
+    try {
+      const { getApiBaseUrl } = await import('@/lib/desktopEnv');
+      const apiBase = typeof window !== 'undefined' 
+        ? getApiBaseUrl()
+        : '/api';
+      const res = await fetch(`${apiBase}/simulation/performance?sectorId=${sectorId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPerformance(data);
+      }
+    } catch (err) {
+      console.error('Failed to load simulation performance:', err);
+    }
+  }, [sectorId]);
+
+  // Use global PollingManager for performance polling
   useEffect(() => {
     if (!sectorId) return;
+    PollingManager.register(`sector-performance-${sectorId}`, loadPerformance, 2500);
+    return () => {
+      PollingManager.unregister(`sector-performance-${sectorId}`);
+    };
+  }, [sectorId, loadPerformance]);
 
-    async function loadPerformance() {
-      try {
-        const { getApiBaseUrl } = await import('@/lib/desktopEnv');
-        const apiBase = typeof window !== 'undefined' 
-          ? getApiBaseUrl()
-          : '/api';
-        const res = await fetch(`${apiBase}/simulation/performance?sectorId=${sectorId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setPerformance(data);
-        }
-      } catch (err) {
-        console.error('Failed to load simulation performance:', err);
-      }
+  // Auto-update confidence levels using centralized polling
+  // Only update confidence map, not full sector reload to prevent flickering
+  const runAutoConfidenceTick = useCallback(async () => {
+    if (!sectorId) return;
+    
+    // Skip if a confidence tick is already running
+    if (runningConfidenceTickRef.current) return;
+
+    try {
+      runningConfidenceTickRef.current = true;
+      setRunningConfidenceTick(true);
+      const result = await runConfidenceTick(String(sectorId));
+      
+      // Update agent confidences map only (don't reload full sector to prevent flicker)
+      setAgentConfidences(prev => {
+        const newConfidences = new Map(prev);
+        let hasChanges = false;
+        result.agents.forEach(agent => {
+          const oldConfidence = prev.get(agent.id);
+          if (oldConfidence !== agent.confidence) {
+            newConfidences.set(agent.id, agent.confidence);
+            hasChanges = true;
+          }
+        });
+        // Only return new map if there were actual changes
+        return hasChanges ? newConfidences : prev;
+      });
+      
+      // Only reload sector if there were significant changes (debounced)
+      // This prevents constant re-renders
+    } catch (err) {
+      console.error('Auto confidence tick error:', err);
+      // Don't show error to user for auto-updates, just log it
+    } finally {
+      runningConfidenceTickRef.current = false;
+      setRunningConfidenceTick(false);
     }
-
-    loadPerformance();
-    const interval = setInterval(loadPerformance, 3000);
-
-    return () => clearInterval(interval);
   }, [sectorId]);
+
+  // Use global PollingManager for confidence tick polling
+  useEffect(() => {
+    if (!sectorId) return;
+    PollingManager.register(`sector-confidence-${sectorId}`, runAutoConfidenceTick, 2500);
+    return () => {
+      PollingManager.unregister(`sector-confidence-${sectorId}`);
+    };
+  }, [sectorId, runAutoConfidenceTick]);
 
   if (loading) {
     return (
@@ -163,6 +221,88 @@ export default function SectorDetailClient() {
     }
   };
 
+  const handleDeleteAgent = async (agentId: string, agentName: string) => {
+    // Check if it's a manager agent
+    const agent = sector?.agents.find(a => a.id === agentId);
+    if (agent && (agent.role === 'manager' || agent.role?.toLowerCase().includes('manager'))) {
+      alert('Manager agents cannot be deleted');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${agentName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingAgentId(agentId);
+      await deleteAgent(agentId);
+      
+      // Reload sector to refresh the agents list
+      await reloadSector();
+    } catch (error: any) {
+      console.error('Failed to delete agent', error);
+      const errorMessage = error?.message || 'Failed to delete agent';
+      if (errorMessage.includes('Manager agents cannot be deleted')) {
+        alert('Manager agents cannot be deleted');
+      } else {
+        alert(`Failed to delete agent: ${errorMessage}`);
+      }
+    } finally {
+      setDeletingAgentId(null);
+    }
+  };
+
+  const isManagerAgent = (agent: Agent) => {
+    return agent.role === 'manager' || agent.role?.toLowerCase().includes('manager');
+  };
+
+  const handleDeleteSector = () => {
+    if (!sector) return;
+    
+    // First confirmation
+    if (!confirm(`Are you sure you want to delete "${sector.name}"? This action cannot be undone and will withdraw all balance ($${(sector.balance || 0).toFixed(2)}) to your account.`)) {
+      return;
+    }
+
+    // Show second confirmation with code input
+    setShowDeleteConfirm(true);
+    setDeleteConfirmationCode('');
+  };
+
+  const confirmDeleteSector = async () => {
+    if (!sector) return;
+
+    // Verify confirmation code matches sector name
+    if (deleteConfirmationCode.trim().toLowerCase() !== sector.name.toLowerCase()) {
+      alert('Confirmation code does not match. Please enter the exact sector name.');
+      return;
+    }
+
+    try {
+      setDeletingSector(true);
+      const result = await deleteSector(sector.id, deleteConfirmationCode);
+      
+      // Show success message with withdrawn balance
+      const balanceMsg = result.withdrawnBalance && result.withdrawnBalance > 0
+        ? ` Balance of $${result.withdrawnBalance.toFixed(2)} has been withdrawn to your account.`
+        : '';
+      alert(`Sector deleted successfully.${balanceMsg}`);
+      
+      // Navigate back to sectors page
+      router.push('/sectors');
+    } catch (error: any) {
+      console.error('Failed to delete sector', error);
+      const errorMessage = error?.message || 'Failed to delete sector';
+      if (errorMessage.includes('Invalid confirmation code')) {
+        alert('Invalid confirmation code. Please enter the exact sector name.');
+      } else {
+        alert(`Failed to delete sector: ${errorMessage}`);
+      }
+    } finally {
+      setDeletingSector(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-pure-black p-8">
       <div className="max-w-7xl mx-auto">
@@ -178,12 +318,20 @@ export default function SectorDetailClient() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-4xl font-bold text-floral-white font-mono">{sector.name.toUpperCase()}</h1>
                 <span className="px-3 py-1 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-sm font-mono font-semibold">
                   {sector.symbol || 'N/A'}
                 </span>
+                <button
+                  onClick={handleDeleteSector}
+                  disabled={deletingSector}
+                  className="px-4 py-1 bg-error-red/20 text-error-red border border-error-red/50 rounded text-sm font-mono font-semibold uppercase tracking-wider hover:bg-error-red/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete sector"
+                >
+                  DELETE
+                </button>
               </div>
               <p className="text-sm text-floral-white/60 font-mono">
                 Sector ID: {sector.id.toLowerCase()} • Created: {createdDate}
@@ -396,6 +544,7 @@ export default function SectorDetailClient() {
                     <th className="px-4 py-3 text-right text-floral-white/70 font-mono text-sm font-semibold">CONFIDENCE</th>
                     <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">RISK</th>
                     <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">STYLE</th>
+                    <th className="px-4 py-3 text-center text-floral-white/70 font-mono text-sm font-semibold">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -415,10 +564,20 @@ export default function SectorDetailClient() {
                       ? agent.personality.decisionStyle.charAt(0).toUpperCase() + agent.personality.decisionStyle.slice(1).toLowerCase()
                       : 'Unknown';
                     
+                    // Get confidence value (use updated value from confidence tick if available)
+                    const agentConfidence = agentConfidences.has(agent.id) 
+                      ? agentConfidences.get(agent.id)! 
+                      : (typeof agent.confidence === 'number' ? agent.confidence : 0);
+                    
+                    // Highlight agents with confidence >= 65
+                    const isHighConfidence = agentConfidence >= 65;
+                    
                     return (
                       <tr
                         key={agent.id}
-                        className={`border-b border-ink-500/20 hover:bg-shadow-grey/40 cursor-pointer transition-colors`}
+                        className={`border-b border-ink-500/20 hover:bg-shadow-grey/40 cursor-pointer transition-colors ${
+                          isHighConfidence ? 'bg-sage-green/10 border-sage-green/30' : ''
+                        }`}
                         onClick={() => router.push(`/agents?agent=${agent.id}`)}
                       >
                         <td className="px-4 py-3 text-floral-white font-mono text-sm">
@@ -433,10 +592,17 @@ export default function SectorDetailClient() {
                           </span>
                         </td>
                         <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
-                          (typeof agent.performance === 'number' ? agent.performance : (agent.performance?.pnl || 0)) >= 0 ? 'text-sage-green' : 'text-error-red'
+                          (() => {
+                            const perf = typeof agent.performance === 'number' 
+                              ? agent.performance 
+                              : (agent.rawPerformance?.pnl ?? 0);
+                            return perf >= 0 ? 'text-sage-green' : 'text-error-red';
+                          })()
                         }`}>
                           {(() => {
-                            const perf = typeof agent.performance === 'number' ? agent.performance : (agent.performance?.pnl || 0);
+                            const perf = typeof agent.performance === 'number' 
+                              ? agent.performance 
+                              : (agent.rawPerformance?.pnl ?? 0);
                             return (perf >= 0 ? '+' : '') + perf.toFixed(2) + '%';
                           })()}
                         </td>
@@ -444,16 +610,32 @@ export default function SectorDetailClient() {
                           {Array.isArray(agent.trades) ? agent.trades.length : (agent.trades || 0)}
                         </td>
                         <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
-                          (agent.confidence || 0) >= 50 ? 'text-sage-green' : 
-                          (agent.confidence || 0) >= 0 ? 'text-warning-amber' : 'text-error-red'
+                          agentConfidence >= 65 ? 'text-sage-green' :
+                          agentConfidence >= 50 ? 'text-sage-green' : 
+                          agentConfidence >= 0 ? 'text-warning-amber' : 'text-error-red'
                         }`}>
-                          {typeof agent.confidence === 'number' ? agent.confidence.toFixed(0) : '0'}
+                          {agentConfidence.toFixed(0)}
                         </td>
                         <td className="px-4 py-3 text-floral-white/80 font-mono text-sm">
                           {riskTolerance}
                         </td>
                         <td className="px-4 py-3 text-floral-white/80 font-mono text-sm">
                           {decisionStyle}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {!isManagerAgent(agent) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAgent(agent.id, agent.name || agent.id);
+                              }}
+                              disabled={deletingAgentId === agent.id}
+                              className="p-2 text-error-red hover:bg-error-red/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Delete agent"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -674,6 +856,51 @@ export default function SectorDetailClient() {
             await reloadSector();
           }}
         />
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && sector && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-shadow-grey rounded-lg p-6 border border-ink-500 max-w-md w-full mx-4">
+              <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase">Confirm Deletion</h2>
+              <p className="text-floral-white/70 mb-4 font-mono">
+                To confirm deletion of <span className="font-bold text-floral-white">"{sector.name}"</span>, please enter the exact sector name below.
+              </p>
+              <p className="text-warning-amber text-sm mb-2 font-mono">
+                ⚠️ This will delete the sector and all its agents.
+              </p>
+              <p className="text-sage-green text-sm mb-4 font-mono">
+                💰 Balance of ${(sector.balance || 0).toFixed(2)} will be withdrawn to your account.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmationCode}
+                onChange={(e) => setDeleteConfirmationCode(e.target.value)}
+                placeholder="Enter sector name to confirm"
+                className="w-full rounded-lg border border-ink-500 bg-ink-600/70 px-4 py-2 text-floral-white font-mono focus:outline-none focus:border-error-red focus:ring-1 focus:ring-error-red mb-4"
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={confirmDeleteSector}
+                  disabled={deletingSector || !deleteConfirmationCode.trim()}
+                  className="flex-1 rounded-full bg-error-red px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-pure-black hover:bg-error-red/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deletingSector ? 'Deleting...' : 'Delete Sector'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmationCode('');
+                  }}
+                  disabled={deletingSector}
+                  className="flex-1 rounded-full border border-ink-500 px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-floral-white hover:border-sage-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

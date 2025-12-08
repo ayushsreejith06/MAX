@@ -1,19 +1,59 @@
 const Sector = require('../models/Sector');
 const Agent = require('../models/Agent');
-const { getAllSectors, createSector, updateSector } = require('../utils/sectorStorage');
+const { getAllSectors, createSector, updateSector, deleteSector } = require('../utils/sectorStorage');
 const { normalizeSectorRecord, getSectorById } = require('../controllers/sectorsController');
-const { getSimulationEngine } = require('../simulation/SimulationEngine');
-const { loadAgents, saveAgents } = require('../utils/agentStorage');
+const { loadAgents, saveAgents, updateAgent, deleteAgent } = require('../utils/agentStorage');
+const { addFunds } = require('../utils/userAccount');
 const { v4: uuidv4 } = require('uuid');
+const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
+
+// Optimize sector response for list view - only return minimal fields needed by UI
+function optimizeSectorForList(sector) {
+  // Calculate active agents count from agents array
+  const agents = Array.isArray(sector.agents) ? sector.agents : [];
+  const activeAgents = agents.filter(agent => agent && agent.status === 'active').length;
+  
+  // Return only essential fields for list view
+  return {
+    id: sector.id,
+    name: sector.name || sector.sectorName || 'Unknown Sector',
+    symbol: sector.symbol || sector.sectorSymbol || 'N/A',
+    currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : 0,
+    change: typeof sector.change === 'number' ? sector.change : 0,
+    changePercent: typeof sector.changePercent === 'number' ? sector.changePercent : 0,
+    volume: typeof sector.volume === 'number' ? sector.volume : 0,
+    activeAgents: typeof sector.activeAgents === 'number' ? sector.activeAgents : activeAgents,
+    statusPercent: typeof sector.statusPercent === 'number' ? sector.statusPercent : 0,
+    // Only include minimal agent info (id, name, role, status) - not full objects
+    agents: agents.map(agent => ({
+      id: agent.id,
+      name: agent.name || 'Unknown',
+      role: agent.role || 'agent',
+      status: agent.status || 'idle'
+    })),
+    // Return empty array for discussions in list view (detail endpoint has full data)
+    // Frontend will show 0, detail page will show actual discussions
+    discussions: [],
+    createdAt: sector.createdAt || new Date().toISOString()
+  };
+}
 
 module.exports = async (fastify) => {
-  // GET /sectors - List all sectors
+  // GET /sectors - List all sectors (optimized for list view)
   fastify.get('/', async (request, reply) => {
     try {
       const sectors = await getAllSectors();
+      // Sort sectors by ID to ensure stable ordering across requests
+      const sortedSectors = [...sectors].sort((a, b) => {
+        if (a.id < b.id) return -1;
+        if (a.id > b.id) return 1;
+        return 0;
+      });
       // Normalize all sectors to ensure sectorSymbol is included
-      const normalizedSectors = sectors.map(sector => normalizeSectorRecord(sector));
-      return reply.status(200).send(normalizedSectors);
+      const normalizedSectors = sortedSectors.map(sector => normalizeSectorRecord(sector));
+      // Optimize response to only include minimal fields needed by UI
+      const optimizedSectors = normalizedSectors.map(sector => optimizeSectorForList(sector));
+      return reply.status(200).send(optimizedSectors);
     } catch (error) {
       return reply.status(500).send({
         error: error.message
@@ -134,13 +174,26 @@ module.exports = async (fastify) => {
       });
 
       // Save manager agent to agents.json (so AgentRuntime can find it)
-      const allAgents = await loadAgents();
-      allAgents.push(managerAgent.toJSON());
-      await saveAgents(allAgents);
-
-      // Add manager agent to sector's agents array
+      // Check if agent already exists, if so update it, otherwise add it
       const managerAgentData = managerAgent.toJSON();
-      const updatedAgents = [...(savedSector.agents || []), managerAgentData];
+      const allAgents = await loadAgents();
+      const existingAgentIndex = allAgents.findIndex(a => a.id === managerAgentData.id);
+      
+      if (existingAgentIndex >= 0) {
+        // Agent exists, update it
+        await updateAgent(managerAgentData.id, managerAgentData);
+      } else {
+        // New agent, add to array and save (saveAgents handles deduplication)
+        allAgents.push(managerAgentData);
+        await saveAgents(allAgents);
+      }
+
+      // Add manager agent to sector's agents array (avoid duplicates)
+      const existingSectorAgents = savedSector.agents || [];
+      const agentExistsInSector = existingSectorAgents.some(a => a && a.id === managerAgentData.id);
+      const updatedAgents = agentExistsInSector 
+        ? existingSectorAgents.map(a => a.id === managerAgentData.id ? managerAgentData : a)
+        : [...existingSectorAgents, managerAgentData];
 
       // Update sector with manager agent, preserving sectorName and sectorSymbol
       const updatedSector = await updateSector(savedSector.id, {
@@ -171,74 +224,170 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /sectors/:id/simulate-tick - Run a simulation tick for a sector
-  fastify.post('/:id/simulate-tick', async (request, reply) => {
+  // DELETE /sectors/:id - Delete a sector with extra verification
+  // Requires confirmationCode in request body matching sector name
+  fastify.delete('/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }
+        },
+        required: ['id']
+      },
+      body: {
+        type: 'object',
+        properties: {
+          confirmationCode: { type: 'string' }
+        },
+        required: ['confirmationCode']
+      }
+    }
+  }, async (request, reply) => {
     try {
-      const { id: sectorId } = request.params;
-      const { decisions = [] } = request.body || {};
+      const { id } = request.params;
+      const { confirmationCode } = request.body;
 
-      // Verify sector exists
-      const sector = await getSectorById(sectorId);
+      console.log(`DELETE /api/sectors/${id} - Attempting to delete sector`);
+
+      // Load the sector first
+      const sector = await getSectorById(id);
+
       if (!sector) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Sector not found'
+        console.log(`Sector ${id} not found`);
+        return reply.status(404).send({ error: 'Sector not found' });
+      }
+
+      // Extra verification: confirmationCode must match sector name (case-insensitive)
+      const sectorName = (sector.name || sector.sectorName || '').trim();
+      if (!confirmationCode || confirmationCode.trim().toLowerCase() !== sectorName.toLowerCase()) {
+        console.log(`Invalid confirmation code for sector ${id}`);
+        return reply.status(400).send({ 
+          error: 'Invalid confirmation code. Please enter the exact sector name to confirm deletion.' 
         });
       }
 
-      // Get simulation engine
-      const simulationEngine = getSimulationEngine();
+      // Get sector balance before deletion
+      const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
 
-      // Initialize sector in simulation engine if not already initialized
-      let sectorState = simulationEngine.getSectorState(sectorId);
-      if (!sectorState) {
-        const initialPrice = sector.currentPrice || 100;
-        const volatility = sector.volatility || 0.02;
-        sectorState = await simulationEngine.initializeSector(sectorId, initialPrice, volatility);
+      // Delete all agents in this sector (except manager agents - they'll be cleaned up separately)
+      try {
+        const allAgents = await loadAgents();
+        const sectorAgents = allAgents.filter(agent => agent.sectorId === id);
+        
+        // Delete non-manager agents
+        for (const agent of sectorAgents) {
+          const isManager = agent.role === 'manager' || 
+                           (agent.role && agent.role.toLowerCase().includes('manager'));
+          
+          if (!isManager) {
+            try {
+              await deleteAgent(agent.id);
+              console.log(`Deleted agent ${agent.id} from sector ${id}`);
+            } catch (agentError) {
+              console.warn(`Warning: Failed to delete agent ${agent.id}:`, agentError.message);
+            }
+          }
+        }
+
+        // Remove manager agents from AgentRuntime
+        const managerAgents = sectorAgents.filter(agent => 
+          agent.role === 'manager' || (agent.role && agent.role.toLowerCase().includes('manager'))
+        );
+        
+        try {
+          const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
+          const agentRuntime = getAgentRuntime();
+          for (const managerAgent of managerAgents) {
+            if (agentRuntime.managers && agentRuntime.managers.has(managerAgent.id)) {
+              agentRuntime.managers.delete(managerAgent.id);
+              console.log(`Removed manager agent ${managerAgent.id} from AgentRuntime`);
+            }
+          }
+        } catch (runtimeError) {
+          console.warn(`Warning: Failed to remove manager agents from runtime:`, runtimeError.message);
+        }
+
+        // Delete manager agents from storage
+        for (const managerAgent of managerAgents) {
+          try {
+            await deleteAgent(managerAgent.id);
+            console.log(`Deleted manager agent ${managerAgent.id} from sector ${id}`);
+          } catch (agentError) {
+            console.warn(`Warning: Failed to delete manager agent ${managerAgent.id}:`, agentError.message);
+          }
+        }
+      } catch (agentError) {
+        console.warn(`Warning: Failed to clean up agents:`, agentError.message);
+        // Continue with sector deletion even if agent cleanup fails
       }
 
-      // Run simulation tick
-      const tickResult = await simulationEngine.simulateTick(sectorId, decisions || []);
+      // Withdraw balance to user account
+      if (sectorBalance > 0) {
+        try {
+          await addFunds(sectorBalance);
+          console.log(`Withdrew ${sectorBalance} from sector ${id} to user account`);
+        } catch (balanceError) {
+          console.warn(`Warning: Failed to withdraw balance:`, balanceError.message);
+          // Continue with deletion even if balance withdrawal fails
+        }
+      }
 
-      // Return result in format expected by frontend
-      return reply.status(200).send({
-        success: true,
-        data: tickResult
+      // Delete the sector
+      const deleted = await deleteSector(id);
+
+      if (!deleted) {
+        console.log(`Failed to delete sector ${id}`);
+        return reply.status(500).send({ error: 'Failed to delete sector' });
+      }
+
+      console.log(`Sector ${id} deleted successfully. Balance ${sectorBalance} withdrawn to user account.`);
+      return reply.status(200).send({ 
+        success: true, 
+        message: 'Sector deleted successfully',
+        withdrawnBalance: sectorBalance
       });
     } catch (error) {
-      console.error(`Error running simulation tick for sector ${request.params.id}:`, error);
+      console.error(`Error deleting sector: ${error.message}`);
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // PATCH /sectors/:id/confidence-tick - Execute a confidence tick for a sector
+  fastify.patch('/:id/confidence-tick', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      
+      // Initialize SystemOrchestrator and call tickSector
+      const orchestrator = new SystemOrchestrator();
+      const result = await orchestrator.tickSector(id);
+      
+      // Extract agent confidence values for frontend
+      const agents = (result.sector.agents || [])
+        .filter(agent => agent && agent.id) // Filter out null/undefined agents
+        .map(agent => ({
+          id: agent.id,
+          name: agent.name || agent.id,
+          confidence: typeof agent.confidence === 'number' ? agent.confidence : 0
+        }));
+
+      // Log discussionReady to console
+      console.log(`[Confidence Tick] Sector ${id}: discussionReady = ${result.discussionReady}`);
+
+      return reply.status(200).send({
+        agents,
+        discussionReady: result.discussionReady
+      });
+    } catch (error) {
+      if (error.message && error.message.includes('not found')) {
+        return reply.status(404).send({
+          error: error.message
+        });
+      }
       return reply.status(500).send({
-        success: false,
-        error: error.message || 'Failed to run simulation tick'
+        error: error.message
       });
     }
   });
 
-  // POST /sectors/:id/update-performance - Update sector performance metrics
-  fastify.post('/:id/update-performance', async (request, reply) => {
-    try {
-      const { id: sectorId } = request.params;
-
-      // Get updated sector data
-      const sector = await getSectorById(sectorId);
-      if (!sector) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Sector not found'
-        });
-      }
-
-      // Return updated sector in format expected by frontend
-      return reply.status(200).send({
-        success: true,
-        data: sector
-      });
-    } catch (error) {
-      console.error(`Error updating performance for sector ${request.params.id}:`, error);
-      return reply.status(500).send({
-        success: false,
-        error: error.message || 'Failed to update sector performance'
-      });
-    }
-  });
 };

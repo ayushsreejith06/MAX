@@ -5,7 +5,7 @@
  * 1. Receives final decision from ManagerAgent
  * 2. Validates decision with simulation/rules.js
  * 3. Sends trade to simulation/execution.js via SimulationEngine
- * 4. If successful: logs simulated trade to contract via /api/mnee/log-trade
+ * 4. If successful: logs simulated trade to contract via /api/simulation/contract/log-trade
  * 5. If failed: returns REJECTED reason
  */
 

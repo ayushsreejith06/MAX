@@ -13,7 +13,8 @@ const start = async () => {
   try {
     // Register CORS plugin
     await fastify.register(require('@fastify/cors'), {
-      origin: true
+      origin: ['http://localhost:3000'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
     });
 
     // Health check endpoint (used by Tauri to verify backend is ready)
@@ -21,61 +22,47 @@ const start = async () => {
       return { ok: true, status: 'ok' };
     });
 
-    // Register routes under /api prefix
+    // Register routes under /api prefix - unified routing pattern
     try {
       await fastify.register(require('./routes/sectors'), { prefix: '/api/sectors' });
-      fastify.log.info('Sectors route registered successfully');
+      fastify.log.info('✅ Routes registered: /api/sectors');
     } catch (err) {
       fastify.log.error('Error registering sectors route:', err);
       throw err;
     }
     try {
       await fastify.register(require('./routes/agents'), { prefix: '/api/agents' });
-      fastify.log.info('Agents route registered successfully');
+      fastify.log.info('✅ Routes registered: /api/agents');
     } catch (err) {
       fastify.log.error('Error registering agents route:', err);
       throw err;
     }
     try {
-      await fastify.register(require('./routes/research'), { prefix: '/api/research' });
-      fastify.log.info('Research route registered successfully');
-    } catch (err) {
-      fastify.log.error('Error registering research route:', err);
-      throw err;
-    }
-    try {
       await fastify.register(require('./routes/discussions'), { prefix: '/api/discussions' });
-      fastify.log.info('Discussions route registered successfully');
+      fastify.log.info('✅ Routes registered: /api/discussions');
     } catch (err) {
       fastify.log.error('Error registering discussions route:', err);
       throw err;
     }
     try {
-      await fastify.register(require('./routes/mnee'), { prefix: '/api/mnee' });
-      fastify.log.info('MNEE route registered successfully');
-    } catch (err) {
-      fastify.log.error('Error registering MNEE route:', err);
-      throw err;
-    }
-    try {
-      await fastify.register(require('./routes/manager'), { prefix: '/api/manager' });
-      fastify.log.info('Manager route registered successfully');
-    } catch (err) {
-      fastify.log.error('Error registering manager route:', err);
-      throw err;
-    }
-    try {
-      await fastify.register(require('./routes/execution'), { prefix: '/api/execution' });
-      fastify.log.info('Execution route registered successfully');
-    } catch (err) {
-      fastify.log.error('Error registering execution route:', err);
-      throw err;
-    }
-    try {
       await fastify.register(require('./routes/simulation'), { prefix: '/api/simulation' });
-      fastify.log.info('Simulation route registered successfully');
+      fastify.log.info('✅ Routes registered: /api/simulation');
     } catch (err) {
       fastify.log.error('Error registering simulation route:', err);
+      throw err;
+    }
+    try {
+      await fastify.register(require('./routes/user'), { prefix: '/api/user' });
+      fastify.log.info('✅ Routes registered: /api/user');
+    } catch (err) {
+      fastify.log.error('Error registering user route:', err);
+      throw err;
+    }
+    try {
+      await fastify.register(require('./routes/debug'), { prefix: '/debug' });
+      fastify.log.info('✅ Routes registered: /debug');
+    } catch (err) {
+      fastify.log.error('Error registering debug route:', err);
       throw err;
     }
 
@@ -122,13 +109,13 @@ const start = async () => {
       console.log(`📍 App Data Directory: ${process.env.MAX_APP_DATA_DIR || 'default'}`);
     }
     console.log(`📍 Health check: http://${HOST}:${PORT}/health`);
-    console.log(`📍 Sectors API: http://${HOST}:${PORT}/api/sectors`);
-    console.log(`📍 Agents API: http://${HOST}:${PORT}/api/agents`);
-    console.log(`📍 Research API: http://${HOST}:${PORT}/api/research`);
-    console.log(`📍 Discussions API: http://${HOST}:${PORT}/api/discussions`);
-    console.log(`📍 MNEE API: http://${HOST}:${PORT}/api/mnee`);
-    console.log(`📍 Manager API: http://${HOST}:${PORT}/api/manager`);
-    console.log(`📍 Execution API: http://${HOST}:${PORT}/api/execution`);
+    console.log(`📍 API Routes:`);
+    console.log(`   - /api/sectors`);
+    console.log(`   - /api/agents`);
+    console.log(`   - /api/discussions`);
+    console.log(`   - /api/simulation`);
+    console.log(`   - /api/user`);
+    console.log(`   - /debug`);
     console.log(`📍 Simulation Engine: Initialized`);
   } catch (err) {
     fastify.log.error(err);

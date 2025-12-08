@@ -36,7 +36,7 @@ interface TerminalViewProps {
   sectorSymbol: string;
 }
 
-function TerminalView({ discussion, sectorSymbol }: TerminalViewProps) {
+const TerminalView = React.memo(function TerminalView({ discussion, sectorSymbol }: TerminalViewProps) {
   return (
     <div className="mt-4 border border-sage-green/30 rounded-lg overflow-hidden bg-pure-black">
       <div className="bg-pure-black/60 px-4 py-2 border-b border-sage-green/30">
@@ -80,7 +80,7 @@ function TerminalView({ discussion, sectorSymbol }: TerminalViewProps) {
       </div>
     </div>
   );
-}
+});
 
 export default function DiscussionsPage() {
   type DiscussionWithSector = Discussion & { sectorSymbol: string; sectorName: string };

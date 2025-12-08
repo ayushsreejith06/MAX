@@ -1,6 +1,7 @@
 const Agent = require('../base/Agent');
-const { loadAgents, saveAgents } = require('../../utils/agentStorage');
-const { loadSectors, saveSectors } = require('../../utils/storage');
+const { loadAgents, saveAgents, updateAgent } = require('../../utils/agentStorage');
+const { loadSectors } = require('../../utils/storage');
+const { getSectorById: getSectorByIdStorage, updateSector } = require('../../utils/sectorStorage');
 
 // Enhanced role inference based on keywords and context
 // 100% accurate role decoding from user prompts
@@ -267,8 +268,17 @@ async function resolveSectorMetadata(sectorId) {
   };
 }
 
-async function createAgent(promptText = '', sectorId = null) {
-  const role = inferRole(promptText);
+async function createAgent(promptText = '', sectorId = null, roleOverride = null) {
+  // Use provided role or auto-detect from prompt
+  const role = roleOverride && typeof roleOverride === 'string' && roleOverride.trim() 
+    ? roleOverride.trim().toLowerCase() 
+    : inferRole(promptText);
+  
+  // Validate role
+  if (!role || typeof role !== 'string' || role.trim().length === 0) {
+    throw new Error('Invalid role: role must be a non-empty string');
+  }
+
   const personality = getDefaultPersonality(role);
   const preferences = getDefaultPreferences(role);
   const sectorMeta = await resolveSectorMetadata(sectorId);
@@ -291,6 +301,7 @@ async function createAgent(promptText = '', sectorId = null) {
     }
   }];
 
+  // Create agent with all required fields
   const agent = new Agent({
     id: agentId,
     name: agentName,
@@ -299,54 +310,90 @@ async function createAgent(promptText = '', sectorId = null) {
     sectorId: sectorMeta.sectorId,
     sectorSymbol: sectorMeta.sectorSymbol,
     sectorName: sectorMeta.sectorName,
-    status: 'idle', // Default status, will be updated when agent actually does something
-    performance: { pnl: 0, winRate: 0 }, // No mock performance data
+    status: 'idle', // Required: default status
+    performance: { pnl: 0, winRate: 0 },
     trades: [],
     personality,
     preferences,
     memory: initialMemory,
     lastDecision: null,
     lastDecisionAt: null,
-    morale: 50, // Default morale
-    rewardPoints: 0, // Default reward points
-    lastRewardTimestamp: null
+    morale: 50, // Required: default morale
+    confidence: 0, // Required: default confidence
+    rewardPoints: 0,
+    lastRewardTimestamp: null,
+    createdAt: new Date().toISOString() // Required: creation timestamp
   });
 
-  const agents = await loadAgents();
+  // Validate agent was created successfully
+  if (!agent || typeof agent.toJSON !== 'function') {
+    throw new Error('Failed to create agent: Agent constructor returned invalid object');
+  }
+
   const agentData = agent.toJSON();
-  agents.push(agentData);
-  await saveAgents(agents);
+
+  // Validate all required fields are present
+  const requiredFields = ['id', 'name', 'role', 'sectorId', 'confidence', 'morale', 'status', 'createdAt'];
+  const missingFields = requiredFields.filter(field => agentData[field] === undefined || agentData[field] === null);
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Created agent is missing required fields: ${missingFields.join(', ')}`);
+  }
+
+  // Ensure defaults are set correctly
+  if (typeof agentData.confidence !== 'number') {
+    agentData.confidence = 0;
+  }
+  if (typeof agentData.morale !== 'number') {
+    agentData.morale = 50;
+  }
+  if (agentData.status !== 'idle' && agentData.status !== 'active' && agentData.status !== 'processing') {
+    agentData.status = 'idle';
+  }
+  if (!agentData.createdAt) {
+    agentData.createdAt = new Date().toISOString();
+  }
+
+  // Save agent to storage
+  // Check if agent already exists, if so update it, otherwise add it
+  const allAgents = await loadAgents();
+  const existingAgentIndex = allAgents.findIndex(a => a.id === agentData.id);
+  
+  if (existingAgentIndex >= 0) {
+    // Agent exists, update it
+    await updateAgent(agentData.id, agentData);
+  } else {
+    // New agent, add to array and save (saveAgents handles deduplication)
+    allAgents.push(agentData);
+    await saveAgents(allAgents);
+  }
 
   // Update sector: add agent to sector's agents array and update activeAgents count
   if (agentData.sectorId) {
     try {
-      const { updateSector } = require('../utils/sectorStorage');
-      const sectors = await loadSectors();
-      const idx = sectors.findIndex((s) => s.id === agentData.sectorId);
+      const sector = await getSectorByIdStorage(agentData.sectorId);
 
-      if (idx === -1) {
+      if (!sector) {
         console.warn(
           '[createAgent] Agent created with sectorId that does not exist',
           { sectorId: agentData.sectorId, agentId: agentData.id }
         );
       } else {
-        const sector = sectors[idx];
-
         // Add agent to sector's agents array if not already present
-        const existingAgents = Array.isArray(sector.agents) ? sector.agents : [];
-        const agentExists = existingAgents.some(a => a.id === agentData.id);
+        const existingSectorAgents = Array.isArray(sector.agents) ? sector.agents : [];
+        const agentExists = existingSectorAgents.some(a => a && a.id === agentData.id);
         
         const updates = {};
         
         if (!agentExists) {
-          existingAgents.push(agentData);
-          updates.agents = existingAgents;
+          // Add agent to sector's agents array (avoid duplicates)
+          updates.agents = [...existingSectorAgents, agentData];
 
           console.log('[createAgent] Added agent to sector agents array', {
             sectorId: sector.id,
             agentId: agentData.id,
             agentName: agentData.name,
-            totalAgents: existingAgents.length
+            totalAgents: updates.agents.length
           });
         }
 
@@ -378,6 +425,7 @@ async function createAgent(promptText = '', sectorId = null) {
     }
   }
 
+  // Return the agent object (not just the data)
   return agent;
 }
 

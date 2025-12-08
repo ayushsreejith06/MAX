@@ -22,11 +22,46 @@ async function loadSectors() {
 
 /**
  * Save all sectors to storage
+ * Validates JSON structure, removes duplicate IDs, and ensures atomic write
  * @param {Array} sectors - Array of sector objects
  * @returns {Promise<void>}
  */
 async function saveSectors(sectors) {
-  await writeDataFile(SECTORS_FILE, sectors);
+  // Validate input is an array
+  if (!Array.isArray(sectors)) {
+    throw new Error('saveSectors: sectors must be an array');
+  }
+
+  // Remove duplicates by ID (keep last occurrence)
+  const seenIds = new Set();
+  const deduplicatedSectors = [];
+  
+  // Iterate in reverse to keep the last occurrence of each ID
+  for (let i = sectors.length - 1; i >= 0; i--) {
+    const sector = sectors[i];
+    
+    // Validate sector has required structure
+    if (!sector || typeof sector !== 'object') {
+      console.warn('saveSectors: Skipping invalid sector at index', i);
+      continue;
+    }
+    
+    if (!sector.id || typeof sector.id !== 'string') {
+      console.warn('saveSectors: Skipping sector without valid ID at index', i);
+      continue;
+    }
+    
+    // Only add if we haven't seen this ID yet (since we're iterating backwards)
+    if (!seenIds.has(sector.id)) {
+      seenIds.add(sector.id);
+      deduplicatedSectors.unshift(sector); // Add to front to maintain order
+    } else {
+      console.warn(`saveSectors: Removed duplicate sector with ID ${sector.id}`);
+    }
+  }
+
+  // Use atomicUpdate to ensure concurrency safety
+  await atomicUpdate(SECTORS_FILE, () => deduplicatedSectors);
 }
 
 /**

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCcw, Link as LinkIcon } from 'lucide-react';
 import { fetchContractEvents } from '@/lib/mnee';
+import { usePolling } from '@/hooks/usePolling';
 
 /**
  * Contract Activity Page
@@ -96,18 +97,23 @@ export default function ContractActivity() {
     }
   }, []);
 
-  // Initial load
-  useEffect(() => {
-    loadEvents(true);
+  // Auto-refresh callback - memoized to prevent re-registration
+  const pollEvents = useCallback(() => {
+    void loadEvents(false);
   }, [loadEvents]);
 
-  // Auto-refresh every 15 seconds
+  // Initial load
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadEvents(false);
-    }, 15000); // 15 seconds
+    void loadEvents(true);
+  }, [loadEvents]);
 
-    return () => clearInterval(interval);
+  // Use global PollingManager for auto-refresh
+  useEffect(() => {
+    const pollEvents = () => loadEvents(false);
+    PollingManager.register('contract-activity', pollEvents, 15000);
+    return () => {
+      PollingManager.unregister('contract-activity');
+    };
   }, [loadEvents]);
 
   const formatTimestamp = (timestamp: number | null): string => {

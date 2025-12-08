@@ -88,10 +88,39 @@ async function updateSector(id, updates) {
   return sectors.find(s => s.id === id) || null;
 }
 
+/**
+ * Delete a sector from storage (atomic read-modify-write operation)
+ * @param {string} sectorId - Sector ID to delete
+ * @returns {Promise<boolean>} True if sector was deleted, false if not found
+ */
+async function deleteSector(sectorId) {
+  try {
+    let deleted = false;
+    await atomicUpdate(SECTORS_FILE, (sectors) => {
+      const sectorIndex = sectors.findIndex(s => s.id === sectorId);
+      
+      if (sectorIndex === -1) {
+        return sectors; // Return unchanged if not found
+      }
+
+      // Remove the sector
+      sectors.splice(sectorIndex, 1);
+      deleted = true;
+      return sectors;
+    });
+
+    return deleted;
+  } catch (error) {
+    console.error('Error in deleteSector:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getAllSectors,
   getSectorById,
   createSector,
-  updateSector
+  updateSector,
+  deleteSector
 };
 

@@ -1,7 +1,40 @@
-const { loadAgents } = require('../utils/agentStorage');
+const { loadAgents, deleteAgent, updateAgent } = require('../utils/agentStorage');
 const { createAgent } = require('../agents/pipeline/createAgent');
 const { registry } = require('../utils/contract');
 const { updateMorale } = require('../agents/morale');
+const { getAllSectors, updateSector } = require('../utils/sectorStorage');
+const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
+const Agent = require('../models/Agent');
+
+// Optimize agent response for list view - only return minimal fields needed by UI
+function optimizeAgentForList(agent) {
+  // Extract performance as number (pnl) instead of full object
+  const performance = typeof agent.performance === 'number' 
+    ? agent.performance 
+    : (agent.performance?.pnl || 0);
+  
+  // Extract trades count instead of full array
+  const tradesCount = Array.isArray(agent.trades) 
+    ? agent.trades.length 
+    : (typeof agent.trades === 'number' ? agent.trades : 0);
+  
+  return {
+    id: agent.id,
+    name: agent.name || 'Unnamed Agent',
+    role: agent.role || 'agent',
+    status: agent.status || 'idle',
+    confidence: typeof agent.confidence === 'number' ? agent.confidence : 0,
+    performance: performance,
+    trades: tradesCount,
+    sectorId: agent.sectorId || null,
+    sectorSymbol: agent.sectorSymbol || undefined,
+    sectorName: agent.sectorName || undefined,
+    personality: {
+      riskTolerance: agent.personality?.riskTolerance || 'Unknown',
+      decisionStyle: agent.personality?.decisionStyle || 'Unknown'
+    }
+  };
+}
 
 // Helper: deterministically map UUID -> uint-like BigInt
 function uuidToUint(uuid) {
@@ -31,21 +64,23 @@ function log(message) {
 }
 
 module.exports = async (fastify) => {
-  // GET /api/agents - Returns agents with defaults
+  // GET /api/agents - Returns agents with defaults (optimized for list view)
   fastify.get('/', async (request, reply) => {
     try {
       log('GET /api/agents - Fetching enriched agents');
       const agents = await loadAgents();
 
-      const enrichedAgents = agents.map(agent => ({
-        ...agent,
-        status: agent.status || 'idle',
-        performance: agent.performance || { pnl: 0, winRate: 0 },
-        trades: agent.trades || [],
-        confidence: typeof agent.confidence === 'number' ? agent.confidence : 0
-      }));
+      // Sort agents by ID to ensure stable ordering across requests
+      const sortedAgents = [...agents].sort((a, b) => {
+        if (a.id < b.id) return -1;
+        if (a.id > b.id) return 1;
+        return 0;
+      });
 
-      return reply.status(200).send(enrichedAgents);
+      // Optimize response to only include minimal fields needed by UI
+      const optimizedAgents = sortedAgents.map(agent => optimizeAgentForList(agent));
+
+      return reply.status(200).send(optimizedAgents);
     } catch (error) {
       log(`Error fetching agents: ${error.message}`);
       return reply.status(500).send({ error: error.message });
@@ -75,10 +110,10 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /agents/create - Create new agent
-  fastify.post('/create', async (request, reply) => {
+  // POST /api/agents - Create new agent
+  fastify.post('/', async (request, reply) => {
     try {
-      const { prompt, sectorId } = request.body;
+      const { prompt, sectorId, role } = request.body;
 
       // Validate request body
       if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -95,19 +130,38 @@ module.exports = async (fastify) => {
         });
       }
 
-      log(`POST /agents/create - Creating agent with prompt: ${prompt}, sectorId: ${sectorId || 'null'}`);
+      if (role !== null && role !== undefined && typeof role !== 'string') {
+        return reply.status(400).send({
+          success: false,
+          error: 'role must be a string or null'
+        });
+      }
 
-      const agent = await createAgent(prompt.trim(), sectorId || null);
+      log(`POST /api/agents - Creating agent with prompt: ${prompt}, sectorId: ${sectorId || 'null'}, role: ${role || 'auto-detect'}`);
 
-      log(`Agent created successfully - ID: ${agent.id}, Role: ${agent.role}`);
+      const agent = await createAgent(prompt.trim(), sectorId || null, role || null);
+
+      // Ensure agent is valid and has all required fields
+      if (!agent || typeof agent.toJSON !== 'function') {
+        throw new Error('createAgent returned invalid agent object');
+      }
+
+      const agentData = agent.toJSON();
+
+      // Validate required fields
+      if (!agentData.id || !agentData.name || !agentData.role) {
+        throw new Error('Created agent is missing required fields (id, name, or role)');
+      }
+
+      log(`Agent created successfully - ID: ${agentData.id}, Name: ${agentData.name}, Role: ${agentData.role}`);
 
       // If this is a manager agent, reload it into the runtime
-      if (agent.role === 'manager' || agent.role?.toLowerCase().includes('manager')) {
+      if (agentData.role === 'manager' || agentData.role?.toLowerCase().includes('manager')) {
         try {
           const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
           const agentRuntime = getAgentRuntime();
           await agentRuntime.reloadAgents();
-          log(`Manager agent ${agent.id} reloaded into runtime`);
+          log(`Manager agent ${agentData.id} reloaded into runtime`);
         } catch (runtimeError) {
           log(`Warning: Failed to reload agent into runtime: ${runtimeError.message}`);
           // Don't fail the request if runtime reload fails
@@ -119,30 +173,28 @@ module.exports = async (fastify) => {
         console.warn("MAX_REGISTRY undefined — skipping chain sync");
       } else {
         try {
-          const onChainAgentId = uuidToUint(agent.id);
-          const onChainSectorId = agent.sectorId ? uuidToUint(agent.sectorId) : 0n;
-          const role = agent.role || agent.name || 'agent';
+          const onChainAgentId = uuidToUint(agentData.id);
+          const onChainSectorId = agentData.sectorId ? uuidToUint(agentData.sectorId) : 0n;
+          const roleForChain = agentData.role || agentData.name || 'agent';
 
           console.log('[agents] registerAgent on-chain', {
-            uuid: agent.id,
+            uuid: agentData.id,
             onChainAgentId: onChainAgentId.toString(),
-            sectorUuid: agent.sectorId || null,
+            sectorUuid: agentData.sectorId || null,
             onChainSectorId: onChainSectorId.toString(),
-            role: role,
+            role: roleForChain,
           });
           
-          await registry.write.registerAgent([onChainAgentId, onChainSectorId, role]);
-          log(`Agent ${onChainAgentId.toString()} (UUID: ${agent.id}) registered on-chain`);
+          await registry.write.registerAgent([onChainAgentId, onChainSectorId, roleForChain]);
+          log(`Agent ${onChainAgentId.toString()} (UUID: ${agentData.id}) registered on-chain`);
         } catch (chainError) {
           log(`Warning: Failed to register agent on-chain: ${chainError.message}`);
           // Don't fail the request if chain registration fails
         }
       }
 
-      return reply.status(201).send({
-        success: true,
-        data: agent.toJSON()
-      });
+      // Return the newly created agent
+      return reply.status(201).send(agentData);
     } catch (error) {
       log(`Error creating agent: ${error.message}`);
 
@@ -150,6 +202,252 @@ module.exports = async (fastify) => {
         success: false,
         error: error.message
       });
+    }
+  });
+
+  // DELETE /api/agents/:id - Delete an agent (manager agents cannot be deleted)
+  // Note: This route must come before POST /:id/morale to avoid route conflicts
+  fastify.delete('/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }
+        },
+        required: ['id']
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { id } = request.params;
+      log(`DELETE /api/agents/${id} - Attempting to delete agent`);
+
+      // Load the agent first to check if it's a manager
+      const agents = await loadAgents();
+      const agent = agents.find(a => a.id === id);
+
+      if (!agent) {
+        log(`Agent ${id} not found`);
+        return reply.status(404).send({ error: 'Agent not found' });
+      }
+
+      // Check if agent is a manager (prevent deletion)
+      const isManager = agent.role === 'manager' || 
+                       (agent.role && agent.role.toLowerCase().includes('manager'));
+      
+      if (isManager) {
+        log(`Attempted to delete manager agent ${id} - blocked`);
+        return reply.status(403).send({ 
+          error: 'Manager agents cannot be deleted' 
+        });
+      }
+
+      // Remove agent from its sector if it has one
+      if (agent.sectorId) {
+        try {
+          const sectors = await getAllSectors();
+          const sector = sectors.find(s => s.id === agent.sectorId);
+          
+          if (sector && Array.isArray(sector.agents)) {
+            const updatedAgents = sector.agents.filter(a => a && a.id !== id);
+            await updateSector(sector.id, { agents: updatedAgents });
+            log(`Removed agent ${id} from sector ${sector.id}`);
+          }
+        } catch (sectorError) {
+          log(`Warning: Failed to remove agent from sector: ${sectorError.message}`);
+          // Continue with deletion even if sector update fails
+        }
+      }
+
+      // Remove from AgentRuntime if it's loaded
+      try {
+        const agentRuntime = getAgentRuntime();
+        if (agentRuntime.managers && agentRuntime.managers.has(id)) {
+          agentRuntime.managers.delete(id);
+          log(`Removed agent ${id} from AgentRuntime`);
+        }
+      } catch (runtimeError) {
+        log(`Warning: Failed to remove agent from runtime: ${runtimeError.message}`);
+        // Continue with deletion even if runtime update fails
+      }
+
+      // Delete the agent
+      const deleted = await deleteAgent(id);
+
+      if (!deleted) {
+        log(`Failed to delete agent ${id}`);
+        return reply.status(500).send({ error: 'Failed to delete agent' });
+      }
+
+      log(`Agent ${id} deleted successfully`);
+      return reply.status(200).send({ 
+        success: true, 
+        message: 'Agent deleted successfully' 
+      });
+    } catch (error) {
+      log(`Error deleting agent: ${error.message}`);
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // PUT /api/agents/:id - Update agent settings
+  fastify.put('/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }
+        },
+        required: ['id']
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const updates = request.body;
+
+      log(`PUT /api/agents/${id} - Updating agent settings`);
+
+      // Load the agent first to check if it exists
+      const agents = await loadAgents();
+      const existingAgent = agents.find(a => a.id === id);
+
+      if (!existingAgent) {
+        log(`Agent ${id} not found`);
+        return reply.status(404).send({ error: 'Agent not found' });
+      }
+
+      // Validate and prepare updates
+      const allowedFields = [
+        'name', 'role', 'prompt', 'sectorId',
+        'personality', 'preferences'
+      ];
+
+      const sanitizedUpdates = {};
+
+      // Handle name
+      if (updates.name !== undefined) {
+        if (typeof updates.name !== 'string' || !updates.name.trim()) {
+          return reply.status(400).send({ error: 'name must be a non-empty string' });
+        }
+        sanitizedUpdates.name = updates.name.trim();
+      }
+
+      // Handle role
+      if (updates.role !== undefined) {
+        if (typeof updates.role !== 'string' || !updates.role.trim()) {
+          return reply.status(400).send({ error: 'role must be a non-empty string' });
+        }
+        sanitizedUpdates.role = updates.role.trim();
+      }
+
+      // Handle prompt
+      if (updates.prompt !== undefined) {
+        sanitizedUpdates.prompt = typeof updates.prompt === 'string' ? updates.prompt : '';
+      }
+
+      // Handle sectorId
+      if (updates.sectorId !== undefined) {
+        if (updates.sectorId !== null && typeof updates.sectorId !== 'string') {
+          return reply.status(400).send({ error: 'sectorId must be a string or null' });
+        }
+        sanitizedUpdates.sectorId = updates.sectorId;
+
+        // Update sector metadata if sectorId changed
+        if (updates.sectorId !== existingAgent.sectorId) {
+          if (updates.sectorId) {
+            const sectors = await getAllSectors();
+            const sector = sectors.find(s => s.id === updates.sectorId);
+            if (sector) {
+              sanitizedUpdates.sectorSymbol = sector.symbol || 'GEN';
+              sanitizedUpdates.sectorName = sector.name || 'General';
+            } else {
+              sanitizedUpdates.sectorSymbol = 'GEN';
+              sanitizedUpdates.sectorName = 'General';
+            }
+          } else {
+            sanitizedUpdates.sectorSymbol = 'GEN';
+            sanitizedUpdates.sectorName = 'General';
+          }
+        }
+      }
+
+      // Handle personality
+      if (updates.personality !== undefined) {
+        if (typeof updates.personality !== 'object' || updates.personality === null) {
+          return reply.status(400).send({ error: 'personality must be an object' });
+        }
+        sanitizedUpdates.personality = {
+          riskTolerance: updates.personality.riskTolerance || existingAgent.personality?.riskTolerance || 'medium',
+          decisionStyle: updates.personality.decisionStyle || existingAgent.personality?.decisionStyle || 'balanced'
+        };
+      }
+
+      // Handle preferences
+      if (updates.preferences !== undefined) {
+        if (typeof updates.preferences !== 'object' || updates.preferences === null) {
+          return reply.status(400).send({ error: 'preferences must be an object' });
+        }
+        const existingPrefs = existingAgent.preferences || {
+          riskWeight: 0.5,
+          profitWeight: 0.5,
+          speedWeight: 0.5,
+          accuracyWeight: 0.5
+        };
+        sanitizedUpdates.preferences = {
+          riskWeight: typeof updates.preferences.riskWeight === 'number' 
+            ? Math.max(0, Math.min(1, updates.preferences.riskWeight))
+            : existingPrefs.riskWeight,
+          profitWeight: typeof updates.preferences.profitWeight === 'number'
+            ? Math.max(0, Math.min(1, updates.preferences.profitWeight))
+            : existingPrefs.profitWeight,
+          speedWeight: typeof updates.preferences.speedWeight === 'number'
+            ? Math.max(0, Math.min(1, updates.preferences.speedWeight))
+            : existingPrefs.speedWeight,
+          accuracyWeight: typeof updates.preferences.accuracyWeight === 'number'
+            ? Math.max(0, Math.min(1, updates.preferences.accuracyWeight))
+            : existingPrefs.accuracyWeight
+        };
+      }
+
+      // Update the agent using Agent model for validation
+      const updatedAgentData = {
+        ...existingAgent,
+        ...sanitizedUpdates
+      };
+
+      // Validate using Agent model
+      try {
+        const agent = Agent.fromData(updatedAgentData);
+        const validatedData = agent.toJSON();
+
+        // Save the updated agent
+        const updatedAgent = await updateAgent(id, validatedData);
+
+        if (!updatedAgent) {
+          return reply.status(500).send({ error: 'Failed to update agent' });
+        }
+
+        // If this is a manager agent, reload it into the runtime
+        if (updatedAgent.role === 'manager' || updatedAgent.role?.toLowerCase().includes('manager')) {
+          try {
+            const agentRuntime = getAgentRuntime();
+            await agentRuntime.reloadAgents();
+            log(`Manager agent ${id} reloaded into runtime after update`);
+          } catch (runtimeError) {
+            log(`Warning: Failed to reload agent into runtime: ${runtimeError.message}`);
+          }
+        }
+
+        log(`Agent ${id} updated successfully`);
+        return reply.status(200).send(updatedAgent);
+      } catch (validationError) {
+        log(`Validation error updating agent: ${validationError.message}`);
+        return reply.status(400).send({ error: validationError.message });
+      }
+    } catch (error) {
+      log(`Error updating agent: ${error.message}`);
+      return reply.status(500).send({ error: error.message });
     }
   });
 

@@ -3,6 +3,8 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import { UpdaterModal } from '@/components/UpdaterModal';
 import { BackendLoader } from '@/components/BackendLoader';
+import { PollingVisibilityController } from '@/components/PollingVisibilityController';
+import { Providers } from '@/components/providers';
 import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 
 const spaceGrotesk = Space_Grotesk({
@@ -32,10 +34,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${plexMono.variable} bg-pure-black text-floral-white`}>
+        <PollingVisibilityController />
         <BackendLoader>
-          <Navbar />
-          {children}
-          <UpdaterModal />
+          <Providers>
+            <Navbar />
+            {children}
+            <UpdaterModal />
+          </Providers>
         </BackendLoader>
       </body>
     </html>

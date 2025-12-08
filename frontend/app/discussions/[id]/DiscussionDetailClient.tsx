@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock } from 'lucide-react';
 import type { Discussion } from '@/lib/types';
@@ -44,7 +44,7 @@ export default function DiscussionDetailClient() {
 
   const discussionId = params?.id as string | undefined;
 
-  const loadDiscussion = async () => {
+  const loadDiscussion = useCallback(async () => {
     if (!discussionId || discussionId === 'placeholder') {
       setError('Invalid discussion ID');
       setLoading(false);
@@ -72,11 +72,11 @@ export default function DiscussionDetailClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [discussionId]);
 
   useEffect(() => {
     loadDiscussion();
-  }, [discussionId]);
+  }, [loadDiscussion]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

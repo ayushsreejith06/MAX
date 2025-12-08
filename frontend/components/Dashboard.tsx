@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { fetchSectors } from '@/lib/api';
+import React, { useState, useMemo, useEffect, useRef, useCallback, startTransition } from 'react';
+import isEqual from 'lodash.isequal';
+import { fetchSectors, runConfidenceTick } from '@/lib/api';
 import { fetchContractEvents } from '@/lib/mnee';
 import type { CandleData, Sector } from '@/lib/types';
 import { ChevronLeft, ChevronRight, Download, RefreshCcw, ChevronDown, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import LineChart from './LineChart';
+import { PollingManager } from '@/utils/PollingManager';
 
 type TimeframeKey = '1H' | '4H' | '12H' | '24H';
 type TableViewFilter = 'all' | 'gainers' | 'decliners';
@@ -70,6 +72,9 @@ export default function Dashboard() {
   const [selectedChartSectors, setSelectedChartSectors] = useState<string[]>([]);
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
   const [contractCounts, setContractCounts] = useState({ sectors: 0, agents: 0, trades: 0 });
+  // Separate state for agent confidences to avoid recreating sectors array
+  // This prevents the sectors array from being recreated on every confidence update
+  const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
   const itemsPerPage = 6;
   const sectorsById = useMemo(() => {
     const map = new Map<string, Sector>();
@@ -77,15 +82,28 @@ export default function Dashboard() {
     return map;
   }, [sectors]);
 
+  const isFetchingRef = useRef(false);
   const loadSectors = useCallback(
     async (showSpinner = false) => {
+      // Race condition guard: prevent multiple simultaneous fetches
+      if (isFetchingRef.current) {
+        return;
+      }
+
       try {
+        isFetchingRef.current = true;
         if (showSpinner) {
           setLoading(true);
         }
         setIsSyncing(true);
         const data = await fetchSectors();
-        setSectors(data);
+        // Use deep equality check to prevent re-renders when data is structurally identical
+        setSectors(prevSectors => {
+          if (isEqual(prevSectors, data)) {
+            return prevSectors;
+          }
+          return data;
+        });
         setError(null);
         setLastUpdated(new Date());
       } catch (err: any) {
@@ -94,37 +112,188 @@ export default function Dashboard() {
         const errorMessage = err?.message || 'Unable to load sectors. Please try again.';
         setError(errorMessage);
       } finally {
-        setLoading(false);
+        if (showSpinner) {
+          setLoading(false);
+        }
         setIsSyncing(false);
+        isFetchingRef.current = false;
       }
     },
     [],
   );
 
+  // Initial load with spinner
   useEffect(() => {
-    loadSectors(true);
+    void loadSectors(true);
+  }, [loadSectors]);
+
+  // Use centralized polling utility with minimum 2500ms interval for subsequent updates
+  const pollSectors = useCallback(async () => {
+    await loadSectors(false);
+  }, [loadSectors]);
+
+  // Use global PollingManager for sector polling
+  useEffect(() => {
+    const pollSectors = () => loadSectors(false);
+    PollingManager.register('dashboard-sectors', pollSectors, 2500);
+    return () => {
+      PollingManager.unregister('dashboard-sectors');
+    };
   }, [loadSectors]);
 
   /**
    * Load contract activity counts for the On-Chain Activity card
    */
-  useEffect(() => {
-    const loadContractCounts = async () => {
-      try {
-        const response = await fetchContractEvents();
-        if (response.success && response.counts) {
-          setContractCounts(response.counts);
-        }
-      } catch (error) {
-        // Silently fail - contract may not be configured
-        console.debug('Could not load contract counts:', error);
+  const loadContractCounts = useCallback(async () => {
+    try {
+      const response = await fetchContractEvents();
+      if (response.success && response.counts) {
+        setContractCounts(response.counts);
       }
-    };
-    loadContractCounts();
-    // Refresh every 30 seconds
-    const interval = setInterval(loadContractCounts, 30000);
-    return () => clearInterval(interval);
+    } catch (error) {
+      // Silently fail - contract may not be configured
+      console.debug('Could not load contract counts:', error);
+    }
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    void loadContractCounts();
+  }, [loadContractCounts]);
+
+  // Use global PollingManager for contract counts polling
+  useEffect(() => {
+    PollingManager.register('dashboard-contract-counts', loadContractCounts, 2500);
+    return () => {
+      PollingManager.unregister('dashboard-contract-counts');
+    };
+  }, [loadContractCounts]);
+
+  // Use actual sector data - no mock transformations
+  const adjustedSectors = useMemo(() => {
+    return sectors; // Return sectors as-is, no mock data transformations
+  }, [sectors]);
+
+  // Calculate filtered and paginated sectors (needed by paginatedSectorIds and useEffect)
+  const filteredSectors = useMemo(() => {
+    let dataset = [...adjustedSectors];
+
+    if (tableView === 'gainers') {
+      dataset = dataset.filter(sector => sector.changePercent >= 0);
+    } else if (tableView === 'decliners') {
+      dataset = dataset.filter(sector => sector.changePercent < 0);
+    }
+
+    switch (sortOption) {
+      case 'price':
+        dataset.sort((a, b) => b.currentPrice - a.currentPrice);
+        break;
+      case 'agents':
+        dataset.sort((a, b) => b.activeAgents - a.activeAgents);
+        break;
+      case 'status':
+        dataset.sort((a, b) => b.statusPercent - a.statusPercent);
+        break;
+      default:
+        dataset.sort((a, b) => b.volume - a.volume);
+    }
+
+    return dataset;
+  }, [adjustedSectors, tableView, sortOption]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSectors.length / itemsPerPage));
+
+  const paginatedSectors = useMemo(() => {
+    const start = sectorTablePage * itemsPerPage;
+    return filteredSectors.slice(start, start + itemsPerPage);
+  }, [filteredSectors, sectorTablePage, itemsPerPage]);
+
+  /**
+   * Auto-update confidence levels for all visible sectors every 3 seconds
+   * Use stable sector IDs instead of the array reference to prevent infinite loops
+   */
+  const paginatedSectorIds = useMemo(() => {
+    return paginatedSectors.map(s => s.id).sort().join(',');
+  }, [paginatedSectors]);
+
+  // Use ref to track if update is in progress and batch updates
+  const isUpdatingRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
+
+  // Auto-update confidence levels for visible sectors using centralized polling
+  const updateConfidenceForSectors = useCallback(async () => {
+    if (paginatedSectors.length === 0) return;
+    
+    // Skip if already updating
+    if (isUpdatingRef.current) return;
+
+    isUpdatingRef.current = true;
+
+    // Collect all confidence updates
+    const confidenceUpdates = new Map<string, number>();
+
+    // Update confidence for all visible sectors in parallel
+    const updatePromises = paginatedSectors.map(async (sector) => {
+      try {
+        const result = await runConfidenceTick(sector.id);
+        
+        // Collect confidence updates
+        result.agents.forEach(agent => {
+          confidenceUpdates.set(agent.id, agent.confidence);
+        });
+      } catch (err) {
+        console.error(`Failed to update confidence for sector ${sector.id}:`, err);
+        // Silently fail - don't show errors for auto-updates
+      }
+    });
+
+    await Promise.all(updatePromises);
+
+    // Only update if we have changes
+    if (confidenceUpdates.size === 0) {
+      isUpdatingRef.current = false;
+      return;
+    }
+
+    // Cancel any pending RAF
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+
+    // Batch update using requestAnimationFrame + startTransition to prevent flickering
+    rafIdRef.current = requestAnimationFrame(() => {
+      // Use startTransition to mark this as a non-urgent update
+      startTransition(() => {
+        setAgentConfidences(prev => {
+          // Only create new map if there are actual changes
+          let hasChanges = false;
+          const newMap = new Map(prev);
+          
+          confidenceUpdates.forEach((confidence, agentId) => {
+            if (prev.get(agentId) !== confidence) {
+              newMap.set(agentId, confidence);
+              hasChanges = true;
+            }
+          });
+
+          // Return new map only if there were changes
+          return hasChanges ? newMap : prev;
+        });
+      });
+      
+      isUpdatingRef.current = false;
+      rafIdRef.current = null;
+    });
+  }, [paginatedSectors]);
+
+  // Use global PollingManager for confidence updates
+  useEffect(() => {
+    if (paginatedSectors.length === 0) return;
+    PollingManager.register('dashboard-confidence', updateConfidenceForSectors, 2500);
+    return () => {
+      PollingManager.unregister('dashboard-confidence');
+    };
+  }, [paginatedSectorIds]); // Use stable string ID instead of array reference
 
 
   // All hooks must be called before any early returns
@@ -137,6 +306,49 @@ export default function Dashboard() {
   const adjustedSectors = useMemo(() => {
     return sectors; // Return sectors as-is, no mock data transformations
   }, [sectors]);
+
+  // Calculate filtered and paginated sectors (needed by paginatedSectorIds and useEffect)
+  const filteredSectors = useMemo(() => {
+    let dataset = [...adjustedSectors];
+
+    if (tableView === 'gainers') {
+      dataset = dataset.filter(sector => sector.changePercent >= 0);
+    } else if (tableView === 'decliners') {
+      dataset = dataset.filter(sector => sector.changePercent < 0);
+    }
+
+    switch (sortOption) {
+      case 'price':
+        dataset.sort((a, b) => b.currentPrice - a.currentPrice);
+        break;
+      case 'agents':
+        dataset.sort((a, b) => b.activeAgents - a.activeAgents);
+        break;
+      case 'status':
+        dataset.sort((a, b) => b.statusPercent - a.statusPercent);
+        break;
+      default:
+        dataset.sort((a, b) => b.volume - a.volume);
+    }
+
+    return dataset;
+  }, [adjustedSectors, tableView, sortOption]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSectors.length / itemsPerPage));
+
+  const paginatedSectors = useMemo(() => {
+    const start = sectorTablePage * itemsPerPage;
+    return filteredSectors.slice(start, start + itemsPerPage);
+  }, [filteredSectors, sectorTablePage, itemsPerPage]);
+
+  /**
+   * Auto-update confidence levels for all visible sectors every 3 seconds
+   * Use stable sector IDs instead of the array reference to prevent infinite loops
+   */
+  const paginatedSectorIds = useMemo(() => {
+    return paginatedSectors.map(s => s.id).sort().join(',');
+  }, [paginatedSectors]);
+
 
   const aggregatedOverview = useMemo(() => {
     if (!adjustedSectors.length) {
@@ -187,39 +399,6 @@ export default function Dashboard() {
       ? 'All Sectors'
       : `${selectedSector?.name ?? 'Sector'} • ${selectedSector?.symbol ?? ''}`;
 
-  const filteredSectors = useMemo(() => {
-    let dataset = [...adjustedSectors];
-
-    if (tableView === 'gainers') {
-      dataset = dataset.filter(sector => sector.changePercent >= 0);
-    } else if (tableView === 'decliners') {
-      dataset = dataset.filter(sector => sector.changePercent < 0);
-    }
-
-    switch (sortOption) {
-      case 'price':
-        dataset.sort((a, b) => b.currentPrice - a.currentPrice);
-        break;
-      case 'agents':
-        dataset.sort((a, b) => b.activeAgents - a.activeAgents);
-        break;
-      case 'status':
-        dataset.sort((a, b) => b.statusPercent - a.statusPercent);
-        break;
-      default:
-        dataset.sort((a, b) => b.volume - a.volume);
-    }
-
-    return dataset;
-  }, [adjustedSectors, tableView, sortOption]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredSectors.length / itemsPerPage));
-
-  const paginatedSectors = useMemo(() => {
-    const start = sectorTablePage * itemsPerPage;
-    return filteredSectors.slice(start, start + itemsPerPage);
-  }, [filteredSectors, sectorTablePage]);
-
   const currentRangeStart = filteredSectors.length ? sectorTablePage * itemsPerPage + 1 : 0;
   const currentRangeEnd = filteredSectors.length ? Math.min(filteredSectors.length, (sectorTablePage + 1) * itemsPerPage) : 0;
   const canGoPrevPage = sectorTablePage > 0;
@@ -269,7 +448,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setSectorTablePage(0);
-  }, [tableView, sortOption, adjustedSectors]);
+  }, [tableView, sortOption]);
 
   useEffect(() => {
     const maxPage = Math.max(Math.ceil(filteredSectors.length / itemsPerPage) - 1, 0);
@@ -524,15 +703,15 @@ export default function Dashboard() {
     setMarketIndexView('overview');
   };
 
-  const handleToggleChartSelection = (sectorId: string) => {
+  const handleToggleChartSelection = useCallback((sectorId: string) => {
     setSelectedChartSectors(prev => {
       if (prev.includes(sectorId)) {
         return prev.filter(id => id !== sectorId);
       }
       return [...prev, sectorId];
     });
-  };
-  const handleClearChartSelection = () => setSelectedChartSectors([]);
+  }, []);
+  const handleClearChartSelection = useCallback(() => setSelectedChartSectors([]), []);
 
   const allFilteredSelected =
     filteredSectors.length > 0 && filteredSectors.every(sector => selectedChartSectors.includes(sector.id));
@@ -972,7 +1151,7 @@ export default function Dashboard() {
             <table className="w-full border border-ink-500 bg-card-bg font-mono text-[0.85rem]">
               <thead>
                 <tr className="bg-ink-600 text-floral-white/70 uppercase tracking-[0.2em]">
-                  {['Name', 'Role', 'Sector', 'Status', 'Performance', 'Trades', 'Risk Tolerance', 'Decision Style', 'Created'].map((heading) => (
+                  {['Name', 'Role', 'Sector', 'Status', 'Performance', 'Trades', 'Confidence', 'Risk Tolerance', 'Decision Style', 'Created'].map((heading) => (
                     <th key={heading} className="px-4 py-3 border border-ink-500 text-left text-[0.6rem]">
                       {heading}
                     </th>
@@ -988,7 +1167,7 @@ export default function Dashboard() {
                   if (allAgents.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-floral-white/60 font-mono">
+                        <td colSpan={10} className="px-4 py-8 text-center text-floral-white/60 font-mono">
                           No agents found in visible sectors.
                         </td>
                       </tr>
@@ -1003,6 +1182,8 @@ export default function Dashboard() {
                     };
                     const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.idle;
                     const createdDate = agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : 'N/A';
+                    // Use updated confidence from separate state, fallback to agent.confidence
+                    const agentConfidence = agentConfidences.get(agent.id) ?? (typeof agent.confidence === 'number' ? agent.confidence : 0);
                     
                     return (
                       <tr
@@ -1033,6 +1214,13 @@ export default function Dashboard() {
                         </td>
                         <td className="px-4 py-3 border border-ink-500 text-right text-floral-white">
                           {agent.trades}
+                        </td>
+                        <td className={`px-4 py-3 border border-ink-500 text-right font-mono text-sm font-semibold ${
+                          agentConfidence >= 65 ? 'text-sage-green' :
+                          agentConfidence >= 50 ? 'text-sage-green' : 
+                          agentConfidence >= 0 ? 'text-warning-amber' : 'text-error-red'
+                        }`}>
+                          {agentConfidence.toFixed(0)}
                         </td>
                         <td className="px-4 py-3 border border-ink-500 text-floral-white/70 text-sm">
                           {agent.personality?.riskTolerance || 'Unknown'}

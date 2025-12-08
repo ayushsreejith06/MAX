@@ -1,6 +1,1 @@
-{
-  "/agents/page": "app/agents/page.js",
-  "/sectors/[id]/page": "app/sectors/[id]/page.js",
-  "/page": "app/page.js",
-  "/sectors/page": "app/sectors/page.js"
-}
+{}

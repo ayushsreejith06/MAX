@@ -1,10 +1,13 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { Activity, Filter, Search, Target, UsersRound, Zap } from 'lucide-react';
-import { fetchAgents, fetchSectors } from '@/lib/api';
+import { useMemo, useState, useEffect, memo, useRef, useCallback } from 'react';
+import { Activity, Filter, Search, Target, UsersRound, Zap, Trash2, Settings } from 'lucide-react';
+import isEqual from 'lodash.isequal';
+import { fetchAgents, fetchSectors, deleteAgent } from '@/lib/api';
 import type { Agent, Sector } from '@/lib/types';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
+import { AgentSettingsForm } from '@/components/AgentSettingsForm';
+import { usePolling } from '@/hooks/usePolling';
 
 type AgentWithSector = Agent & {
   sectorSymbol: string;
@@ -24,6 +27,96 @@ const statusPills: Record<Agent['status'], string> = {
   idle: 'bg-muted-text/10 text-floral-white border border-muted-text/20',
 };
 
+// Memoized AgentRow component to prevent unnecessary re-renders
+const AgentRow = memo(function AgentRow({
+  agent,
+  isSelected,
+  isDeleting,
+  onSelect,
+  onDelete,
+  isManager,
+}: {
+  agent: AgentWithSector;
+  isSelected: boolean;
+  isDeleting: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  isManager: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between rounded-xl border px-5 py-3 transition-all ${
+        isSelected
+          ? 'border-sage-green bg-pure-black/80 shadow-[0_0_25px_rgba(20,177,22,0.25)]'
+          : 'border-ink-500 bg-pure-black/40 hover:border-sage-green/40'
+      }`}
+    >
+      <button
+        onClick={onSelect}
+        className="flex-1 flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-4">
+          <p className="text-base font-semibold text-floral-white">{agent.name}</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-floral-white/50">{agent.role}</p>
+          {agent.confidence !== undefined && (
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 bg-ink-500/20 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    (() => {
+                      const conf = agent.confidence ?? 0;
+                      if (conf < 0) return 'bg-error-red';
+                      if (conf >= 65) return 'bg-sage-green';
+                      return 'bg-warning-amber';
+                    })()
+                  }`}
+                  style={{
+                    width: `${Math.min(100, Math.max(0, ((agent.confidence ?? 0) + 100) / 2))}%`,
+                  }}
+                />
+              </div>
+              <span className="text-xs font-mono text-floral-white/60 w-12 text-right">
+                {Math.round(agent.confidence ?? 0)}
+              </span>
+            </div>
+          )}
+        </div>
+        <span className={`rounded-full px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${statusPills[agent.status]}`}>
+          {agent.status}
+        </span>
+      </button>
+      {!isManager && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          disabled={isDeleting}
+          className="ml-3 p-2 text-error-red hover:bg-error-red/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Delete agent"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  return (
+    prevProps.agent.id === nextProps.agent.id &&
+    prevProps.agent.name === nextProps.agent.name &&
+    prevProps.agent.role === nextProps.agent.role &&
+    prevProps.agent.status === nextProps.agent.status &&
+    prevProps.agent.confidence === nextProps.agent.confidence &&
+    prevProps.agent.performance === nextProps.agent.performance &&
+    prevProps.agent.sectorSymbol === nextProps.agent.sectorSymbol &&
+    prevProps.agent.sectorName === nextProps.agent.sectorName &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isDeleting === nextProps.isDeleting &&
+    prevProps.isManager === nextProps.isManager
+  );
+});
+
 export default function Agents() {
   const [agents, setAgents] = useState<AgentWithSector[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,10 +125,22 @@ export default function Agents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
+  const isFetchingRef = useRef(false);
 
-  const loadAgents = async () => {
+  const loadAgents = useCallback(async (showLoading = false) => {
+    // Race condition guard: prevent multiple simultaneous fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
     try {
-      setLoading(true);
+      isFetchingRef.current = true;
+      // Only show loading spinner on initial load, not on subsequent polls
+      if (showLoading) {
+        setLoading(true);
+      }
       const [sectorData, agentData] = await Promise.all([
         fetchSectors(),
         fetchAgents(),
@@ -54,19 +159,43 @@ export default function Agents() {
         };
       });
 
-      setAgents(enrichedAgents);
+      // Only update state if data actually changed to prevent unnecessary re-renders
+      setAgents(prevAgents => {
+        // Use deep equality check to prevent re-renders when data is structurally identical
+        if (isEqual(prevAgents, enrichedAgents)) {
+          return prevAgents;
+        }
+        return enrichedAgents;
+      });
       setError(null);
     } catch (err) {
       console.error('Failed to fetch agents', err);
       setError('Unable to load agents. Please try again.');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
+      isFetchingRef.current = false;
     }
-  };
-
-  useEffect(() => {
-    void loadAgents();
   }, []);
+
+  // Initial load with loading state
+  useEffect(() => {
+    void loadAgents(true);
+  }, [loadAgents]);
+
+  // Use centralized polling utility with minimum 2500ms interval (without loading state)
+  const pollAgents = useCallback(async () => {
+    await loadAgents(false);
+  }, [loadAgents]);
+
+  usePolling({
+    callback: pollAgents,
+    interval: 2500,
+    enabled: true,
+    pauseWhenHidden: true,
+    immediate: false, // Don't call immediately since we already loaded above
+  });
 
   const filteredAgents = useMemo(() => {
     return agents.filter(agent => {
@@ -80,6 +209,11 @@ export default function Agents() {
     });
   }, [agents, searchQuery, statusFilter]);
 
+  // Use a stable string representation of filtered agent IDs to prevent loops
+  const filteredAgentIds = useMemo(() => {
+    return filteredAgents.map(a => a.id).join(',');
+  }, [filteredAgents]);
+
   useEffect(() => {
     if (!filteredAgents.length) {
       setSelectedAgentId(null);
@@ -89,7 +223,8 @@ export default function Agents() {
       return;
     }
     setSelectedAgentId(filteredAgents[0].id);
-  }, [filteredAgents, selectedAgentId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredAgentIds, selectedAgentId]);
 
   const heroStats = useMemo(() => {
     const total = agents.length;
@@ -115,6 +250,46 @@ export default function Agents() {
   ];
 
   const selectedAgent = filteredAgents.find(agent => agent.id === selectedAgentId) ?? null;
+
+  const handleDeleteAgent = useCallback(async (agentId: string, agentName: string) => {
+    // Check if it's a manager agent
+    const agent = agents.find(a => a.id === agentId);
+    if (agent && (agent.role === 'manager' || agent.role?.toLowerCase().includes('manager'))) {
+      alert('Manager agents cannot be deleted');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${agentName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingAgentId(agentId);
+      await deleteAgent(agentId);
+      
+      // Reload agents list
+      await loadAgents();
+      
+      // Clear selection if deleted agent was selected
+      if (selectedAgentId === agentId) {
+        setSelectedAgentId(null);
+      }
+    } catch (error: any) {
+      console.error('Failed to delete agent', error);
+      const errorMessage = error?.message || 'Failed to delete agent';
+      if (errorMessage.includes('Manager agents cannot be deleted')) {
+        alert('Manager agents cannot be deleted');
+      } else {
+        alert(`Failed to delete agent: ${errorMessage}`);
+      }
+    } finally {
+      setDeletingAgentId(null);
+    }
+  };
+
+  const isManagerAgent = (agent: AgentWithSector) => {
+    return agent.role === 'manager' || agent.role?.toLowerCase().includes('manager');
+  };
 
   if (loading) {
     return (
@@ -276,29 +451,48 @@ export default function Agents() {
                 </div>
               )}
               {filteredAgents.map(agent => (
-                <button
+                <AgentRow
                   key={agent.id}
-                  onClick={() => setSelectedAgentId(agent.id)}
-                  className={`flex items-center justify-between rounded-xl border px-5 py-3 text-left transition-all ${
-                    selectedAgentId === agent.id
-                      ? 'border-sage-green bg-pure-black/80 shadow-[0_0_25px_rgba(20,177,22,0.25)]'
-                      : 'border-ink-500 bg-pure-black/40 hover:border-sage-green/40'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <p className="text-base font-semibold text-floral-white">{agent.name}</p>
-                    <p className="text-sm uppercase tracking-[0.2em] text-floral-white/50">{agent.role}</p>
-                  </div>
-                  <span className={`rounded-full px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${statusPills[agent.status]}`}>
-                    {agent.status}
-                  </span>
-                </button>
+                  agent={agent}
+                  isSelected={selectedAgentId === agent.id}
+                  isDeleting={deletingAgentId === agent.id}
+                  onSelect={() => {
+                    setSelectedAgentId(agent.id);
+                    setShowSettings(false);
+                  }}
+                  onDelete={() => handleDeleteAgent(agent.id, agent.name)}
+                  isManager={isManagerAgent(agent)}
+                />
               ))}
             </div>
 
-            <div className="rounded-2xl border border-ink-500 bg-pure-black/60 p-5">
-              <p className="text-xs uppercase tracking-[0.4em] text-floral-white/50">Agent Brief</p>
-              {selectedAgent ? (
+            {showSettings && selectedAgent ? (
+              <AgentSettingsForm
+                agent={selectedAgent}
+                onClose={() => setShowSettings(false)}
+                onSuccess={(updatedAgent) => {
+                  setShowSettings(false);
+                  void loadAgents();
+                  // Keep the same agent selected
+                  setSelectedAgentId(updatedAgent.id);
+                }}
+              />
+            ) : (
+              <div className="rounded-2xl border border-ink-500 bg-pure-black/60 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs uppercase tracking-[0.4em] text-floral-white/50">Agent Brief</p>
+                  {selectedAgent && (
+                    <button
+                      onClick={() => setShowSettings(true)}
+                      className="flex items-center gap-2 rounded-xl border border-sage-green/40 bg-transparent px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-sage-green transition-colors hover:border-sage-green hover:bg-sage-green/10"
+                      title="Customize agent settings"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      Settings
+                    </button>
+                  )}
+                </div>
+                {selectedAgent ? (
                 <div className="mt-4 space-y-4">
                   <div>
                     <p className="text-2xl font-bold text-floral-white">{selectedAgent.name}</p>
@@ -377,23 +571,35 @@ export default function Agents() {
 
                   {/* Confidence Indicator */}
                   <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
-                    <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50 mb-2">Confidence</p>
-                    <div className="w-full h-3 bg-neutral-800 rounded mb-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Confidence</p>
+                      <p className="text-xs font-semibold text-floral-white/70">
+                        {Math.round(selectedAgent.confidence ?? 0)}/100
+                      </p>
+                    </div>
+                    <div className="w-full bg-ink-500/20 rounded-full h-2 mb-2">
                       <div
-                        className="h-3 rounded transition-all"
+                        className={`h-2 rounded-full transition-all ${
+                          (() => {
+                            const conf = selectedAgent.confidence ?? 0;
+                            if (conf < 0) return 'bg-error-red';
+                            if (conf >= 65) return 'bg-sage-green';
+                            return 'bg-warning-amber';
+                          })()
+                        }`}
                         style={{
                           width: `${Math.min(100, Math.max(0, ((selectedAgent.confidence ?? 0) + 100) / 2))}%`,
-                          backgroundColor: (selectedAgent.confidence ?? 0) > 0 ? '#00ff85' : (selectedAgent.confidence ?? 0) < 0 ? '#ff4b4b' : '#808080'
                         }}
                       />
                     </div>
-                    <p className="text-xs mt-1 text-floral-white/70">Confidence: {Math.round(selectedAgent.confidence ?? 0)}%</p>
+                    <p className="text-xs text-floral-white/60">Range: -100 to +100</p>
                   </div>
                 </div>
               ) : (
                 <div className="mt-6 text-sm text-floral-white/60">Select an agent to view its live brief.</div>
               )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

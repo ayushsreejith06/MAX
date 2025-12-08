@@ -17,6 +17,7 @@ const { vote } = require('../../manager/voting');
 const { aggregateConfidenceForAction } = require('../../manager/confidence');
 const { detectConflict, resolveConflict } = require('../../manager/conflict');
 const ManagerAgent = require('../manager/ManagerAgent');
+const { updateAgentsConfidenceAfterConsensus } = require('../../simulation/confidence');
 
 /**
  * Start a discussion for a sector
@@ -407,7 +408,31 @@ async function produceDecision(discussionId) {
     discussionRoom.setDecision(decision);
     await saveDiscussion(discussionRoom);
 
+    // Update agent confidence after consensus is reached
+    let updatedAgents = [];
+    try {
+      // Get sector data for price change context
+      const sectors = await loadSectors();
+      const sector = sectors.find(s => s.id === discussionRoom.sectorId);
+      const priceChangePercent = sector?.changePercent || 0;
+
+      updatedAgents = await updateAgentsConfidenceAfterConsensus(
+        discussionRoom.agentIds,
+        {
+          consensusReached: !conflictResult.needsReview || conflictResult.conflictScore < 0.7,
+          finalAction: finalAction,
+          finalConfidence: finalConfidence,
+          priceChangePercent: priceChangePercent
+        }
+      );
+    } catch (error) {
+      console.error(`[DiscussionLifecycle] Error updating agent confidence after consensus:`, error);
+    }
+
     console.log(`[DiscussionLifecycle] Decision produced for discussion ${discussionId}: ${finalAction} (confidence: ${finalConfidence.toFixed(2)})`);
+
+    // Add updated agents to decision result
+    decision.updatedAgents = updatedAgents;
 
     return decision;
   } catch (error) {

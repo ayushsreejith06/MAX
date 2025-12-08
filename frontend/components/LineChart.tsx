@@ -28,7 +28,7 @@ const CustomDot = ({ cx, cy }: { cx?: number; cy?: number }) => {
   );
 };
 
-export default function LineChart({
+const LineChart = React.memo(function LineChart({
   data,
   sectorName,
   sectorSymbol,
@@ -44,16 +44,18 @@ export default function LineChart({
   const isMarketIndex = sectorName === 'Market Index';
 
   useEffect(() => {
+    // Only update if prop actually changed to prevent loops
     if (tickIncrement !== initialTickIncrement) {
       setTickIncrement(initialTickIncrement);
     }
-  }, [initialTickIncrement, sectorName, tickIncrement]);
+  }, [initialTickIncrement]); // Remove tickIncrement and sectorName from deps to prevent loops
 
   useEffect(() => {
+    // Only update if prop actually changed to prevent loops
     if (windowSizeHours !== initialWindowHours) {
       setWindowSizeHours(initialWindowHours);
     }
-  }, [initialWindowHours, sectorName, windowSizeHours]);
+  }, [initialWindowHours]); // Remove windowSizeHours and sectorName from deps to prevent loops
 
   useEffect(() => {
     setWindowIndex(0);
@@ -390,4 +392,6 @@ export default function LineChart({
       </div>
     </div>
   );
-}
+});
+
+export default LineChart;

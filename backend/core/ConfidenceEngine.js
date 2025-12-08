@@ -33,6 +33,12 @@ class ConfidenceEngine {
     if (!agent || !sector) {
       return 0; // Default neutral confidence
     }
+    
+    // Ensure agent has required fields
+    if (!agent.id) {
+      console.warn('[ConfidenceEngine] Agent missing id field, returning 0');
+      return 0;
+    }
 
     // Get current confidence from agent (default to 0 if not set)
     const currentConfidence = typeof agent.confidence === 'number' 
@@ -86,7 +92,13 @@ class ConfidenceEngine {
                                (newConfidence * smoothingFactor);
 
     // Clamp to valid range
-    return Math.max(-100, Math.min(100, smoothedConfidence));
+    const finalConfidence = Math.max(-100, Math.min(100, smoothedConfidence));
+
+    // DEBUG: Log agent ID and new confidence value
+    const agentName = agent.name || agent.id;
+    console.log(`[ConfidenceEngine] Agent ${agent.id} (${agentName}): confidence = ${finalConfidence.toFixed(2)}`);
+
+    return finalConfidence;
   }
 
   /**
@@ -100,8 +112,14 @@ class ConfidenceEngine {
       return false;
     }
 
-    // Check if all agents have confidence >= 65
-    return sector.agents.every(agent => {
+    // Filter out null/undefined agents and check if all valid agents have confidence >= 65
+    const validAgents = sector.agents.filter(agent => agent && agent.id);
+    if (validAgents.length === 0) {
+      return false;
+    }
+
+    // Check if all valid agents have confidence >= 65
+    return validAgents.every(agent => {
       const confidence = typeof agent.confidence === 'number' 
         ? agent.confidence 
         : 0;
