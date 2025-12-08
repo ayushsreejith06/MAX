@@ -2,6 +2,19 @@ import { Agent, ApiPayload, Discussion, Sector, CandleData } from './types';
 import { getApiBaseUrl, getBackendBaseUrl } from './desktopEnv';
 import { rateLimitedFetch } from './rateLimit';
 
+/**
+ * Check if an error is a rate limit error from the server (HTTP 429 or server_rate_limit code)
+ * This should ONLY be used for actual server rate limit errors, NOT internal throttle errors
+ */
+export function isRateLimitError(error: any): boolean {
+  // Only check for actual HTTP 429 status or server_rate_limit code
+  return (
+    error?.response?.status === 429 ||
+    error?.code === 'server_rate_limit' ||
+    error?.status === 429
+  );
+}
+
 // Use desktop-aware base URL
 const getApiBase = () => {
   if (typeof window !== 'undefined') {
@@ -31,20 +44,15 @@ function unwrapPayload<T>(payload: ApiPayload<T>): T {
   return payload as T;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T | { skipped: true }> {
   try {
     // Get API base URL dynamically (handles desktop vs web mode)
     const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
     const fullUrl = `${apiBase}${path}`;
     
-    // Debug logging (only in development)
+    // Debug logging (always log to help debug issues)
     if (typeof window !== 'undefined') {
-      console.log(`[API Request] ${init?.method || 'GET'} ${fullUrl}`, {
-        apiBase,
-        path,
-        envApiUrl: process.env.NEXT_PUBLIC_API_URL,
-        envBackendUrl: process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL,
-      });
+      console.log(`[API Request] ${init?.method || 'GET'} ${fullUrl}`);
     }
     
     const responseResult = await rateLimitedFetch(fullUrl, 2500, {
@@ -53,9 +61,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
     });
 
-    // Handle rate limiting
+    // Handle rate limiting - return skipped status instead of throwing
     if (responseResult && typeof responseResult === 'object' && 'skipped' in responseResult && (responseResult as any).skipped === true) {
-      throw new Error('Request rate limited. Please try again in a moment.');
+      return { skipped: true };
     }
 
     const response = responseResult as Response;
@@ -265,7 +273,14 @@ function normalizeSector(raw: any): Sector {
 
 export async function fetchSectors(): Promise<Sector[]> {
   try {
-    const payload = await request<Sector[]>('/sectors');
+    const result = await request<Sector[]>('/sectors');
+    
+    // Handle rate limiting - return empty array when skipped
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return [];
+    }
+    
+    const payload = result as Sector[];
     if (!payload) {
       return [];
     }
@@ -281,7 +296,14 @@ export async function fetchSectorById(id: string): Promise<Sector | null> {
     return null;
   }
 
-  const payload = await request<Sector>(`/sectors/${id}`);
+  const result = await request<Sector>(`/sectors/${id}`);
+  
+  // Handle rate limiting - return null when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return null;
+  }
+  
+  const payload = result as Sector;
   return payload ? normalizeSector(payload) : null;
 }
 
@@ -321,7 +343,14 @@ export interface ManagerDecision {
 
 export async function fetchManagerStatus(): Promise<ManagerStatus | null> {
   try {
-    const payload = await request<{ success: boolean; data: ManagerStatus }>('/simulation/status');
+    const result = await request<{ success: boolean; data: ManagerStatus }>('/simulation/status');
+    
+    // Handle rate limiting - return null when skipped
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return null;
+    }
+    
+    const payload = result as { success: boolean; data: ManagerStatus };
     return payload && payload.success ? payload.data : null;
   } catch (error) {
     console.error('Error fetching manager status:', error);
@@ -331,7 +360,14 @@ export async function fetchManagerStatus(): Promise<ManagerStatus | null> {
 
 export async function fetchManagerDecisions(sectorId: string): Promise<ManagerDecision[]> {
   try {
-    const payload = await request<{ success: boolean; data: ManagerDecision[] }>(`/simulation/decisions/${sectorId}`);
+    const result = await request<{ success: boolean; data: ManagerDecision[] }>(`/simulation/decisions/${sectorId}`);
+    
+    // Handle rate limiting - return empty array when skipped
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return [];
+    }
+    
+    const payload = result as { success: boolean; data: ManagerDecision[] };
     return payload && payload.success ? payload.data : [];
   } catch (error) {
     console.error('Error fetching manager decisions:', error);
@@ -340,7 +376,14 @@ export async function fetchManagerDecisions(sectorId: string): Promise<ManagerDe
 }
 
 export async function fetchAgents(): Promise<Agent[]> {
-  const payload = await request<Agent[]>('/agents');
+  const result = await request<Agent[]>('/agents');
+  
+  // Handle rate limiting - return empty array when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return [];
+  }
+  
+  const payload = result as Agent[];
   return Array.isArray(payload) ? payload.map(agent => normalizeAgent(agent)) : [];
 }
 
@@ -349,12 +392,26 @@ export async function fetchAgentById(id: string): Promise<Agent | null> {
     return null;
   }
 
-  const payload = await request<Agent>(`/agents/${id}`);
+  const result = await request<Agent>(`/agents/${id}`);
+  
+  // Handle rate limiting - return null when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return null;
+  }
+  
+  const payload = result as Agent;
   return payload ? normalizeAgent(payload) : null;
 }
 
 export async function fetchDiscussions(): Promise<Discussion[]> {
-  const payload = await request<Discussion[]>('/discussions');
+  const result = await request<Discussion[]>('/discussions');
+  
+  // Handle rate limiting - return empty array when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return [];
+  }
+  
+  const payload = result as Discussion[];
   return Array.isArray(payload) ? payload.map(normalizeDiscussion) : [];
 }
 
@@ -363,7 +420,14 @@ export async function fetchDiscussionById(id: string): Promise<Discussion | null
     return null;
   }
 
-  const payload = await request<Discussion>(`/discussions/${id}`);
+  const result = await request<Discussion>(`/discussions/${id}`);
+  
+  // Handle rate limiting - return null when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return null;
+  }
+  
+  const payload = result as Discussion;
   return payload ? normalizeDiscussion(payload) : null;
 }
 
@@ -618,21 +682,15 @@ export async function deleteSector(sectorId: string, confirmationCode: string): 
 
 export async function getUserBalance(): Promise<number> {
   try {
-    const { getApiBaseUrl } = await import('./desktopEnv');
-    const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : '/api';
-    const resResult = await rateLimitedFetch(`${apiBase}/user/balance`, 2500);
+    const result = await request<{ balance: number }>('/user/balance');
     
-    // Handle rate limiting
-    if (resResult && typeof resResult === 'object' && 'skipped' in resResult && (resResult as any).skipped === true) {
+    // Handle rate limiting - return 0 when skipped
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
       return 0;
     }
     
-    const res = resResult as Response;
-    if (res.ok) {
-      const data = await res.json();
-      return typeof data.balance === 'number' ? data.balance : 0;
-    }
-    return 0;
+    const data = result as { balance: number };
+    return typeof data.balance === 'number' ? data.balance : 0;
   } catch (error) {
     console.error('Failed to fetch user balance:', error);
     return 0;
@@ -648,14 +706,25 @@ export interface ConfidenceTickResult {
   discussionReady: boolean;
 }
 
-export async function runConfidenceTick(sectorId: string): Promise<ConfidenceTickResult> {
-  const payload = await request<ConfidenceTickResult>(`/sectors/${sectorId}/confidence-tick`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({}),
-  });
-  return payload;
+export async function runConfidenceTick(sectorId: string): Promise<ConfidenceTickResult | null> {
+  try {
+    const result = await request<ConfidenceTickResult>(`/sectors/${sectorId}/confidence-tick`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+    
+    // Handle rate limiting - return null when skipped so polling can continue silently
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return null;
+    }
+    
+    return result as ConfidenceTickResult;
+  } catch (error: any) {
+    // Re-throw errors (only real HTTP errors should reach here)
+    throw error;
+  }
 }
 

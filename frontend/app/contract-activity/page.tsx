@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCcw, Link as LinkIcon } from 'lucide-react';
 import { fetchContractEvents } from '@/lib/mnee';
+import { isRateLimitError } from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
+import { PollingManager } from '@/utils/PollingManager';
 
 /**
  * Contract Activity Page
@@ -74,6 +76,11 @@ export default function ContractActivity() {
         setLastUpdated(new Date());
       }
     } catch (err: any) {
+      // Don't show rate limit errors to users - they're handled automatically
+      if (isRateLimitError(err)) {
+        console.debug('Rate limited, will retry automatically');
+        return;
+      }
       console.error('Failed to fetch contract events', err);
       // Handle different error status codes
       const status = err?.status;

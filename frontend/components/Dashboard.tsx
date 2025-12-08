@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback, startTransition } from 'react';
 import isEqual from 'lodash.isequal';
-import { fetchSectors, runConfidenceTick } from '@/lib/api';
+import { fetchSectors, runConfidenceTick, isRateLimitError } from '@/lib/api';
 import { fetchContractEvents } from '@/lib/mnee';
 import type { CandleData, Sector } from '@/lib/types';
 import { ChevronLeft, ChevronRight, Download, RefreshCcw, ChevronDown, Plus, X, Link as LinkIcon } from 'lucide-react';
@@ -107,6 +107,11 @@ export default function Dashboard() {
         setError(null);
         setLastUpdated(new Date());
       } catch (err: any) {
+        // Don't show rate limit errors to users - they're handled automatically
+        if (isRateLimitError(err)) {
+          console.debug('Rate limited, will retry automatically');
+          return;
+        }
         console.error('Failed to fetch sectors', err);
         // Show the actual error message if available, otherwise show generic message
         const errorMessage = err?.message || 'Unable to load sectors. Please try again.';
@@ -232,22 +237,35 @@ export default function Dashboard() {
     // Collect all confidence updates
     const confidenceUpdates = new Map<string, number>();
 
-    // Update confidence for all visible sectors in parallel
-    const updatePromises = paginatedSectors.map(async (sector) => {
+    // Update confidence for visible sectors SEQUENTIALLY with delays to prevent rate limiting
+    // This prevents hammering the backend with parallel requests
+    for (const sector of paginatedSectors) {
       try {
         const result = await runConfidenceTick(sector.id);
+        
+        // Skip if rate-limited (returns null)
+        if (!result) {
+          continue;
+        }
         
         // Collect confidence updates
         result.agents.forEach(agent => {
           confidenceUpdates.set(agent.id, agent.confidence);
         });
+        
+        // Add a small delay between requests to prevent rate limiting
+        // 200ms delay between each sector's confidence update
+        if (paginatedSectors.indexOf(sector) < paginatedSectors.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       } catch (err) {
-        console.error(`Failed to update confidence for sector ${sector.id}:`, err);
-        // Silently fail - don't show errors for auto-updates
+        // Silently fail for rate limit errors - don't spam console
+        if (err instanceof Error && !err.message.includes('rate limited')) {
+          console.error(`Failed to update confidence for sector ${sector.id}:`, err);
+        }
+        // Continue with next sector even if one fails
       }
-    });
-
-    await Promise.all(updatePromises);
+    }
 
     // Only update if we have changes
     if (confidenceUpdates.size === 0) {
@@ -287,68 +305,21 @@ export default function Dashboard() {
   }, [paginatedSectors]);
 
   // Use global PollingManager for confidence updates
+  // Increased interval to 10000ms (10 seconds) to reduce API load
+  // Confidence updates are less critical than sector data
   useEffect(() => {
     if (paginatedSectors.length === 0) return;
-    PollingManager.register('dashboard-confidence', updateConfidenceForSectors, 2500);
+    PollingManager.register('dashboard-confidence', updateConfidenceForSectors, 10000);
     return () => {
       PollingManager.unregister('dashboard-confidence');
     };
   }, [paginatedSectorIds]); // Use stable string ID instead of array reference
-
 
   // All hooks must be called before any early returns
   const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   };
-
-  // Use actual sector data - no mock transformations
-  const adjustedSectors = useMemo(() => {
-    return sectors; // Return sectors as-is, no mock data transformations
-  }, [sectors]);
-
-  // Calculate filtered and paginated sectors (needed by paginatedSectorIds and useEffect)
-  const filteredSectors = useMemo(() => {
-    let dataset = [...adjustedSectors];
-
-    if (tableView === 'gainers') {
-      dataset = dataset.filter(sector => sector.changePercent >= 0);
-    } else if (tableView === 'decliners') {
-      dataset = dataset.filter(sector => sector.changePercent < 0);
-    }
-
-    switch (sortOption) {
-      case 'price':
-        dataset.sort((a, b) => b.currentPrice - a.currentPrice);
-        break;
-      case 'agents':
-        dataset.sort((a, b) => b.activeAgents - a.activeAgents);
-        break;
-      case 'status':
-        dataset.sort((a, b) => b.statusPercent - a.statusPercent);
-        break;
-      default:
-        dataset.sort((a, b) => b.volume - a.volume);
-    }
-
-    return dataset;
-  }, [adjustedSectors, tableView, sortOption]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredSectors.length / itemsPerPage));
-
-  const paginatedSectors = useMemo(() => {
-    const start = sectorTablePage * itemsPerPage;
-    return filteredSectors.slice(start, start + itemsPerPage);
-  }, [filteredSectors, sectorTablePage, itemsPerPage]);
-
-  /**
-   * Auto-update confidence levels for all visible sectors every 3 seconds
-   * Use stable sector IDs instead of the array reference to prevent infinite loops
-   */
-  const paginatedSectorIds = useMemo(() => {
-    return paginatedSectors.map(s => s.id).sort().join(',');
-  }, [paginatedSectors]);
-
 
   const aggregatedOverview = useMemo(() => {
     if (!adjustedSectors.length) {
@@ -469,6 +440,17 @@ export default function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportOptions]);
+
+  // All hooks must be called before any early returns
+  const handleToggleChartSelection = useCallback((sectorId: string) => {
+    setSelectedChartSectors(prev => {
+      if (prev.includes(sectorId)) {
+        return prev.filter(id => id !== sectorId);
+      }
+      return [...prev, sectorId];
+    });
+  }, []);
+  const handleClearChartSelection = useCallback(() => setSelectedChartSectors([]), []);
 
   const formatPrice = (price: number) => {
     return price.toFixed(2);
@@ -702,16 +684,6 @@ export default function Dashboard() {
   const handleOverviewClick = () => {
     setMarketIndexView('overview');
   };
-
-  const handleToggleChartSelection = useCallback((sectorId: string) => {
-    setSelectedChartSectors(prev => {
-      if (prev.includes(sectorId)) {
-        return prev.filter(id => id !== sectorId);
-      }
-      return [...prev, sectorId];
-    });
-  }, []);
-  const handleClearChartSelection = useCallback(() => setSelectedChartSectors([]), []);
 
   const allFilteredSelected =
     filteredSectors.length > 0 && filteredSectors.every(sector => selectedChartSectors.includes(sector.id));

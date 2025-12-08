@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Discussion, Sector } from '@/lib/types';
-import { fetchDiscussions, fetchSectors } from '@/lib/api';
+import { fetchDiscussions, fetchSectors, isRateLimitError } from '@/lib/api';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -124,6 +124,11 @@ export default function DiscussionsPage() {
         setDiscussions(discussionsWithSector);
         setError(null);
       } catch (err) {
+        // Don't show rate limit errors to users - they're handled automatically
+        if (isRateLimitError(err)) {
+          console.debug('Rate limited, will retry automatically');
+          return;
+        }
         console.error('Failed to fetch discussions', err);
         if (isMounted) {
           setError('Unable to load discussions. Please try again later.');

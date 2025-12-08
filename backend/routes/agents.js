@@ -1,4 +1,4 @@
-const { loadAgents, deleteAgent, updateAgent } = require('../utils/agentStorage');
+const { loadAgents, deleteAgent, updateAgent, saveAgents } = require('../utils/agentStorage');
 const { createAgent } = require('../agents/pipeline/createAgent');
 const { registry } = require('../utils/contract');
 const { updateMorale } = require('../agents/morale');
@@ -68,7 +68,67 @@ module.exports = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     try {
       log('GET /api/agents - Fetching enriched agents');
-      const agents = await loadAgents();
+      let agents = await loadAgents();
+
+      // Also check sectors for agents that might not be in agents.json yet
+      // This ensures manager agents created with sectors are always included
+      try {
+        const sectors = await getAllSectors();
+        const agentMap = new Map();
+        const initialAgentCount = agents.length;
+        
+        // First, add all agents from agents.json
+        agents.forEach(agent => {
+          if (agent && agent.id) {
+            agentMap.set(agent.id, agent);
+          }
+        });
+        
+        // Then, add any agents from sectors that aren't in agents.json
+        sectors.forEach(sector => {
+          if (Array.isArray(sector.agents)) {
+            sector.agents.forEach(agent => {
+              if (agent && agent.id && !agentMap.has(agent.id)) {
+                // Agent exists in sector but not in agents.json - add it
+                // Ensure agent has all required fields for optimizeAgentForList
+                const enrichedAgent = {
+                  ...agent,
+                  name: agent.name || 'Unnamed Agent',
+                  role: agent.role || 'agent',
+                  status: agent.status || 'idle',
+                  confidence: typeof agent.confidence === 'number' ? agent.confidence : 0,
+                  performance: typeof agent.performance === 'number' ? agent.performance : (agent.performance?.pnl || 0),
+                  trades: Array.isArray(agent.trades) ? agent.trades.length : (typeof agent.trades === 'number' ? agent.trades : 0),
+                  sectorId: agent.sectorId || sector.id,
+                  sectorSymbol: agent.sectorSymbol || sector.symbol,
+                  sectorName: agent.sectorName || sector.name,
+                };
+                log(`Found agent ${enrichedAgent.id} (${enrichedAgent.name}) in sector ${sector.id} but not in agents.json, adding it`);
+                agentMap.set(enrichedAgent.id, enrichedAgent);
+              }
+            });
+          }
+        });
+        
+        // Convert map back to array
+        agents = Array.from(agentMap.values());
+        
+        // Log if we found additional agents
+        if (agents.length > initialAgentCount) {
+          log(`Enriched agents list: found ${agents.length - initialAgentCount} additional agent(s) from sectors (total: ${agents.length})`);
+        }
+        
+        // Sync any missing agents back to agents.json (in background, don't block response)
+        if (agents.length > initialAgentCount) {
+          saveAgents(agents).catch(err => {
+            console.warn(`[GET /api/agents] Failed to sync agents to storage:`, err.message);
+          });
+        }
+      } catch (sectorError) {
+        log(`Warning: Failed to enrich agents from sectors: ${sectorError.message}`);
+        console.error('Sector enrichment error details:', sectorError);
+        // Continue with agents.json data if sector enrichment fails
+      }
 
       // Sort agents by ID to ensure stable ordering across requests
       const sortedAgents = [...agents].sort((a, b) => {

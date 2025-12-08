@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, memo, useCallback, useMemo } from '
 import { useRouter } from 'next/navigation';
 import { TrendingUp, TrendingDown, Users, Activity, MessageSquare, Plus, X, Trash2 } from 'lucide-react';
 import isEqual from 'lodash.isequal';
-import { fetchSectors, createSector, deleteSector } from '@/lib/api';
+import { fetchSectors, createSector, deleteSector, isRateLimitError } from '@/lib/api';
 import type { Sector } from '@/lib/types';
 import { PollingManager } from '@/utils/PollingManager';
 
@@ -44,6 +44,11 @@ export default function SectorsPage() {
       });
       setError(null);
     } catch (err: any) {
+      // Don't show rate limit errors to users - they're handled automatically
+      if (isRateLimitError(err)) {
+        console.debug('Rate limited, will retry automatically');
+        return;
+      }
       console.error('Failed to fetch sectors', err);
       const errorMessage = err?.message || 'Unable to load sectors. Please try again.';
       setError(errorMessage);

@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, memo, useRef, useCallback } from 'react';
 import { Activity, Filter, Search, Target, UsersRound, Zap, Trash2, Settings } from 'lucide-react';
 import isEqual from 'lodash.isequal';
-import { fetchAgents, fetchSectors, deleteAgent } from '@/lib/api';
+import { fetchAgents, fetchSectors, deleteAgent, isRateLimitError } from '@/lib/api';
 import type { Agent, Sector } from '@/lib/types';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { AgentSettingsForm } from '@/components/AgentSettingsForm';
@@ -141,10 +141,15 @@ export default function Agents() {
       if (showLoading) {
         setLoading(true);
       }
+      console.log('[Agents Page] Starting to fetch agents and sectors...');
       const [sectorData, agentData] = await Promise.all([
         fetchSectors(),
         fetchAgents(),
       ]);
+      console.log('[Agents Page] Fetched data:', { 
+        sectors: Array.isArray(sectorData) ? sectorData.length : 0,
+        agents: Array.isArray(agentData) ? agentData.length : 0 
+      });
 
       const sectorMap = new Map<string, Sector>(
         (sectorData as Sector[]).map(sector => [sector.id, sector]),
@@ -169,7 +174,30 @@ export default function Agents() {
       });
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch agents', err);
+      // Only silently handle rate limit errors during polling (not initial loads)
+      // This ensures initial loads show errors if they fail
+      if (isRateLimitError(err)) {
+        if (!showLoading) {
+          // During polling, silently skip - will retry on next poll
+          console.debug('Rate limited during polling, will retry automatically');
+          isFetchingRef.current = false; // Clear the flag so polling can retry
+          return;
+        } else {
+          // During initial load, wait a bit and retry once
+          console.debug('Rate limited on initial load, retrying after delay...');
+          isFetchingRef.current = false; // Clear flag before retry
+          setTimeout(() => {
+            void loadAgents(showLoading);
+          }, 1000);
+          return;
+        }
+      }
+      console.error('[Agents Page] Failed to fetch agents:', err);
+      console.error('[Agents Page] Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        isRateLimit: isRateLimitError(err),
+        showLoading
+      });
       setError('Unable to load agents. Please try again.');
     } finally {
       if (showLoading) {
@@ -285,7 +313,7 @@ export default function Agents() {
     } finally {
       setDeletingAgentId(null);
     }
-  };
+  }, [agents, loadAgents, selectedAgentId]);
 
   const isManagerAgent = (agent: AgentWithSector) => {
     return agent.role === 'manager' || agent.role?.toLowerCase().includes('manager');
@@ -447,7 +475,13 @@ export default function Agents() {
             <div className="flex flex-col gap-3">
               {filteredAgents.length === 0 && (
                 <div className="rounded-2xl border border-ink-500 bg-pure-black/60 p-8 text-center text-floral-white/60">
-                  No agents match your filters.
+                  {agents.length === 0 
+                    ? loading 
+                      ? 'Loading agents...' 
+                      : error 
+                        ? error 
+                        : 'No agents found. Create your first agent to get started.'
+                    : 'No agents match your filters.'}
                 </div>
               )}
               {filteredAgents.map(agent => (
