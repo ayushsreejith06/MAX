@@ -3,8 +3,16 @@ const { v4: uuidv4 } = require('uuid');
 class Sector {
   constructor(data = {}) {
     this.id = data.id || uuidv4();
-    this.sectorName = data.sectorName || 'Unknown Sector';
-    this.sectorSymbol = data.sectorSymbol || 'UNK';
+    
+    // Standardize on name/symbol as primary fields (for API consistency)
+    // Support both name/symbol and sectorName/sectorSymbol for backward compatibility
+    this.name = data.name || data.sectorName || 'Unknown Sector';
+    this.symbol = data.symbol || data.sectorSymbol || 'UNK';
+    
+    // Keep sectorName/sectorSymbol as aliases for backward compatibility
+    this.sectorName = this.name;
+    this.sectorSymbol = this.symbol;
+    
     this.currentPrice = typeof data.currentPrice === 'number' ? data.currentPrice : 100;
     this.change = typeof data.change === 'number' ? data.change : 0;
     this.changePercent = typeof data.changePercent === 'number' ? data.changePercent : 0;
@@ -21,16 +29,21 @@ class Sector {
     this.discussions = Array.isArray(data.discussions) ? data.discussions : [];
     this.candleData = Array.isArray(data.candleData) ? data.candleData : [];
     this.description = data.description || '';
-    this.name = data.name || data.sectorName || 'Unknown Sector';
-    this.symbol = data.symbol || data.sectorSymbol || 'UNK';
+    this.createdAt = data.createdAt || new Date().toISOString();
   }
 
   static fromData(data = {}) {
     // Sanitize and apply defaults
+    // Support both name/symbol and sectorName/sectorSymbol for backward compatibility
+    const name = data.name || data.sectorName || 'Unknown Sector';
+    const symbol = (data.symbol || data.sectorSymbol || 'UNK').trim();
+    
     return new Sector({
       id: data.id,
-      sectorName: data.sectorName || data.name || 'Unknown Sector',
-      sectorSymbol: (data.sectorSymbol || data.symbol || 'UNK').trim(),
+      name: name,
+      symbol: symbol,
+      sectorName: name, // Keep for backward compatibility
+      sectorSymbol: symbol, // Keep for backward compatibility
       currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 100,
       change: typeof data.change === 'number' ? data.change : 0,
       changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
@@ -46,14 +59,17 @@ class Sector {
       discussions: data.discussions,
       candleData: data.candleData,
       description: data.description,
-      name: data.name,
-      symbol: data.symbol
+      createdAt: data.createdAt
     });
   }
 
   toJSON() {
     return {
       id: this.id,
+      // Primary fields (standardized for API consistency)
+      name: this.name,
+      symbol: this.symbol,
+      // Keep sectorName/sectorSymbol for backward compatibility
       sectorName: this.sectorName,
       sectorSymbol: this.sectorSymbol,
       currentPrice: this.currentPrice,
@@ -64,15 +80,14 @@ class Sector {
       agents: this.agents,
       performance: this.performance,
       balance: this.balance,
-      // Include additional fields
+      // Additional fields
       volume: this.volume,
       statusPercent: this.statusPercent,
       lastSimulatedPrice: this.lastSimulatedPrice,
       discussions: this.discussions,
       candleData: this.candleData,
       description: this.description,
-      name: this.name,
-      symbol: this.symbol
+      createdAt: this.createdAt
     };
   }
 }

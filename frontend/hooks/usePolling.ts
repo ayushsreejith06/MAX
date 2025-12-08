@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 export interface UsePollingOptions {
   /**
    * Minimum interval in milliseconds between API calls.
-   * Default: 2500ms (2.5 seconds)
+   * Default: 5000ms (5 seconds)
    */
   interval?: number;
   /**
@@ -28,7 +28,7 @@ export interface UsePollingOptions {
 
 /**
  * Centralized polling utility hook that:
- * - Ensures minimum interval between API calls (2500ms minimum)
+ * - Ensures minimum interval between API calls (5000ms minimum)
  * - Pauses when page is not visible (using Visibility API)
  * - Prevents multiple simultaneous calls (overlapping requests)
  * - Waits for previous request to finish before scheduling next one
@@ -37,14 +37,14 @@ export interface UsePollingOptions {
  * - Only runs in useEffect (never in render cycle)
  */
 export function usePolling({
-  interval = 2500,
+  interval = 5000,
   enabled = true,
   pauseWhenHidden = true,
   callback,
   immediate = true,
 }: UsePollingOptions) {
-  // Ensure minimum interval of 2500ms
-  const actualInterval = Math.max(2500, interval);
+  // Ensure minimum interval of 5000ms (5 seconds)
+  const actualInterval = Math.max(5000, interval);
   
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);

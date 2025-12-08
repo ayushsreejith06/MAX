@@ -51,7 +51,22 @@ function unwrapPayload<T>(payload: ApiPayload<T>): T {
   return payload as T;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T | { skipped: true }> {
+/**
+ * Normalize agent ID: ensure it's a string and trim whitespace
+ * @param id - Agent ID (can be string, number, or undefined)
+ * @returns Normalized string ID or empty string if invalid
+ */
+function normalizeAgentId(id: any): string {
+  if (!id) return '';
+  const normalized = String(id).trim();
+  return normalized || '';
+}
+
+async function request<T>(
+  path: string, 
+  init?: RequestInit,
+  bypassRateLimit = false
+): Promise<T | { skipped: true }> {
   try {
     // Get API base URL dynamically (handles desktop vs web mode)
     const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
@@ -62,27 +77,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T | { skipp
       console.log(`[API Request] ${init?.method || 'GET'} ${fullUrl}`);
     }
     
-    const responseResult = await rateLimitedFetch(fullUrl, 2500, {
-      cache: 'no-store',
-      credentials: 'omit',
-      ...init,
-    });
-
-    // Handle rate limiting - return skipped status instead of throwing
-    if (responseResult && typeof responseResult === 'object' && 'skipped' in responseResult && (responseResult as any).skipped === true) {
-      return { skipped: true };
-    }
-
-    const response = responseResult as Response;
+    const response = await rateLimitedFetch(
+      fullUrl, 
+      500, // Minimum interval is now 500ms
+      {
+        cache: 'no-store',
+        credentials: 'omit',
+        ...init,
+      },
+      { bypass: bypassRateLimit }
+    );
 
     if (!response.ok) {
       let errorMessage = `Request failed: ${response.status}`;
+      let errorResponse: any = null;
       try {
         const errorData = await response.json();
+        errorResponse = errorData;
         if (errorData.error) {
           errorMessage = errorData.error;
         } else if (typeof errorData === 'string') {
           errorMessage = errorData;
+        }
+        // Preserve success: false format if present
+        if (errorData.success === false) {
+          errorResponse = { success: false, error: errorMessage };
         }
       } catch {
         const text = await response.text();
@@ -90,7 +109,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T | { skipp
           errorMessage = text;
         }
       }
-      throw new Error(errorMessage);
+      const error = new Error(errorMessage) as any;
+      if (errorResponse) {
+        error.response = errorResponse;
+      }
+      throw error;
     }
 
     const payload = (await response.json()) as ApiPayload<T>;
@@ -167,7 +190,7 @@ function normalizeAgent(raw: any): Agent {
     : 0;
 
   return {
-    id: String(raw?.id ?? ''),
+    id: normalizeAgentId(raw?.id),
     name: String(raw?.name ?? 'Unnamed Agent'),
     role: String(raw?.role ?? 'agent'),
     performance: Number(performanceValue || 0),
@@ -255,26 +278,44 @@ function normalizeSector(raw: any): Sector {
       )
     : [];
 
+  // Calculate activeAgents if not provided
+  const activeAgents = typeof raw?.activeAgents === 'number' 
+    ? raw.activeAgents 
+    : typeof raw?.active_agents === 'number'
+    ? raw.active_agents
+    : agents.filter((agent: any) => agent.status === 'active').length;
+
   return {
     id: String(raw?.id ?? ''),
+    // Primary standardized fields (prefer name/symbol, fallback to sectorName/sectorSymbol)
     name: String(raw?.name ?? raw?.sectorName ?? 'Unknown Sector'),
-    symbol: String(raw?.sectorSymbol ?? raw?.symbol ?? 'N/A'),
+    symbol: String(raw?.symbol ?? raw?.sectorSymbol ?? 'N/A'),
+    // Backward compatibility fields (include if present)
+    sectorName: raw?.sectorName ?? raw?.name ?? undefined,
+    sectorSymbol: raw?.sectorSymbol ?? raw?.symbol ?? undefined,
+    // Core market data fields
     currentPrice: Number.isFinite(basePrice) ? Number(basePrice.toFixed(2)) : 0,
     change: Number(raw?.change ?? 0),
     changePercent: Number(raw?.changePercent ?? raw?.change_percent ?? 0),
     volume: Number(raw?.volume ?? 0),
-    agents,
-    activeAgents: Number(raw?.activeAgents ?? raw?.active_agents ?? agents.filter((agent: any) => agent.status === 'active').length),
-    buyAgents: Number(raw?.buyAgents ?? raw?.buy_agents ?? 0),
-    sellAgents: Number(raw?.sellAgents ?? raw?.sell_agents ?? 0),
-    statusPercent: Number(raw?.statusPercent ?? raw?.status_percent ?? 0),
-    candleData,
-    discussions,
-    createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
+    // Risk and volatility
     volatility: typeof raw?.volatility === 'number' ? Number(raw.volatility.toFixed(4)) : undefined,
     riskScore: typeof raw?.riskScore === 'number' ? Number(raw.riskScore) : undefined,
-    lastSimulatedPrice: typeof raw?.lastSimulatedPrice === 'number' ? Number(raw.lastSimulatedPrice.toFixed(2)) : null,
-    balance: typeof raw?.balance === 'number' ? Number(raw.balance.toFixed(2)) : 0,
+    // Agent and activity fields
+    agents,
+    activeAgents: Number(activeAgents),
+    buyAgents: typeof raw?.buyAgents === 'number' ? Number(raw.buyAgents) : typeof raw?.buy_agents === 'number' ? Number(raw.buy_agents) : undefined,
+    sellAgents: typeof raw?.sellAgents === 'number' ? Number(raw.sellAgents) : typeof raw?.sell_agents === 'number' ? Number(raw.sell_agents) : undefined,
+    statusPercent: Number(raw?.statusPercent ?? raw?.status_percent ?? 0),
+    // Performance and balance
+    performance: raw?.performance && typeof raw.performance === 'object' ? raw.performance : undefined,
+    balance: typeof raw?.balance === 'number' ? Number(raw.balance.toFixed(2)) : undefined,
+    // Additional fields
+    lastSimulatedPrice: typeof raw?.lastSimulatedPrice === 'number' ? Number(raw.lastSimulatedPrice.toFixed(2)) : raw?.lastSimulatedPrice === null ? null : undefined,
+    discussions,
+    candleData,
+    description: typeof raw?.description === 'string' ? raw.description : undefined,
+    createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
   };
 }
 
@@ -303,7 +344,10 @@ export async function fetchSectorById(id: string): Promise<Sector | null> {
     return null;
   }
 
-  const result = await request<Sector>(`/sectors/${id}`);
+  // Normalize ID to lowercase for consistent case-sensitivity
+  const normalizedId = String(id).trim().toLowerCase();
+  
+  const result = await request<Sector>(`/sectors/${normalizedId}`);
   
   // Handle rate limiting - return null when skipped
   if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
@@ -395,11 +439,14 @@ export async function fetchAgents(): Promise<Agent[]> {
 }
 
 export async function fetchAgentById(id: string): Promise<Agent | null> {
-  if (!id) {
+  // Normalize and validate ID before making request
+  const normalizedId = normalizeAgentId(id);
+  if (!normalizedId) {
+    console.warn('[fetchAgentById] Invalid or empty agent ID provided');
     return null;
   }
 
-  const result = await request<Agent>(`/agents/${id}`);
+  const result = await request<Agent>(`/agents/${encodeURIComponent(normalizedId)}`);
   
   // Handle rate limiting - return null when skipped
   if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
@@ -566,6 +613,7 @@ export async function rejectDiscussion(discussionId: string): Promise<Discussion
 }
 
 export async function createSector(sectorName: string, sectorSymbol: string): Promise<Sector> {
+  // Bypass rate limiting for user-triggered actions - always execute immediately
   const result = await request<Sector>('/sectors', {
     method: 'POST',
     headers: {
@@ -575,7 +623,7 @@ export async function createSector(sectorName: string, sectorSymbol: string): Pr
       sectorName,
       sectorSymbol,
     }),
-  });
+  }, true); // bypassRateLimit = true
   
   // Handle rate limiting - throw generic error for mutations
   if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
@@ -728,13 +776,20 @@ export async function updateAgent(agentId: string, updates: {
     accuracyWeight?: number;
   };
 }): Promise<Agent> {
-  const result = await request<Agent>(`/agents/${agentId}`, {
+  // Normalize and validate ID before making request
+  const normalizedId = normalizeAgentId(agentId);
+  if (!normalizedId) {
+    throw new Error('Invalid agent ID provided');
+  }
+
+  // Bypass rate limiting for user-triggered actions - always execute immediately
+  const result = await request<Agent>(`/agents/${encodeURIComponent(normalizedId)}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(updates),
-  });
+  }, true); // bypassRateLimit = true
   
   // Handle rate limiting - throw generic error for mutations
   if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
@@ -746,7 +801,13 @@ export async function updateAgent(agentId: string, updates: {
 }
 
 export async function deleteAgent(agentId: string): Promise<void> {
-  const result = await request<{ success: boolean; message?: string }>(`/agents/${agentId}`, {
+  // Normalize and validate ID before making request
+  const normalizedId = normalizeAgentId(agentId);
+  if (!normalizedId) {
+    throw new Error('Invalid agent ID provided');
+  }
+
+  const result = await request<{ success: boolean; message?: string }>(`/agents/${encodeURIComponent(normalizedId)}`, {
     method: 'DELETE',
   });
   
@@ -818,6 +879,27 @@ export async function runConfidenceTick(sectorId: string): Promise<ConfidenceTic
     return result as ConfidenceTickResult;
   } catch (error: any) {
     // Re-throw errors (only real HTTP errors should reach here)
+    throw error;
+  }
+}
+
+export async function sendMessageToManager(sectorId: string, message: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const result = await request<{ success: boolean; message?: string }>(`/sectors/${sectorId}/message-manager`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message }),
+    });
+    
+    // Handle rate limiting
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      throw new Error('Request was rate-limited. Please try again later.');
+    }
+    
+    return result as { success: boolean; message?: string };
+  } catch (error: any) {
     throw error;
   }
 }

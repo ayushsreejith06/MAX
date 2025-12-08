@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, memo, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, memo, useRef, useCallback, Suspense } from 'react';
 import { Activity, Filter, Search, Target, UsersRound, Zap, Trash2, Settings } from 'lucide-react';
 import isEqual from 'lodash.isequal';
 import { fetchAgents, fetchSectors, deleteAgent, isRateLimitError, isSkippedResult } from '@/lib/api';
@@ -231,7 +231,6 @@ export default function Agents() {
     enabled: true,
     pauseWhenHidden: true,
     immediate: false, // Don't call immediately since we already loaded above
-    endpoint: 'agents',
   });
 
   const filteredAgents = useMemo(() => {
@@ -328,30 +327,31 @@ export default function Agents() {
     return agent.role === 'manager' || agent.role?.toLowerCase().includes('manager');
   };
 
-  if (loading) {
-    return (
+  return (
+    <Suspense fallback={
       <div className="min-h-screen bg-pure-black px-8 py-10">
-        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8" style={{ minHeight: '600px' }}>
           <p className="text-floral-white/70 font-mono">Loading agents...</p>
         </div>
       </div>
-    );
-  }
+    }>
+      <div className="min-h-screen bg-pure-black px-8 py-10 relative">
+      <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8" style={{ minHeight: '600px' }}>
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 bg-pure-black/90 flex items-center justify-center z-50 pointer-events-none">
+            <p className="text-floral-white/70 font-mono">Loading agents...</p>
+          </div>
+        )}
+        
+        {/* Error message */}
+        {error && (
+          <div className="mb-4 p-4 rounded-lg border border-error-red/50 bg-error-red/10">
+            <p className="text-error-red font-mono">{error}</p>
+          </div>
+        )}
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-pure-black px-8 py-10">
-        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8">
-          <p className="text-error-red font-mono">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-pure-black px-8 py-10">
-      <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3" style={{ visibility: loading ? 'hidden' : 'visible' }}>
           <div className="relative overflow-hidden rounded-3xl border border-ink-500 bg-gradient-to-br from-sage-green/10 via-card-bg to-pure-black p-8 shadow-[0_25px_60px_rgba(0,0,0,0.55)] xl:col-span-2">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -482,14 +482,10 @@ export default function Agents() {
 
           <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr]">
             <div className="flex flex-col gap-3">
-              {filteredAgents.length === 0 && (
+              {filteredAgents.length === 0 && !loading && (
                 <div className="rounded-2xl border border-ink-500 bg-pure-black/60 p-8 text-center text-floral-white/60">
                   {agents.length === 0 
-                    ? loading 
-                      ? 'Loading agents...' 
-                      : error 
-                        ? error 
-                        : 'No agents found. Create your first agent to get started.'
+                    ? 'No agents found. Create your first agent to get started.'
                     : 'No agents match your filters.'}
                 </div>
               )}
@@ -655,7 +651,8 @@ export default function Agents() {
           void loadAgents();
         }}
       />
-    </div>
+      </div>
+    </Suspense>
   );
 }
 

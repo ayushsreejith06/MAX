@@ -62,24 +62,35 @@ export interface Discussion {
 
 export interface Sector {
   id: string;
+  // Primary standardized fields
   name: string;
   symbol: string;
+  // Backward compatibility fields (may be present from backend)
+  sectorName?: string;
+  sectorSymbol?: string;
+  // Core market data fields
   currentPrice: number;
   change: number;
   changePercent: number;
   volume: number;
+  // Risk and volatility
+  volatility?: number;
+  riskScore?: number;
+  // Agent and activity fields
   agents: Agent[];
   activeAgents: number;
   buyAgents?: number;
   sellAgents?: number;
   statusPercent: number;
-  candleData: CandleData[];
-  discussions: Discussion[];
-  createdAt: string;
-  volatility?: number;
-  riskScore?: number;
-  lastSimulatedPrice?: number | null;
+  // Performance and balance
+  performance?: Record<string, any>;
   balance?: number;
+  // Additional fields
+  lastSimulatedPrice?: number | null;
+  discussions: Discussion[];
+  candleData: CandleData[];
+  description?: string;
+  createdAt: string;
 }
 
 export type ApiPayload<T> = T | { data: T } | { success: boolean; data: T };

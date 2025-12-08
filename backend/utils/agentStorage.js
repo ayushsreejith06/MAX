@@ -3,13 +3,35 @@ const { readDataFile, writeDataFile, atomicUpdate } = require('./persistence');
 const AGENTS_FILE = 'agents.json';
 
 /**
+ * Normalize agent ID: ensure it's a string and trim whitespace
+ * @param {any} id - Agent ID (can be string, number, or undefined)
+ * @returns {string} Normalized string ID or empty string if invalid
+ */
+function normalizeAgentId(id) {
+  if (!id) return '';
+  const normalized = String(id).trim();
+  return normalized || '';
+}
+
+/**
  * Load all agents from storage
  * @returns {Promise<Array>} Array of agent objects
  */
 async function loadAgents() {
   try {
     const data = await readDataFile(AGENTS_FILE);
-    return Array.isArray(data) ? data : [];
+    const agents = Array.isArray(data) ? data : [];
+    
+    // Normalize all agent IDs when loading
+    return agents.map(agent => {
+      if (agent && agent.id) {
+        return {
+          ...agent,
+          id: normalizeAgentId(agent.id)
+        };
+      }
+      return agent;
+    }).filter(agent => agent && agent.id); // Filter out agents with invalid IDs
   } catch (error) {
     // If file doesn't exist, return empty array and create it
     if (error.code === 'ENOENT') {
@@ -46,17 +68,20 @@ async function saveAgents(agents) {
       continue;
     }
     
-    if (!agent.id || typeof agent.id !== 'string') {
+    // Normalize and validate agent ID
+    const normalizedId = normalizeAgentId(agent.id);
+    if (!normalizedId) {
       console.warn('saveAgents: Skipping agent without valid ID at index', i);
       continue;
     }
     
     // Only add if we haven't seen this ID yet (since we're iterating backwards)
-    if (!seenIds.has(agent.id)) {
-      seenIds.add(agent.id);
-      deduplicatedAgents.unshift(agent); // Add to front to maintain order
+    if (!seenIds.has(normalizedId)) {
+      seenIds.add(normalizedId);
+      // Ensure the agent has the normalized ID
+      deduplicatedAgents.unshift({ ...agent, id: normalizedId }); // Add to front to maintain order
     } else {
-      console.warn(`saveAgents: Removed duplicate agent with ID ${agent.id}`);
+      console.warn(`saveAgents: Removed duplicate agent with ID ${normalizedId}`);
     }
   }
 
@@ -72,24 +97,30 @@ async function saveAgents(agents) {
  */
 async function updateAgent(agentId, updates) {
   try {
+    const normalizedId = normalizeAgentId(agentId);
+    if (!normalizedId) {
+      throw new Error('Invalid agent ID provided');
+    }
+
     const updatedAgents = await atomicUpdate(AGENTS_FILE, (agents) => {
-      const agentIndex = agents.findIndex(a => a.id === agentId);
+      const agentIndex = agents.findIndex(a => normalizeAgentId(a.id) === normalizedId);
       
       if (agentIndex === -1) {
         return agents; // Return unchanged if not found
       }
 
-      // Merge updates with existing agent data
+      // Merge updates with existing agent data, ensuring ID remains normalized
       agents[agentIndex] = {
         ...agents[agentIndex],
-        ...updates
+        ...updates,
+        id: normalizedId // Ensure ID stays normalized
       };
 
       return agents;
     });
 
     // Find and return the updated agent
-    const updatedAgent = updatedAgents.find(a => a.id === agentId);
+    const updatedAgent = updatedAgents.find(a => normalizeAgentId(a.id) === normalizedId);
     return updatedAgent || null;
   } catch (error) {
     console.error('Error in updateAgent:', error);
@@ -104,9 +135,14 @@ async function updateAgent(agentId, updates) {
  */
 async function deleteAgent(agentId) {
   try {
+    const normalizedId = normalizeAgentId(agentId);
+    if (!normalizedId) {
+      throw new Error('Invalid agent ID provided');
+    }
+
     let deleted = false;
     await atomicUpdate(AGENTS_FILE, (agents) => {
-      const agentIndex = agents.findIndex(a => a.id === agentId);
+      const agentIndex = agents.findIndex(a => normalizeAgentId(a.id) === normalizedId);
       
       if (agentIndex === -1) {
         return agents; // Return unchanged if not found

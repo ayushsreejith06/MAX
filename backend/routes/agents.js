@@ -6,6 +6,17 @@ const { getAllSectors, updateSector } = require('../utils/sectorStorage');
 const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
 const Agent = require('../models/Agent');
 
+/**
+ * Normalize agent ID: ensure it's a string and trim whitespace
+ * @param {any} id - Agent ID (can be string, number, or undefined)
+ * @returns {string} Normalized string ID or empty string if invalid
+ */
+function normalizeAgentId(id) {
+  if (!id) return '';
+  const normalized = String(id).trim();
+  return normalized || '';
+}
+
 // Optimize agent response for list view - only return minimal fields needed by UI
 function optimizeAgentForList(agent) {
   // Extract performance as number (pnl) instead of full object
@@ -77,10 +88,13 @@ module.exports = async (fastify) => {
         const agentMap = new Map();
         const initialAgentCount = agents.length;
         
-        // First, add all agents from agents.json
+        // First, add all agents from agents.json (normalize IDs)
         agents.forEach(agent => {
           if (agent && agent.id) {
-            agentMap.set(agent.id, agent);
+            const normalizedId = normalizeAgentId(agent.id);
+            if (normalizedId) {
+              agentMap.set(normalizedId, { ...agent, id: normalizedId });
+            }
           }
         });
         
@@ -88,7 +102,9 @@ module.exports = async (fastify) => {
         sectors.forEach(sector => {
           if (Array.isArray(sector.agents)) {
             sector.agents.forEach(agent => {
-              if (agent && agent.id && !agentMap.has(agent.id)) {
+              if (agent && agent.id) {
+                const normalizedId = normalizeAgentId(agent.id);
+                if (normalizedId && !agentMap.has(normalizedId)) {
                 // Agent exists in sector but not in agents.json - add it
                 // Ensure agent has all required fields for optimizeAgentForList
                 const enrichedAgent = {
@@ -103,8 +119,11 @@ module.exports = async (fastify) => {
                   sectorSymbol: agent.sectorSymbol || sector.symbol,
                   sectorName: agent.sectorName || sector.name,
                 };
+                // Normalize the ID
+                enrichedAgent.id = normalizedId;
                 log(`Found agent ${enrichedAgent.id} (${enrichedAgent.name}) in sector ${sector.id} but not in agents.json, adding it`);
                 agentMap.set(enrichedAgent.id, enrichedAgent);
+                }
               }
             });
           }
@@ -138,7 +157,12 @@ module.exports = async (fastify) => {
       });
 
       // Optimize response to only include minimal fields needed by UI
-      const optimizedAgents = sortedAgents.map(agent => optimizeAgentForList(agent));
+      const optimizedAgents = sortedAgents.map(agent => {
+        const optimized = optimizeAgentForList(agent);
+        // Ensure ID is normalized
+        optimized.id = normalizeAgentId(optimized.id);
+        return optimized;
+      });
 
       return reply.status(200).send(optimizedAgents);
     } catch (error) {
@@ -151,12 +175,19 @@ module.exports = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      log(`GET /api/agents/${id} - Fetching single agent`);
+      const normalizedId = normalizeAgentId(id);
+      
+      if (!normalizedId) {
+        log(`GET /api/agents/${id} - Invalid agent ID`);
+        return reply.code(400).send({ error: 'Invalid agent ID' });
+      }
 
-      const agent = (await loadAgents()).find(a => a.id === id);
+      log(`GET /api/agents/${normalizedId} - Fetching single agent`);
+
+      const agent = (await loadAgents()).find(a => normalizeAgentId(a.id) === normalizedId);
 
       if (!agent) {
-        log(`Agent ${id} not found`);
+        log(`Agent ${normalizedId} not found`);
         return reply.code(404).send({ error: 'Agent not found' });
       }
 
@@ -212,6 +243,9 @@ module.exports = async (fastify) => {
       if (!agentData.id || !agentData.name || !agentData.role) {
         throw new Error('Created agent is missing required fields (id, name, or role)');
       }
+
+      // Normalize the agent ID before returning
+      agentData.id = normalizeAgentId(agentData.id);
 
       log(`Agent created successfully - ID: ${agentData.id}, Name: ${agentData.name}, Role: ${agentData.role}`);
 
@@ -280,14 +314,21 @@ module.exports = async (fastify) => {
   }, async (request, reply) => {
     try {
       const { id } = request.params;
-      log(`DELETE /api/agents/${id} - Attempting to delete agent`);
+      const normalizedId = normalizeAgentId(id);
+      
+      if (!normalizedId) {
+        log(`DELETE /api/agents/${id} - Invalid agent ID`);
+        return reply.status(400).send({ error: 'Invalid agent ID' });
+      }
+
+      log(`DELETE /api/agents/${normalizedId} - Attempting to delete agent`);
 
       // Load the agent first to check if it's a manager
       const agents = await loadAgents();
-      const agent = agents.find(a => a.id === id);
+      const agent = agents.find(a => normalizeAgentId(a.id) === normalizedId);
 
       if (!agent) {
-        log(`Agent ${id} not found`);
+        log(`Agent ${normalizedId} not found`);
         return reply.status(404).send({ error: 'Agent not found' });
       }
 
@@ -296,7 +337,7 @@ module.exports = async (fastify) => {
                        (agent.role && agent.role.toLowerCase().includes('manager'));
       
       if (isManager) {
-        log(`Attempted to delete manager agent ${id} - blocked`);
+        log(`Attempted to delete manager agent ${normalizedId} - blocked`);
         return reply.status(403).send({ 
           error: 'Manager agents cannot be deleted' 
         });
@@ -306,12 +347,12 @@ module.exports = async (fastify) => {
       if (agent.sectorId) {
         try {
           const sectors = await getAllSectors();
-          const sector = sectors.find(s => s.id === agent.sectorId);
+          const sector = sectors.find(s => normalizeAgentId(s.id) === normalizeAgentId(agent.sectorId));
           
           if (sector && Array.isArray(sector.agents)) {
-            const updatedAgents = sector.agents.filter(a => a && a.id !== id);
+            const updatedAgents = sector.agents.filter(a => a && normalizeAgentId(a.id) !== normalizedId);
             await updateSector(sector.id, { agents: updatedAgents });
-            log(`Removed agent ${id} from sector ${sector.id}`);
+            log(`Removed agent ${normalizedId} from sector ${sector.id}`);
           }
         } catch (sectorError) {
           log(`Warning: Failed to remove agent from sector: ${sectorError.message}`);
@@ -322,24 +363,24 @@ module.exports = async (fastify) => {
       // Remove from AgentRuntime if it's loaded
       try {
         const agentRuntime = getAgentRuntime();
-        if (agentRuntime.managers && agentRuntime.managers.has(id)) {
-          agentRuntime.managers.delete(id);
-          log(`Removed agent ${id} from AgentRuntime`);
+        if (agentRuntime.managers && agentRuntime.managers.has(normalizedId)) {
+          agentRuntime.managers.delete(normalizedId);
+          log(`Removed agent ${normalizedId} from AgentRuntime`);
         }
       } catch (runtimeError) {
         log(`Warning: Failed to remove agent from runtime: ${runtimeError.message}`);
         // Continue with deletion even if runtime update fails
       }
 
-      // Delete the agent
-      const deleted = await deleteAgent(id);
+      // Delete the agent using normalized ID
+      const deleted = await deleteAgent(normalizedId);
 
       if (!deleted) {
-        log(`Failed to delete agent ${id}`);
+        log(`Failed to delete agent ${normalizedId}`);
         return reply.status(500).send({ error: 'Failed to delete agent' });
       }
 
-      log(`Agent ${id} deleted successfully`);
+      log(`Agent ${normalizedId} deleted successfully`);
       return reply.status(200).send({ 
         success: true, 
         message: 'Agent deleted successfully' 
@@ -364,16 +405,23 @@ module.exports = async (fastify) => {
   }, async (request, reply) => {
     try {
       const { id } = request.params;
+      const normalizedId = normalizeAgentId(id);
+      
+      if (!normalizedId) {
+        log(`PUT /api/agents/${id} - Invalid agent ID`);
+        return reply.status(400).send({ error: 'Invalid agent ID' });
+      }
+
       const updates = request.body;
 
-      log(`PUT /api/agents/${id} - Updating agent settings`);
+      log(`PUT /api/agents/${normalizedId} - Updating agent settings`);
 
       // Load the agent first to check if it exists
       const agents = await loadAgents();
-      const existingAgent = agents.find(a => a.id === id);
+      const existingAgent = agents.find(a => normalizeAgentId(a.id) === normalizedId);
 
       if (!existingAgent) {
-        log(`Agent ${id} not found`);
+        log(`Agent ${normalizedId} not found`);
         return reply.status(404).send({ error: 'Agent not found' });
       }
 
@@ -481,8 +529,8 @@ module.exports = async (fastify) => {
         const agent = Agent.fromData(updatedAgentData);
         const validatedData = agent.toJSON();
 
-        // Save the updated agent
-        const updatedAgent = await updateAgent(id, validatedData);
+        // Save the updated agent using normalized ID
+        const updatedAgent = await updateAgent(normalizedId, validatedData);
 
         if (!updatedAgent) {
           return reply.status(500).send({ error: 'Failed to update agent' });
@@ -493,13 +541,18 @@ module.exports = async (fastify) => {
           try {
             const agentRuntime = getAgentRuntime();
             await agentRuntime.reloadAgents();
-            log(`Manager agent ${id} reloaded into runtime after update`);
+            log(`Manager agent ${normalizedId} reloaded into runtime after update`);
           } catch (runtimeError) {
             log(`Warning: Failed to reload agent into runtime: ${runtimeError.message}`);
           }
         }
 
-        log(`Agent ${id} updated successfully`);
+        // Ensure returned agent has normalized ID
+        if (updatedAgent && updatedAgent.id) {
+          updatedAgent.id = normalizeAgentId(updatedAgent.id);
+        }
+
+        log(`Agent ${normalizedId} updated successfully`);
         return reply.status(200).send(updatedAgent);
       } catch (validationError) {
         log(`Validation error updating agent: ${validationError.message}`);
@@ -515,27 +568,40 @@ module.exports = async (fastify) => {
   fastify.post('/:id/morale', async (request, reply) => {
     try {
       const { id } = request.params;
+      const normalizedId = normalizeAgentId(id);
+      
+      if (!normalizedId) {
+        log(`POST /api/agents/${id}/morale - Invalid agent ID`);
+        return reply.status(400).send({ error: 'Invalid agent ID' });
+      }
+
       const { delta } = request.body;
 
-      log(`POST /api/agents/${id}/morale - Adjusting morale by ${delta}`);
+      log(`POST /api/agents/${normalizedId}/morale - Adjusting morale by ${delta}`);
 
       if (typeof delta !== 'number') {
         return reply.status(400).send({ error: 'delta must be a number' });
       }
 
-      const result = await updateMorale(id, delta);
+      const result = await updateMorale(normalizedId, delta);
 
       // Load and return updated agent
       const agents = await loadAgents();
-      const agent = agents.find(a => a.id === id);
+      const agent = agents.find(a => normalizeAgentId(a.id) === normalizedId);
 
       if (!agent) {
         return reply.status(404).send({ error: 'Agent not found' });
       }
 
+      // Ensure returned agent has normalized ID
+      const normalizedAgent = {
+        ...agent,
+        id: normalizeAgentId(agent.id)
+      };
+
       return reply.status(200).send({
         success: true,
-        data: agent,
+        data: normalizedAgent,
         morale: result.morale,
         status: result.status
       });

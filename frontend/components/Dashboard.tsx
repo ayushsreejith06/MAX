@@ -5,10 +5,11 @@ import isEqual from 'lodash.isequal';
 import { fetchSectors, runConfidenceTick, isRateLimitError } from '@/lib/api';
 import { fetchContractEvents } from '@/lib/mnee';
 import type { CandleData, Sector } from '@/lib/types';
-import { ChevronLeft, ChevronRight, Download, RefreshCcw, ChevronDown, Plus, X, Link as LinkIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, RefreshCcw, ChevronDown, Plus, X, Link as LinkIcon, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import LineChart from './LineChart';
 import { PollingManager } from '@/utils/PollingManager';
+import { SectorSettingsForm } from './SectorSettingsForm';
 
 type TimeframeKey = '1H' | '4H' | '12H' | '24H';
 type TableViewFilter = 'all' | 'gainers' | 'decliners';
@@ -75,6 +76,8 @@ export default function Dashboard() {
   // Separate state for agent confidences to avoid recreating sectors array
   // This prevents the sectors array from being recreated on every confidence update
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
+  const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
+  const [showSectorSettings, setShowSectorSettings] = useState(false);
   const itemsPerPage = 6;
   const sectorsById = useMemo(() => {
     const map = new Map<string, Sector>();
@@ -151,10 +154,10 @@ export default function Dashboard() {
     await loadSectors(false);
   }, [loadSectors]);
 
-  // Use global PollingManager for sector polling
+  // Use global PollingManager for sector polling (only Dashboard is allowed to poll sectors)
   useEffect(() => {
     const pollSectors = () => loadSectors(false);
-    PollingManager.register('dashboard-sectors', pollSectors, 2500);
+    PollingManager.register('dashboard-sectors', pollSectors, 5000); // Minimum 5 seconds
     return () => {
       PollingManager.unregister('dashboard-sectors');
     };
@@ -182,7 +185,7 @@ export default function Dashboard() {
 
   // Use global PollingManager for contract counts polling
   useEffect(() => {
-    PollingManager.register('dashboard-contract-counts', loadContractCounts, 2500);
+    PollingManager.register('dashboard-contract-counts', loadContractCounts, 5000); // Minimum 5 seconds
     return () => {
       PollingManager.unregister('dashboard-contract-counts');
     };
@@ -326,7 +329,7 @@ export default function Dashboard() {
   // Confidence updates are less critical than sector data
   useEffect(() => {
     if (paginatedSectors.length === 0) return;
-    PollingManager.register('dashboard-confidence', updateConfidenceForSectors, 10000);
+    PollingManager.register('dashboard-confidence', updateConfidenceForSectors, 10000); // 10 seconds (above minimum)
     return () => {
       PollingManager.unregister('dashboard-confidence');
     };
@@ -1046,85 +1049,123 @@ export default function Dashboard() {
               <span className="text-floral-white/60">Synced {lastUpdatedLabel}</span>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border border-ink-500 bg-card-bg font-mono text-[0.85rem]">
-              <thead>
-                <tr className="bg-ink-600 text-floral-white/70 uppercase tracking-[0.2em]">
-                  <th className="px-3 py-3 border border-ink-500 text-center text-[0.6rem]">Chart</th>
-                  {['Symbol', 'Sector', 'Price', 'Change', 'Change %', 'Volume', 'Agents', 'Active', 'Status'].map((heading) => (
-                    <th key={heading} className="px-4 py-3 border border-ink-500 text-left text-[0.6rem]">
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedSectors.length ? (
-                  paginatedSectors.map((sector, index) => {
-                    const isSelected = selectedChartSectors.includes(sector.id);
-                    return (
-                      <tr
-                        key={sector.id}
-                        className={`cursor-pointer transition-colors ${
-                          index % 2 === 0 ? 'bg-shadow-grey/60' : 'bg-shadow-grey/40'
-                        } hover:bg-shadow-grey/80`}
-                        onClick={() => router.push(`/sectors/${sector.id}`)}
-                      >
-                        <td
-                          className="px-3 py-3 border border-ink-500 text-center"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-ink-500 bg-transparent text-sage-green focus:ring-sage-green"
-                            checked={isSelected}
-                            onChange={() => handleToggleChartSelection(sector.id)}
-                            aria-label={`Toggle ${sector.name} in chart`}
-                          />
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500 text-floral-white font-semibold">
-                          {sector.symbol || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500 text-floral-white/85">
-                          {sector.name}
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500 text-floral-white">
-                          ${formatPrice(sector.currentPrice)}
-                        </td>
-                        <td className={`px-4 py-3 border border-ink-500 ${sector.change >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
-                          {sector.change >= 0 ? '+' : ''}{formatPrice(sector.change)}
-                        </td>
-                        <td className={`px-4 py-3 border border-ink-500 ${sector.changePercent >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
-                          {sector.changePercent >= 0 ? '+' : ''}{sector.changePercent.toFixed(2)}%
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500 text-floral-white/80">
-                          {formatVolume(sector.volume)}
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500 text-floral-white/80">
-                          {sector.agents.length}
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500 text-floral-white">
-                          {sector.activeAgents}
-                        </td>
-                        <td className="px-4 py-3 border border-ink-500">
-                          <span className={`px-3 py-1 rounded-full text-[0.65rem] font-semibold uppercase tracking-[0.2em] inline-flex items-center justify-center ${getStatusBadge(sector.statusPercent)}`}>
-                            {sector.statusPercent}%
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-floral-white/60 font-mono">
-                      {filteredSectors.length === 0 && sectors.length === 0 
-                        ? 'No data available for this currently.' 
-                        : 'No sectors match the current filters.'}
-                    </td>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr] p-5">
+            <div className="overflow-x-auto">
+              <table className="w-full border border-ink-500 bg-card-bg font-mono text-[0.85rem]">
+                <thead>
+                  <tr className="bg-ink-600 text-floral-white/70 uppercase tracking-[0.2em]">
+                    <th className="px-3 py-3 border border-ink-500 text-center text-[0.6rem]">Chart</th>
+                    {['Symbol', 'Sector', 'Price', 'Change', 'Change %', 'Volume', 'Agents', 'Active', 'Status', 'Settings'].map((heading) => (
+                      <th key={heading} className="px-4 py-3 border border-ink-500 text-left text-[0.6rem]">
+                        {heading}
+                      </th>
+                    ))}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedSectors.length ? (
+                    paginatedSectors.map((sector, index) => {
+                      const isSelected = selectedChartSectors.includes(sector.id);
+                      return (
+                        <tr
+                          key={sector.id}
+                          className={`cursor-pointer transition-colors ${
+                            index % 2 === 0 ? 'bg-shadow-grey/60' : 'bg-shadow-grey/40'
+                          } hover:bg-shadow-grey/80`}
+                          onClick={() => router.push(`/sectors/${sector.id}`)}
+                        >
+                          <td
+                            className="px-3 py-3 border border-ink-500 text-center"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-ink-500 bg-transparent text-sage-green focus:ring-sage-green"
+                              checked={isSelected}
+                              onChange={() => handleToggleChartSelection(sector.id)}
+                              aria-label={`Toggle ${sector.name} in chart`}
+                            />
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-floral-white font-semibold">
+                            {sector.symbol || 'N/A'}
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-floral-white/85">
+                            {sector.name}
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-floral-white">
+                            ${formatPrice(sector.currentPrice)}
+                          </td>
+                          <td className={`px-4 py-3 border border-ink-500 ${sector.change >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
+                            {sector.change >= 0 ? '+' : ''}{formatPrice(sector.change)}
+                          </td>
+                          <td className={`px-4 py-3 border border-ink-500 ${sector.changePercent >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
+                            {sector.changePercent >= 0 ? '+' : ''}{sector.changePercent.toFixed(2)}%
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-floral-white/80">
+                            {formatVolume(sector.volume)}
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-floral-white/80">
+                            {sector.agents.length}
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-floral-white">
+                            {sector.activeAgents}
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500">
+                            <span className={`px-3 py-1 rounded-full text-[0.65rem] font-semibold uppercase tracking-[0.2em] inline-flex items-center justify-center ${getStatusBadge(sector.statusPercent)}`}>
+                              {sector.statusPercent}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 border border-ink-500 text-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSectorId(sector.id);
+                                setShowSectorSettings(true);
+                              }}
+                              className="p-2 text-sage-green hover:bg-sage-green/10 rounded transition-colors"
+                              title="Sector settings"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={11} className="px-4 py-8 text-center text-floral-white/60 font-mono">
+                        {filteredSectors.length === 0 && sectors.length === 0 
+                          ? 'No data available for this currently.' 
+                          : 'No sectors match the current filters.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {showSectorSettings && selectedSectorId ? (
+              <SectorSettingsForm
+                sector={paginatedSectors.find(s => s.id === selectedSectorId) || sectors.find(s => s.id === selectedSectorId)!}
+                onClose={() => {
+                  setShowSectorSettings(false);
+                  setSelectedSectorId(null);
+                }}
+                onSuccess={() => {
+                  setShowSectorSettings(false);
+                  setSelectedSectorId(null);
+                  void loadSectors(false);
+                }}
+              />
+            ) : (
+              <div className="rounded-2xl border border-ink-500 bg-pure-black/60 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs uppercase tracking-[0.4em] text-floral-white/50">Sector Settings</p>
+                </div>
+                <div className="mt-6 text-sm text-floral-white/60 font-mono">
+                  Select a sector and click the settings icon to communicate with the manager agent.
+                </div>
+              </div>
+            )}
           </div>
           <div className="px-5 py-3 border-t border-ink-500/70 text-xs uppercase tracking-[0.3em] text-floral-white/60 font-mono">
             Viewing {currentRangeStart}-{currentRangeEnd} of {filteredSectors.length || 0} • Page {Math.min(sectorTablePage + 1, totalPages)} / {totalPages}

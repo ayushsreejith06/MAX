@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/sectors/[id]/page": [
+    "/sectors/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/sectors/[id]/page.js"
+      "static/chunks/app/sectors/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -16,10 +16,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/sectors/page": [
+    "/sectors/[id]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/sectors/page.js"
+      "static/chunks/app/sectors/[id]/page.js"
     ],
     "/agents/page": [
       "static/chunks/webpack.js",
@@ -30,6 +30,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/discussions/page.js"
+    ],
+    "/contract-activity/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/contract-activity/page.js"
     ]
   }
 }

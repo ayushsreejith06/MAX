@@ -115,10 +115,10 @@ export default function ContractActivity() {
     void loadEvents(true);
   }, [loadEvents]);
 
-  // Use global PollingManager for auto-refresh
+  // Use global PollingManager for auto-refresh (15 seconds, above minimum)
   useEffect(() => {
     const pollEvents = () => loadEvents(false);
-    PollingManager.register('contract-activity', pollEvents, 15000);
+    PollingManager.register('contract-activity', pollEvents, 15000); // 15 seconds (above minimum)
     return () => {
       PollingManager.unregister('contract-activity');
     };

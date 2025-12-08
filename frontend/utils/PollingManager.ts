@@ -42,11 +42,14 @@ class PollingManagerClass {
    * 
    * @param id - Unique identifier for the polling task
    * @param callback - Function to execute on each poll
-   * @param interval - Minimum interval in milliseconds between executions
+   * @param interval - Minimum interval in milliseconds between executions (minimum 5000ms)
    */
   register(id: string, callback: () => void | Promise<void>, interval: number): void {
     // Initialize if not already done
     this.initialize();
+
+    // Enforce minimum interval of 5 seconds (5000ms)
+    const actualInterval = Math.max(5000, interval);
 
     // Unregister existing task if it exists
     if (this.tasks.has(id)) {
@@ -56,7 +59,7 @@ class PollingManagerClass {
     const task: PollingTask = {
       id,
       callback,
-      interval,
+      interval: actualInterval,
       lastExecutionTime: 0,
       intervalId: null,
       isExecuting: false,

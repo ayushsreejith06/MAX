@@ -13,15 +13,21 @@ function optimizeSectorForList(sector) {
   const agents = Array.isArray(sector.agents) ? sector.agents : [];
   const activeAgents = agents.filter(agent => agent && agent.status === 'active').length;
   
-  // Return only essential fields for list view
+  // Return only essential fields for list view with consistent field names
   return {
     id: sector.id,
+    // Primary standardized fields
     name: sector.name || sector.sectorName || 'Unknown Sector',
     symbol: sector.symbol || sector.sectorSymbol || 'N/A',
+    // Backward compatibility fields (include if present)
+    sectorName: sector.sectorName || sector.name || undefined,
+    sectorSymbol: sector.sectorSymbol || sector.symbol || undefined,
+    // Core market data fields
     currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : 0,
     change: typeof sector.change === 'number' ? sector.change : 0,
     changePercent: typeof sector.changePercent === 'number' ? sector.changePercent : 0,
     volume: typeof sector.volume === 'number' ? sector.volume : 0,
+    // Agent and activity fields
     activeAgents: typeof sector.activeAgents === 'number' ? sector.activeAgents : activeAgents,
     statusPercent: typeof sector.statusPercent === 'number' ? sector.statusPercent : 0,
     // Only include minimal agent info (id, name, role, status) - not full objects
@@ -61,10 +67,69 @@ module.exports = async (fastify) => {
     }
   });
 
+  // POST /sectors/:id/deposit - Deposit money into a sector (MUST come before /:id route)
+  fastify.post('/:id/deposit', async (request, reply) => {
+    try {
+      let { id } = request.params;
+      const { amount } = request.body || {};
+
+      // Normalize ID to lowercase for consistent case-sensitivity
+      if (id && typeof id === 'string') {
+        id = id.trim().toLowerCase();
+      }
+
+      // Validate amount
+      if (!amount || typeof amount !== 'number' || amount <= 0 || !isFinite(amount)) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid amount. Amount must be a positive number.'
+        });
+      }
+
+      // Get the sector
+      const sector = await getSectorById(id);
+      if (!sector) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Sector not found'
+        });
+      }
+
+      // Calculate new balance
+      const currentBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+      const newBalance = currentBalance + amount;
+
+      // Update sector balance
+      const updatedSector = await updateSector(id, { balance: newBalance });
+      if (!updatedSector) {
+        return reply.status(500).send({
+          success: false,
+          error: 'Failed to update sector balance'
+        });
+      }
+
+      // Normalize the updated sector before sending
+      const normalizedSector = normalizeSectorRecord(updatedSector);
+
+      return reply.status(200).send(normalizedSector);
+    } catch (error) {
+      console.error(`Error depositing into sector: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // GET /sectors/:id - Get a single sector by ID
   fastify.get('/:id', async (request, reply) => {
     try {
-      const { id } = request.params;
+      let { id } = request.params;
+      
+      // Normalize ID to lowercase for consistent case-sensitivity
+      if (id && typeof id === 'string') {
+        id = id.trim().toLowerCase();
+      }
       
       // Debug logging
       console.log(`[GET /sectors/:id] Looking for sector with ID: ${id}`);
@@ -82,12 +147,14 @@ module.exports = async (fastify) => {
             console.log(`[GET /sectors/:id] First available ID type: ${typeof availableIds[0]}, value: "${availableIds[0]}"`);
             console.log(`[GET /sectors/:id] IDs match? ${id === availableIds[0]}`);
             console.log(`[GET /sectors/:id] IDs match (trimmed)? ${id.trim() === availableIds[0].trim()}`);
+            console.log(`[GET /sectors/:id] IDs match (lowercase)? ${id.toLowerCase() === String(availableIds[0]).toLowerCase()}`);
           }
         } catch (debugError) {
           console.error('[GET /sectors/:id] Error during debug logging:', debugError);
         }
         
         return reply.status(404).send({
+          success: false,
           error: 'Sector not found'
         });
       }
@@ -150,20 +217,19 @@ module.exports = async (fastify) => {
       const finalSectorName = (sectorName || name || '').trim();
       const finalSectorSymbol = (sectorSymbol || symbol || '').trim();
 
-      // Create sector using the model
+      // Create sector using the model (model handles both name/symbol and sectorName/sectorSymbol)
       const sector = new Sector({
         name: finalSectorName,
+        symbol: finalSectorSymbol,
+        sectorName: finalSectorName,
+        sectorSymbol: finalSectorSymbol,
         description: description || '',
         agents: agents || [],
         performance: performance || {}
       });
 
-      // Save to storage with sectorName and sectorSymbol
-      const sectorData = {
-        ...sector.toJSON(),
-        sectorName: finalSectorName,
-        sectorSymbol: finalSectorSymbol
-      };
+      // Get normalized sector data (already includes both name/symbol and sectorName/sectorSymbol)
+      const sectorData = sector.toJSON();
       
       console.log(`[POST /sectors] Creating sector with ID: ${sectorData.id}`);
       const savedSector = await createSector(sectorData);
@@ -428,6 +494,94 @@ module.exports = async (fastify) => {
       }
       return reply.status(500).send({
         error: error.message
+      });
+    }
+  });
+
+  // POST /sectors/:id/message-manager - Send a message/instruction to the manager agent
+  fastify.post('/:id/message-manager', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { message } = request.body;
+
+      if (!message || typeof message !== 'string' || !message.trim()) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Message is required and must be a non-empty string'
+        });
+      }
+
+      // Get the sector to find the manager agent
+      const sector = await getSectorById(id);
+      if (!sector) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Sector not found'
+        });
+      }
+
+      // Find the manager agent for this sector
+      const allAgents = await loadAgents();
+      const managerAgent = allAgents.find(agent => 
+        (agent.role === 'manager' || agent.role?.toLowerCase().includes('manager')) &&
+        agent.sectorId === id
+      );
+
+      if (!managerAgent) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Manager agent not found for this sector'
+        });
+      }
+
+      // Add the user message to the manager agent's memory
+      // This allows the manager to process it during its next tick
+      const userMessage = {
+        id: `user-msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        type: 'user_instruction',
+        source: 'user',
+        content: message.trim(),
+        sectorId: id,
+        processed: false
+      };
+
+      // Update manager agent's memory
+      const currentMemory = Array.isArray(managerAgent.memory) ? managerAgent.memory : [];
+      const updatedMemory = [...currentMemory, userMessage];
+
+      // Update the manager agent with the new message in memory
+      await updateAgent(managerAgent.id, {
+        ...managerAgent,
+        memory: updatedMemory
+      });
+
+      // Also update the manager agent in the runtime if it's running
+      try {
+        const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
+        const agentRuntime = getAgentRuntime();
+        if (agentRuntime && agentRuntime.managers && agentRuntime.managers.has(managerAgent.id)) {
+          const runtimeManager = agentRuntime.managers.get(managerAgent.id);
+          if (runtimeManager && typeof runtimeManager.updateMemory === 'function') {
+            runtimeManager.updateMemory(userMessage);
+          }
+        }
+      } catch (runtimeError) {
+        // Non-critical - manager will pick up the message on next load
+        console.warn(`Warning: Could not update manager agent in runtime: ${runtimeError.message}`);
+      }
+
+      console.log(`[User Message] Message sent to manager agent ${managerAgent.id} for sector ${id}`);
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Message sent successfully to manager agent'
+      });
+    } catch (error) {
+      console.error(`Error sending message to manager: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message || 'Failed to send message to manager agent'
       });
     }
   });

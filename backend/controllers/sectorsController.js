@@ -18,28 +18,40 @@ function normalizeSectorRecord(data = {}) {
       console.error("normalizeSectorRecord: No ID found after normalization. Original data:", data);
     }
     
-    // Ensure all required fields exist (fromData already handles this, but double-check)
+    // Return normalized sector with consistent field names
+    // Primary fields: name, symbol (standardized for API consistency)
+    // Keep sectorName, sectorSymbol for backward compatibility
     return {
       id: finalId || normalized.id, // Ensure ID is always present
-      sectorName: normalized.sectorName,
-      sectorSymbol: normalized.sectorSymbol,
+      // Primary standardized fields
+      name: normalized.name || normalized.sectorName || 'Unknown Sector',
+      symbol: normalized.symbol || normalized.sectorSymbol || 'UNK',
+      // Backward compatibility fields
+      sectorName: normalized.sectorName || normalized.name || 'Unknown Sector',
+      sectorSymbol: normalized.sectorSymbol || normalized.symbol || 'UNK',
+      // Core market data fields
       currentPrice: normalized.currentPrice,
       change: normalized.change,
       changePercent: normalized.changePercent,
+      volume: normalized.volume || 0,
+      // Risk and volatility
       volatility: normalized.volatility,
       riskScore: normalized.riskScore,
-      agents: normalized.agents,
-      performance: normalized.performance,
-      balance: normalized.balance,
-      // Additional fields
-      volume: normalized.volume || 0,
+      // Agent and activity fields
+      agents: normalized.agents || [],
+      activeAgents: typeof normalized.activeAgents === 'number' ? normalized.activeAgents : (normalized.agents || []).filter(a => a && a.status === 'active').length,
+      buyAgents: normalized.buyAgents || 0,
+      sellAgents: normalized.sellAgents || 0,
       statusPercent: normalized.statusPercent || 0,
+      // Performance and balance
+      performance: normalized.performance || {},
+      balance: normalized.balance || 0,
+      // Additional fields
       lastSimulatedPrice: normalized.lastSimulatedPrice !== undefined ? normalized.lastSimulatedPrice : null,
       discussions: normalized.discussions || [],
       candleData: normalized.candleData || [],
       description: normalized.description || '',
-      name: normalized.name || normalized.sectorName,
-      symbol: normalized.symbol || normalized.sectorSymbol
+      createdAt: normalized.createdAt || new Date().toISOString()
     };
   } catch (error) {
     console.error("Error normalizing sector record:", error, "Data:", data);

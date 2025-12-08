@@ -77,14 +77,22 @@ async function createSector(data) {
       currentSectors = [];
     }
     
+    // Standardize on name/symbol as primary fields, keep sectorName/sectorSymbol for backward compatibility
+    const sectorName = data.name || data.sectorName || '';
+    const sectorSymbol = (data.sectorSymbol || data.symbol || '').trim();
+    
     const newSector = {
       id: sectorId,
-      name: data.name || data.sectorName || '',
-      sectorName: data.sectorName || data.name || '',
-      sectorSymbol: (data.sectorSymbol || data.symbol || '').trim(),
+      // Primary standardized fields
+      name: sectorName,
+      symbol: sectorSymbol,
+      // Backward compatibility fields
+      sectorName: sectorName,
+      sectorSymbol: sectorSymbol,
       description: data.description || '',
       agents: data.agents || [],
-      performance: data.performance || {}
+      performance: data.performance || {},
+      createdAt: data.createdAt || new Date().toISOString()
     };
     
     console.log(`[createSector] Adding sector to array. Current length: ${currentSectors.length}, New sector ID: ${newSector.id}`);

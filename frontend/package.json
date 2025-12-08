@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "if exist .next rmdir /s /q .next && echo Cleaned .next cache || echo No .next folder to clean"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",
@@ -21,6 +22,7 @@
     "swr": "^2.3.7"
   },
   "devDependencies": {
+    "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

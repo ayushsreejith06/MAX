@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus, Trash2, Settings } from 'lucide-react';
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
+import { SectorSettingsForm } from '@/components/SectorSettingsForm';
 import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
 import type { Sector, Agent } from '@/lib/types';
-import { PollingManager } from '@/utils/PollingManager';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
 const AgentRow = memo(function AgentRow({
@@ -184,44 +184,66 @@ export default function SectorDetailClient() {
   const [deletingSector, setDeletingSector] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmationCode, setDeleteConfirmationCode] = useState('');
+  const [showSectorSettings, setShowSectorSettings] = useState(false);
   const [performance, setPerformance] = useState<{
     startingCapital: number;
     currentCapital: number;
     pnl: number;
     recentTrades: any[];
   } | null>(null);
-  const [runningConfidenceTick, setRunningConfidenceTick] = useState(false);
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
-  const runningConfidenceTickRef = useRef(false);
+  const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
+  const isLoadingRef = useRef(false); // Prevent concurrent loads
 
-  // Extract ID from dynamic route
+  // Extract ID from dynamic route and normalize to lowercase
   const sectorId = params?.id as string | undefined;
+  const normalizedSectorId = sectorId ? String(sectorId).trim().toLowerCase() : undefined;
 
   useEffect(() => {
     let isMounted = true;
     
     // Debug logging
-    console.log('SectorDetailClient mounted, sectorId:', sectorId, 'params:', params);
+    console.log('SectorDetailClient mounted, sectorId:', sectorId, 'normalizedSectorId:', normalizedSectorId, 'params:', params);
     
     // Handle placeholder or invalid IDs
-    if (!sectorId || sectorId === 'placeholder') {
+    if (!normalizedSectorId || normalizedSectorId === 'placeholder') {
       console.log('Invalid sector ID, redirecting or showing error');
       if (isMounted) {
-        setSector(null);
-        setLoading(false);
-        setError('Invalid sector ID');
+        // Only clear state if we don't have a valid sector loaded
+        if (!sector) {
+          setSector(null);
+          setLoading(false);
+          setError('Invalid sector ID');
+        }
       }
+      return;
+    }
+
+    // If we've already loaded this sector, don't reload unless explicitly requested
+    if (hasLoadedRef.current === normalizedSectorId && sector) {
+      console.debug('[SectorDetail] Sector already loaded, skipping reload');
+      if (isMounted) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Prevent concurrent loads
+    if (isLoadingRef.current) {
+      console.debug('[SectorDetail] Load already in progress, skipping');
       return;
     }
 
     const loadSector = async (showLoading = false, retryCount = 0) => {
       try {
+        isLoadingRef.current = true;
+        
         if (isMounted && showLoading && retryCount === 0) {
           setLoading(true);
-          setError(null);
+          // Don't clear error immediately - keep previous error visible until we have new data
         }
         
-        const data = await fetchSectorById(sectorId);
+        const data = await fetchSectorById(normalizedSectorId);
         if (process.env.NODE_ENV !== 'production') {
           console.debug('[SectorDetail] fetch result:', data);
         }
@@ -233,13 +255,16 @@ export default function SectorDetailClient() {
           if (isMounted && showLoading && retryCount === 0) {
             setLoading(false);
           }
+          isLoadingRef.current = false;
           return; // Do not update state
         }
         
         if (isMounted) {
           if (data) {
+            // Successfully loaded sector
             setSector(data);
             setError(null);
+            hasLoadedRef.current = normalizedSectorId;
             if (showLoading) {
               setLoading(false);
             }
@@ -248,15 +273,22 @@ export default function SectorDetailClient() {
             // This handles cases where the sector was just created and might not be immediately available
             if (retryCount < 1) {
               console.debug('[SectorDetail] Sector not found, retrying after delay...');
+              isLoadingRef.current = false;
               setTimeout(() => {
-                if (isMounted) {
+                if (isMounted && hasLoadedRef.current !== normalizedSectorId) {
                   loadSector(showLoading, retryCount + 1);
                 }
               }, 500);
               return;
             }
-            setError('Sector not found');
-            setSector(null);
+            // Only set error if we don't have a sector loaded (don't clear existing sector)
+            if (!sector) {
+              setError('Sector not found');
+              setSector(null);
+            } else {
+              // Keep existing sector, just show error
+              setError('Failed to refresh sector data');
+            }
             if (showLoading) {
               setLoading(false);
             }
@@ -266,70 +298,57 @@ export default function SectorDetailClient() {
         if (isMounted) {
           console.error('Failed to fetch sector', err);
           const errorMessage = err instanceof Error ? err.message : 'Unable to load sector. Please try again later.';
-          setError(errorMessage);
-          setSector(null);
+          
+          // Check if API returned { success: false } format
+          let apiError = errorMessage;
+          if (err && typeof err === 'object' && 'response' in err) {
+            try {
+              const response = (err as any).response;
+              if (response && typeof response === 'object' && 'success' in response && response.success === false) {
+                apiError = response.error || response.message || errorMessage;
+              }
+            } catch {
+              // Ignore parsing errors
+            }
+          }
+          
+          // Only clear sector if we don't have one loaded
+          if (!sector) {
+            setError(apiError);
+            setSector(null);
+          } else {
+            // Keep existing sector, just show error
+            setError(`Error: ${apiError}`);
+          }
           if (showLoading) {
             setLoading(false);
           }
         }
+      } finally {
+        isLoadingRef.current = false;
       }
     };
 
     loadSector(true); // Initial load with loading state
     return () => {
       isMounted = false;
-    };
-  }, [sectorId]);
-
-  // Auto-poll sector data using centralized polling (without loading state)
-  const pollSector = useCallback(async () => {
-    if (!sectorId) return;
-    const loadSectorNoLoading = async () => {
-      try {
-        const data = await fetchSectorById(sectorId);
-        
-        // Check if request was skipped - do not update UI if skipped
-        if (isSkippedResult(data)) {
-          console.debug('[SectorDetail] Poll skipped (rate-limited), not updating UI');
-          return; // Do not update state
-        }
-        
-        if (data) {
-          setSector(prevSector => {
-            // Use deep equality check to prevent re-renders when data is structurally identical
-            if (prevSector && JSON.stringify(prevSector) === JSON.stringify(data)) {
-              return prevSector;
-            }
-            return data;
-          });
-        }
-      } catch (err) {
-        // Silently handle errors during polling - don't show to user
-        console.debug('Failed to poll sector:', err);
+      // Reset loading ref when component unmounts or sectorId changes
+      if (hasLoadedRef.current !== normalizedSectorId) {
+        isLoadingRef.current = false;
       }
     };
-    await loadSectorNoLoading();
-  }, [sectorId]);
+  }, [normalizedSectorId]);
 
-  // Use global PollingManager for sector polling
-  useEffect(() => {
-    if (!sectorId) return;
-    PollingManager.register(`sector-${sectorId}`, pollSector, 2500);
-    return () => {
-      PollingManager.unregister(`sector-${sectorId}`);
-    };
-  }, [sectorId, pollSector]);
-
-  // Auto-poll simulation performance using centralized polling
+  // Load simulation performance once on mount (no polling)
   const loadPerformance = useCallback(async () => {
-    if (!sectorId) return;
+    if (!normalizedSectorId) return;
     
     try {
       const { getApiBaseUrl } = await import('@/lib/desktopEnv');
       const apiBase = typeof window !== 'undefined' 
         ? getApiBaseUrl()
         : '/api';
-      const res = await fetch(`${apiBase}/simulation/performance?sectorId=${sectorId}`);
+      const res = await fetch(`${apiBase}/simulation/performance?sectorId=${normalizedSectorId}`);
       if (res.ok) {
         const data = await res.json();
         setPerformance(data);
@@ -337,91 +356,15 @@ export default function SectorDetailClient() {
     } catch (err) {
       console.error('Failed to load simulation performance:', err);
     }
-  }, [sectorId]);
+  }, [normalizedSectorId]);
 
-  // Use global PollingManager for performance polling
+  // Load performance once on mount
   useEffect(() => {
-    if (!sectorId) return;
-    PollingManager.register(`sector-performance-${sectorId}`, loadPerformance, 2500);
-    return () => {
-      PollingManager.unregister(`sector-performance-${sectorId}`);
-    };
-  }, [sectorId, loadPerformance]);
+    if (!normalizedSectorId) return;
+    void loadPerformance();
+  }, [normalizedSectorId, loadPerformance]);
 
-  // Auto-update confidence levels using centralized polling
-  // Only update confidence map, not full sector reload to prevent flickering
-  const runAutoConfidenceTick = useCallback(async () => {
-    if (!sectorId) return;
-    
-    // Skip if a confidence tick is already running
-    if (runningConfidenceTickRef.current) return;
-
-    try {
-      runningConfidenceTickRef.current = true;
-      // Do NOT set loading state for polling - only for manual actions
-      const result = await runConfidenceTick(String(sectorId));
-      
-      // Check if request was skipped - do not update UI if skipped
-      if (!result) {
-        console.debug('[SectorDetail] Confidence tick skipped (rate-limited), not updating UI');
-        return; // Do not update state
-      }
-      
-      // Update agent confidences map only (don't reload full sector to prevent flicker)
-      setAgentConfidences(prev => {
-        const newConfidences = new Map(prev);
-        let hasChanges = false;
-        result.agents.forEach(agent => {
-          const oldConfidence = prev.get(agent.id);
-          if (oldConfidence !== agent.confidence) {
-            newConfidences.set(agent.id, agent.confidence);
-            hasChanges = true;
-          }
-        });
-        // Only return new map if there were actual changes
-        return hasChanges ? newConfidences : prev;
-      });
-      
-      // Only reload sector if there were significant changes (debounced)
-      // This prevents constant re-renders
-    } catch (err) {
-      console.error('Auto confidence tick error:', err);
-      // Don't show error to user for auto-updates, just log it
-    } finally {
-      runningConfidenceTickRef.current = false;
-      // Do NOT set loading state for polling
-    }
-  }, [sectorId]);
-
-  // Use global PollingManager for confidence tick polling
-  useEffect(() => {
-    if (!sectorId) return;
-    PollingManager.register(`sector-confidence-${sectorId}`, runAutoConfidenceTick, 2500);
-    return () => {
-      PollingManager.unregister(`sector-confidence-${sectorId}`);
-    };
-  }, [sectorId, runAutoConfidenceTick]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-pure-black p-8">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-floral-white/70 font-mono">Loading sector...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !sector) {
-    return (
-      <div className="min-h-screen bg-pure-black p-8">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-error-red font-mono">{error ?? 'Sector not found'}</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Helper functions - must be defined before early returns (React Hooks rule)
   const formatPrice = (price: number) => price.toFixed(2);
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
@@ -429,17 +372,7 @@ export default function SectorDetailClient() {
     return volume.toLocaleString();
   };
 
-  const utilizationPercent = sector.agents.length > 0 
-    ? Math.round((sector.activeAgents / sector.agents.length) * 100) 
-    : 0;
-
-  const createdDate = sector.createdAt ? new Date(sector.createdAt).toLocaleDateString('en-US', { 
-    month: 'numeric', 
-    day: 'numeric', 
-    year: 'numeric' 
-  }) : 'N/A';
-
-  const reloadSector = async () => {
+  const reloadSector = useCallback(async () => {
     if (!sector?.id) return;
     try {
       setIsRefreshing(true);
@@ -459,11 +392,17 @@ export default function SectorDetailClient() {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [sector?.id]);
 
   const handleDeleteAgent = useCallback(async (agentId: string, agentName: string) => {
+    // Check if sector data is available
+    if (!sector?.agents) {
+      alert('Sector data not available');
+      return;
+    }
+    
     // Check if it's a manager agent
-    const agent = sector?.agents.find(a => a.id === agentId);
+    const agent = sector.agents.find(a => a.id === agentId);
     if (agent && (agent.role === 'manager' || agent.role?.toLowerCase().includes('manager'))) {
       alert('Manager agents cannot be deleted');
       return;
@@ -490,13 +429,13 @@ export default function SectorDetailClient() {
     } finally {
       setDeletingAgentId(null);
     }
-  }, [sector, reloadSector]);
+  }, [sector?.id, sector?.agents?.length, reloadSector]);
 
   const isManagerAgent = (agent: Agent) => {
     return agent.role === 'manager' || agent.role?.toLowerCase().includes('manager');
   };
 
-  const handleDeleteSector = () => {
+  const handleDeleteSector = useCallback(() => {
     if (!sector) return;
     
     // First confirmation
@@ -507,9 +446,9 @@ export default function SectorDetailClient() {
     // Show second confirmation with code input
     setShowDeleteConfirm(true);
     setDeleteConfirmationCode('');
-  };
+  }, [sector]);
 
-  const confirmDeleteSector = async () => {
+  const confirmDeleteSector = useCallback(async () => {
     if (!sector) return;
 
     // Verify confirmation code matches sector name
@@ -541,7 +480,84 @@ export default function SectorDetailClient() {
     } finally {
       setDeletingSector(false);
     }
-  };
+  }, [sector, deleteConfirmationCode, router]);
+
+  // Computed values - must be defined before early returns
+  const utilizationPercent = sector && sector.agents && sector.agents.length > 0 && sector.activeAgents !== undefined
+    ? Math.round((sector.activeAgents / sector.agents.length) * 100) 
+    : 0;
+
+  const createdDate = sector?.createdAt ? new Date(sector.createdAt).toLocaleDateString('en-US', { 
+    month: 'numeric', 
+    day: 'numeric', 
+    year: 'numeric' 
+  }) : 'N/A';
+
+  // Show loading state only if we don't have a sector loaded yet
+  if (loading && !sector) {
+    return (
+      <div className="min-h-screen bg-pure-black p-8">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-floral-white/70 font-mono">Loading sector...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error only if we don't have a sector loaded (don't unmount UI if we have data)
+  if ((error || !sector) && !sector) {
+    return (
+      <div className="min-h-screen bg-pure-black p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-4">
+            <button
+              onClick={() => router.push('/sectors')}
+              className="mb-6 flex items-center text-sage-green hover:text-sage-green/80 transition-colors font-mono"
+            >
+              <ChevronLeft className="w-5 h-5 mr-2" />
+              BACK TO SECTORS
+            </button>
+          </div>
+          <div className="bg-error-red/20 border border-error-red/50 rounded-lg p-6">
+            <p className="text-error-red font-mono font-semibold mb-2">Error Loading Sector</p>
+            <p className="text-floral-white/70 font-mono">{error ?? 'Sector not found'}</p>
+            {normalizedSectorId && (
+              <button
+                onClick={() => {
+                  hasLoadedRef.current = null;
+                  isLoadingRef.current = false;
+                  setError(null);
+                  setLoading(true);
+                  // Trigger reload by updating a dependency
+                  const loadSector = async () => {
+                    try {
+                      const data = await fetchSectorById(normalizedSectorId);
+                      if (data && !isSkippedResult(data)) {
+                        setSector(data);
+                        setError(null);
+                        hasLoadedRef.current = normalizedSectorId;
+                      } else if (!isSkippedResult(data)) {
+                        setError('Sector not found');
+                      }
+                    } catch (err) {
+                      const errorMessage = err instanceof Error ? err.message : 'Unable to load sector. Please try again later.';
+                      setError(errorMessage);
+                    } finally {
+                      setLoading(false);
+                    }
+                  };
+                  loadSector();
+                }}
+                className="mt-4 px-4 py-2 bg-sage-green hover:bg-sage-green/80 text-pure-black font-mono font-semibold rounded transition-colors"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-pure-black p-8">
@@ -564,6 +580,14 @@ export default function SectorDetailClient() {
                 <span className="px-3 py-1 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-sm font-mono font-semibold">
                   {sector.symbol || 'N/A'}
                 </span>
+                <button
+                  onClick={() => setShowSectorSettings(true)}
+                  className="px-4 py-1 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-sm font-mono font-semibold uppercase tracking-wider hover:bg-sage-green/30 transition-colors flex items-center gap-2"
+                  title="Sector settings"
+                >
+                  <Settings className="w-4 h-4" />
+                  SETTINGS
+                </button>
                 <button
                   onClick={handleDeleteSector}
                   disabled={deletingSector}
@@ -602,19 +626,21 @@ export default function SectorDetailClient() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Deposit form submitted', { sectorId, depositAmount });
-                if (!sectorId || !depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
+                console.log('Deposit form submitted', { normalizedSectorId, depositAmount });
+                if (!normalizedSectorId || !depositAmount || isNaN(parseFloat(depositAmount)) || parseFloat(depositAmount) <= 0) {
                   console.log('Validation failed');
                   return;
                 }
                 setDepositing(true);
                 setError(null);
                 try {
-                  console.log('Calling depositSector API...', { sectorId, amount: parseFloat(depositAmount) });
-                  const updatedSector = await depositSector(String(sectorId), parseFloat(depositAmount));
+                  console.log('Calling depositSector API...', { normalizedSectorId, amount: parseFloat(depositAmount) });
+                  const updatedSector = await depositSector(String(normalizedSectorId), parseFloat(depositAmount));
                   console.log('Deposit successful', updatedSector);
                   setSector(updatedSector);
                   setDepositAmount('');
+                  // Reload performance after deposit
+                  await loadPerformance();
                 } catch (err: any) {
                   console.error('Deposit error:', err);
                   const errorMessage = err?.message || 'Failed to deposit funds';
@@ -744,11 +770,11 @@ export default function SectorDetailClient() {
         {/* Chart - Always show, even if no data */}
         <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
           <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase tracking-wider">PRICE CHART - LAST 24 HOURS</h2>
-          {sector.candleData && sector.candleData.length > 0 ? (
+          {sector?.candleData && sector.candleData.length > 0 ? (
             <LineChart 
               data={sector.candleData} 
-              sectorName={sector.name}
-              sectorSymbol={sector.symbol || 'N/A'}
+              sectorName={sector?.name || 'N/A'}
+              sectorSymbol={sector?.symbol || 'N/A'}
             />
           ) : (
             <div className="h-64 flex items-center justify-center text-floral-white/60 font-mono">
@@ -771,7 +797,7 @@ export default function SectorDetailClient() {
               Create Agent
             </button>
           </div>
-          {sector.agents && sector.agents.length > 0 ? (
+          {sector?.agents && sector.agents.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
@@ -788,7 +814,7 @@ export default function SectorDetailClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sector.agents.map((agent) => {
+                  {sector?.agents?.map((agent) => {
                     const agentConfidence = agentConfidences.has(agent.id) 
                       ? agentConfidences.get(agent.id)! 
                       : (typeof agent.confidence === 'number' ? agent.confidence : 0);
@@ -842,17 +868,19 @@ export default function SectorDetailClient() {
             <div className="flex gap-2">
               <button
                 onClick={async () => {
-                  if (!sectorId || simulating) return;
+                  if (!normalizedSectorId || simulating) return;
                   setSimulating(true);
                   setError(null);
                   try {
-                    const result = await simulateTick(String(sectorId), []);
+                    const result = await simulateTick(String(normalizedSectorId), []);
                     setSimulationResult(result);
-                    // Reload sector data to show updated price
-                    const updatedSector = await fetchSectorById(String(sectorId));
+                    // Reload sector data and performance to show updated price
+                    const updatedSector = await fetchSectorById(String(normalizedSectorId));
                     if (updatedSector) {
                       setSector(updatedSector);
                     }
+                    // Reload performance after simulation
+                    await loadPerformance();
                   } catch (err: any) {
                     console.error('Simulation tick error:', err);
                     const errorMessage = err?.message || 'Failed to run simulation';
@@ -867,7 +895,7 @@ export default function SectorDetailClient() {
                     setSimulating(false);
                   }
                 }}
-                disabled={simulating || !sectorId}
+                disabled={simulating || !normalizedSectorId}
                 className="px-4 py-2 bg-sage-green hover:bg-sage-green/80 disabled:bg-sage-green/50 disabled:cursor-not-allowed text-pure-black font-mono font-semibold rounded transition-colors flex items-center gap-2"
               >
                 <Play className="w-4 h-4" />
@@ -985,6 +1013,22 @@ export default function SectorDetailClient() {
             await reloadSector();
           }}
         />
+
+        {/* Sector Settings Modal */}
+        {showSectorSettings && sector && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-shadow-grey rounded-lg border border-ink-500 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <SectorSettingsForm
+                sector={sector}
+                onClose={() => setShowSectorSettings(false)}
+                onSuccess={async () => {
+                  setShowSectorSettings(false);
+                  await reloadSector();
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && sector && (

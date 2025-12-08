@@ -37,8 +37,24 @@ export function AgentSettingsForm({
   const [speedWeight, setSpeedWeight] = useState<number>(0.5);
   const [accuracyWeight, setAccuracyWeight] = useState<number>(0.5);
 
+  // Use ref to track if we've already loaded data for this agent ID
+  const loadedAgentIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    // Only load if agent ID changed
+    if (loadedAgentIdRef.current === agent.id) {
+      return;
+    }
+
     const loadAgentData = async () => {
+      // Guard: Do not fetch until agent.id is valid
+      if (!agent || !agent.id || typeof agent.id !== 'string' || !agent.id.trim()) {
+        console.warn('[AgentSettingsForm] Invalid agent or agent.id, skipping fetch');
+        setError('Invalid agent ID. Please select an agent from the list.');
+        setIsLoadingAgent(false);
+        return;
+      }
+
       setError(null);
       setIsLoadingAgent(true);
 
@@ -104,12 +120,17 @@ export function AgentSettingsForm({
           setSpeedWeight(prefs.speedWeight ?? 0.5);
           setAccuracyWeight(prefs.accuracyWeight ?? 0.5);
         }
+        // Mark as loaded
+        loadedAgentIdRef.current = agent.id;
       } finally {
         setIsLoadingAgent(false);
       }
     };
 
     const loadSectors = async () => {
+      // Only load sectors once
+      if (sectors.length > 0) return;
+      
       try {
         setIsLoadingSectors(true);
         const data = await fetchSectors();
@@ -123,7 +144,7 @@ export function AgentSettingsForm({
 
     void loadAgentData();
     void loadSectors();
-  }, [agent]);
+  }, [agent.id]); // Only depend on agent.id, not the whole agent object
 
   // Handle click outside to close
   useEffect(() => {
@@ -168,7 +189,14 @@ export function AgentSettingsForm({
     const sectorIdToSend = selectedSectorId === 'unassigned' ? null : selectedSectorId;
 
     try {
-      const agentIdToUpdate = fullAgent?.id || agent.id;
+      // Ensure we have a valid agent ID
+      const agentIdToUpdate = fullAgent?.id || agent?.id;
+      if (!agentIdToUpdate || typeof agentIdToUpdate !== 'string' || !agentIdToUpdate.trim()) {
+        setError('Invalid agent ID. Cannot update agent.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const updatedAgent = await updateAgent(agentIdToUpdate, {
         name: name.trim(),
         role: role.trim(),

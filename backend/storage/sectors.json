@@ -1,19 +1,20 @@
 [
   {
-    "id": "890bc03b-d595-4f7d-b701-9e556452d07e",
-    "name": "tech",
-    "sectorName": "tech",
-    "sectorSymbol": "TECH",
+    "id": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "name": "fashion",
+    "symbol": "FASH",
+    "sectorName": "fashion",
+    "sectorSymbol": "FASH",
     "description": "",
     "agents": [
       {
-        "id": "1d26acfc-0231-490d-939b-5f732ff554e9",
-        "name": "tech Manager",
+        "id": "d86e24fc-3241-4d00-97e0-c4b4a996ef76",
+        "name": "fashion Manager",
         "role": "manager",
-        "prompt": "Manager agent for tech sector",
-        "sectorId": "890bc03b-d595-4f7d-b701-9e556452d07e",
-        "sectorSymbol": "TECH",
-        "sectorName": "tech",
+        "prompt": "Manager agent for fashion sector",
+        "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+        "sectorSymbol": "FASH",
+        "sectorName": "fashion",
         "status": "idle",
         "performance": {
           "pnl": 0,
@@ -30,16 +31,44 @@
           "speedWeight": 0.5,
           "accuracyWeight": 0.5
         },
-        "memory": [],
+        "memory": [
+          {
+            "id": "user-msg-1765224488297-87n3auogb",
+            "timestamp": 1765224488297,
+            "type": "user_instruction",
+            "source": "user",
+            "content": "i need the volatility to drop by .5",
+            "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+            "processed": false
+          }
+        ],
         "lastDecision": null,
         "lastDecisionAt": null,
         "morale": 50,
         "rewardPoints": 0,
         "lastRewardTimestamp": null,
-        "confidence": -9.999922690062801,
-        "createdAt": "2025-12-08T04:37:57.592Z"
+        "confidence": -0.6341999999999925,
+        "createdAt": "2025-12-08T19:50:27.492Z"
       }
     ],
-    "performance": {}
+    "performance": {
+      "totalPL": -0.01999999999999602,
+      "recentTrades": []
+    },
+    "createdAt": "2025-12-08T19:50:27.482Z",
+    "balance": 100,
+    "currentPrice": 99.98,
+    "change": -0.01999999999999602,
+    "changePercent": -0.01999999999999602,
+    "volume": 0,
+    "volatility": 0.02,
+    "riskScore": 2,
+    "activeAgents": 0,
+    "buyAgents": 0,
+    "sellAgents": 0,
+    "statusPercent": 0,
+    "lastSimulatedPrice": 99.98,
+    "discussions": [],
+    "candleData": []
   }
 ]

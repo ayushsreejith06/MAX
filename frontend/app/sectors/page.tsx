@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useRef, memo, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, memo, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { TrendingUp, TrendingDown, Users, Activity, MessageSquare, Plus, X, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Activity, MessageSquare, Plus, X, Trash2, Settings } from 'lucide-react';
 import isEqual from 'lodash.isequal';
 import { fetchSectors, createSector, deleteSector, isRateLimitError } from '@/lib/api';
 import type { Sector } from '@/lib/types';
-import { PollingManager } from '@/utils/PollingManager';
+import { SectorSettingsForm } from '@/components/SectorSettingsForm';
 
 export default function SectorsPage() {
   const router = useRouter();
@@ -20,7 +20,10 @@ export default function SectorsPage() {
   const [deletingSectorId, setDeletingSectorId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ sectorId: string; sectorName: string } | null>(null);
   const [deleteConfirmationCode, setDeleteConfirmationCode] = useState('');
+  const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
+  const [showSectorSettings, setShowSectorSettings] = useState(false);
   const isFetchingRef = useRef(false);
+  const hasSectorsRef = useRef(false);
 
   const loadSectors = useCallback(async (showLoading = false) => {
     // Race condition guard: prevent multiple simultaneous fetches
@@ -38,7 +41,7 @@ export default function SectorsPage() {
       
       // If fetch returned empty array during polling (not initial load), 
       // and we already have data, don't update state (prevents flicker from skipped calls)
-      if (!showLoading && Array.isArray(data) && data.length === 0 && sectors.length > 0) {
+      if (!showLoading && Array.isArray(data) && data.length === 0 && hasSectorsRef.current) {
         // Likely skipped during polling - don't update state, just return
         isFetchingRef.current = false;
         return;
@@ -49,6 +52,8 @@ export default function SectorsPage() {
         if (isEqual(prevSectors, data)) {
           return prevSectors;
         }
+        // Update ref to track if we have sectors
+        hasSectorsRef.current = Array.isArray(data) && data.length > 0;
         return data;
       });
       setError(null);
@@ -70,18 +75,9 @@ export default function SectorsPage() {
     }
   }, []);
 
-  // Initial load with loading state
+  // Initial load with loading state - fetch ONCE per page load only
   useEffect(() => {
     void loadSectors(true);
-  }, [loadSectors]);
-
-  // Use global PollingManager for centralized polling (without loading state)
-  useEffect(() => {
-    const pollSectors = () => loadSectors(false);
-    PollingManager.register('sectors', pollSectors, 2500);
-    return () => {
-      PollingManager.unregister('sectors');
-    };
   }, [loadSectors]);
 
   const formatPrice = (price: number) => price.toFixed(2);
@@ -111,6 +107,7 @@ export default function SectorsPage() {
       // Reload sectors to get the manager agent that was created
       const data = await fetchSectors();
       setSectors(data);
+      hasSectorsRef.current = Array.isArray(data) && data.length > 0;
       
       // Close the form
       setShowCreateForm(false);
@@ -160,6 +157,7 @@ export default function SectorsPage() {
       // Reload sectors
       const data = await fetchSectors();
       setSectors(data);
+      hasSectorsRef.current = Array.isArray(data) && data.length > 0;
       
       // Close confirmation dialog
       setShowDeleteConfirm(null);
@@ -178,8 +176,22 @@ export default function SectorsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-pure-black">
-      <div className="max-w-[1920px] mx-auto px-8 py-6">
+    <Suspense fallback={
+      <div className="min-h-screen bg-pure-black">
+        <div className="max-w-[1920px] mx-auto px-8 py-6" style={{ minHeight: '600px' }}>
+          <p className="text-floral-white/70 font-mono">Loading sectors...</p>
+        </div>
+      </div>
+    }>
+      <div className="min-h-screen bg-pure-black relative">
+      <div className="max-w-[1920px] mx-auto px-8 py-6" style={{ minHeight: '600px' }}>
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 bg-pure-black/90 flex items-center justify-center z-50 pointer-events-none">
+            <p className="text-floral-white/70 font-mono">Loading sectors...</p>
+          </div>
+        )}
+
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-floral-white mb-2 font-mono uppercase">SECTORS</h1>
@@ -197,7 +209,9 @@ export default function SectorsPage() {
         </div>
 
         {error && (
-          <p className="text-error-red text-sm font-mono mb-4">{error}</p>
+          <div className="mb-4 p-4 rounded-lg border border-error-red/50 bg-error-red/10">
+            <p className="text-error-red text-sm font-mono">{error}</p>
+          </div>
         )}
 
         {showCreateForm && (
@@ -270,19 +284,44 @@ export default function SectorsPage() {
           </div>
         )}
 
-        {loading ? (
-          <p className="text-floral-white/70 font-mono">Loading sectors...</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {sectors.map((sector) => (
-              <SectorCard
-                key={sector.id}
-                sector={sector}
-                onNavigate={() => router.push(`/sectors/${sector.id}`)}
-                onDelete={() => handleDeleteSector(sector.id, sector.name)}
-                isDeleting={deletingSectorId === sector.id}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" style={{ visibility: loading ? 'hidden' : 'visible' }}>
+          {sectors.length === 0 && !loading && (
+            <div className="col-span-full text-center py-12">
+              <p className="text-floral-white/70 font-mono">No sectors found. Create your first sector to get started.</p>
+            </div>
+          )}
+          {sectors.map((sector) => (
+            <SectorCard
+              key={sector.id}
+              sector={sector}
+              onNavigate={() => router.push(`/sectors/${sector.id}`)}
+              onDelete={() => handleDeleteSector(sector.id, sector.name)}
+              onSettings={() => {
+                setSelectedSectorId(sector.id);
+                setShowSectorSettings(true);
+              }}
+              isDeleting={deletingSectorId === sector.id}
+            />
+          ))}
+        </div>
+
+        {/* Sector Settings Modal */}
+        {showSectorSettings && selectedSectorId && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-shadow-grey rounded-lg border border-ink-500 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <SectorSettingsForm
+                sector={sectors.find(s => s.id === selectedSectorId)!}
+                onClose={() => {
+                  setShowSectorSettings(false);
+                  setSelectedSectorId(null);
+                }}
+                onSuccess={() => {
+                  setShowSectorSettings(false);
+                  setSelectedSectorId(null);
+                  void loadSectors(false);
+                }}
               />
-            ))}
+            </div>
           </div>
         )}
 
@@ -328,7 +367,8 @@ export default function SectorsPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </Suspense>
   );
 }
 
@@ -337,11 +377,13 @@ const SectorCard = memo(function SectorCard({
   sector,
   onNavigate,
   onDelete,
+  onSettings,
   isDeleting,
 }: {
   sector: Sector;
   onNavigate: () => void;
   onDelete: () => void;
+  onSettings: () => void;
   isDeleting: boolean;
 }) {
   const formatPrice = (price: number) => price.toFixed(2);
@@ -379,6 +421,16 @@ const SectorCard = memo(function SectorCard({
                         <TrendingDown className="w-6 h-6 text-error-red" />
                       )}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSettings();
+                      }}
+                      className="p-2 text-sage-green hover:bg-sage-green/10 rounded transition-colors"
+                      title="Sector settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -473,6 +525,7 @@ const SectorCard = memo(function SectorCard({
     prevProps.sector.agents.length === nextProps.sector.agents.length &&
     prevProps.sector.statusPercent === nextProps.sector.statusPercent &&
     prevProps.sector.discussions.length === nextProps.sector.discussions.length &&
-    prevProps.isDeleting === nextProps.isDeleting
+    prevProps.isDeleting === nextProps.isDeleting &&
+    prevProps.onSettings === nextProps.onSettings
   );
 });
