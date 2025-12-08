@@ -317,9 +317,10 @@ async function createAgent(promptText = '', sectorId = null) {
   agents.push(agentData);
   await saveAgents(agents);
 
-  // Update sector activeAgents count if agent is active and has a sectorId
+  // Update sector: add agent to sector's agents array and update activeAgents count
   if (agentData.sectorId) {
     try {
+      const { updateSector } = require('../utils/sectorStorage');
       const sectors = await loadSectors();
       const idx = sectors.findIndex((s) => s.id === agentData.sectorId);
 
@@ -331,24 +332,46 @@ async function createAgent(promptText = '', sectorId = null) {
       } else {
         const sector = sectors[idx];
 
-        // Only increment if the agent is active
+        // Add agent to sector's agents array if not already present
+        const existingAgents = Array.isArray(sector.agents) ? sector.agents : [];
+        const agentExists = existingAgents.some(a => a.id === agentData.id);
+        
+        const updates = {};
+        
+        if (!agentExists) {
+          existingAgents.push(agentData);
+          updates.agents = existingAgents;
+
+          console.log('[createAgent] Added agent to sector agents array', {
+            sectorId: sector.id,
+            agentId: agentData.id,
+            agentName: agentData.name,
+            totalAgents: existingAgents.length
+          });
+        }
+
+        // Update activeAgents count if agent is active
         if (agentData.status === 'active') {
           const currentCount =
             typeof sector.activeAgents === 'number' ? sector.activeAgents : 0;
-          sector.activeAgents = currentCount + 1;
-          sectors[idx] = sector;
+          updates.activeAgents = currentCount + 1;
+        }
 
-          await saveSectors(sectors);
-
-          console.log('[createAgent] Incremented activeAgents for sector', {
-            sectorId: sector.id,
-            activeAgents: sector.activeAgents,
-          });
+        // Update sector with all changes in one operation
+        if (Object.keys(updates).length > 0) {
+          const updatedSector = await updateSector(sector.id, updates);
+          
+          if (updatedSector && updates.activeAgents) {
+            console.log('[createAgent] Incremented activeAgents for sector', {
+              sectorId: sector.id,
+              activeAgents: updatedSector.activeAgents,
+            });
+          }
         }
       }
     } catch (err) {
       console.warn(
-        '[createAgent] Failed to update sector activeAgents count',
+        '[createAgent] Failed to update sector with new agent',
         err
       );
       // deliberately do not throw; agent creation already succeeded

@@ -2,6 +2,10 @@
 pragma solidity ^0.8.0;
 
 contract MaxRegistry {
+    // Ownership
+    address public owner;
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
     // Structures
     struct Sector {
         uint256 id;
@@ -31,6 +35,18 @@ contract MaxRegistry {
     event AgentRegistered(uint256 indexed id, uint256 indexed sectorId, string role, address creator);
     event TradeLogged(uint256 indexed id, uint256 indexed agentId, uint256 indexed sectorId, string action, uint256 amount, uint256 timestamp);
 
+    // Modifiers
+    modifier onlyOwner() {
+        require(msg.sender == owner, "MaxRegistry: caller is not the owner");
+        _;
+    }
+
+    // Constructor
+    constructor() {
+        owner = msg.sender;
+        emit OwnershipTransferred(address(0), msg.sender);
+    }
+
     // Storage
     mapping(uint256 => Sector) public sectors;
     mapping(uint256 => Agent) public agents;
@@ -46,7 +62,7 @@ contract MaxRegistry {
         uint256 sectorId,
         string calldata name,
         string calldata symbol
-    ) external {
+    ) external onlyOwner {
         sectors[sectorId] = Sector({
             id: sectorId,
             name: name,
@@ -60,7 +76,7 @@ contract MaxRegistry {
         uint256 agentId,
         uint256 sectorId,
         string calldata role
-    ) external {
+    ) external onlyOwner {
         agents[agentId] = Agent({
             id: agentId,
             sectorId: sectorId,
@@ -76,7 +92,7 @@ contract MaxRegistry {
         uint256 sectorId,
         string calldata action,
         uint256 amount
-    ) external {
+    ) external onlyOwner {
         uint256 timestamp = block.timestamp;
         trades[tradeId] = Trade({
             id: tradeId,
@@ -92,14 +108,22 @@ contract MaxRegistry {
     function validateAction(
         uint256 agentId,
         uint256 sectorId,
-        string calldata action,
-        uint256 amount
+        string calldata /* action */,
+        uint256 /* amount */
     ) external view returns (bool) {
         // Placeholder - Phase 5 will enforce real MNEE rules
         // For now, basic validation: agent and sector must exist
         require(agents[agentId].id != 0, "Agent does not exist");
         require(sectors[sectorId].id != 0, "Sector does not exist");
         return true;
+    }
+
+    // Ownership management
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "MaxRegistry: new owner is the zero address");
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
     }
 }
 

@@ -182,7 +182,7 @@ export default function SectorDetailClient() {
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-4xl font-bold text-floral-white font-mono">{sector.name.toUpperCase()}</h1>
                 <span className="px-3 py-1 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-sm font-mono font-semibold">
-                  {sector.symbol}
+                  {sector.symbol || 'N/A'}
                 </span>
               </div>
               <p className="text-sm text-floral-white/60 font-mono">
@@ -360,7 +360,7 @@ export default function SectorDetailClient() {
             <LineChart 
               data={sector.candleData} 
               sectorName={sector.name}
-              sectorSymbol={sector.symbol}
+              sectorSymbol={sector.symbol || 'N/A'}
             />
           ) : (
             <div className="h-64 flex items-center justify-center text-floral-white/60 font-mono">
@@ -393,6 +393,7 @@ export default function SectorDetailClient() {
                     <th className="px-4 py-3 text-center text-floral-white/70 font-mono text-sm font-semibold">STATUS</th>
                     <th className="px-4 py-3 text-right text-floral-white/70 font-mono text-sm font-semibold">PERFORMANCE</th>
                     <th className="px-4 py-3 text-right text-floral-white/70 font-mono text-sm font-semibold">TRADES</th>
+                    <th className="px-4 py-3 text-right text-floral-white/70 font-mono text-sm font-semibold">CONFIDENCE</th>
                     <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">RISK</th>
                     <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">STYLE</th>
                   </tr>
@@ -432,12 +433,21 @@ export default function SectorDetailClient() {
                           </span>
                         </td>
                         <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
-                          agent.performance >= 0 ? 'text-sage-green' : 'text-error-red'
+                          (typeof agent.performance === 'number' ? agent.performance : (agent.performance?.pnl || 0)) >= 0 ? 'text-sage-green' : 'text-error-red'
                         }`}>
-                          {agent.performance >= 0 ? '+' : ''}{agent.performance.toFixed(2)}%
+                          {(() => {
+                            const perf = typeof agent.performance === 'number' ? agent.performance : (agent.performance?.pnl || 0);
+                            return (perf >= 0 ? '+' : '') + perf.toFixed(2) + '%';
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-right text-floral-white font-mono text-sm">
-                          {agent.trades}
+                          {Array.isArray(agent.trades) ? agent.trades.length : (agent.trades || 0)}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
+                          (agent.confidence || 0) >= 50 ? 'text-sage-green' : 
+                          (agent.confidence || 0) >= 0 ? 'text-warning-amber' : 'text-error-red'
+                        }`}>
+                          {typeof agent.confidence === 'number' ? agent.confidence.toFixed(0) : '0'}
                         </td>
                         <td className="px-4 py-3 text-floral-white/80 font-mono text-sm">
                           {riskTolerance}

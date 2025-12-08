@@ -124,7 +124,7 @@ export function CreateAgentModal({
               <option value="unassigned" className="bg-pure-black text-floral-white">Unassigned (no sector)</option>
               {sectors.map((sector) => (
                 <option key={sector.id} value={sector.id} className="bg-pure-black text-floral-white">
-                  {sector.name} ({sector.symbol})
+                  {sector.name} ({sector.symbol || 'N/A'})
                 </option>
               ))}
             </select>

@@ -374,6 +374,21 @@ export default function Agents() {
                       <p className="text-xs text-floral-white/60">Reward Points: {selectedAgent.rewardPoints}</p>
                     )}
                   </div>
+
+                  {/* Confidence Indicator */}
+                  <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
+                    <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50 mb-2">Confidence</p>
+                    <div className="w-full h-3 bg-neutral-800 rounded mb-2">
+                      <div
+                        className="h-3 rounded transition-all"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, ((selectedAgent.confidence ?? 0) + 100) / 2))}%`,
+                          backgroundColor: (selectedAgent.confidence ?? 0) > 0 ? '#00ff85' : (selectedAgent.confidence ?? 0) < 0 ? '#ff4b4b' : '#808080'
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs mt-1 text-floral-white/70">Confidence: {Math.round(selectedAgent.confidence ?? 0)}%</p>
+                  </div>
                 </div>
               ) : (
                 <div className="mt-6 text-sm text-floral-white/60">Select an agent to view its live brief.</div>

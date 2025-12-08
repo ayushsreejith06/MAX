@@ -6,6 +6,12 @@ const getBase = () => {
     return getBackendBaseUrl();
   }
   // Server-side: use environment variable or default
+  // Support NEXT_PUBLIC_API_URL (extract base from it) or NEXT_PUBLIC_MAX_BACKEND_URL/NEXT_PUBLIC_BACKEND_URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    // Extract base URL from API URL (remove /api suffix if present)
+    return apiUrl.replace(/\/api\/?$/, '');
+  }
   return process.env.NEXT_PUBLIC_BACKEND_URL || 
          process.env.NEXT_PUBLIC_MAX_BACKEND_URL || 
          'http://localhost:8000';

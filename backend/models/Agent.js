@@ -6,6 +6,7 @@ const DEFAULT_PERFORMANCE = Object.freeze({ pnl: 0, winRate: 0 });
 const DEFAULT_PERSONALITY = Object.freeze({ riskTolerance: 'medium', decisionStyle: 'balanced' });
 const DEFAULT_MORALE = 50;
 const DEFAULT_REWARD_POINTS = 0;
+const DEFAULT_CONFIDENCE = 0;
 const DEFAULT_PREFERENCES = Object.freeze({
   riskWeight: 0.5,
   profitWeight: 0.5,
@@ -56,6 +57,7 @@ class Agent {
     morale = DEFAULT_MORALE,
     rewardPoints = DEFAULT_REWARD_POINTS,
     lastRewardTimestamp = null,
+    confidence = DEFAULT_CONFIDENCE,
     createdAt = null
   }) {
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -84,6 +86,7 @@ class Agent {
     this.morale = typeof morale === 'number' ? Math.max(0, Math.min(100, morale)) : DEFAULT_MORALE;
     this.rewardPoints = typeof rewardPoints === 'number' ? Math.max(0, rewardPoints) : DEFAULT_REWARD_POINTS;
     this.lastRewardTimestamp = lastRewardTimestamp || null;
+    this.confidence = typeof confidence === 'number' ? Math.max(-100, Math.min(100, confidence)) : DEFAULT_CONFIDENCE;
     this.createdAt = createdAt || new Date().toISOString();
   }
 
@@ -107,6 +110,7 @@ class Agent {
       morale: this.morale,
       rewardPoints: this.rewardPoints,
       lastRewardTimestamp: this.lastRewardTimestamp,
+      confidence: this.confidence,
       createdAt: this.createdAt
     };
   }
@@ -184,6 +188,7 @@ class Agent {
       morale: data.morale ?? DEFAULT_MORALE,
       rewardPoints: data.rewardPoints ?? DEFAULT_REWARD_POINTS,
       lastRewardTimestamp: data.lastRewardTimestamp || null,
+      confidence: data.confidence ?? DEFAULT_CONFIDENCE,
       createdAt: data.createdAt
     });
   }

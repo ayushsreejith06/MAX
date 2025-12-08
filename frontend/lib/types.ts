@@ -23,6 +23,7 @@ export interface Agent {
   personality: AgentPersonality;
   morale?: number; // Morale value (0-100)
   rewardPoints?: number; // Reward points accumulated
+  confidence?: number; // Confidence value (-100 to +100)
   createdAt?: string;
   rawTrades?: any[]; // Raw trades array for detailed analysis
   rawPerformance?: { pnl?: number; winRate?: number }; // Raw performance object

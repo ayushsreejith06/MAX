@@ -246,7 +246,7 @@ export default function DiscussionsPage() {
             <option value="all">All Sectors</option>
             {sectorsData.map(sector => (
               <option key={sector.id} value={sector.id}>
-                {sector.symbol} - {sector.name}
+                {sector.symbol || 'N/A'} - {sector.name}
               </option>
             ))}
           </select>

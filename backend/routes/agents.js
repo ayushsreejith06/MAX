@@ -41,7 +41,8 @@ module.exports = async (fastify) => {
         ...agent,
         status: agent.status || 'idle',
         performance: agent.performance || { pnl: 0, winRate: 0 },
-        trades: agent.trades || []
+        trades: agent.trades || [],
+        confidence: typeof agent.confidence === 'number' ? agent.confidence : 0
       }));
 
       return reply.status(200).send(enrichedAgents);
@@ -64,7 +65,10 @@ module.exports = async (fastify) => {
         return reply.code(404).send({ error: 'Agent not found' });
       }
 
-      return reply.status(200).send(agent);
+      return reply.status(200).send({
+        ...agent,
+        confidence: typeof agent.confidence === 'number' ? agent.confidence : 0
+      });
     } catch (error) {
       log(`Error fetching agent: ${error.message}`);
       return reply.status(500).send({ error: error.message });

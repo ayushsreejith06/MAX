@@ -39,9 +39,31 @@ export function getBackendBaseUrl(): string {
       // Desktop mode: always use localhost with desktop port
       return 'http://127.0.0.1:4000';
     }
+    
+    // Client-side web mode: check environment variable (Next.js exposes NEXT_PUBLIC_* vars to client)
+    // Check NEXT_PUBLIC_API_URL first (full API URL) and extract base from it
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) {
+      // Extract base URL from API URL (remove /api suffix if present)
+      return apiUrl.replace(/\/api\/?$/, '');
+    }
+    
+    const envUrl = process.env.NEXT_PUBLIC_MAX_BACKEND_URL || 
+                   process.env.NEXT_PUBLIC_BACKEND_URL;
+    
+    if (envUrl) {
+      return envUrl;
+    }
   }
   
-  // Web mode: use environment variable or default
+  // Server-side: use environment variable or default
+  // Check NEXT_PUBLIC_API_URL first (full API URL) and extract base from it
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    // Extract base URL from API URL (remove /api suffix if present)
+    return apiUrl.replace(/\/api\/?$/, '');
+  }
+  
   const envUrl = process.env.NEXT_PUBLIC_MAX_BACKEND_URL || 
                  process.env.NEXT_PUBLIC_BACKEND_URL;
   

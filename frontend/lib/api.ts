@@ -8,6 +8,11 @@ const getApiBase = () => {
     return getApiBaseUrl();
   }
   // Server-side: use environment variable or default
+  // Support NEXT_PUBLIC_API_URL (full API URL) or NEXT_PUBLIC_MAX_BACKEND_URL/NEXT_PUBLIC_BACKEND_URL (base URL)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    return apiUrl.replace(/\/$/, '');
+  }
   const backend = process.env.NEXT_PUBLIC_MAX_BACKEND_URL || 
                   process.env.NEXT_PUBLIC_BACKEND_URL || 
                   'http://localhost:8000';
@@ -29,8 +34,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     // Get API base URL dynamically (handles desktop vs web mode)
     const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
-    const response = await fetch(`${apiBase}${path}`, {
+    const fullUrl = `${apiBase}${path}`;
+    
+    // Debug logging (only in development)
+    if (typeof window !== 'undefined') {
+      console.log(`[API Request] ${init?.method || 'GET'} ${fullUrl}`, {
+        apiBase,
+        path,
+        envApiUrl: process.env.NEXT_PUBLIC_API_URL,
+        envBackendUrl: process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL,
+      });
+    }
+    
+    const response = await fetch(fullUrl, {
       cache: 'no-store',
+      credentials: 'omit',
       ...init,
     });
 
@@ -57,10 +75,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (error) {
     if (error instanceof Error) {
       // Check if it's a network error
-      if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+      if (error.message.includes('fetch') || error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
         // Always use dynamic detection for error messages
+        const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
         const backendUrl = getBackendBaseUrl();
-        throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${backendUrl}.`);
+        const fullUrl = `${apiBase}${path}`;
+        
+        // Log more details in development
+        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+          console.error('[API Error]', {
+            error: error.message,
+            name: error.name,
+            attemptedUrl: fullUrl,
+            backendUrl,
+            envApiUrl: process.env.NEXT_PUBLIC_API_URL,
+            envBackendUrl: process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL,
+          });
+        }
+        
+        throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${backendUrl}. Attempted URL: ${fullUrl}`);
       }
       throw error;
     }
@@ -126,6 +159,7 @@ function normalizeAgent(raw: any): Agent {
     },
     morale: typeof raw?.morale === 'number' ? raw.morale : undefined,
     rewardPoints: typeof raw?.rewardPoints === 'number' ? raw.rewardPoints : undefined,
+    confidence: typeof raw?.confidence === 'number' ? raw.confidence : 0,
     createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
     rawTrades: Array.isArray(raw?.trades) ? raw.trades : undefined,
     rawPerformance: typeof raw?.performance === 'object' ? raw.performance : undefined,
@@ -194,7 +228,7 @@ function normalizeSector(raw: any): Sector {
   return {
     id: String(raw?.id ?? ''),
     name: String(raw?.name ?? raw?.sectorName ?? 'Unknown Sector'),
-    symbol: String(raw?.symbol ?? raw?.sectorSymbol ?? 'SECT'),
+    symbol: String(raw?.sectorSymbol ?? raw?.symbol ?? 'N/A'),
     currentPrice: Number.isFinite(basePrice) ? Number(basePrice.toFixed(2)) : 0,
     change: Number(raw?.change ?? 0),
     changePercent: Number(raw?.changePercent ?? raw?.change_percent ?? 0),

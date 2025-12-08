@@ -1,0 +1,36 @@
+{
+  "watch": [
+    "routes",
+    "agents",
+    "core",
+    "models",
+    "simulation",
+    "utils",
+    "controllers",
+    "manager",
+    "server.js",
+    "index.js"
+  ],
+  "ignore": [
+    "storage/**/*",
+    "storage/*.json",
+    "storage/*.lock",
+    "storage/*.tmp",
+    "node_modules/**/*",
+    "*.test.js",
+    "*.spec.js",
+    "__tests__/**/*",
+    "test/**/*",
+    "*.log",
+    "*.lock",
+    "*.tmp",
+    ".env*",
+    "ARCHITECTURE_ANALYSIS.md",
+    "**/*.json.lock",
+    "**/*.tmp"
+  ],
+  "ext": "js",
+  "delay": 2000,
+  "verbose": false
+}
+

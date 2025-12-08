@@ -909,7 +909,7 @@ export default function Dashboard() {
                           />
                         </td>
                         <td className="px-4 py-3 border border-ink-500 text-floral-white font-semibold">
-                          {sector.symbol}
+                          {sector.symbol || 'N/A'}
                         </td>
                         <td className="px-4 py-3 border border-ink-500 text-floral-white/85">
                           {sector.name}

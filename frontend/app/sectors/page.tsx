@@ -187,7 +187,7 @@ export default function SectorsPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-2xl font-bold text-floral-white font-mono">{sector.name}</h3>
-                    <p className="text-sm text-floral-white/70 font-mono">{sector.symbol}</p>
+                    <p className="text-sm text-floral-white/70 font-mono">{sector.symbol || 'N/A'}</p>
                   </div>
                   <div className="text-right">
                     {sector.change >= 0 ? (

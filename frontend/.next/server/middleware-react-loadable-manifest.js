@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}";
+self.__REACT_LOADABLE_MANIFEST="{\"app\\\\sectors\\\\[id]\\\\SectorDetailClient.tsx -> @/lib/desktopEnv\":{\"id\":\"app\\\\sectors\\\\[id]\\\\SectorDetailClient.tsx -> @/lib/desktopEnv\",\"files\":[]}}"
