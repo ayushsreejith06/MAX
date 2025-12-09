@@ -223,11 +223,33 @@ function normalizeDiscussion(raw: any): Discussion {
   const messages = Array.isArray(raw?.messages)
     ? raw.messages.map((message: any, index: number) => ({
         id: String(message?.id ?? `${raw?.id ?? 'disc'}-msg-${index}`),
+        agentId: message?.agentId ?? message?.agent_id ?? undefined,
         agentName: String(message?.agentName ?? message?.agent_name ?? 'Unknown Agent'),
         content: String(message?.content ?? ''),
-        timestamp: message?.timestamp ?? new Date().toISOString(),
+        timestamp: message?.timestamp ?? message?.createdAt ?? new Date().toISOString(),
+        role: message?.role ?? undefined,
       }))
     : [];
+
+  const checklistDraft = Array.isArray(raw?.checklistDraft)
+    ? raw.checklistDraft.map((item: any) => ({
+        id: String(item?.id ?? ''),
+        text: String(item?.text ?? ''),
+        agentId: item?.agentId ?? item?.agent_id ?? undefined,
+        agentName: item?.agentName ?? item?.agent_name ?? undefined,
+        round: typeof item?.round === 'number' ? item.round : undefined,
+      }))
+    : undefined;
+
+  const checklist = Array.isArray(raw?.checklist)
+    ? raw.checklist.map((item: any) => ({
+        id: String(item?.id ?? ''),
+        text: String(item?.text ?? ''),
+        agentId: item?.agentId ?? item?.agent_id ?? undefined,
+        agentName: item?.agentName ?? item?.agent_name ?? undefined,
+        round: typeof item?.round === 'number' ? item.round : undefined,
+      }))
+    : undefined;
 
   return {
     id: String(raw?.id ?? ''),
@@ -244,6 +266,9 @@ function normalizeDiscussion(raw: any): Discussion {
     updatedAt: raw?.updatedAt ?? raw?.updated_at ?? new Date().toISOString(),
     sectorSymbol: raw?.sectorSymbol ?? raw?.sector_symbol ?? undefined,
     sectorName: raw?.sectorName ?? raw?.sector_name ?? undefined,
+    round: typeof raw?.round === 'number' ? raw.round : undefined,
+    checklistDraft: checklistDraft && checklistDraft.length > 0 ? checklistDraft : undefined,
+    checklist: checklist && checklist.length > 0 ? checklist : undefined,
   };
 }
 
@@ -559,6 +584,22 @@ export async function closeDiscussion(discussionId: string): Promise<Discussion>
   
   const payload = result as Discussion;
   return normalizeDiscussion(payload);
+}
+
+export async function deleteDiscussion(discussionId: string): Promise<void> {
+  const result = await request<{ success: boolean; message?: string }>(`/discussions/${discussionId}`, {
+    method: 'DELETE',
+    // Don't send Content-Type header for DELETE requests without body
+  });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  if (result && typeof result === 'object' && 'success' in result && !result.success) {
+    throw new Error((result as any).error || 'Failed to delete discussion');
+  }
 }
 
 export async function archiveDiscussion(discussionId: string): Promise<Discussion> {
@@ -899,6 +940,57 @@ export async function sendMessageToManager(sectorId: string, message: string): P
     }
     
     return result as { success: boolean; message?: string };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+/**
+ * System mode types
+ */
+export type SystemMode = 'simulation' | 'realtime';
+
+/**
+ * Get current system mode
+ */
+export async function getSystemMode(): Promise<SystemMode> {
+  try {
+    const result = await request<{ success: boolean; mode: SystemMode }>('/system/mode', {
+      method: 'GET',
+    });
+    
+    // Handle rate limiting
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      throw new Error('Request was rate-limited. Please try again later.');
+    }
+    
+    const payload = result as { success: boolean; mode: SystemMode };
+    return payload.mode;
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+/**
+ * Set system mode
+ */
+export async function setSystemMode(mode: SystemMode): Promise<SystemMode> {
+  try {
+    const result = await request<{ success: boolean; mode: SystemMode }>('/system/mode', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ mode }),
+    });
+    
+    // Handle rate limiting
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      throw new Error('Request was rate-limited. Please try again later.');
+    }
+    
+    const payload = result as { success: boolean; mode: SystemMode };
+    return payload.mode;
   } catch (error: any) {
     throw error;
   }

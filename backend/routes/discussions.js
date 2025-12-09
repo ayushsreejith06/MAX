@@ -1,5 +1,6 @@
 const DiscussionRoom = require('../models/DiscussionRoom');
-const { loadDiscussions, saveDiscussions, saveDiscussion, findDiscussionById } = require('../utils/discussionStorage');
+const { loadDiscussions, saveDiscussions, saveDiscussion, findDiscussionById, deleteDiscussion } = require('../utils/discussionStorage');
+const { getSectorById, updateSector } = require('../utils/sectorStorage');
 const {
   startDiscussion,
   collectArguments,
@@ -23,13 +24,20 @@ async function enrichDiscussion(discussion) {
     const agentMap = new Map(agents.map(agent => [agent.id, agent]));
 
     // Enrich messages with agent names
-    const enrichedMessages = discussion.messages.map(msg => {
+    const enrichedMessages = (discussion.messages || []).map(msg => {
       const agent = agentMap.get(msg.agentId);
       return {
         ...msg,
         agentName: agent?.name || msg.agentName || 'Unknown Agent',
         timestamp: msg.timestamp || msg.createdAt
       };
+    });
+
+    // Sort messages by timestamp to ensure chronological order
+    enrichedMessages.sort((a, b) => {
+      const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+      const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+      return timeA - timeB;
     });
 
     return {
@@ -199,6 +207,59 @@ module.exports = async (fastify) => {
     }
   });
 
+  // DELETE /discussions/:id - Delete a discussion
+  // This must come before other /:id/* routes to avoid route conflicts
+  fastify.delete('/:id', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`DELETE /discussions/${id} - Deleting discussion: ${id}`);
+
+      // Check if discussion exists
+      const discussionData = await findDiscussionById(id);
+      if (!discussionData) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      // Remove discussion ID from sector's discussions array
+      const sectorId = discussionData.sectorId;
+      if (sectorId) {
+        try {
+          const sector = await getSectorById(sectorId);
+          if (sector && Array.isArray(sector.discussions)) {
+            const updatedDiscussions = sector.discussions.filter(discId => discId !== id);
+            await updateSector(sectorId, {
+              discussions: updatedDiscussions
+            });
+            log(`Removed discussion ${id} from sector ${sectorId}`);
+          }
+        } catch (sectorError) {
+          log(`Warning: Could not update sector ${sectorId}: ${sectorError.message}`);
+          // Continue with deletion even if sector update fails
+        }
+      }
+
+      // Delete the discussion
+      await deleteDiscussion(id);
+
+      log(`Discussion deleted successfully: ${id}`);
+
+      return reply.status(200).send({
+        success: true,
+        message: `Discussion ${id} deleted successfully`
+      });
+    } catch (error) {
+      log(`Error deleting discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // POST /discussions/:id/close - Close a discussion
   fastify.post('/:id/close', async (request, reply) => {
     try {
@@ -214,10 +275,11 @@ module.exports = async (fastify) => {
 
       return reply.status(200).send(enriched);
     } catch (error) {
-      log(`Error closing discussion: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      log(`Error closing discussion: ${errorMessage}`);
       return reply.status(500).send({
         success: false,
-        error: error.message
+        error: errorMessage
       });
     }
   });
@@ -237,10 +299,11 @@ module.exports = async (fastify) => {
 
       return reply.status(200).send(enriched);
     } catch (error) {
-      log(`Error archiving discussion: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      log(`Error archiving discussion: ${errorMessage}`);
       return reply.status(500).send({
         success: false,
-        error: error.message
+        error: errorMessage
       });
     }
   });
@@ -271,10 +334,11 @@ module.exports = async (fastify) => {
 
       return reply.status(200).send(enriched);
     } catch (error) {
-      log(`Error accepting discussion: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      log(`Error accepting discussion: ${errorMessage}`);
       return reply.status(500).send({
         success: false,
-        error: error.message
+        error: errorMessage
       });
     }
   });
@@ -305,10 +369,11 @@ module.exports = async (fastify) => {
 
       return reply.status(200).send(enriched);
     } catch (error) {
-      log(`Error rejecting discussion: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      log(`Error rejecting discussion: ${errorMessage}`);
       return reply.status(500).send({
         success: false,
-        error: error.message
+        error: errorMessage
       });
     }
   });
@@ -366,4 +431,5 @@ module.exports = async (fastify) => {
       });
     }
   });
+
 };

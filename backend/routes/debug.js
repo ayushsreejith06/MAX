@@ -1,4 +1,5 @@
-const { loadAgents, updateAgent } = require('../utils/agentStorage');
+const { loadAgents, updateAgent, saveAgents } = require('../utils/agentStorage');
+const { getAllSectors } = require('../utils/sectorStorage');
 const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
 const { startDiscussion } = require('../agents/discussion/discussionLifecycle');
 
@@ -6,6 +7,46 @@ const { startDiscussion } = require('../agents/discussion/discussionLifecycle');
 function log(message) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${message}`);
+}
+
+// Helper function to check if a string is a UUID format
+function isUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+// Helper function to resolve sectorId from either UUID or symbol
+async function resolveSectorId(identifier) {
+  if (!identifier || typeof identifier !== 'string') {
+    return null;
+  }
+
+  const trimmed = identifier.trim();
+
+  // If it's a UUID format, return as-is
+  if (isUUID(trimmed)) {
+    return trimmed;
+  }
+
+  // Otherwise, treat it as a symbol and look it up
+  try {
+    const sectors = await getAllSectors();
+    const sector = sectors.find(s => 
+      s && (
+        (s.symbol && s.symbol.toUpperCase() === trimmed.toUpperCase()) ||
+        (s.sectorSymbol && s.sectorSymbol.toUpperCase() === trimmed.toUpperCase())
+      )
+    );
+
+    if (sector && sector.id) {
+      return sector.id;
+    }
+
+    return null;
+  } catch (error) {
+    log(`Error resolving sector identifier "${trimmed}": ${error.message}`);
+    return null;
+  }
 }
 
 module.exports = async (fastify) => {
@@ -237,6 +278,74 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error forcing discussion: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // GET /debug/setAllAgentsConfidence/:sectorId - Set confidence to 65 for all agents in a sector
+  // Accepts either sector ID (UUID) or sector symbol (e.g., "FASH")
+  fastify.get('/setAllAgentsConfidence/:sectorId', async (request, reply) => {
+    try {
+      const { sectorId: sectorIdentifier } = request.params;
+
+      // Validate required parameters
+      if (!sectorIdentifier || typeof sectorIdentifier !== 'string') {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId is required and must be a string (UUID or symbol)'
+        });
+      }
+
+      log(`GET /debug/setAllAgentsConfidence/:sectorId - identifier: ${sectorIdentifier}`);
+
+      // Resolve sectorId from either UUID or symbol
+      const resolvedSectorId = await resolveSectorId(sectorIdentifier);
+
+      if (!resolvedSectorId) {
+        return reply.status(404).send({
+          success: false,
+          error: `Sector not found: "${sectorIdentifier}" (not a valid UUID or symbol)`
+        });
+      }
+
+      // Load all agents
+      const allAgents = await loadAgents();
+
+      // Find all agents whose sectorId matches
+      const sectorAgents = allAgents.filter(agent => agent.sectorId === resolvedSectorId);
+
+      if (sectorAgents.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          error: 'No agents found for this sector'
+        });
+      }
+
+      // Update confidence to 65 for all matching agents
+      const updatedAgentIds = [];
+      for (let i = 0; i < allAgents.length; i++) {
+        if (allAgents[i].sectorId === resolvedSectorId) {
+          allAgents[i].confidence = 65;
+          updatedAgentIds.push(allAgents[i].id);
+        }
+      }
+
+      // Save agents back to storage
+      await saveAgents(allAgents);
+
+      log(`Updated confidence to 65 for ${updatedAgentIds.length} agents in sector ${resolvedSectorId} (identifier: ${sectorIdentifier})`);
+
+      return reply.status(200).send({
+        success: true,
+        sectorId: resolvedSectorId,
+        sectorIdentifier: sectorIdentifier,
+        updatedAgents: updatedAgentIds
+      });
+    } catch (error) {
+      log(`Error setting all agents confidence: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

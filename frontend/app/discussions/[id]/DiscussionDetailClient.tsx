@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock, Settings, Trash2 } from 'lucide-react';
 import type { Discussion } from '@/lib/types';
-import { fetchDiscussionById, addDiscussionMessage, closeDiscussion, archiveDiscussion, acceptDiscussion, rejectDiscussion } from '@/lib/api';
+import { fetchDiscussionById, addDiscussionMessage, sendMessageToManager, deleteDiscussion } from '@/lib/api';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -41,6 +41,12 @@ export default function DiscussionDetailClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [showManualOverride, setShowManualOverride] = useState(false);
+  const [overrideMessage, setOverrideMessage] = useState('');
+  const [sendingOverride, setSendingOverride] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [overrideSuccess, setOverrideSuccess] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const discussionId = params?.id as string | undefined;
 
@@ -115,28 +121,55 @@ export default function DiscussionDetailClient() {
     }
   };
 
-  const handleStatusChange = async (action: 'close' | 'archive' | 'accept' | 'reject') => {
-    if (!discussion) return;
+  const handleManualOverride = async () => {
+    if (!discussion || !overrideMessage.trim() || sendingOverride) return;
+
+    const sectorId = discussion.sectorId;
+    if (!sectorId) {
+      setOverrideError('Discussion does not have a sector ID');
+      return;
+    }
 
     try {
-      switch (action) {
-        case 'close':
-          await closeDiscussion(discussion.id);
-          break;
-        case 'archive':
-          await archiveDiscussion(discussion.id);
-          break;
-        case 'accept':
-          await acceptDiscussion(discussion.id);
-          break;
-        case 'reject':
-          await rejectDiscussion(discussion.id);
-          break;
-      }
-      await loadDiscussion();
+      setSendingOverride(true);
+      setOverrideError(null);
+      setOverrideSuccess(null);
+
+      // Include discussion context in the message
+      const messageWithContext = `Regarding discussion "${discussion.title}" (ID: ${discussion.id}):\n\n${overrideMessage.trim()}`;
+      
+      await sendMessageToManager(sectorId, messageWithContext);
+      setOverrideSuccess('Message sent successfully to manager agent.');
+      setOverrideMessage('');
+      
+      // Close modal after a short delay
+      setTimeout(() => {
+        setShowManualOverride(false);
+        setOverrideSuccess(null);
+      }, 1500);
     } catch (err) {
-      console.error(`Failed to ${action} discussion`, err);
-      alert(`Failed to ${action} discussion`);
+      console.error('Failed to send message to manager', err);
+      setOverrideError(err instanceof Error ? err.message : 'Failed to send message to manager. Please try again.');
+    } finally {
+      setSendingOverride(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!discussion || isDeleting) return;
+
+    const confirmed = window.confirm(`Are you sure you want to delete this discussion?\n\n"${discussion.title}"\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteDiscussion(discussion.id);
+      // Navigate back to discussions list after successful deletion
+      router.push('/discussions');
+    } catch (err) {
+      console.error('Failed to delete discussion', err);
+      alert(err instanceof Error ? err.message : 'Failed to delete discussion. Please try again.');
+      setIsDeleting(false);
     }
   };
 
@@ -216,47 +249,30 @@ export default function DiscussionDetailClient() {
                 <StatusIcon className="w-4 h-4" />
                 {statusMeta.label}
               </span>
+              <button
+                onClick={() => setShowManualOverride(true)}
+                className="px-4 py-2 bg-warning-amber/20 text-warning-amber border border-warning-amber/40 rounded-lg hover:bg-warning-amber/30 transition-colors text-sm font-mono flex items-center gap-2"
+                title="Send a message to the manager agent about this discussion"
+              >
+                <Settings className="w-4 h-4" />
+                Manual Override
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-error-red/20 text-error-red border border-error-red/40 rounded-lg hover:bg-error-red/30 transition-colors text-sm font-mono flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Delete this discussion"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          {discussion.status === 'in_progress' && (
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => handleStatusChange('accept')}
-                className="px-4 py-2 bg-sage-green/20 text-sage-green border border-sage-green/40 rounded-lg hover:bg-sage-green/30 transition-colors text-sm font-mono"
-              >
-                Accept
-              </button>
-              <button
-                onClick={() => handleStatusChange('reject')}
-                className="px-4 py-2 bg-error-red/20 text-error-red border border-error-red/40 rounded-lg hover:bg-error-red/30 transition-colors text-sm font-mono"
-              >
-                Reject
-              </button>
-              <button
-                onClick={() => handleStatusChange('close')}
-                className="px-4 py-2 bg-shadow-grey/50 text-floral-white border border-floral-white/20 rounded-lg hover:bg-shadow-grey transition-colors text-sm font-mono"
-              >
-                Close
-              </button>
-            </div>
-          )}
-          {(discussion.status === 'closed' || discussion.status === 'accepted' || discussion.status === 'rejected') && (
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => handleStatusChange('archive')}
-                className="px-4 py-2 bg-shadow-grey/50 text-floral-white border border-floral-white/20 rounded-lg hover:bg-shadow-grey transition-colors text-sm font-mono"
-              >
-                Archive
-              </button>
-            </div>
-          )}
 
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="px-4 py-2 bg-ink-600 text-floral-white border border-floral-white/10 rounded-lg hover:bg-ink-500 transition-colors text-sm font-mono disabled:opacity-50"
+            className="px-4 py-2 bg-ink-600 text-floral-white border border-floral-white/10 rounded-lg hover:bg-ink-500 transition-colors text-sm font-mono disabled:opacity-50 mb-4"
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
@@ -352,6 +368,82 @@ export default function DiscussionDetailClient() {
           )}
         </div>
       </div>
+
+      {/* Manual Override Modal */}
+      {showManualOverride && (
+        <div className="fixed inset-0 bg-pure-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-ink-600 rounded-lg border border-ink-500 p-6 max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-floral-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-warning-amber" />
+                Manual Override
+              </h2>
+              <button
+                onClick={() => {
+                  setShowManualOverride(false);
+                  setOverrideMessage('');
+                  setOverrideError(null);
+                  setOverrideSuccess(null);
+                }}
+                className="text-floral-white/70 hover:text-floral-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <p className="text-sm text-floral-white/70 mb-4 font-mono">
+              Send a message to the manager agent about this discussion. The manager will review your input and make decisions accordingly.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-floral-white mb-2 font-mono">
+                Message to Manager:
+              </label>
+              <textarea
+                value={overrideMessage}
+                onChange={(e) => setOverrideMessage(e.target.value)}
+                placeholder="Enter your message or instructions for the manager agent regarding this discussion..."
+                className="w-full px-4 py-3 bg-pure-black border border-floral-white/10 rounded-lg text-floral-white placeholder-floral-white/50 focus:border-warning-amber focus:outline-none font-mono text-sm min-h-[120px] resize-y"
+                disabled={sendingOverride}
+              />
+            </div>
+
+            {overrideError && (
+              <div className="mb-4 p-3 bg-error-red/20 border border-error-red/40 rounded-lg">
+                <p className="text-error-red text-sm font-mono">{overrideError}</p>
+              </div>
+            )}
+
+            {overrideSuccess && (
+              <div className="mb-4 p-3 bg-sage-green/20 border border-sage-green/40 rounded-lg">
+                <p className="text-sage-green text-sm font-mono">{overrideSuccess}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setShowManualOverride(false);
+                  setOverrideMessage('');
+                  setOverrideError(null);
+                  setOverrideSuccess(null);
+                }}
+                className="px-4 py-2 bg-shadow-grey/50 text-floral-white border border-floral-white/20 rounded-lg hover:bg-shadow-grey transition-colors text-sm font-mono"
+                disabled={sendingOverride}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleManualOverride}
+                disabled={!overrideMessage.trim() || sendingOverride}
+                className="px-4 py-2 bg-warning-amber text-pure-black rounded-lg hover:bg-warning-amber/80 transition-colors text-sm font-mono font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sendingOverride ? 'Sending...' : 'Send to Manager'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

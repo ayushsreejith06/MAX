@@ -24,6 +24,11 @@ export interface UsePollingOptions {
    * Whether to execute callback immediately on mount. Default: true
    */
   immediate?: boolean;
+  /**
+   * Allow intervals below 5000ms. Use with caution for high-frequency polling.
+   * Default: false
+   */
+  allowLowerInterval?: boolean;
 }
 
 /**
@@ -42,9 +47,10 @@ export function usePolling({
   pauseWhenHidden = true,
   callback,
   immediate = true,
+  allowLowerInterval = false,
 }: UsePollingOptions) {
-  // Ensure minimum interval of 5000ms (5 seconds)
-  const actualInterval = Math.max(5000, interval);
+  // Ensure minimum interval of 5000ms (5 seconds) unless explicitly allowed
+  const actualInterval = allowLowerInterval ? Math.max(100, interval) : Math.max(5000, interval);
   
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
@@ -213,6 +219,6 @@ export function usePolling({
       }
       isFetchingRef.current = false;
     };
-  }, [enabled, actualInterval, pauseWhenHidden, immediate]);
+  }, [enabled, actualInterval, pauseWhenHidden, immediate, allowLowerInterval]);
 }
 

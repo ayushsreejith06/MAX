@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
+const SectorState = require('./SectorState');
 
 class Sector {
   constructor(data = {}) {
@@ -30,6 +31,18 @@ class Sector {
     this.candleData = Array.isArray(data.candleData) ? data.candleData : [];
     this.description = data.description || '';
     this.createdAt = data.createdAt || new Date().toISOString();
+    
+    // Discussion tracking state
+    // Initialize as null for new sectors or inactive discussions
+    if (data.discussion === null || data.discussion === undefined) {
+      this.discussion = null;
+    } else if (typeof data.discussion === 'object' && data.discussion.status === 'inactive') {
+      this.discussion = null;
+    } else {
+      // Create SectorState instance for active discussions
+      const discussionState = new SectorState(data.discussion);
+      this.discussion = discussionState.status === 'inactive' ? null : discussionState;
+    }
   }
 
   static fromData(data = {}) {
@@ -59,7 +72,9 @@ class Sector {
       discussions: data.discussions,
       candleData: data.candleData,
       description: data.description,
-      createdAt: data.createdAt
+      createdAt: data.createdAt,
+      // Handle discussion field - normalize old sectors without discussion
+      discussion: data.discussion !== undefined ? data.discussion : null
     });
   }
 
@@ -87,7 +102,9 @@ class Sector {
       discussions: this.discussions,
       candleData: this.candleData,
       description: this.description,
-      createdAt: this.createdAt
+      createdAt: this.createdAt,
+      // Discussion tracking state (null if inactive or not set)
+      discussion: this.discussion === null ? null : (this.discussion instanceof SectorState ? this.discussion.toJSON() : this.discussion)
     };
   }
 }

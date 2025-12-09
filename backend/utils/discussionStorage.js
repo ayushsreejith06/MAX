@@ -41,10 +41,17 @@ async function saveDiscussion(discussion) {
   });
 }
 
+async function deleteDiscussion(discussionId) {
+  await atomicUpdate(DISCUSSIONS_FILE, (discussions) => {
+    return discussions.filter(d => d.id !== discussionId);
+  });
+}
+
 module.exports = {
   loadDiscussions,
   saveDiscussions,
   findDiscussionById,
-  saveDiscussion
+  saveDiscussion,
+  deleteDiscussion
 };
 

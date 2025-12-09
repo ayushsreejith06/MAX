@@ -65,6 +65,13 @@ const start = async () => {
       fastify.log.error('Error registering debug route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/system'), { prefix: '/api/system' });
+      fastify.log.info('✅ Routes registered: /api/system');
+    } catch (err) {
+      fastify.log.error('Error registering system route:', err);
+      throw err;
+    }
 
     // Bootstrap SimulationEngine
     try {
@@ -102,6 +109,19 @@ const start = async () => {
       // Don't throw - allow server to start even if discussion lifecycle fails
     }
 
+    // Bootstrap SystemOrchestrator (automatic ticks every 2 seconds)
+    try {
+      const SystemOrchestrator = require('./core/engines/SystemOrchestrator');
+      const orchestrator = new SystemOrchestrator();
+      orchestrator.start();
+      fastify.log.info('SystemOrchestrator initialized and started (automatic ticks every 2 seconds)');
+      // Store reference for graceful shutdown if needed
+      fastify.systemOrchestrator = orchestrator;
+    } catch (err) {
+      fastify.log.error('Error initializing SystemOrchestrator:', err);
+      // Don't throw - allow server to start even if orchestrator fails
+    }
+
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
     console.log(`📍 Environment: ${MAX_ENV}`);
@@ -114,6 +134,7 @@ const start = async () => {
     console.log(`   - /api/agents`);
     console.log(`   - /api/discussions`);
     console.log(`   - /api/simulation`);
+    console.log(`   - /api/system`);
     console.log(`   - /api/user`);
     console.log(`   - /debug`);
     console.log(`📍 Simulation Engine: Initialized`);

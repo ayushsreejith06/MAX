@@ -18,6 +18,7 @@ const { aggregateConfidenceForAction } = require('../../manager/confidence');
 const { detectConflict, resolveConflict } = require('../../manager/conflict');
 const ManagerAgent = require('../manager/ManagerAgent');
 const { updateAgentsConfidenceAfterConsensus } = require('../../simulation/confidence');
+const DiscussionEngine = require('../../core/DiscussionEngine');
 
 /**
  * Start a discussion for a sector
@@ -54,6 +55,18 @@ async function startDiscussion(sectorId, title, agentIds = null) {
     await saveDiscussion(discussionRoom);
 
     console.log(`[DiscussionLifecycle] Started discussion ${discussionRoom.id} for sector ${sectorId}`);
+
+    // Immediately start rounds for this discussion
+    try {
+      const discussionEngine = new DiscussionEngine();
+      console.log(`[DiscussionLifecycle] Starting rounds for discussion ${discussionRoom.id}`);
+      await discussionEngine.startRounds(discussionRoom.id, 3);
+      console.log(`[DiscussionLifecycle] Completed rounds for discussion ${discussionRoom.id}`);
+    } catch (error) {
+      console.error(`[DiscussionLifecycle] Error starting rounds for discussion ${discussionRoom.id}:`, error);
+      // Don't throw - discussion was created successfully, just rounds failed
+    }
+
     return discussionRoom;
   } catch (error) {
     console.error(`[DiscussionLifecycle] Error starting discussion:`, error);

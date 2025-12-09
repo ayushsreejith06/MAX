@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Play, AlertCircle, DollarSign, Plus, Trash2, Settings } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, AlertCircle, DollarSign, Plus, Trash2, Settings } from 'lucide-react';
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { SectorSettingsForm } from '@/components/SectorSettingsForm';
-import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
+import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, fetchAgents, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
 import type { Sector, Agent } from '@/lib/types';
+import { usePolling } from '@/hooks/usePolling';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
 const AgentRow = memo(function AgentRow({
@@ -174,7 +175,6 @@ export default function SectorDetailClient() {
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [simulating, setSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulateTickResult | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -194,6 +194,7 @@ export default function SectorDetailClient() {
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
   const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
   const isLoadingRef = useRef(false); // Prevent concurrent loads
+  const lastAgentConfidencesRef = useRef<Map<string, number>>(new Map()); // Cache for comparison
 
   // Extract ID from dynamic route and normalize to lowercase
   const sectorId = params?.id as string | undefined;
@@ -265,6 +266,20 @@ export default function SectorDetailClient() {
             setSector(data);
             setError(null);
             hasLoadedRef.current = normalizedSectorId;
+            
+            // Initialize agent confidences Map from loaded sector data
+            const initialConfidences = new Map<string, number>();
+            if (data.agents && Array.isArray(data.agents)) {
+              data.agents.forEach(agent => {
+                if (agent && agent.id) {
+                  const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+                  initialConfidences.set(agent.id, confidence);
+                }
+              });
+            }
+            setAgentConfidences(initialConfidences);
+            lastAgentConfidencesRef.current = initialConfidences;
+            
             if (showLoading) {
               setLoading(false);
             }
@@ -363,6 +378,59 @@ export default function SectorDetailClient() {
     if (!normalizedSectorId) return;
     void loadPerformance();
   }, [normalizedSectorId, loadPerformance]);
+
+  // Poll agents every 1500ms to update confidence values without re-rendering entire table
+  const pollAgentConfidences = useCallback(async () => {
+    if (!normalizedSectorId || !sector) return;
+    
+    try {
+      const agentData = await fetchAgents();
+      
+      // Check if request was skipped
+      if (isSkippedResult(agentData) || !Array.isArray(agentData)) {
+        return;
+      }
+      
+      // Filter agents for current sector
+      const sectorAgents = agentData.filter(agent => 
+        agent.sectorId && agent.sectorId.toLowerCase() === normalizedSectorId
+      );
+      
+      // Build new confidence map
+      const newConfidences = new Map<string, number>();
+      let hasChanges = false;
+      
+      sectorAgents.forEach(agent => {
+        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        newConfidences.set(agent.id, confidence);
+        
+        // Check if confidence changed
+        const oldConfidence = lastAgentConfidencesRef.current.get(agent.id);
+        if (oldConfidence !== confidence) {
+          hasChanges = true;
+        }
+      });
+      
+      // Only update state if confidence values actually changed
+      if (hasChanges) {
+        lastAgentConfidencesRef.current = newConfidences;
+        setAgentConfidences(newConfidences);
+      }
+    } catch (err) {
+      // Silently fail during polling - don't show errors for background updates
+      console.debug('[SectorDetail] Failed to poll agent confidences:', err);
+    }
+  }, [normalizedSectorId, sector]);
+
+  // Use polling hook with 1500ms interval for confidence updates
+  usePolling({
+    callback: pollAgentConfidences,
+    interval: 1500,
+    enabled: !!normalizedSectorId && !!sector,
+    pauseWhenHidden: true,
+    immediate: false, // Don't call immediately, wait for first poll
+    allowLowerInterval: true, // Allow 1500ms interval
+  });
 
   // Helper functions - must be defined before early returns (React Hooks rule)
   const formatPrice = (price: number) => price.toFixed(2);
@@ -865,43 +933,6 @@ export default function SectorDetailClient() {
         <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-floral-white font-mono">SIMULATION</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  if (!normalizedSectorId || simulating) return;
-                  setSimulating(true);
-                  setError(null);
-                  try {
-                    const result = await simulateTick(String(normalizedSectorId), []);
-                    setSimulationResult(result);
-                    // Reload sector data and performance to show updated price
-                    const updatedSector = await fetchSectorById(String(normalizedSectorId));
-                    if (updatedSector) {
-                      setSector(updatedSector);
-                    }
-                    // Reload performance after simulation
-                    await loadPerformance();
-                  } catch (err: any) {
-                    console.error('Simulation tick error:', err);
-                    const errorMessage = err?.message || 'Failed to run simulation';
-                    if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-                      setError(`Sector not found. Please ensure the sector ID is correct.`);
-                    } else if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
-                      setError(`Invalid request. Please check the sector data.`);
-                    } else {
-                      setError(errorMessage);
-                    }
-                  } finally {
-                    setSimulating(false);
-                  }
-                }}
-                disabled={simulating || !normalizedSectorId}
-                className="px-4 py-2 bg-sage-green hover:bg-sage-green/80 disabled:bg-sage-green/50 disabled:cursor-not-allowed text-pure-black font-mono font-semibold rounded transition-colors flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                {simulating ? 'Running...' : 'Run Simulation Tick'}
-              </button>
-            </div>
           </div>
 
           {/* Auto-updating Performance Display */}
@@ -999,7 +1030,7 @@ export default function SectorDetailClient() {
 
           {!simulationResult && (
             <p className="text-sm text-floral-white/60 font-mono">
-              Click "Run Simulation Tick" to simulate one time step of price movement and trade execution.
+              Simulation ticks run automatically every 2 seconds. Use the toggle in the navbar to control simulation mode.
             </p>
           )}
         </div>

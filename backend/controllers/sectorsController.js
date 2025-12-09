@@ -51,7 +51,9 @@ function normalizeSectorRecord(data = {}) {
       discussions: normalized.discussions || [],
       candleData: normalized.candleData || [],
       description: normalized.description || '',
-      createdAt: normalized.createdAt || new Date().toISOString()
+      createdAt: normalized.createdAt || new Date().toISOString(),
+      // Discussion tracking state (null for old sectors or inactive discussions)
+      discussion: normalized.discussion !== undefined ? normalized.discussion : null
     };
   } catch (error) {
     console.error("Error normalizing sector record:", error, "Data:", data);

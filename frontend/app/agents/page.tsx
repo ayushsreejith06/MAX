@@ -220,17 +220,18 @@ export default function Agents() {
     void loadAgents(true);
   }, [loadAgents]);
 
-  // Use centralized polling utility with minimum 2500ms interval (without loading state)
+  // Use centralized polling utility with 1500ms interval for live confidence updates (without loading state)
   const pollAgents = useCallback(async () => {
     await loadAgents(false);
   }, [loadAgents]);
 
   usePolling({
     callback: pollAgents,
-    interval: 2500,
+    interval: 1500,
     enabled: true,
     pauseWhenHidden: true,
     immediate: false, // Don't call immediately since we already loaded above
+    allowLowerInterval: true, // Allow 1500ms interval for confidence updates
   });
 
   const filteredAgents = useMemo(() => {

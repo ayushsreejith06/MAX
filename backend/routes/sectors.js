@@ -3,6 +3,7 @@ const Agent = require('../models/Agent');
 const { getAllSectors, createSector, updateSector, deleteSector } = require('../utils/sectorStorage');
 const { normalizeSectorRecord, getSectorById } = require('../controllers/sectorsController');
 const { loadAgents, saveAgents, updateAgent, deleteAgent } = require('../utils/agentStorage');
+const { loadDiscussions } = require('../utils/discussionStorage');
 const { addFunds } = require('../utils/userAccount');
 const { v4: uuidv4 } = require('uuid');
 const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
@@ -198,6 +199,37 @@ module.exports = async (fastify) => {
       } catch (agentError) {
         console.warn(`[GET /sectors/:id] Failed to enrich agents:`, agentError.message);
         // Continue with sector.agents as-is if enrichment fails
+      }
+      
+      // Enrich sector with discussions from discussions.json that belong to this sector
+      try {
+        const allDiscussions = await loadDiscussions();
+        const sectorDiscussions = allDiscussions
+          .filter(discussion => discussion.sectorId === id)
+          .map(discussion => ({
+            id: discussion.id,
+            title: discussion.title || 'Untitled Discussion',
+            status: discussion.status || 'in_progress',
+            updatedAt: discussion.updatedAt || discussion.createdAt || new Date().toISOString(),
+            createdAt: discussion.createdAt || new Date().toISOString(),
+            agentIds: Array.isArray(discussion.agentIds) ? discussion.agentIds : []
+          }));
+        
+        // Sort discussions by updatedAt (newest first)
+        sectorDiscussions.sort((a, b) => {
+          const dateA = new Date(a.updatedAt);
+          const dateB = new Date(b.updatedAt);
+          return dateB - dateA;
+        });
+        
+        // Update sector with discussions
+        sector.discussions = sectorDiscussions;
+      } catch (discussionError) {
+        console.warn(`[GET /sectors/:id] Failed to enrich discussions:`, discussionError.message);
+        // Continue with sector.discussions as-is if enrichment fails
+        if (!Array.isArray(sector.discussions)) {
+          sector.discussions = [];
+        }
       }
       
       return reply.status(200).send(sector);

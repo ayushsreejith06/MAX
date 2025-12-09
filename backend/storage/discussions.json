@@ -1,1 +1,2556 @@
-[]
+[
+  {
+    "id": "a26a6970-089d-4eae-87c3-dc1df08b1092",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:32.135Z",
+        "createdAt": "2025-12-09T01:19:32.135Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:32.135Z",
+        "createdAt": "2025-12-09T01:19:32.135Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:32.136Z",
+        "createdAt": "2025-12-09T01:19:32.136Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:32.674Z",
+        "createdAt": "2025-12-09T01:19:32.674Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:32.674Z",
+        "createdAt": "2025-12-09T01:19:32.674Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:32.674Z",
+        "createdAt": "2025-12-09T01:19:32.674Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.200Z",
+        "createdAt": "2025-12-09T01:19:33.200Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.200Z",
+        "createdAt": "2025-12-09T01:19:33.200Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.200Z",
+        "createdAt": "2025-12-09T01:19:33.200Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.275Z",
+        "createdAt": "2025-12-09T01:19:33.275Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.275Z",
+        "createdAt": "2025-12-09T01:19:33.275Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.276Z",
+        "createdAt": "2025-12-09T01:19:33.276Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.797Z",
+        "createdAt": "2025-12-09T01:19:33.797Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.797Z",
+        "createdAt": "2025-12-09T01:19:33.797Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:33.797Z",
+        "createdAt": "2025-12-09T01:19:33.797Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:34.335Z",
+        "createdAt": "2025-12-09T01:19:34.335Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:34.335Z",
+        "createdAt": "2025-12-09T01:19:34.335Z"
+      },
+      {
+        "id": "a26a6970-089d-4eae-87c3-dc1df08b1092-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:34.336Z",
+        "createdAt": "2025-12-09T01:19:34.336Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:19:32.053Z",
+    "updatedAt": "2025-12-09T01:19:35.968Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-a26a6970-089d-4eae-87c3-dc1df08b1092",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:19:34.370Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": "HOLD",
+    "rationale": "Majority vote: 3 agents voted HOLD",
+    "confidence": 0.3,
+    "selectedAgent": "FASH_GENERAL",
+    "voteBreakdown": {
+      "BUY": 0,
+      "SELL": 0,
+      "HOLD": 3
+    },
+    "conflictScore": null,
+    "decidedAt": "2025-12-09T01:19:33.663Z",
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": false,
+        "reason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement."
+      }
+    ]
+  },
+  {
+    "id": "4895e0c3-041c-415a-8b37-3c58a365081e",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:38.076Z",
+        "createdAt": "2025-12-09T01:19:38.076Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:38.076Z",
+        "createdAt": "2025-12-09T01:19:38.076Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:38.116Z",
+        "createdAt": "2025-12-09T01:19:38.116Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:38.636Z",
+        "createdAt": "2025-12-09T01:19:38.636Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:38.636Z",
+        "createdAt": "2025-12-09T01:19:38.636Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:38.636Z",
+        "createdAt": "2025-12-09T01:19:38.636Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.168Z",
+        "createdAt": "2025-12-09T01:19:39.168Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.169Z",
+        "createdAt": "2025-12-09T01:19:39.169Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.169Z",
+        "createdAt": "2025-12-09T01:19:39.169Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.270Z",
+        "createdAt": "2025-12-09T01:19:39.270Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.270Z",
+        "createdAt": "2025-12-09T01:19:39.270Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.271Z",
+        "createdAt": "2025-12-09T01:19:39.271Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.789Z",
+        "createdAt": "2025-12-09T01:19:39.789Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.789Z",
+        "createdAt": "2025-12-09T01:19:39.789Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:39.789Z",
+        "createdAt": "2025-12-09T01:19:39.789Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:40.296Z",
+        "createdAt": "2025-12-09T01:19:40.296Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:40.296Z",
+        "createdAt": "2025-12-09T01:19:40.296Z"
+      },
+      {
+        "id": "4895e0c3-041c-415a-8b37-3c58a365081e-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:40.296Z",
+        "createdAt": "2025-12-09T01:19:40.296Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:19:38.025Z",
+    "updatedAt": "2025-12-09T01:19:42.014Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-4895e0c3-041c-415a-8b37-3c58a365081e",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:19:40.337Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (77.17) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:44.078Z",
+        "createdAt": "2025-12-09T01:19:44.078Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:44.078Z",
+        "createdAt": "2025-12-09T01:19:44.078Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:44.079Z",
+        "createdAt": "2025-12-09T01:19:44.079Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:44.593Z",
+        "createdAt": "2025-12-09T01:19:44.593Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:44.593Z",
+        "createdAt": "2025-12-09T01:19:44.593Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:44.593Z",
+        "createdAt": "2025-12-09T01:19:44.593Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.133Z",
+        "createdAt": "2025-12-09T01:19:45.133Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.133Z",
+        "createdAt": "2025-12-09T01:19:45.133Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.133Z",
+        "createdAt": "2025-12-09T01:19:45.133Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.213Z",
+        "createdAt": "2025-12-09T01:19:45.213Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.214Z",
+        "createdAt": "2025-12-09T01:19:45.214Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.214Z",
+        "createdAt": "2025-12-09T01:19:45.214Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.761Z",
+        "createdAt": "2025-12-09T01:19:45.761Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.761Z",
+        "createdAt": "2025-12-09T01:19:45.761Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:45.761Z",
+        "createdAt": "2025-12-09T01:19:45.761Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:46.279Z",
+        "createdAt": "2025-12-09T01:19:46.279Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:46.279Z",
+        "createdAt": "2025-12-09T01:19:46.279Z"
+      },
+      {
+        "id": "809256d5-ae1d-417d-8ab9-4d6bd8368de2-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:46.279Z",
+        "createdAt": "2025-12-09T01:19:46.279Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:19:44.019Z",
+    "updatedAt": "2025-12-09T01:19:48.066Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-809256d5-ae1d-417d-8ab9-4d6bd8368de2",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:19:46.308Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (75.50) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "0100cbc0-2360-4204-b03f-c883fdf276c4",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:56.114Z",
+        "createdAt": "2025-12-09T01:19:56.114Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:56.114Z",
+        "createdAt": "2025-12-09T01:19:56.114Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:56.114Z",
+        "createdAt": "2025-12-09T01:19:56.114Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:56.634Z",
+        "createdAt": "2025-12-09T01:19:56.634Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:56.634Z",
+        "createdAt": "2025-12-09T01:19:56.634Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:56.634Z",
+        "createdAt": "2025-12-09T01:19:56.634Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.148Z",
+        "createdAt": "2025-12-09T01:19:57.148Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.148Z",
+        "createdAt": "2025-12-09T01:19:57.148Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.148Z",
+        "createdAt": "2025-12-09T01:19:57.148Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.291Z",
+        "createdAt": "2025-12-09T01:19:57.291Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.292Z",
+        "createdAt": "2025-12-09T01:19:57.292Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.292Z",
+        "createdAt": "2025-12-09T01:19:57.292Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.817Z",
+        "createdAt": "2025-12-09T01:19:57.817Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.817Z",
+        "createdAt": "2025-12-09T01:19:57.817Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:57.818Z",
+        "createdAt": "2025-12-09T01:19:57.818Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:58.371Z",
+        "createdAt": "2025-12-09T01:19:58.371Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:58.371Z",
+        "createdAt": "2025-12-09T01:19:58.371Z"
+      },
+      {
+        "id": "0100cbc0-2360-4204-b03f-c883fdf276c4-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:19:58.371Z",
+        "createdAt": "2025-12-09T01:19:58.371Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:19:56.058Z",
+    "updatedAt": "2025-12-09T01:20:00.102Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-0100cbc0-2360-4204-b03f-c883fdf276c4",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:19:58.423Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (78.17) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "adf99591-5cde-4487-949a-95c2b97ff0c6",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:02.090Z",
+        "createdAt": "2025-12-09T01:20:02.090Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:02.090Z",
+        "createdAt": "2025-12-09T01:20:02.090Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:02.090Z",
+        "createdAt": "2025-12-09T01:20:02.090Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:02.600Z",
+        "createdAt": "2025-12-09T01:20:02.600Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:02.600Z",
+        "createdAt": "2025-12-09T01:20:02.600Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:02.600Z",
+        "createdAt": "2025-12-09T01:20:02.600Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.109Z",
+        "createdAt": "2025-12-09T01:20:03.109Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.109Z",
+        "createdAt": "2025-12-09T01:20:03.109Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.109Z",
+        "createdAt": "2025-12-09T01:20:03.109Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.137Z",
+        "createdAt": "2025-12-09T01:20:03.137Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.138Z",
+        "createdAt": "2025-12-09T01:20:03.138Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.138Z",
+        "createdAt": "2025-12-09T01:20:03.138Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.751Z",
+        "createdAt": "2025-12-09T01:20:03.751Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.751Z",
+        "createdAt": "2025-12-09T01:20:03.751Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:03.751Z",
+        "createdAt": "2025-12-09T01:20:03.751Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:04.260Z",
+        "createdAt": "2025-12-09T01:20:04.260Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:04.260Z",
+        "createdAt": "2025-12-09T01:20:04.260Z"
+      },
+      {
+        "id": "adf99591-5cde-4487-949a-95c2b97ff0c6-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:04.261Z",
+        "createdAt": "2025-12-09T01:20:04.261Z"
+      }
+    ],
+    "status": "closed",
+    "createdAt": "2025-12-09T01:20:02.067Z",
+    "updatedAt": "2025-12-09T01:20:54.297Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-adf99591-5cde-4487-949a-95c2b97ff0c6",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:20:04.272Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": "HOLD",
+    "rationale": "Majority vote: 3 agents voted HOLD",
+    "confidence": 0.3,
+    "selectedAgent": "FASH_GENERAL",
+    "voteBreakdown": {
+      "BUY": 0,
+      "SELL": 0,
+      "HOLD": 3
+    },
+    "conflictScore": null,
+    "decidedAt": "2025-12-09T01:20:03.654Z",
+    "managerDecisions": []
+  },
+  {
+    "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:54.531Z",
+        "createdAt": "2025-12-09T01:20:54.531Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:54.531Z",
+        "createdAt": "2025-12-09T01:20:54.531Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:54.531Z",
+        "createdAt": "2025-12-09T01:20:54.531Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.057Z",
+        "createdAt": "2025-12-09T01:20:55.057Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.057Z",
+        "createdAt": "2025-12-09T01:20:55.057Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.057Z",
+        "createdAt": "2025-12-09T01:20:55.057Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.569Z",
+        "createdAt": "2025-12-09T01:20:55.569Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.569Z",
+        "createdAt": "2025-12-09T01:20:55.569Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.569Z",
+        "createdAt": "2025-12-09T01:20:55.569Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.664Z",
+        "createdAt": "2025-12-09T01:20:55.664Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.664Z",
+        "createdAt": "2025-12-09T01:20:55.665Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:55.665Z",
+        "createdAt": "2025-12-09T01:20:55.665Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:56.193Z",
+        "createdAt": "2025-12-09T01:20:56.193Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:56.193Z",
+        "createdAt": "2025-12-09T01:20:56.193Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:56.193Z",
+        "createdAt": "2025-12-09T01:20:56.193Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:56.705Z",
+        "createdAt": "2025-12-09T01:20:56.705Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:56.705Z",
+        "createdAt": "2025-12-09T01:20:56.705Z"
+      },
+      {
+        "id": "fbaf25c4-7118-4c6d-8483-bea0dbb1f565-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:20:56.705Z",
+        "createdAt": "2025-12-09T01:20:56.705Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:20:54.476Z",
+    "updatedAt": "2025-12-09T01:20:59.115Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-fbaf25c4-7118-4c6d-8483-bea0dbb1f565",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:20:56.744Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (77.19) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:00.467Z",
+        "createdAt": "2025-12-09T01:21:00.467Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:00.467Z",
+        "createdAt": "2025-12-09T01:21:00.467Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:00.467Z",
+        "createdAt": "2025-12-09T01:21:00.467Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.004Z",
+        "createdAt": "2025-12-09T01:21:01.004Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.004Z",
+        "createdAt": "2025-12-09T01:21:01.004Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.004Z",
+        "createdAt": "2025-12-09T01:21:01.004Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.524Z",
+        "createdAt": "2025-12-09T01:21:01.524Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.524Z",
+        "createdAt": "2025-12-09T01:21:01.524Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.524Z",
+        "createdAt": "2025-12-09T01:21:01.524Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.636Z",
+        "createdAt": "2025-12-09T01:21:01.636Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.636Z",
+        "createdAt": "2025-12-09T01:21:01.636Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:01.636Z",
+        "createdAt": "2025-12-09T01:21:01.636Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:02.156Z",
+        "createdAt": "2025-12-09T01:21:02.156Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:02.156Z",
+        "createdAt": "2025-12-09T01:21:02.156Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:02.156Z",
+        "createdAt": "2025-12-09T01:21:02.156Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:02.665Z",
+        "createdAt": "2025-12-09T01:21:02.665Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:02.666Z",
+        "createdAt": "2025-12-09T01:21:02.666Z"
+      },
+      {
+        "id": "db3c4c83-93e3-4800-bc26-a23016d1a0e1-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:02.666Z",
+        "createdAt": "2025-12-09T01:21:02.666Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:21:00.417Z",
+    "updatedAt": "2025-12-09T01:21:04.321Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-db3c4c83-93e3-4800-bc26-a23016d1a0e1",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:21:02.701Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (78.19) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "d79e7577-3968-4ae2-89b9-6b43c3419387",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:06.550Z",
+        "createdAt": "2025-12-09T01:21:06.550Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:06.551Z",
+        "createdAt": "2025-12-09T01:21:06.551Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:06.551Z",
+        "createdAt": "2025-12-09T01:21:06.551Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.073Z",
+        "createdAt": "2025-12-09T01:21:07.073Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.073Z",
+        "createdAt": "2025-12-09T01:21:07.073Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.073Z",
+        "createdAt": "2025-12-09T01:21:07.073Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.602Z",
+        "createdAt": "2025-12-09T01:21:07.602Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.603Z",
+        "createdAt": "2025-12-09T01:21:07.603Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.603Z",
+        "createdAt": "2025-12-09T01:21:07.603Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.680Z",
+        "createdAt": "2025-12-09T01:21:07.680Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.681Z",
+        "createdAt": "2025-12-09T01:21:07.681Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:07.681Z",
+        "createdAt": "2025-12-09T01:21:07.681Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:08.198Z",
+        "createdAt": "2025-12-09T01:21:08.198Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:08.198Z",
+        "createdAt": "2025-12-09T01:21:08.198Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:08.198Z",
+        "createdAt": "2025-12-09T01:21:08.198Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:08.705Z",
+        "createdAt": "2025-12-09T01:21:08.705Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:08.705Z",
+        "createdAt": "2025-12-09T01:21:08.705Z"
+      },
+      {
+        "id": "d79e7577-3968-4ae2-89b9-6b43c3419387-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:08.705Z",
+        "createdAt": "2025-12-09T01:21:08.705Z"
+      }
+    ],
+    "status": "decided",
+    "createdAt": "2025-12-09T01:21:06.470Z",
+    "updatedAt": "2025-12-09T01:21:09.242Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-d79e7577-3968-4ae2-89b9-6b43c3419387",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:21:08.718Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": "HOLD",
+    "rationale": "Majority vote: 3 agents voted HOLD",
+    "confidence": 0.3,
+    "selectedAgent": "FASH_GENERAL",
+    "voteBreakdown": {
+      "BUY": 0,
+      "SELL": 0,
+      "HOLD": 3
+    },
+    "conflictScore": null,
+    "decidedAt": "2025-12-09T01:21:09.242Z",
+    "managerDecisions": []
+  },
+  {
+    "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:41.008Z",
+        "createdAt": "2025-12-09T01:21:41.008Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:41.009Z",
+        "createdAt": "2025-12-09T01:21:41.009Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:41.009Z",
+        "createdAt": "2025-12-09T01:21:41.009Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:41.539Z",
+        "createdAt": "2025-12-09T01:21:41.539Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:41.539Z",
+        "createdAt": "2025-12-09T01:21:41.539Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:41.541Z",
+        "createdAt": "2025-12-09T01:21:41.541Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.099Z",
+        "createdAt": "2025-12-09T01:21:42.099Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.099Z",
+        "createdAt": "2025-12-09T01:21:42.099Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.100Z",
+        "createdAt": "2025-12-09T01:21:42.100Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.262Z",
+        "createdAt": "2025-12-09T01:21:42.262Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.263Z",
+        "createdAt": "2025-12-09T01:21:42.263Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.263Z",
+        "createdAt": "2025-12-09T01:21:42.263Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.801Z",
+        "createdAt": "2025-12-09T01:21:42.801Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.802Z",
+        "createdAt": "2025-12-09T01:21:42.802Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:42.803Z",
+        "createdAt": "2025-12-09T01:21:42.803Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:43.321Z",
+        "createdAt": "2025-12-09T01:21:43.321Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:43.322Z",
+        "createdAt": "2025-12-09T01:21:43.322Z"
+      },
+      {
+        "id": "0b1d9eba-08e5-4cf8-9104-19df8aefcebb-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:43.322Z",
+        "createdAt": "2025-12-09T01:21:43.322Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:21:40.761Z",
+    "updatedAt": "2025-12-09T01:21:44.610Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-0b1d9eba-08e5-4cf8-9104-19df8aefcebb",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:21:43.352Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (75.64) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:46.849Z",
+        "createdAt": "2025-12-09T01:21:46.849Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:46.849Z",
+        "createdAt": "2025-12-09T01:21:46.849Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:46.850Z",
+        "createdAt": "2025-12-09T01:21:46.850Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:47.379Z",
+        "createdAt": "2025-12-09T01:21:47.379Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:47.379Z",
+        "createdAt": "2025-12-09T01:21:47.379Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:47.380Z",
+        "createdAt": "2025-12-09T01:21:47.380Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:47.895Z",
+        "createdAt": "2025-12-09T01:21:47.895Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:47.895Z",
+        "createdAt": "2025-12-09T01:21:47.895Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:47.895Z",
+        "createdAt": "2025-12-09T01:21:47.895Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:48.063Z",
+        "createdAt": "2025-12-09T01:21:48.063Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:48.064Z",
+        "createdAt": "2025-12-09T01:21:48.064Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:48.064Z",
+        "createdAt": "2025-12-09T01:21:48.064Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:48.601Z",
+        "createdAt": "2025-12-09T01:21:48.601Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:48.601Z",
+        "createdAt": "2025-12-09T01:21:48.601Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:48.604Z",
+        "createdAt": "2025-12-09T01:21:48.604Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:49.120Z",
+        "createdAt": "2025-12-09T01:21:49.120Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:49.120Z",
+        "createdAt": "2025-12-09T01:21:49.120Z"
+      },
+      {
+        "id": "555b6ba6-014e-408f-b1cc-aa27659ff1d4-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:49.121Z",
+        "createdAt": "2025-12-09T01:21:49.121Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:21:46.772Z",
+    "updatedAt": "2025-12-09T01:21:50.654Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-555b6ba6-014e-408f-b1cc-aa27659ff1d4",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:21:49.182Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (72.97) exceeds threshold (65)"
+      }
+    ]
+  },
+  {
+    "id": "69db05ca-f2ee-4ed6-b111-59c63b175149",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:52.846Z",
+        "createdAt": "2025-12-09T01:21:52.846Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:52.846Z",
+        "createdAt": "2025-12-09T01:21:52.846Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:52.846Z",
+        "createdAt": "2025-12-09T01:21:52.846Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:53.374Z",
+        "createdAt": "2025-12-09T01:21:53.374Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:53.374Z",
+        "createdAt": "2025-12-09T01:21:53.374Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:53.374Z",
+        "createdAt": "2025-12-09T01:21:53.374Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:53.891Z",
+        "createdAt": "2025-12-09T01:21:53.891Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:53.892Z",
+        "createdAt": "2025-12-09T01:21:53.892Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:53.892Z",
+        "createdAt": "2025-12-09T01:21:53.892Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:54.004Z",
+        "createdAt": "2025-12-09T01:21:54.004Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:54.005Z",
+        "createdAt": "2025-12-09T01:21:54.005Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:54.005Z",
+        "createdAt": "2025-12-09T01:21:54.005Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:54.525Z",
+        "createdAt": "2025-12-09T01:21:54.525Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:54.525Z",
+        "createdAt": "2025-12-09T01:21:54.525Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:54.525Z",
+        "createdAt": "2025-12-09T01:21:54.525Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:55.055Z",
+        "createdAt": "2025-12-09T01:21:55.055Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:55.056Z",
+        "createdAt": "2025-12-09T01:21:55.056Z"
+      },
+      {
+        "id": "69db05ca-f2ee-4ed6-b111-59c63b175149-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:55.056Z",
+        "createdAt": "2025-12-09T01:21:55.056Z"
+      }
+    ],
+    "status": "decided",
+    "createdAt": "2025-12-09T01:21:52.686Z",
+    "updatedAt": "2025-12-09T01:21:55.764Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-69db05ca-f2ee-4ed6-b111-59c63b175149",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:21:55.141Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": "HOLD",
+    "rationale": "Majority vote: 3 agents voted HOLD",
+    "confidence": 0.3,
+    "selectedAgent": "FASH_GENERAL",
+    "voteBreakdown": {
+      "BUY": 0,
+      "SELL": 0,
+      "HOLD": 3
+    },
+    "conflictScore": null,
+    "decidedAt": "2025-12-09T01:21:55.764Z",
+    "managerDecisions": []
+  },
+  {
+    "id": "74d481fe-b04d-435d-aeea-674ebb1e5788",
+    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
+    "title": "Discussion for fashion",
+    "agentIds": [
+      "FASH_GENERAL",
+      "FASH_GENERAL1",
+      "FASH_GENERAL2"
+    ],
+    "messages": [
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-0",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:56.743Z",
+        "createdAt": "2025-12-09T01:21:56.743Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-1",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:56.743Z",
+        "createdAt": "2025-12-09T01:21:56.743Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-2",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:56.743Z",
+        "createdAt": "2025-12-09T01:21:56.743Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-3",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:57.283Z",
+        "createdAt": "2025-12-09T01:21:57.283Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-4",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:57.284Z",
+        "createdAt": "2025-12-09T01:21:57.284Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-5",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:57.284Z",
+        "createdAt": "2025-12-09T01:21:57.284Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-6",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:57.803Z",
+        "createdAt": "2025-12-09T01:21:57.803Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-7",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:57.804Z",
+        "createdAt": "2025-12-09T01:21:57.804Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-8",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:57.804Z",
+        "createdAt": "2025-12-09T01:21:57.804Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-9",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:58.064Z",
+        "createdAt": "2025-12-09T01:21:58.064Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-10",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:58.065Z",
+        "createdAt": "2025-12-09T01:21:58.065Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-11",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:58.065Z",
+        "createdAt": "2025-12-09T01:21:58.065Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-12",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:58.597Z",
+        "createdAt": "2025-12-09T01:21:58.597Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-13",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:58.597Z",
+        "createdAt": "2025-12-09T01:21:58.597Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-14",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:58.597Z",
+        "createdAt": "2025-12-09T01:21:58.597Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-15",
+        "agentId": "FASH_GENERAL",
+        "agentName": "FASH_GENERAL",
+        "content": "Agent FASH_GENERAL: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:59.120Z",
+        "createdAt": "2025-12-09T01:21:59.120Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-16",
+        "agentId": "FASH_GENERAL1",
+        "agentName": "FASH_GENERAL1",
+        "content": "Agent FASH_GENERAL1: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:59.120Z",
+        "createdAt": "2025-12-09T01:21:59.120Z"
+      },
+      {
+        "id": "74d481fe-b04d-435d-aeea-674ebb1e5788-msg-17",
+        "agentId": "FASH_GENERAL2",
+        "agentName": "FASH_GENERAL2",
+        "content": "Agent FASH_GENERAL2: Proposed action for fashion is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-09T01:21:59.121Z",
+        "createdAt": "2025-12-09T01:21:59.121Z"
+      }
+    ],
+    "status": "finalized",
+    "createdAt": "2025-12-09T01:21:56.632Z",
+    "updatedAt": "2025-12-09T01:22:00.603Z",
+    "round": 5,
+    "checklistDraft": [
+      {
+        "id": "draft-final-74d481fe-b04d-435d-aeea-674ebb1e5788",
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "status": "pending",
+        "confidence": "100.0",
+        "createdAt": "2025-12-09T01:21:59.139Z"
+      }
+    ],
+    "checklist": [
+      {
+        "action": "buy",
+        "reasoning": "Consensus reached after 5 rounds",
+        "confidence": "100.0"
+      }
+    ],
+    "needsRefinement": [],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "action": "buy",
+          "reasoning": "Consensus reached after 5 rounds",
+          "confidence": "100.0"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (72.79) exceeds threshold (65)"
+      }
+    ]
+  }
+]

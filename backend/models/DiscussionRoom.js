@@ -10,6 +10,11 @@ class DiscussionRoom {
     this.status = 'in_progress';
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
+    // Discussion lifecycle fields
+    this.round = 1;
+    this.checklistDraft = [];
+    this.checklist = [];
+    this.needsRefinement = [];
     // Decision fields
     this.finalDecision = null;
     this.rationale = null;
@@ -18,6 +23,8 @@ class DiscussionRoom {
     this.voteBreakdown = null;
     this.conflictScore = null;
     this.decidedAt = null;
+    // Manager decision fields
+    this.managerDecisions = [];
   }
 
   static fromData(data) {
@@ -36,6 +43,11 @@ class DiscussionRoom {
     discussionRoom.status = statusMap[data.status] || data.status || 'in_progress';
     discussionRoom.createdAt = data.createdAt;
     discussionRoom.updatedAt = data.updatedAt;
+    // Discussion lifecycle fields
+    discussionRoom.round = typeof data.round === 'number' ? data.round : 1;
+    discussionRoom.checklistDraft = Array.isArray(data.checklistDraft) ? data.checklistDraft : [];
+    discussionRoom.checklist = Array.isArray(data.checklist) ? data.checklist : [];
+    discussionRoom.needsRefinement = Array.isArray(data.needsRefinement) ? data.needsRefinement : [];
     // Decision fields
     discussionRoom.finalDecision = data.finalDecision || null;
     discussionRoom.rationale = data.rationale || null;
@@ -44,6 +56,8 @@ class DiscussionRoom {
     discussionRoom.voteBreakdown = data.voteBreakdown || null;
     discussionRoom.conflictScore = data.conflictScore || null;
     discussionRoom.decidedAt = data.decidedAt || null;
+    // Manager decision fields
+    discussionRoom.managerDecisions = Array.isArray(data.managerDecisions) ? data.managerDecisions : [];
     return discussionRoom;
   }
 
@@ -83,6 +97,11 @@ class DiscussionRoom {
       status: this.status,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      // Discussion lifecycle fields
+      round: this.round,
+      checklistDraft: this.checklistDraft,
+      checklist: this.checklist,
+      needsRefinement: this.needsRefinement,
       // Decision fields
       finalDecision: this.finalDecision,
       rationale: this.rationale,
@@ -90,7 +109,9 @@ class DiscussionRoom {
       selectedAgent: this.selectedAgent,
       voteBreakdown: this.voteBreakdown,
       conflictScore: this.conflictScore,
-      decidedAt: this.decidedAt
+      decidedAt: this.decidedAt,
+      // Manager decision fields
+      managerDecisions: this.managerDecisions
     };
   }
 }

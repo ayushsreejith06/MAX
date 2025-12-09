@@ -92,7 +92,9 @@ async function createSector(data) {
       description: data.description || '',
       agents: data.agents || [],
       performance: data.performance || {},
-      createdAt: data.createdAt || new Date().toISOString()
+      createdAt: data.createdAt || new Date().toISOString(),
+      // Discussion tracking state (null for new sectors)
+      discussion: data.discussion !== undefined ? data.discussion : null
     };
     
     console.log(`[createSector] Adding sector to array. Current length: ${currentSectors.length}, New sector ID: ${newSector.id}`);

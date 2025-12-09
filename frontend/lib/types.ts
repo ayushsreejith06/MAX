@@ -40,12 +40,22 @@ export interface Agent {
 
 export interface Message {
   id: string;
+  agentId?: string;
   agentName: string;
   content: string;
   timestamp: string;
+  role?: string;
 }
 
-export type DiscussionStatus = 'in_progress' | 'accepted' | 'rejected' | string;
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  agentId?: string;
+  agentName?: string;
+  round?: number;
+}
+
+export type DiscussionStatus = 'in_progress' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | string;
 
 export interface Discussion {
   id: string;
@@ -58,6 +68,9 @@ export interface Discussion {
   updatedAt: string;
   sectorSymbol?: string;
   sectorName?: string;
+  round?: number;
+  checklistDraft?: ChecklistItem[];
+  checklist?: ChecklistItem[];
 }
 
 export interface Sector {
