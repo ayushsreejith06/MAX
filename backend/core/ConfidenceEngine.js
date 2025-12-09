@@ -100,27 +100,123 @@ class ConfidenceEngine {
   }
 
   /**
+   * Update manager confidence as a direct reflection of ALL agents in the sector.
+   * Manager confidence = average confidence of all non-manager agents in the sector.
+   * This ensures the manager gets closer to 65 as ALL agents get closer to 65.
+   * If there are no agents in the sector, manager confidence is set to 0.
+   * Manager confidence relies solely on other agents' confidence levels.
+   * @param {Object} manager - Manager agent object
+   * @param {Array<Object>} agents - Array of all agents (including manager)
+   * @returns {number} Updated manager confidence value (0 to 100)
+   */
+  updateManagerConfidence(manager, agents) {
+    if (!manager || !manager.id) {
+      console.warn('[ConfidenceEngine] Manager missing or invalid, returning 0');
+      return 0;
+    }
+
+    if (!Array.isArray(agents) || agents.length === 0) {
+      console.warn('[ConfidenceEngine] No agents provided for manager confidence calculation, setting confidence to 0');
+      // Manager confidence relies solely on other agents' confidence levels
+      // If no agents array or empty, return 0
+      return 0;
+    }
+
+    // Filter ALL non-manager agents in the same sector
+    const sectorId = manager.sectorId;
+    const sectorAgents = agents.filter(agent => {
+      if (!agent || !agent.id) return false;
+      if (agent.id === manager.id) return false; // Exclude manager itself
+      
+      // Check if agent is a manager
+      const isManager = agent.role === 'manager' || 
+                       (agent.role && agent.role.toLowerCase().includes('manager'));
+      if (isManager) return false;
+      
+      // Check if agent is in the same sector
+      return agent.sectorId === sectorId;
+    });
+
+    if (sectorAgents.length === 0) {
+      // No other agents in sector, manager confidence should be 0
+      // Manager confidence relies solely on other agents' confidence levels
+      console.log(`[ConfidenceEngine] No agents in sector ${sectorId} for manager ${manager.id}, setting confidence to 0`);
+      return 0;
+    }
+
+    // Calculate average confidence of ALL agents in the sector (excluding manager)
+    // Normalize confidence values from -100 to +100 range to 0-100 range
+    let totalConfidence = 0;
+    let validAgents = 0;
+
+    for (const agent of sectorAgents) {
+      let confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+      
+      // Normalize from -100 to +100 range to 0-100 range
+      if (confidence < 0) {
+        confidence = Math.max(0, (confidence + 100) / 2);
+      } else if (confidence > 100) {
+        confidence = 100;
+      }
+      // If already in 0-100 range, use as-is
+      
+      totalConfidence += confidence;
+      validAgents++;
+    }
+
+    // Manager confidence = direct average of ALL agents in the sector
+    // This ensures manager gets closer to 65 as ALL agents get closer to 65
+    const managerConfidence = validAgents > 0 
+      ? totalConfidence / validAgents
+      : 0;
+
+    // Clamp to valid range [0, 100] - manager confidence NEVER exceeds 0-100
+    const finalConfidence = Math.max(0, Math.min(100, managerConfidence));
+
+    // DEBUG: Log manager confidence update
+    const managerName = manager.name || manager.id;
+    console.log(`[ConfidenceEngine] Updated manager confidence: avgAllAgents=${managerConfidence.toFixed(2)}, final=${finalConfidence.toFixed(2)} (manager: ${managerName}, ${validAgents} agents in sector)`);
+
+    return finalConfidence;
+  }
+
+  /**
    * Check if discussion should be triggered for a sector
-   * Returns true ONLY if ALL agents have confidence >= 65
+   * Returns true ONLY if:
+   * 1. ALL non-manager agents have confidence >= 65
+   * 2. ALL manager agents have confidence >= 65 (normalized to 0-100 range)
    * @param {Object} sector - Sector object with agents array
-   * @returns {boolean} True if all agents have confidence >= 65
+   * @returns {boolean} True if all agents (including managers) have confidence >= 65
    */
   shouldTriggerDiscussion(sector) {
     if (!sector || !Array.isArray(sector.agents) || sector.agents.length === 0) {
       return false;
     }
 
-    // Filter out null/undefined agents and check if all valid agents have confidence >= 65
+    // Filter out null/undefined agents
     const validAgents = sector.agents.filter(agent => agent && agent.id);
     if (validAgents.length === 0) {
       return false;
     }
 
     // Check if all valid agents have confidence >= 65
+    // For managers, normalize confidence to 0-100 range if needed
     return validAgents.every(agent => {
-      const confidence = typeof agent.confidence === 'number' 
+      let confidence = typeof agent.confidence === 'number' 
         ? agent.confidence 
         : 0;
+      
+      // Normalize manager confidence from -100 to +100 range to 0-100 range if needed
+      const isManager = agent.role === 'manager' || 
+                       (agent.role && agent.role.toLowerCase().includes('manager'));
+      if (isManager) {
+        if (confidence < 0) {
+          confidence = Math.max(0, (confidence + 100) / 2);
+        } else if (confidence > 100) {
+          confidence = 100;
+        }
+      }
+      
       return confidence >= 65;
     });
   }

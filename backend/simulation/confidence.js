@@ -5,7 +5,8 @@
  * Adjustments are small (±1 to ±5 per tick) to prevent sudden jumps
  */
 
-const { loadAgents, saveAgents } = require('../utils/agentStorage');
+const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage');
+const ConfidenceEngine = require('../core/ConfidenceEngine');
 
 /**
  * Recalculate agent confidence based on context
@@ -115,9 +116,25 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
     const agents = await loadAgents();
     const sectorAgents = agents.filter(agent => agent.sectorId === sectorId);
     
-    const updatedAgents = [];
+    // Separate manager and non-manager agents
+    const managerAgents = [];
+    const nonManagerAgents = [];
     
     for (const agent of sectorAgents) {
+      const isManager = agent.role === 'manager' || 
+                       (agent.role && agent.role.toLowerCase().includes('manager'));
+      if (isManager) {
+        managerAgents.push(agent);
+      } else {
+        nonManagerAgents.push(agent);
+      }
+    }
+    
+    const updatedAgents = [];
+    const confidenceEngine = new ConfidenceEngine();
+    
+    // Update confidence for non-manager agents based on market conditions
+    for (const agent of nonManagerAgents) {
       const newConfidence = recalcConfidence(agent, {
         priceChangePercent: tickContext.priceChangePercent,
         volatilityChange: tickContext.volatilityChange,
@@ -133,6 +150,26 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
       if (agentIndex !== -1) {
         agents[agentIndex].confidence = newConfidence;
         updatedAgents.push(agents[agentIndex]);
+      }
+    }
+    
+    // Update manager confidence based on weighted aggregate of other agents
+    for (const manager of managerAgents) {
+      const newManagerConfidence = confidenceEngine.updateManagerConfidence(manager, agents);
+      manager.confidence = newManagerConfidence;
+      
+      // Find and update in main agents array
+      const agentIndex = agents.findIndex(a => a.id === manager.id);
+      if (agentIndex !== -1) {
+        agents[agentIndex].confidence = newManagerConfidence;
+        updatedAgents.push(agents[agentIndex]);
+      }
+      
+      // Save manager confidence to storage
+      try {
+        await updateAgent(manager.id, { confidence: newManagerConfidence });
+      } catch (error) {
+        console.error(`[ConfidenceEngine] Error saving manager confidence for ${manager.id}:`, error);
       }
     }
     

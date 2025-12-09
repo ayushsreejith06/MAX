@@ -2,6 +2,7 @@ const Agent = require('../base/Agent');
 const { loadAgents, saveAgents, updateAgent } = require('../../utils/agentStorage');
 const { loadSectors } = require('../../utils/storage');
 const { getSectorById: getSectorByIdStorage, updateSector } = require('../../utils/sectorStorage');
+const { MAX_AGENTS_PER_SECTOR, MAX_TOTAL_AGENTS } = require('../../config/agentLimits');
 
 // Enhanced role inference based on keywords and context
 // 100% accurate role decoding from user prompts
@@ -283,10 +284,39 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
   const preferences = getDefaultPreferences(role);
   const sectorMeta = await resolveSectorMetadata(sectorId);
   
-  // Load existing agents to generate unique ID
-  const existingAgents = await loadAgents();
-  const agentId = generateAgentId(role, sectorMeta.sectorSymbol, existingAgents);
-  const agentName = generateAgentName(role, sectorMeta.sectorSymbol, existingAgents);
+  // Load existing agents to check limits and generate unique ID
+  const allAgents = await loadAgents();
+  
+  // Check global agent limit
+  if (allAgents.length >= MAX_TOTAL_AGENTS) {
+    const errorMessage = `Global agent limit reached. Maximum ${MAX_TOTAL_AGENTS} agents allowed.`;
+    console.warn('[Limit] Agent creation blocked due to capacity limit.', {
+      reason: 'global_limit',
+      currentCount: allAgents.length,
+      maxAllowed: MAX_TOTAL_AGENTS
+    });
+    throw new Error(errorMessage);
+  }
+  
+  // Check per-sector limit
+  if (sectorMeta.sectorId) {
+    const sectorAgents = allAgents.filter(a => a.sectorId === sectorMeta.sectorId);
+    if (sectorAgents.length >= MAX_AGENTS_PER_SECTOR) {
+      const errorMessage = `This sector already has ${MAX_AGENTS_PER_SECTOR} agents. Maximum ${MAX_AGENTS_PER_SECTOR} agents per sector allowed.`;
+      console.warn('[Limit] Agent creation blocked due to capacity limit.', {
+        reason: 'sector_limit',
+        sectorId: sectorMeta.sectorId,
+        sectorName: sectorMeta.sectorName,
+        currentCount: sectorAgents.length,
+        maxAllowed: MAX_AGENTS_PER_SECTOR
+      });
+      throw new Error(errorMessage);
+    }
+  }
+  
+  // Generate unique ID and name using existing agents
+  const agentId = generateAgentId(role, sectorMeta.sectorSymbol, allAgents);
+  const agentName = generateAgentName(role, sectorMeta.sectorSymbol, allAgents);
 
   // Initialize memory array with initial reasoning log
   const initialMemory = [{
@@ -356,16 +386,44 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
 
   // Save agent to storage
   // Check if agent already exists, if so update it, otherwise add it
-  const allAgents = await loadAgents();
-  const existingAgentIndex = allAgents.findIndex(a => a.id === agentData.id);
+  // Note: We reload agents here to ensure we have the latest state after limit checks
+  const currentAgents = await loadAgents();
+  const existingAgentIndex = currentAgents.findIndex(a => a.id === agentData.id);
   
   if (existingAgentIndex >= 0) {
     // Agent exists, update it
     await updateAgent(agentData.id, agentData);
   } else {
     // New agent, add to array and save (saveAgents handles deduplication)
-    allAgents.push(agentData);
-    await saveAgents(allAgents);
+    // Final safety check: ensure we haven't exceeded limits between check and save
+    const finalAgents = await loadAgents();
+    if (finalAgents.length >= MAX_TOTAL_AGENTS) {
+      const errorMessage = `Global agent limit reached. Maximum ${MAX_TOTAL_AGENTS} agents allowed.`;
+      console.warn('[Limit] Agent creation blocked due to capacity limit (race condition protection).', {
+        reason: 'global_limit_race',
+        currentCount: finalAgents.length,
+        maxAllowed: MAX_TOTAL_AGENTS
+      });
+      throw new Error(errorMessage);
+    }
+    
+    if (sectorMeta.sectorId) {
+      const finalSectorAgents = finalAgents.filter(a => a.sectorId === sectorMeta.sectorId);
+      if (finalSectorAgents.length >= MAX_AGENTS_PER_SECTOR) {
+        const errorMessage = `This sector already has ${MAX_AGENTS_PER_SECTOR} agents. Maximum ${MAX_AGENTS_PER_SECTOR} agents per sector allowed.`;
+        console.warn('[Limit] Agent creation blocked due to capacity limit (race condition protection).', {
+          reason: 'sector_limit_race',
+          sectorId: sectorMeta.sectorId,
+          sectorName: sectorMeta.sectorName,
+          currentCount: finalSectorAgents.length,
+          maxAllowed: MAX_AGENTS_PER_SECTOR
+        });
+        throw new Error(errorMessage);
+      }
+    }
+    
+    finalAgents.push(agentData);
+    await saveAgents(finalAgents);
   }
 
   // Update sector: add agent to sector's agents array and update activeAgents count

@@ -4,6 +4,9 @@ const DiscussionEngine = require('./DiscussionEngine');
 const DiscussionRoom = require('../models/DiscussionRoom');
 const { loadAgents } = require('../utils/agentStorage');
 const { updateSector } = require('../utils/sectorStorage');
+const ExecutionEngine = require('./ExecutionEngine');
+const { saveRejectedItems } = require('../utils/rejectedItemsStorage');
+const { getAllSectors } = require('../utils/sectorStorage');
 
 /**
  * ManagerEngine - Handles manager-level decisions including discussion creation
@@ -14,6 +17,11 @@ class ManagerEngine {
     this.discussionEngine = new DiscussionEngine();
     this.confidenceThreshold = 65; // Default threshold for discussion readiness
     this.approvalConfidenceThreshold = 65; // Threshold for auto-approving checklist items
+    // Track recent discussion creation times per sector to prevent discussion storms
+    // Format: sectorId -> timestamp of last discussion creation
+    this.lastDiscussionCreation = new Map();
+    // Minimum time between discussion creations (5 seconds)
+    this.minDiscussionIntervalMs = 5000;
   }
 
   /**
@@ -53,16 +61,40 @@ class ManagerEngine {
         };
       }
 
+      // Safeguard: Check for at least 1 non-manager agent before creating discussion
+      const allAgents = Array.isArray(sector.agents) ? sector.agents.filter(a => a && a.id) : [];
+      const nonManagerAgents = allAgents.filter(agent => {
+        const role = (agent.role || '').toLowerCase();
+        return role !== 'manager' && !role.includes('manager');
+      });
+      
+      if (nonManagerAgents.length < 1) {
+        console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: requires at least 1 non-manager agent, found ${nonManagerAgents.length}`);
+        return { created: false, discussionId: null, checklistState: null };
+      }
+
+      // Safeguard: Prevent discussion storms - check if a discussion was created recently
+      const lastCreationTime = this.lastDiscussionCreation.get(sectorId);
+      if (lastCreationTime !== undefined) {
+        const timeSinceLastCreation = Date.now() - lastCreationTime;
+        if (timeSinceLastCreation < this.minDiscussionIntervalMs) {
+          const remainingMs = this.minDiscussionIntervalMs - timeSinceLastCreation;
+          console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: discussion created ${Math.round(timeSinceLastCreation / 1000)}s ago, waiting ${Math.round(remainingMs / 1000)}s more to prevent discussion storm`);
+          return { created: false, discussionId: null, checklistState: null };
+        }
+      }
+
       // Create new discussion
       const sectorName = sector.sectorName || sector.name || sectorId;
       const title = `Discussion triggered - All agents confident (${sectorName})`;
       
-      // Get agent IDs from sector
-      const agentIds = Array.isArray(sector.agents) 
-        ? sector.agents.filter(a => a && a.id && a.role !== 'manager').map(a => a.id)
-        : [];
+      // Get agent IDs from sector (non-manager agents only)
+      const agentIds = nonManagerAgents.map(a => a.id);
 
       const discussionRoom = await startDiscussion(sectorId, title, agentIds);
+      
+      // Update last creation time to prevent discussion storms
+      this.lastDiscussionCreation.set(sectorId, Date.now());
       
       // DEBUG: Log when creating a new discussion
       console.log(`[ManagerEngine] Created new discussion: ID = ${discussionRoom.id}`);
@@ -104,28 +136,57 @@ class ManagerEngine {
 
   /**
    * Start discussion if confidence threshold is met and no active discussion exists
+   * STRICT THRESHOLD: ALL agents (manager + generals) must have confidence >= 65
+   * Manager confidence = average(confidence of all agents) AND >= 65
    * @param {string} sectorId - Sector ID
    * @param {Object} sector - Sector object with agents
    * @returns {Promise<{started: boolean, discussionId: string|null}>}
    */
   async startDiscussionIfReady(sectorId, sector) {
     try {
-      // Check if confidence threshold is met
-      const validAgents = (sector.agents || []).filter(agent => agent && agent.id);
-      if (validAgents.length === 0) {
+      // Get all agents for the sector (manager + generals)
+      const agents = (sector.agents || []).filter(agent => agent && agent.id);
+      if (agents.length === 0) {
+        console.log(`[DISCUSSION BLOCKED] No agents found in sector ${sectorId}`);
         return { started: false, discussionId: null };
       }
 
-      const allConfident = validAgents.every(agent => {
+      // Check ALL agents (manager + generals) have confidence >= 65
+      const allAboveThreshold = agents.every(agent => {
         const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return confidence >= this.confidenceThreshold;
+        return confidence >= 65;
       });
 
-      if (!allConfident) {
+      if (!allAboveThreshold) {
+        console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (>= 65)`);
+        console.log(`[DISCUSSION CHECK]`, {
+          sectorId,
+          agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+          allAboveThreshold: false
+        });
         return { started: false, discussionId: null };
       }
 
-      // Check if there's already an active discussion for this sector
+      // Calculate manager confidence as average of ALL agents
+      const totalConfidence = agents.reduce((sum, agent) => {
+        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        return sum + confidence;
+      }, 0);
+      const managerConfidence = totalConfidence / agents.length;
+
+      // Check manager confidence >= 65
+      if (managerConfidence < 65) {
+        console.log(`[DISCUSSION BLOCKED] Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
+        console.log(`[DISCUSSION CHECK]`, {
+          sectorId,
+          agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+          allAboveThreshold: true,
+          managerConfidence: managerConfidence.toFixed(2)
+        });
+        return { started: false, discussionId: null };
+      }
+
+      // Check if there's already an active or in-progress discussion for this sector
       const existingDiscussions = await loadDiscussions();
       const activeDiscussion = existingDiscussions.find(d => 
         d.sectorId === sectorId && 
@@ -133,17 +194,35 @@ class ManagerEngine {
       );
 
       if (activeDiscussion) {
+        console.log(`[DISCUSSION BLOCKED] Active discussion exists: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
         return { started: false, discussionId: activeDiscussion.id };
       }
+
+      // Safeguard: Check for at least 1 non-manager agent before creating discussion
+      const nonManagerAgents = agents.filter(agent => {
+        const role = (agent.role || '').toLowerCase();
+        return role !== 'manager' && !role.includes('manager');
+      });
+      
+      if (nonManagerAgents.length < 1) {
+        console.log(`[DISCUSSION BLOCKED] Requires at least 1 non-manager agent, found ${nonManagerAgents.length}`);
+        return { started: false, discussionId: null };
+      }
+
+      // All checks passed - log and start discussion
+      console.log(`[DISCUSSION CHECK]`, {
+        sectorId,
+        agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+        allAboveThreshold: true,
+        managerConfidence: managerConfidence.toFixed(2)
+      });
 
       // Start new discussion
       const sectorName = sector.sectorName || sector.name || sectorId;
       const title = `Discussion triggered - All agents confident (${sectorName})`;
       
-      // Get agent IDs from sector
-      const agentIds = Array.isArray(sector.agents) 
-        ? sector.agents.filter(a => a && a.id && a.role !== 'manager').map(a => a.id)
-        : [];
+      // Get agent IDs from sector (non-manager agents only)
+      const agentIds = nonManagerAgents.map(a => a.id);
 
       const discussionRoom = await startDiscussion(sectorId, title, agentIds);
       
@@ -197,12 +276,23 @@ class ManagerEngine {
   }
 
   /**
+   * Start a discussion for a sector (alias for createDiscussion for consistency)
+   * @param {string} sectorId - Sector ID
+   * @returns {Promise<{created: boolean, discussion: Object|null}>}
+   */
+  async startDiscussion(sectorId) {
+    return this.createDiscussion(sectorId);
+  }
+
+  /**
    * Create a new discussion for a sector
    * @param {string} sectorId - Sector ID
    * @returns {Promise<{created: boolean, discussion: Object|null}>}
    */
   async createDiscussion(sectorId) {
     try {
+      console.log(`[ManagerEngine] createDiscussion called for sector ${sectorId}`);
+      
       // Check if there's already an active discussion for this sector
       const existingDiscussions = await loadDiscussions();
       const activeDiscussion = existingDiscussions.find(d => 
@@ -211,7 +301,7 @@ class ManagerEngine {
       );
 
       if (activeDiscussion) {
-        console.log(`[ManagerEngine] Active discussion already exists for sector ${sectorId}: ${activeDiscussion.id}`);
+        console.log(`[ManagerEngine] Active discussion already exists for sector ${sectorId}: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
         return { 
           created: false, 
           discussion: DiscussionRoom.fromData(activeDiscussion) 
@@ -226,42 +316,85 @@ class ManagerEngine {
         throw new Error(`Sector ${sectorId} not found`);
       }
 
-      // Get agent IDs from sector
-      const agentIds = Array.isArray(sector.agents) 
-        ? sector.agents.filter(a => a && a.id && a.role !== 'manager').map(a => a.id)
-        : [];
+      // Get agent IDs from sector (non-manager agents only)
+      const allAgents = Array.isArray(sector.agents) ? sector.agents.filter(a => a && a.id) : [];
+      const nonManagerAgents = allAgents.filter(agent => {
+        const role = (agent.role || '').toLowerCase();
+        return role !== 'manager' && !role.includes('manager');
+      });
+      const agentIds = nonManagerAgents.map(a => a.id);
 
-      if (agentIds.length === 0) {
-        console.warn(`[ManagerEngine] No agents found for sector ${sectorId}`);
+      console.log(`[ManagerEngine] Sector ${sectorId} has ${allAgents.length} total agents, ${nonManagerAgents.length} non-manager agents`);
+
+      // Safeguard: Require at least 1 non-manager agent for discussion
+      // (Changed from 2 to 1 to allow discussions with manager + 1 general)
+      if (agentIds.length < 1) {
+        console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: requires at least 1 non-manager agent, found ${agentIds.length}`);
         return { created: false, discussion: null };
       }
 
+      // Safeguard: Prevent discussion storms - check if a discussion was created recently
+      const lastCreationTime = this.lastDiscussionCreation.get(sectorId);
+      if (lastCreationTime !== undefined) {
+        const timeSinceLastCreation = Date.now() - lastCreationTime;
+        if (timeSinceLastCreation < this.minDiscussionIntervalMs) {
+          const remainingMs = this.minDiscussionIntervalMs - timeSinceLastCreation;
+          console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: discussion created ${Math.round(timeSinceLastCreation / 1000)}s ago, waiting ${Math.round(remainingMs / 1000)}s more to prevent discussion storm`);
+          return { created: false, discussion: null };
+        }
+      }
+
       // Create new discussion using DiscussionEngine
+      console.log(`[ManagerEngine] Calling discussionEngine.startDiscussion for sector ${sectorId}...`);
       const updatedSector = await this.discussionEngine.startDiscussion(sector);
+      console.log(`[ManagerEngine] discussionEngine.startDiscussion completed, discussions array length: ${updatedSector.discussions?.length || 0}`);
       
       // Get the newly created discussion
       const discussions = Array.isArray(updatedSector.discussions) ? updatedSector.discussions : [];
+      console.log(`[ManagerEngine] Updated sector discussions array:`, discussions);
+      
       if (discussions.length === 0) {
-        throw new Error('Discussion was created but not found in sector');
+        // Try to find the most recent discussion for this sector as fallback
+        const allDiscussions = await loadDiscussions();
+        const sectorDiscussions = allDiscussions
+          .filter(d => d.sectorId === sectorId)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        if (sectorDiscussions.length > 0) {
+          const latestDiscussion = DiscussionRoom.fromData(sectorDiscussions[0]);
+          console.log(`[ManagerEngine] Found discussion via fallback: ID = ${latestDiscussion.id}`);
+          this.lastDiscussionCreation.set(sectorId, Date.now());
+          return { 
+            created: true, 
+            discussion: latestDiscussion 
+          };
+        }
+        
+        throw new Error('Discussion was created but not found in sector or discussions storage');
       }
 
       const discussionId = discussions[discussions.length - 1];
+      console.log(`[ManagerEngine] Looking up discussion ID: ${discussionId}`);
       const discussionData = await findDiscussionById(discussionId);
       
       if (!discussionData) {
-        throw new Error(`Discussion ${discussionId} not found`);
+        throw new Error(`Discussion ${discussionId} not found in storage`);
       }
 
       const discussion = DiscussionRoom.fromData(discussionData);
       
-      console.log(`[ManagerEngine] Created new discussion: ID = ${discussion.id} for sector ${sectorId}`);
+      // Update last creation time to prevent discussion storms
+      this.lastDiscussionCreation.set(sectorId, Date.now());
+      
+      console.log(`[ManagerEngine] ✓ Created new discussion: ID = ${discussion.id} for sector ${sectorId}`);
       
       return { 
         created: true, 
         discussion: discussion 
       };
     } catch (error) {
-      console.error(`[ManagerEngine] Error creating discussion:`, error);
+      console.error(`[ManagerEngine] Error creating discussion for sector ${sectorId}:`, error);
+      console.error(`[ManagerEngine] Error stack:`, error.stack);
       return { created: false, discussion: null };
     }
   }
@@ -316,17 +449,25 @@ class ManagerEngine {
 
       const updatedDiscussionRoom = DiscussionRoom.fromData(updatedDiscussionData);
 
-      // Mark discussion as finalized
-      updatedDiscussionRoom.status = 'finalized';
-      updatedDiscussionRoom.updatedAt = new Date().toISOString();
-
-      // Save finalized discussion
-      await saveDiscussion(updatedDiscussionRoom);
-
-      console.log(`[ManagerEngine] Handled checklist and finalized discussion: ID = ${discussion.id}`);
+      // Only mark as finalized if there are approved checklist items
+      const finalizedChecklist = Array.isArray(updatedDiscussionRoom.finalizedChecklist) ? updatedDiscussionRoom.finalizedChecklist : [];
+      
+      if (finalizedChecklist.length > 0) {
+        // Mark discussion as finalized only if there are approved items
+        updatedDiscussionRoom.status = 'finalized';
+        updatedDiscussionRoom.updatedAt = new Date().toISOString();
+        await saveDiscussion(updatedDiscussionRoom);
+        console.log(`[ManagerEngine] Handled checklist and finalized discussion: ID = ${discussion.id} with ${finalizedChecklist.length} approved items`);
+      } else {
+        // No approved items - cannot finalize
+        console.warn(`[ManagerEngine] Discussion ${discussion.id} cannot be finalized: No approved checklist items found`);
+        // Keep status as is (should be 'in_progress' or 'rejected')
+        updatedDiscussionRoom.updatedAt = new Date().toISOString();
+        await saveDiscussion(updatedDiscussionRoom);
+      }
 
       return { 
-        handled: true, 
+        handled: finalizedChecklist.length > 0, 
         discussionId: discussion.id 
       };
     } catch (error) {
@@ -427,19 +568,93 @@ class ManagerEngine {
 
     // Update discussion with manager decisions
     discussionRoom.managerDecisions = managerDecisions;
-    discussionRoom.status = 'finalized';
+    
+    // Extract approved items and store in finalizedChecklist
+    const approvedItems = managerDecisions
+      .filter(decision => decision.approved === true && decision.item)
+      .map(decision => {
+        const item = decision.item;
+        return {
+          id: item.id || `finalized-${discussionRoom.id}-${Date.now()}`,
+          action: item.action,
+          amount: item.amount,
+          reason: item.reason || item.reasoning || '',
+          confidence: item.confidence,
+          round: item.round,
+          agentId: item.agentId,
+          agentName: item.agentName,
+          approved: true,
+          approvedAt: new Date().toISOString()
+        };
+      });
+    
+    discussionRoom.finalizedChecklist = approvedItems;
+    
+    // Extract rejected items and store them globally
+    const rejectedDecisions = managerDecisions.filter(decision => decision.approved === false && decision.item);
+    if (rejectedDecisions.length > 0) {
+      try {
+        // Get sector info for rejected items
+        const sectors = await getAllSectors();
+        const sector = sectors.find(s => s.id === discussionRoom.sectorId);
+        const sectorSymbol = sector?.symbol || sector?.sectorSymbol || 'N/A';
+        
+        // Create rejected items with required metadata
+        const rejectedItems = rejectedDecisions.map(decision => {
+          const item = decision.item;
+          const itemText = item.reason || item.reasoning || item.text || item.description || '';
+          
+          return {
+            id: `rejected-${discussionRoom.id}-${item.id || Date.now()}`,
+            text: itemText,
+            discussionId: discussionRoom.id,
+            discussionTitle: discussionRoom.title || 'Untitled Discussion',
+            sectorId: discussionRoom.sectorId,
+            sectorSymbol: sectorSymbol,
+            timestamp: Date.now()
+          };
+        });
+        
+        // Save rejected items to global storage
+        await saveRejectedItems(rejectedItems);
+        console.log(`[ManagerEngine] Stored ${rejectedItems.length} rejected items to global storage`);
+      } catch (error) {
+        console.error(`[ManagerEngine] Error storing rejected items:`, error);
+        // Don't throw - continue with discussion processing even if rejected items storage fails
+      }
+    }
+    
+    // Only set status to 'finalized' if there are approved checklist items
+    // Approved discussions must have approved checklist items for execution
+    if (approvedItems.length > 0) {
+      discussionRoom.status = 'finalized';
+      console.log(`[ManagerEngine] Processed ${managerDecisions.length} checklist items for discussion ${discussionRoom.id}. Approved: ${approvedItems.length}, Rejected: ${managerDecisions.filter(d => !d.approved).length}`);
+      console.log(`[CHECKLIST FINALIZED]`, discussionRoom.finalizedChecklist);
+    } else {
+      // No approved items - discussion cannot be finalized/approved
+      // Keep status as 'in_progress' or set to 'rejected' if all items were rejected
+      const allRejected = managerDecisions.length > 0 && managerDecisions.every(d => !d.approved);
+      if (allRejected) {
+        discussionRoom.status = 'rejected';
+        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} rejected: All ${managerDecisions.length} checklist items were rejected. No approved items for execution.`);
+      } else {
+        discussionRoom.status = 'in_progress';
+        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: No approved checklist items yet.`);
+      }
+    }
+    
     discussionRoom.updatedAt = new Date().toISOString();
 
     // Save updated discussion
     await saveDiscussion(discussionRoom);
-
-    console.log(`[ManagerEngine] Processed ${managerDecisions.length} checklist items for discussion ${discussionRoom.id}. Approved: ${managerDecisions.filter(d => d.approved).length}, Rejected: ${managerDecisions.filter(d => !d.approved).length}`);
 
     return discussionRoom;
   }
 
   /**
    * Start discussion if confidence >= threshold and no active discussion exists
+   * STRICT THRESHOLD: ALL agents (manager + generals) must have confidence >= 65
+   * Manager confidence = average(confidence of all agents) AND >= 65
    * @param {Object} sector - Sector object with agents
    * @returns {Promise<Object|null>} Updated sector with new discussion, or null if not started
    */
@@ -448,22 +663,49 @@ class ManagerEngine {
       throw new Error('Invalid sector: sector and sector.id are required');
     }
 
-    // Check if all agents have confidence >= threshold
-    const agents = Array.isArray(sector.agents) ? sector.agents : [];
+    // Get all agents for the sector (manager + generals)
+    const agents = Array.isArray(sector.agents) ? sector.agents.filter(a => a && a.id) : [];
     if (agents.length === 0) {
+      console.log(`[DISCUSSION BLOCKED] No agents found in sector ${sector.id}`);
       return null;
     }
 
-    const allConfident = agents.every(agent => {
+    // Check ALL agents (manager + generals) have confidence >= 65
+    const allAboveThreshold = agents.every(agent => {
       const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-      return confidence >= this.confidenceThreshold;
+      return confidence >= 65;
     });
 
-    if (!allConfident) {
+    if (!allAboveThreshold) {
+      console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (>= 65)`);
+      console.log(`[DISCUSSION CHECK]`, {
+        sectorId: sector.id,
+        agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+        allAboveThreshold: false
+      });
       return null;
     }
 
-    // Check if there's already an active discussion
+    // Calculate manager confidence as average of ALL agents
+    const totalConfidence = agents.reduce((sum, agent) => {
+      const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+      return sum + confidence;
+    }, 0);
+    const managerConfidence = totalConfidence / agents.length;
+
+    // Check manager confidence >= 65
+    if (managerConfidence < 65) {
+      console.log(`[DISCUSSION BLOCKED] Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
+      console.log(`[DISCUSSION CHECK]`, {
+        sectorId: sector.id,
+        agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+        allAboveThreshold: true,
+        managerConfidence: managerConfidence.toFixed(2)
+      });
+      return null;
+    }
+
+    // Check if there's already an active or in-progress discussion
     const existingDiscussions = await loadDiscussions();
     const activeDiscussion = existingDiscussions.find(d => 
       d.sectorId === sector.id && 
@@ -471,9 +713,28 @@ class ManagerEngine {
     );
 
     if (activeDiscussion) {
-      // Discussion already exists, return null
+      console.log(`[DISCUSSION BLOCKED] Active discussion exists: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
       return null;
     }
+
+      // Safeguard: Check for at least 1 non-manager agent before creating discussion
+      const nonManagerAgents = agents.filter(agent => {
+        const role = (agent.role || '').toLowerCase();
+        return role !== 'manager' && !role.includes('manager');
+      });
+      
+      if (nonManagerAgents.length < 1) {
+        console.log(`[DISCUSSION BLOCKED] Requires at least 1 non-manager agent, found ${nonManagerAgents.length}`);
+        return null;
+      }
+
+    // All checks passed - log and start discussion
+    console.log(`[DISCUSSION CHECK]`, {
+      sectorId: sector.id,
+      agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+      allAboveThreshold: true,
+      managerConfidence: managerConfidence.toFixed(2)
+    });
 
     // Start new discussion
     const updatedSector = await this.discussionEngine.startDiscussion(sector);
@@ -481,11 +742,119 @@ class ManagerEngine {
   }
 
   /**
-   * Approve or reject checklist items - auto-approves all items for now
+   * Approve checklist items and execute them
    * @param {Object} sector - Sector object
-   * @returns {Promise<Object>} Updated sector with approved/rejected items
+   * @returns {Promise<Object>} Updated sector with approved items executed
    */
-  async approveOrRejectChecklist(sector) {
+  async approveChecklist(sector) {
+    if (!sector || !sector.id) {
+      throw new Error('Invalid sector: sector and sector.id are required');
+    }
+
+    // Find the active discussion for this sector
+    const discussions = Array.isArray(sector.discussions) ? sector.discussions : [];
+    if (discussions.length === 0) {
+      throw new Error(`No discussion found for sector ${sector.id}`);
+    }
+
+    // Get the most recent discussion
+    const discussionId = discussions[discussions.length - 1];
+    const discussionData = await findDiscussionById(discussionId);
+
+    if (!discussionData) {
+      throw new Error(`Discussion ${discussionId} not found`);
+    }
+
+    // Load discussion room
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+    
+    // Prevent duplicate executions - if already finalized, skip
+    if (discussionRoom.status === 'finalized' || discussionRoom.status === 'completed') {
+      console.log(`[ManagerEngine] Discussion ${discussionId} already finalized. Skipping execution.`);
+      const updatedSector = await updateSector(sector.id, {
+        discussions: discussions
+      });
+      updatedSector.discussions = discussions;
+      return updatedSector;
+    }
+    
+    // Ensure checklistDraft exists
+    if (!Array.isArray(discussionRoom.checklistDraft)) {
+      discussionRoom.checklistDraft = [];
+    }
+    
+    // Validate: Must have checklist items to approve
+    if (discussionRoom.checklistDraft.length === 0) {
+      console.warn(`[ManagerEngine] Discussion ${discussionId} has no checklist items to approve`);
+      // Don't finalize discussion without checklist items
+      return sector;
+    }
+
+    // Mark all items as approved
+    const approvedItems = [];
+    for (const item of discussionRoom.checklistDraft) {
+      // Skip items that have already been processed
+      if (item.status === 'approved' || item.status === 'rejected') {
+        if (item.status === 'approved') {
+          approvedItems.push(item);
+        }
+        continue;
+      }
+
+      // Ensure item has required fields for compatibility
+      if (!item.text && item.reasoning) {
+        item.text = `${item.action || 'deploy capital'}: ${item.reasoning}`;
+      } else if (!item.text && item.action) {
+        item.text = item.action;
+      }
+      
+      item.status = 'approved';
+      approvedItems.push(item);
+    }
+
+    // Update checklistDraft with approved status
+    discussionRoom.checklistDraft = discussionRoom.checklistDraft.map(item => {
+      const updated = approvedItems.find(a => a.id === item.id);
+      return updated || item;
+    });
+
+    // Save discussion with approved items
+    await saveDiscussion(discussionRoom);
+
+    // Execute the approved checklist
+    const executionEngine = new ExecutionEngine();
+    
+    // Log execution
+    console.log(`[EXECUTION] Checklist sent to ExecutionEngine for sector ${sector.id}`);
+    
+    const executionResult = await executionEngine.executeChecklist(discussionRoom.checklistDraft, sector.id);
+
+    // Only finalize discussion if execution succeeded
+    if (executionResult.success) {
+      // Update discussion status to finalized
+      discussionRoom.status = 'finalized';
+      discussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(discussionRoom);
+    } else {
+      // If execution failed, log warning but don't finalize
+      console.warn(`[ManagerEngine] Execution failed for sector ${sector.id}. Discussion not finalized.`);
+    }
+
+    // Update sector
+    const updatedSector = await updateSector(sector.id, {
+      discussions: discussions
+    });
+    updatedSector.discussions = discussions;
+
+    return updatedSector;
+  }
+
+  /**
+   * Reject checklist items and send them back to DiscussionEngine for refinement
+   * @param {Object} sector - Sector object
+   * @returns {Promise<Object>} Updated sector with rejected items sent for refinement
+   */
+  async rejectChecklist(sector) {
     if (!sector || !sector.id) {
       throw new Error('Invalid sector: sector and sector.id are required');
     }
@@ -517,39 +886,48 @@ class ManagerEngine {
       discussionRoom.needsRefinement = [];
     }
 
-    // Auto-approve all items in checklistDraft
-    const approvedItems = [];
-
+    // Mark all items as rejected and move to needsRefinement
+    const rejectedItems = [];
     for (const item of discussionRoom.checklistDraft) {
       // Skip items that have already been processed
       if (item.status === 'approved' || item.status === 'rejected') {
-        if (item.status === 'approved') {
-          approvedItems.push(item);
+        if (item.status === 'rejected') {
+          rejectedItems.push(item);
         }
         continue;
       }
 
-      // Auto-approve all items
-      // Ensure item has required fields for compatibility
-      if (!item.text && item.reasoning) {
-        // Convert new format (action + reasoning) to text format for compatibility
-        item.text = `${item.action || 'deploy capital'}: ${item.reasoning}`;
-      } else if (!item.text && item.action) {
-        item.text = item.action;
-      }
-      
-      item.status = 'approved';
-      approvedItems.push(item);
+      item.status = 'rejected';
+      rejectedItems.push(item);
     }
 
-    // Update checklistDraft with status
+    // Move rejected items to needsRefinement
+    discussionRoom.needsRefinement = [
+      ...discussionRoom.needsRefinement,
+      ...rejectedItems
+    ];
+
+    // Update checklistDraft with rejected status
     discussionRoom.checklistDraft = discussionRoom.checklistDraft.map(item => {
-      const updated = approvedItems.find(a => a.id === item.id);
+      const updated = rejectedItems.find(r => r.id === item.id);
       return updated || item;
     });
 
-    // Save updated discussion
+    // Save discussion with rejected items
     await saveDiscussion(discussionRoom);
+
+    // Send items back to DiscussionEngine for refinement
+    // Load agents for this sector
+    const allAgents = await loadAgents();
+    const sectorAgents = allAgents.filter(agent => 
+      agent && agent.sectorId === sector.id && agent.role !== 'manager'
+    );
+
+    if (sectorAgents.length > 0) {
+      // Run a round of discussion to refine rejected items
+      const updatedSector = await this.discussionEngine.runRound(sector, sectorAgents);
+      return updatedSector;
+    }
 
     // Update sector
     const updatedSector = await updateSector(sector.id, {
@@ -558,6 +936,17 @@ class ManagerEngine {
     updatedSector.discussions = discussions;
 
     return updatedSector;
+  }
+
+  /**
+   * Approve or reject checklist items - auto-approves all items for now
+   * Delegates to approveChecklist() for backward compatibility
+   * @param {Object} sector - Sector object
+   * @returns {Promise<Object>} Updated sector with approved/rejected items
+   */
+  async approveOrRejectChecklist(sector) {
+    // For backward compatibility, auto-approve all items
+    return await this.approveChecklist(sector);
   }
 
   /**

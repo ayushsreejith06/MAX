@@ -49,13 +49,19 @@ export interface Message {
 
 export interface ChecklistItem {
   id: string;
-  text: string;
+  text?: string; // For backward compatibility with draft items
   agentId?: string;
   agentName?: string;
   round?: number;
+  // Finalized checklist fields
+  action?: string; // "buy" | "sell" | "hold" | "rebalance"
+  amount?: number;
+  reason?: string; // Also called "reasoning" in some places
+  reasoning?: string; // Alias for reason
+  confidence?: number;
 }
 
-export type DiscussionStatus = 'in_progress' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | string;
+export type DiscussionStatus = 'in_progress' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | 'finalized' | string;
 
 export interface Discussion {
   id: string;
@@ -64,6 +70,7 @@ export interface Discussion {
   status: DiscussionStatus;
   agentIds: string[];
   messages: Message[];
+  messagesCount?: number; // Optional for backward compatibility
   createdAt: string;
   updatedAt: string;
   sectorSymbol?: string;
@@ -71,6 +78,7 @@ export interface Discussion {
   round?: number;
   checklistDraft?: ChecklistItem[];
   checklist?: ChecklistItem[];
+  finalizedChecklist?: ChecklistItem[];
 }
 
 export interface Sector {
@@ -104,6 +112,16 @@ export interface Sector {
   candleData: CandleData[];
   description?: string;
   createdAt: string;
+}
+
+export interface RejectedItem {
+  id: string;
+  text: string;
+  discussionId: string;
+  discussionTitle: string;
+  sectorId: string;
+  sectorSymbol: string;
+  timestamp: number;
 }
 
 export type ApiPayload<T> = T | { data: T } | { success: boolean; data: T };

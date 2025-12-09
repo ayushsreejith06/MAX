@@ -365,7 +365,7 @@ class DiscussionEngine {
   /**
    * Finalize checklist after rounds are complete
    * @param {string} discussionId - Discussion ID
-   * @returns {Promise<void>}
+   * @returns {Promise<Object>} Complete checklist object with sectorId, items, createdBy, createdAt, roundCount
    */
   async finalizeChecklist(discussionId) {
     if (!discussionId) {
@@ -380,69 +380,221 @@ class DiscussionEngine {
 
     const discussionRoom = DiscussionRoom.fromData(discussionData);
 
-    // Get all messages
+    // Get all messages grouped by round
     const allMessages = Array.isArray(discussionRoom.messages) ? discussionRoom.messages : [];
     
-    // Calculate average agent confidence
+    // Get roundCount - this should be the number of rounds completed
+    // The round field tracks the NEXT round, so actual rounds completed is round - 1
+    const roundCount = Math.max(1, (discussionRoom.round || 1) - 1);
+    
+    // Load agents to get confidence and determine createdBy
     const allAgents = await loadAgents();
     const discussionAgents = allAgents.filter(agent => 
       agent && agent.id && discussionRoom.agentIds.includes(agent.id) && agent.role !== 'manager'
     );
     
-    let avgConfidence = 0;
-    if (discussionAgents.length > 0) {
-      const confidenceSum = discussionAgents.reduce((sum, agent) => {
-        const conf = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return sum + Math.max(0, Math.min(100, conf + 50)); // Convert to 0-100 scale
-      }, 0);
-      avgConfidence = confidenceSum / discussionAgents.length;
-    }
+    // Determine createdBy (use first agent or 'system' if no agents)
+    const createdBy = discussionAgents.length > 0 
+      ? (discussionAgents[0].id || 'system')
+      : 'system';
 
-    // Determine consensus action (most common action from messages)
-    const actionCounts = { buy: 0, hold: 0, sell: 0 };
-    allMessages.forEach(msg => {
+    // Parse messages to extract checklist items
+    // Group messages by round to ensure multi-round refinement produces meaningful differences
+    const itemsByRound = new Map();
+    
+    // Process messages and group by round
+    allMessages.forEach((msg, index) => {
       const content = msg.content || '';
-      if (content.toLowerCase().includes('is buy')) {
-        actionCounts.buy++;
-      } else if (content.toLowerCase().includes('is sell')) {
-        actionCounts.sell++;
-      } else {
-        actionCounts.hold++;
+      
+      // Extract action from message content
+      // Format: "Agent {name}: Proposed action for {sector} is {buy/hold/sell} because of confidence {value}"
+      // Action must be one of: "buy" | "sell" | "hold" | "rebalance"
+      let action = 'hold';
+      const contentLower = content.toLowerCase();
+      if (contentLower.includes('is buy') || contentLower.includes('buy')) {
+        action = 'buy';
+      } else if (contentLower.includes('is sell') || contentLower.includes('sell')) {
+        action = 'sell';
+      } else if (contentLower.includes('rebalance')) {
+        action = 'rebalance';
       }
+      // Ensure action is one of the valid types
+      const validActions = ['buy', 'sell', 'hold', 'rebalance'];
+      if (!validActions.includes(action)) {
+        action = 'hold'; // Default to hold if invalid
+      }
+      
+      // Extract confidence from message content
+      const confidenceMatch = content.match(/confidence\s+([\d.]+)/i);
+      let confidence = 50; // Default confidence
+      if (confidenceMatch) {
+        confidence = parseFloat(confidenceMatch[1]) || 50;
+      } else {
+        // Fallback: get confidence from agent
+        const agent = discussionAgents.find(a => a.id === msg.agentId);
+        if (agent && typeof agent.confidence === 'number') {
+          confidence = Math.max(0, Math.min(100, agent.confidence + 50)); // Convert -50/+50 to 0-100
+        }
+      }
+      
+      // Extract reason from message content
+      // Reason is the full message content, or a summary
+      const reason = content || `Action proposed by ${msg.agentName || 'agent'}`;
+      
+      // Calculate amount based on confidence (0-100 scale)
+      // Higher confidence = higher amount (normalized to 0-1000 range)
+      const amount = Math.round((confidence / 100) * 1000);
+      
+      // Determine round number from message
+      // Try to get from checklistDraft first, otherwise infer from message order
+      let round = 1;
+      if (Array.isArray(discussionRoom.checklistDraft)) {
+        const draftItem = discussionRoom.checklistDraft.find(
+          item => item.agentId === msg.agentId && item.text === content
+        );
+        if (draftItem && typeof draftItem.round === 'number') {
+          round = draftItem.round;
+        } else {
+          // Infer round from message position (assuming equal messages per round)
+          const agentsPerRound = Math.max(1, discussionAgents.length);
+          round = Math.floor(index / agentsPerRound) + 1;
+        }
+      } else {
+        // Infer round from message position
+        const agentsPerRound = Math.max(1, discussionAgents.length);
+        round = Math.floor(index / agentsPerRound) + 1;
+      }
+      
+      // Group items by round to track refinement
+      if (!itemsByRound.has(round)) {
+        itemsByRound.set(round, []);
+      }
+      
+      itemsByRound.get(round).push({
+        action: action,
+        reason: reason,
+        confidence: Math.round(confidence * 10) / 10, // Round to 1 decimal
+        amount: amount,
+        round: round,
+        agentId: msg.agentId,
+        agentName: msg.agentName
+      });
     });
 
-    const consensusAction = Object.entries(actionCounts).reduce((a, b) => 
-      actionCounts[a[0]] > actionCounts[b[0]] ? a : b
-    )[0];
-
-    // Create checklist array as per requirements
-    const numRounds = discussionRoom.round || 3;
+    // Refine items across rounds - later rounds should refine/consolidate earlier rounds
+    // For multi-round refinement: take the most recent round's items, but incorporate insights from earlier rounds
+    const refinedItems = [];
+    const rounds = Array.from(itemsByRound.keys()).sort((a, b) => a - b);
     
-    // Create checklist array containing action, reasoning, and confidence
-    discussionRoom.checklist = [{
-      action: consensusAction,
-      reasoning: `Consensus reached after ${numRounds} rounds`,
-      confidence: avgConfidence.toFixed(1)
-    }];
+    if (rounds.length > 0) {
+      // Get items from the latest round (most refined)
+      const latestRound = Math.max(...rounds);
+      const latestRoundItems = itemsByRound.get(latestRound) || [];
+      
+      // Group by action type and consolidate
+      const itemsByAction = new Map();
+      latestRoundItems.forEach(item => {
+        const key = item.action;
+        if (!itemsByAction.has(key)) {
+          itemsByAction.set(key, []);
+        }
+        itemsByAction.get(key).push(item);
+      });
+      
+      // Create consolidated items - one per action type with averaged confidence and summed amounts
+      itemsByAction.forEach((items, action) => {
+        const avgConfidence = items.reduce((sum, item) => sum + item.confidence, 0) / items.length;
+        const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+        const reasons = items.map(item => item.reason).join('; ');
+        
+        // Create ChecklistItem with only required fields: action, reason, confidence, amount
+        refinedItems.push({
+          action: action, // "buy" | "sell" | "hold" | "rebalance"
+          reason: reasons || `Consolidated ${action} action from round ${latestRound}`,
+          confidence: Math.round(avgConfidence * 10) / 10,
+          amount: totalAmount
+        });
+      });
+      
+      // If we have earlier rounds, incorporate their insights into the reason
+      if (rounds.length > 1) {
+        refinedItems.forEach(item => {
+          const earlierRounds = rounds.filter(r => r < latestRound);
+          if (earlierRounds.length > 0) {
+            const earlierInsights = earlierRounds.map(round => {
+              const roundItems = itemsByRound.get(round) || [];
+              const matchingItems = roundItems.filter(i => i.action === item.action);
+              return matchingItems.map(i => i.reason).join('; ');
+            }).filter(Boolean).join(' | ');
+            
+            if (earlierInsights) {
+              item.reason = `${item.reason} [Refined from earlier rounds: ${earlierInsights}]`;
+            }
+          }
+        });
+      }
+    }
 
-    // Also create checklistDraft for manager review (for backward compatibility)
-    discussionRoom.checklistDraft = [{
-      id: `draft-final-${discussionRoom.id}`,
-      action: consensusAction,
-      reasoning: `Consensus reached after ${numRounds} rounds`,
+    // Validate: Ensure at least 1 item exists
+    if (refinedItems.length === 0) {
+      const warning = `[DiscussionEngine] Cannot finalize checklist for discussion ${discussionId}: No checklist items found. Discussion has ${allMessages.length} messages but no valid items could be extracted.`;
+      console.warn(warning);
+      throw new Error(warning);
+    }
+
+    // Create the complete checklist object
+    const checklist = {
+      sectorId: discussionRoom.sectorId,
+      items: refinedItems,
+      createdBy: createdBy,
+      createdAt: new Date(),
+      roundCount: roundCount
+    };
+
+    // Update discussion room with checklist
+    // Include agent information from the original messages for display purposes
+    discussionRoom.checklist = refinedItems.map((item, index) => {
+      // Find the first message that contributed to this item (for agent info)
+      const contributingMessage = allMessages.find(msg => {
+        const msgContent = (msg.content || '').toLowerCase();
+        const itemAction = (item.action || '').toLowerCase();
+        return msgContent.includes(itemAction) || msgContent.includes(item.reason?.toLowerCase() || '');
+      });
+      
+      return {
+        id: `checklist-${discussionRoom.id}-${index}`,
+        action: item.action,
+        reason: item.reason,
+        confidence: item.confidence,
+        amount: item.amount,
+        round: roundCount,
+        agentId: item.agentId || contributingMessage?.agentId,
+        agentName: item.agentName || contributingMessage?.agentName
+      };
+    });
+
+    // Also update checklistDraft for backward compatibility
+    discussionRoom.checklistDraft = refinedItems.map((item, index) => ({
+      id: `draft-final-${discussionRoom.id}-${index}`,
+      action: item.action,
+      reasoning: item.reason,
+      confidence: item.confidence,
+      amount: item.amount,
       status: 'pending',
-      confidence: avgConfidence.toFixed(1),
       createdAt: new Date().toISOString()
-    }];
+    }));
 
     // Mark discussion as ready for manager review
     discussionRoom.status = 'in_progress';
     discussionRoom.updatedAt = new Date().toISOString();
 
-    // Save discussion with checklistDraft
+    // Save discussion with checklist
     await saveDiscussion(discussionRoom);
 
-    console.log(`[DiscussionEngine] Finalized checklist draft for discussion ${discussionId}: ${consensusAction} (confidence: ${avgConfidence.toFixed(1)})`);
+    console.log(`[DiscussionEngine] Finalized checklist for discussion ${discussionId}: ${refinedItems.length} items across ${roundCount} rounds`);
+
+    // Return the complete checklist object
+    return checklist;
   }
 
   /**

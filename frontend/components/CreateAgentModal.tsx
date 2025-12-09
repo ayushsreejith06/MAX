@@ -9,6 +9,7 @@ interface CreateAgentModalProps {
   onClose: () => void;
   onSuccess?: (agent: Agent) => void;
   preselectedSectorId?: string;
+  onError?: (message: string) => void;
 }
 
 export function CreateAgentModal({
@@ -16,6 +17,7 @@ export function CreateAgentModal({
   onClose,
   onSuccess,
   preselectedSectorId,
+  onError,
 }: CreateAgentModalProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedSectorId, setSelectedSectorId] = useState<string>('unassigned');
@@ -73,9 +75,40 @@ export function CreateAgentModal({
       onClose();
     } catch (err: any) {
       console.error('Failed to create agent', err);
-      setError(
-        err?.message ?? 'Failed to create agent. Please try again.'
-      );
+      
+      // Extract error message from various possible formats
+      let errorMessage = err?.message ?? 'Failed to create agent. Please try again.';
+      
+      // Check for specific backend error messages
+      if (err?.response?.errorMessage) {
+        errorMessage = err.response.errorMessage;
+      } else if (err?.response?.error) {
+        errorMessage = err.response.error;
+      } else if (typeof err?.response === 'string') {
+        errorMessage = err.response;
+      }
+      
+      // Check for limit reached error
+      if (err?.response?.errorCode === 'AGENT_LIMIT_REACHED') {
+        if (onError) {
+          onError('Limit reached — cannot create more agents.');
+        }
+        onClose();
+        return;
+      }
+      
+      // Detect specific backend messages
+      const errorLower = errorMessage.toLowerCase();
+      if (errorLower.includes('sector already has 12 agents') || 
+          errorLower.includes('this sector already has 12 agents')) {
+        errorMessage = 'This sector already has 12 agents. Please select a different sector or create an unassigned agent.';
+      } else if (errorLower.includes('global agent limit reached') || 
+                 errorLower.includes('agent limit reached')) {
+        errorMessage = 'Global agent limit reached. Cannot create more agents.';
+      }
+      
+      setError(errorMessage);
+      // Modal stays open on error - do not call onClose()
     } finally {
       setIsSubmitting(false);
     }
@@ -131,9 +164,11 @@ export function CreateAgentModal({
           </div>
 
           {error && (
-            <p className="text-xs text-error-red font-mono">
-              {error}
-            </p>
+            <div className="rounded-lg border border-error-red/30 bg-error-red/10 p-3">
+              <p className="text-xs text-error-red font-mono">
+                {error}
+              </p>
+            </div>
           )}
 
           <div className="mt-6 flex items-center justify-end gap-3">

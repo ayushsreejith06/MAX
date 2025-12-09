@@ -106,7 +106,16 @@ async function executeSimulationTick(sectorId) {
     }));
 
     // 8. Save updated sector
-    await updateSector(sectorId, sector);
+    // Only update price-related fields, NOT balance (balance is only updated via deposit endpoint)
+    await updateSector(sectorId, {
+      currentPrice: sector.currentPrice,
+      change: sector.change,
+      changePercent: sector.changePercent,
+      lastSimulatedPrice: sector.lastSimulatedPrice,
+      riskScore: sector.riskScore,
+      volatility: sector.volatility,
+      performance: sector.performance
+    });
 
     // 9. Save updated agents using updateAgent for each
     for (const updatedAgent of updatedAgents) {

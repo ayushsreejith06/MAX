@@ -74,3 +74,52 @@ a {
   background: var(--sage-green);
 }
 
+/* Highlight animation for updated values */
+@keyframes highlightPulse {
+  0% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(20, 177, 22, 0);
+  }
+  50% {
+    background-color: rgba(20, 177, 22, 0.2);
+    box-shadow: 0 0 8px 4px rgba(20, 177, 22, 0.4);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(20, 177, 22, 0);
+  }
+}
+
+.value-highlight {
+  animation: highlightPulse 2s ease-in-out;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  display: inline-block;
+}
+
+/* Fixed table layout for sector agents table */
+.sector-agents-table {
+  table-layout: fixed;
+  min-width: 1070px;
+}
+
+.sector-agents-table th,
+.sector-agents-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sector-agents-table th:nth-child(1),
+.sector-agents-table td:nth-child(1) {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Tabular numbers for consistent numeric column alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+

@@ -3,8 +3,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock, Settings, Trash2 } from 'lucide-react';
-import type { Discussion } from '@/lib/types';
-import { fetchDiscussionById, addDiscussionMessage, sendMessageToManager, deleteDiscussion } from '@/lib/api';
+import type { Discussion, Message } from '@/lib/types';
+import { fetchDiscussionById, fetchDiscussionMessages, addDiscussionMessage, sendMessageToManager, deleteDiscussion } from '@/lib/api';
+import ChecklistSection from '@/components/discussions/ChecklistSection';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -36,7 +37,9 @@ export default function DiscussionDetailClient() {
   const params = useParams();
   const router = useRouter();
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newMessage, setNewMessage] = useState('');
@@ -54,6 +57,7 @@ export default function DiscussionDetailClient() {
     if (!discussionId || discussionId === 'placeholder') {
       setError('Invalid discussion ID');
       setLoading(false);
+      setMessagesLoading(false);
       return;
     }
 
@@ -83,13 +87,53 @@ export default function DiscussionDetailClient() {
     }
   }, [discussionId]);
 
+  const loadMessages = useCallback(async () => {
+    if (!discussionId || discussionId === 'placeholder') {
+      setMessagesLoading(false);
+      return;
+    }
+
+    try {
+      setMessagesLoading(true);
+      const messagesData = await fetchDiscussionMessages(discussionId);
+      setMessages(messagesData);
+    } catch (err) {
+      console.error('Failed to fetch messages', err);
+      // Don't set error state for messages - just log it
+      setMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [discussionId]);
+
   useEffect(() => {
     loadDiscussion();
-  }, [loadDiscussion]);
+    loadMessages();
+  }, [loadDiscussion, loadMessages]);
+
+  // Poll for status updates when discussion is active (to detect when it becomes finalized)
+  useEffect(() => {
+    if (!discussionId || discussionId === 'placeholder') {
+      return;
+    }
+
+    // Only poll if discussion is not finalized yet (to detect when it becomes finalized)
+    const shouldPoll = discussion && discussion.status !== 'finalized' && discussion.status === 'in_progress';
+
+    if (!shouldPoll) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadDiscussion();
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [discussionId, discussion?.status, loadDiscussion]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadDiscussion();
+    await Promise.all([loadDiscussion(), loadMessages()]);
     setIsRefreshing(false);
   };
 
@@ -112,7 +156,8 @@ export default function DiscussionDetailClient() {
       });
 
       setNewMessage('');
-      await loadDiscussion();
+      // Reload both discussion and messages
+      await Promise.all([loadDiscussion(), loadMessages()]);
     } catch (err) {
       console.error('Failed to send message', err);
       alert(err instanceof Error ? err.message : 'Failed to send message');
@@ -177,7 +222,9 @@ export default function DiscussionDetailClient() {
     switch (status) {
       case 'in_progress':
         return { label: 'In Progress', className: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40', icon: Clock };
-      case 'accepted':
+      case 'decided':
+        return { label: 'Accepted', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
+      case 'accepted': // Backward compatibility
         return { label: 'Accepted', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
       case 'rejected':
         return { label: 'Rejected', className: 'bg-error-red/10 text-error-red border border-error-red/30', icon: XCircle };
@@ -307,17 +354,19 @@ export default function DiscussionDetailClient() {
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-sage-green" />
                 <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
-                  Messages ({discussion.messages.length})
+                  Messages ({messages.length})
                 </span>
               </div>
             </div>
           </div>
 
           <div className="p-4 max-h-96 overflow-y-auto bg-pure-black/60 font-mono text-sm">
-            {discussion.messages.length === 0 ? (
+            {messagesLoading ? (
+              <p className="text-floral-white/50 text-center py-8">Loading messages...</p>
+            ) : messages.length === 0 ? (
               <p className="text-floral-white/50 text-center py-8">No messages yet</p>
             ) : (
-              discussion.messages.map((message, index) => {
+              messages.map((message, index) => {
                 const theme = getAgentTheme(message.agentName);
                 return (
                   <div key={message.id || index} className="mb-4 last:mb-0">
@@ -334,7 +383,7 @@ export default function DiscussionDetailClient() {
                     <div className="ml-4 pl-3 border-l-2 border-sage-green/30 text-floral-white">
                       {message.content}
                     </div>
-                    {index < discussion.messages.length - 1 && (
+                    {index < messages.length - 1 && (
                       <div className="mt-3 border-t border-floral-white/10"></div>
                     )}
                   </div>
@@ -367,6 +416,12 @@ export default function DiscussionDetailClient() {
             </div>
           )}
         </div>
+
+        {/* Checklist Section */}
+        <ChecklistSection
+          discussionId={discussion.id}
+          discussionStatus={discussion.status}
+        />
       </div>
 
       {/* Manual Override Modal */}

@@ -8,6 +8,9 @@ const { addFunds } = require('../utils/userAccount');
 const { v4: uuidv4 } = require('uuid');
 const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
 
+// Maximum number of sectors allowed
+const MAX_SECTORS = 6;
+
 // Optimize sector response for list view - only return minimal fields needed by UI
 function optimizeSectorForList(sector) {
   // Calculate active agents count from agents array
@@ -96,16 +99,23 @@ module.exports = async (fastify) => {
         });
       }
 
-      // Calculate new balance
+      // Add deposit amount directly to currentPrice (the dynamic value)
+      const currentPrice = typeof sector.currentPrice === 'number' ? sector.currentPrice : 0;
+      const newPrice = currentPrice + amount;
+
+      // Also update balance for manager agent use (kept internally, not displayed)
       const currentBalance = typeof sector.balance === 'number' ? sector.balance : 0;
       const newBalance = currentBalance + amount;
 
-      // Update sector balance
-      const updatedSector = await updateSector(id, { balance: newBalance });
+      // Update sector with new price and balance
+      const updatedSector = await updateSector(id, { 
+        currentPrice: newPrice,
+        balance: newBalance 
+      });
       if (!updatedSector) {
         return reply.status(500).send({
           success: false,
-          error: 'Failed to update sector balance'
+          error: 'Failed to update sector'
         });
       }
 
@@ -212,7 +222,10 @@ module.exports = async (fastify) => {
             status: discussion.status || 'in_progress',
             updatedAt: discussion.updatedAt || discussion.createdAt || new Date().toISOString(),
             createdAt: discussion.createdAt || new Date().toISOString(),
-            agentIds: Array.isArray(discussion.agentIds) ? discussion.agentIds : []
+            agentIds: Array.isArray(discussion.agentIds) ? discussion.agentIds : [],
+            messagesCount: typeof discussion.messagesCount === 'number' 
+              ? discussion.messagesCount 
+              : (Array.isArray(discussion.messages) ? discussion.messages.length : 0)
           }));
         
         // Sort discussions by updatedAt (newest first)
@@ -243,6 +256,17 @@ module.exports = async (fastify) => {
   // POST /sectors - Create a sector
   fastify.post('/', async (request, reply) => {
     try {
+      // Check sector creation limit before proceeding
+      const existingSectors = await getAllSectors();
+      if (existingSectors.length >= MAX_SECTORS) {
+        console.warn("[Limit] Sector creation blocked: maximum reached.");
+        return reply.status(400).send({
+          success: false,
+          errorCode: "SECTOR_LIMIT_REACHED",
+          errorMessage: "Maximum number of sectors reached (6). Delete a sector to create a new one."
+        });
+      }
+
       const { name, sectorName, symbol, sectorSymbol, description, agents, performance } = request.body || {};
 
       // Extract sectorName and sectorSymbol from either field name

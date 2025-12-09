@@ -1,4 +1,4 @@
-import { Agent, ApiPayload, Discussion, Sector, CandleData } from './types';
+import { Agent, ApiPayload, Discussion, Sector, CandleData, RejectedItem } from './types';
 import { getApiBaseUrl, getBackendBaseUrl } from './desktopEnv';
 import { rateLimitedFetch } from './rateLimit';
 
@@ -248,6 +248,24 @@ function normalizeDiscussion(raw: any): Discussion {
         agentId: item?.agentId ?? item?.agent_id ?? undefined,
         agentName: item?.agentName ?? item?.agent_name ?? undefined,
         round: typeof item?.round === 'number' ? item.round : undefined,
+        action: item?.action ?? undefined,
+        amount: typeof item?.amount === 'number' ? item.amount : undefined,
+        reason: item?.reason ?? item?.reasoning ?? undefined,
+        confidence: typeof item?.confidence === 'number' ? item.confidence : undefined,
+      }))
+    : undefined;
+
+  const finalizedChecklist = Array.isArray(raw?.finalizedChecklist)
+    ? raw.finalizedChecklist.map((item: any) => ({
+        id: String(item?.id ?? ''),
+        text: String(item?.text ?? ''),
+        agentId: item?.agentId ?? item?.agent_id ?? undefined,
+        agentName: item?.agentName ?? item?.agent_name ?? undefined,
+        round: typeof item?.round === 'number' ? item.round : undefined,
+        action: item?.action ?? undefined,
+        amount: typeof item?.amount === 'number' ? item.amount : undefined,
+        reason: item?.reason ?? item?.reasoning ?? undefined,
+        confidence: typeof item?.confidence === 'number' ? item.confidence : undefined,
       }))
     : undefined;
 
@@ -262,6 +280,9 @@ function normalizeDiscussion(raw: any): Discussion {
       ? raw.agent_ids.map((agentId: any) => String(agentId))
       : [],
     messages,
+    messagesCount: typeof raw?.messagesCount === 'number' 
+      ? raw.messagesCount 
+      : (typeof raw?.messageCount === 'number' ? raw.messageCount : undefined),
     createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
     updatedAt: raw?.updatedAt ?? raw?.updated_at ?? new Date().toISOString(),
     sectorSymbol: raw?.sectorSymbol ?? raw?.sector_symbol ?? undefined,
@@ -269,6 +290,7 @@ function normalizeDiscussion(raw: any): Discussion {
     round: typeof raw?.round === 'number' ? raw.round : undefined,
     checklistDraft: checklistDraft && checklistDraft.length > 0 ? checklistDraft : undefined,
     checklist: checklist && checklist.length > 0 ? checklist : undefined,
+    finalizedChecklist: finalizedChecklist && finalizedChecklist.length > 0 ? finalizedChecklist : undefined,
   };
 }
 
@@ -482,16 +504,96 @@ export async function fetchAgentById(id: string): Promise<Agent | null> {
   return payload ? normalizeAgent(payload) : null;
 }
 
-export async function fetchDiscussions(): Promise<Discussion[]> {
-  const result = await request<Discussion[]>('/discussions');
+export interface DiscussionSummary {
+  id: string;
+  title: string;
+  sector: string; // Sector symbol
+  sectorId?: string; // Keep for backward compatibility
+  status: Discussion['status'];
+  updatedAt: string;
+  participants: string[]; // Agent IDs array
+  messagesCount: number; // Updated to match backend (was messageCount)
+}
+
+export interface PaginatedDiscussionsResponse {
+  discussions: DiscussionSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  statusCounts?: {
+    all: number;
+    in_progress: number;
+    decided: number;
+    rejected: number;
+  };
+}
+
+export async function fetchDiscussions(page: number = 1, pageSize: number = 20, sectorId?: string, status?: string): Promise<PaginatedDiscussionsResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  if (sectorId) {
+    params.append('sectorId', sectorId);
+  }
+  if (status && status !== 'all') {
+    params.append('status', status);
+  }
+
+  const result = await request<PaginatedDiscussionsResponse>(`/discussions?${params.toString()}`);
+  
+  // Handle rate limiting - return empty result when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return {
+      discussions: [],
+      pagination: {
+        page,
+        pageSize,
+        total: 0,
+        totalPages: 0
+      }
+    };
+  }
+  
+  const payload = result as PaginatedDiscussionsResponse;
+  return payload || {
+    discussions: [],
+    pagination: {
+      page,
+      pageSize,
+      total: 0,
+      totalPages: 0
+    }
+  };
+}
+
+export async function fetchDiscussionMessages(discussionId: string): Promise<Message[]> {
+  if (!discussionId) {
+    return [];
+  }
+
+  const result = await request<{ messages: Message[] }>(`/discussions/${discussionId}/messages`);
   
   // Handle rate limiting - return empty array when skipped
   if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
     return [];
   }
   
-  const payload = result as Discussion[];
-  return Array.isArray(payload) ? payload.map(normalizeDiscussion) : [];
+  const payload = result as { messages: Message[] };
+  if (payload && Array.isArray(payload.messages)) {
+    return payload.messages.map((message: any, index: number) => ({
+      id: String(message?.id ?? `${discussionId}-msg-${index}`),
+      agentId: message?.agentId ?? message?.agent_id ?? undefined,
+      agentName: String(message?.agentName ?? message?.agent_name ?? 'Unknown Agent'),
+      content: String(message?.content ?? ''),
+      timestamp: message?.timestamp ?? message?.createdAt ?? new Date().toISOString(),
+      role: message?.role ?? undefined,
+    }));
+  }
+  return [];
 }
 
 export async function fetchDiscussionById(id: string): Promise<Discussion | null> {
@@ -513,6 +615,56 @@ export async function fetchDiscussionById(id: string): Promise<Discussion | null
   
   const payload = result as Discussion;
   return payload ? normalizeDiscussion(payload) : null;
+}
+
+export async function fetchRejectedItems(): Promise<{ rejected: RejectedItem[] }> {
+  const result = await request<{ rejected: RejectedItem[] }>('/discussions/rejected-items');
+  
+  // Handle rate limiting - return empty array when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return { rejected: [] };
+  }
+  
+  const payload = result as { rejected: RejectedItem[] };
+  return payload || { rejected: [] };
+}
+
+export interface ChecklistItemResponse {
+  id: string;
+  description?: string;
+  action?: string;
+  amount?: number;
+  reason?: string;
+  reasoning?: string;
+  confidence?: number;
+  round?: number;
+  agentId?: string;
+  agentName?: string;
+  approvalStatus?: 'pending' | 'accepted' | 'rejected';
+  approvalReason?: string | null;
+  approvedAt?: string;
+}
+
+export interface ChecklistResponse {
+  discussionId: string;
+  status: string;
+  checklist: ChecklistItemResponse[];
+  finalizedChecklist: ChecklistItemResponse[];
+}
+
+export async function fetchChecklist(discussionId: string): Promise<ChecklistResponse | null> {
+  if (!discussionId) {
+    return null;
+  }
+
+  const result = await request<ChecklistResponse>(`/discussions/${discussionId}/checklist`);
+  
+  // Handle rate limiting - return null when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return null;
+  }
+  
+  return result as ChecklistResponse | null;
 }
 
 export async function createDiscussion(
@@ -719,13 +871,18 @@ export async function createAgent(
     const agent = normalizeAgent(rawAgent as Agent);
     return agent;
   } catch (error: any) {
-    // Optionally inspect error.response / error.message depending on `request` helper
+    // Preserve error structure (including error.response) for proper error handling in modals
+    // Extract error message from various possible formats
     const message =
       (error && error.message) ||
       'Failed to create agent. Please try again.';
 
-    // Re-throw as a standard Error for callers (modals/pages) to handle
-    throw new Error(message);
+    // Re-throw with preserved structure
+    const newError = new Error(message) as any;
+    if (error?.response) {
+      newError.response = error.response;
+    }
+    throw newError;
   }
 }
 
@@ -991,6 +1148,50 @@ export async function setSystemMode(mode: SystemMode): Promise<SystemMode> {
     
     const payload = result as { success: boolean; mode: SystemMode };
     return payload.mode;
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+/**
+ * Clear all discussions (development only)
+ * Note: Uses backend base URL directly since debug routes are at /debug (not /api/debug)
+ */
+export async function clearAllDiscussions(): Promise<{ success: boolean; deletedCount: number }> {
+  try {
+    // Use backend base URL directly since debug routes are not under /api
+    const backendBase = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
+    const fullUrl = `${backendBase}/debug/discussions/clear`;
+    
+    const response = await rateLimitedFetch(
+      fullUrl,
+      500,
+      {
+        method: 'DELETE',
+        cache: 'no-store',
+        credentials: 'omit',
+      },
+      { bypass: true } // Bypass rate limiting for user-triggered actions
+    );
+
+    if (!response.ok) {
+      let errorMessage = `Request failed: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        const text = await response.text();
+        if (text) {
+          errorMessage = text;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+
+    const payload = await response.json();
+    return payload as { success: boolean; deletedCount: number };
   } catch (error: any) {
     throw error;
   }

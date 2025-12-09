@@ -25,9 +25,10 @@ const DiscussionEngine = require('../../core/DiscussionEngine');
  * @param {string} sectorId - Sector ID
  * @param {string} title - Discussion title
  * @param {Array<string>} agentIds - Optional agent IDs to include
+ * @param {boolean} skipThresholdCheck - Optional flag to skip confidence threshold check (for manual API calls)
  * @returns {Promise<DiscussionRoom>} Created discussion room
  */
-async function startDiscussion(sectorId, title, agentIds = null) {
+async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCheck = false) {
   try {
     // If agentIds not provided, get all agents in the sector
     if (!agentIds || agentIds.length === 0) {
@@ -38,15 +39,49 @@ async function startDiscussion(sectorId, title, agentIds = null) {
       agentIds = sectorAgents.map(a => a.id);
     }
 
-    // Check if there's already an open discussion for this sector
+    // STRICT THRESHOLD CHECK (unless bypassed for manual API calls)
+    if (!skipThresholdCheck) {
+      const agents = await loadAgents();
+      const allSectorAgents = agents.filter(a => a && a.id && a.sectorId === sectorId);
+      
+      if (allSectorAgents.length > 0) {
+        // Check ALL agents (manager + generals) have confidence >= 65
+        const allAboveThreshold = allSectorAgents.every(agent => {
+          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          return confidence >= 65;
+        });
+        
+        if (!allAboveThreshold) {
+          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`).join(', ');
+          console.log(`[DiscussionLifecycle] Cannot start discussion - Not all agents meet threshold (>= 65). Agents: ${agentDetails}`);
+          throw new Error(`Cannot start discussion: Not all agents have confidence >= 65. Current confidences: ${agentDetails}`);
+        }
+        
+        // Calculate manager confidence as average of ALL agents
+        const totalConfidence = allSectorAgents.reduce((sum, agent) => {
+          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          return sum + confidence;
+        }, 0);
+        const managerConfidence = totalConfidence / allSectorAgents.length;
+        
+        // Check manager confidence >= 65
+        if (managerConfidence < 65) {
+          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`).join(', ');
+          console.log(`[DiscussionLifecycle] Cannot start discussion - Manager confidence (${managerConfidence.toFixed(2)}) < 65. Agents: ${agentDetails}`);
+          throw new Error(`Cannot start discussion: Manager confidence (${managerConfidence.toFixed(2)}) is below threshold (65)`);
+        }
+      }
+    }
+
+    // Check if there's already an open or in-progress discussion for this sector
     const existingDiscussions = await loadDiscussions();
     const openDiscussion = existingDiscussions.find(d => 
       d.sectorId === sectorId && 
-      (d.status === 'open' || d.status === 'created' || d.status === 'in_progress')
+      (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
     );
 
     if (openDiscussion) {
-      console.log(`[DiscussionLifecycle] Open discussion already exists for sector ${sectorId}: ${openDiscussion.id}`);
+      console.log(`[DiscussionLifecycle] Active discussion already exists for sector ${sectorId}: ${openDiscussion.id} (status: ${openDiscussion.status})`);
       return DiscussionRoom.fromData(openDiscussion);
     }
 
@@ -635,21 +670,76 @@ function autoDiscussionLoop(intervalMs = 10000) {
               }
             }
           } else {
-            // Check if we should create a new discussion
-            // Create a discussion if:
-            // 1. Sector has balance > 0 (money available to deploy)
-            // 2. Has agents to participate
-            // 3. No recent discussion (within last minute)
-            const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+            // STRICT THRESHOLD: Check if we should create a new discussion
+            // Create a discussion ONLY if:
+            // 1. ALL agents (manager + generals) have confidence >= 65
+            // 2. Manager confidence = average(confidence of all agents) >= 65
+            // 3. Sector has balance > 0 (money available to deploy)
+            // 4. Has agents to participate
+            // 5. No recent discussion (within last minute)
+            // 6. No active/in-progress discussions
+            
+            // Get ALL agents for the sector (manager + generals)
+            const allSectorAgents = agents.filter(a => a.sectorId === sector.id);
+            
+            if (allSectorAgents.length === 0) {
+              continue; // No agents, skip
+            }
+            
+            // Check ALL agents (manager + generals) have confidence >= 65
+            const allAboveThreshold = allSectorAgents.every(agent => {
+              const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+              return confidence >= 65;
+            });
+            
+            if (!allAboveThreshold) {
+              // Skip - not all agents meet threshold
+              continue;
+            }
+            
+            // Calculate manager confidence as average of ALL agents
+            const totalConfidence = allSectorAgents.reduce((sum, agent) => {
+              const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+              return sum + confidence;
+            }, 0);
+            const managerConfidence = totalConfidence / allSectorAgents.length;
+            
+            // Check manager confidence >= 65
+            if (managerConfidence < 65) {
+              // Skip - manager confidence below threshold
+              continue;
+            }
+            
+            // Check for active/in-progress discussions
+            const activeDiscussion = discussions.find(d => 
+              d.sectorId === sector.id && 
+              (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+            );
+            
+            if (activeDiscussion) {
+              // Skip - active discussion exists
+              continue;
+            }
+            
+            // Check for recent discussions (within last minute)
             const recentDiscussions = discussions.filter(d => 
               d.sectorId === sector.id && 
               d.createdAt && 
               (Date.now() - new Date(d.createdAt).getTime()) < 60000 // Within last minute
             );
-
-            if (sectorBalance > 0 && recentDiscussions.length === 0 && sectorAgents.length > 0) {
-              // Create a new discussion to deploy available capital
+            
+            if (recentDiscussions.length > 0) {
+              // Skip - recent discussion exists
+              continue;
+            }
+            
+            // Check sector balance
+            const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+            
+            if (sectorBalance > 0 && sectorAgents.length > 0) {
+              // All strict checks passed - create a new discussion
               const sectorName = sector.sectorName || sector.name || sector.id;
+              console.log(`[DiscussionLifecycle] Auto-creating discussion for sector ${sectorName} - All agents meet threshold (>= 65), manager confidence: ${managerConfidence.toFixed(2)}`);
               await createDiscussionRoomForSector(
                 sector.id, 
                 `Deploy available capital (Balance: ${sectorBalance})`

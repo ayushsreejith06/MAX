@@ -228,6 +228,33 @@ module.exports = async (fastify) => {
         });
       }
 
+      // Check agent limit per sector (max 5 agents per sector)
+      if (sectorId) {
+        try {
+          const { getAllSectors } = require('../utils/sectorStorage');
+          const sectors = await getAllSectors();
+          const sector = sectors.find(s => s.id === sectorId);
+          
+          if (sector) {
+            // Count agents in this sector
+            const allAgents = await loadAgents();
+            const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
+            
+            if (sectorAgents.length >= 5) {
+              log(`[Limit] Agent creation blocked: sector ${sectorId} already has ${sectorAgents.length} agents (max 5)`);
+              return reply.status(400).send({
+                success: false,
+                errorCode: "AGENT_LIMIT_REACHED",
+                errorMessage: "Maximum number of agents per sector reached (5). Delete an agent to create a new one."
+              });
+            }
+          }
+        } catch (limitError) {
+          log(`Warning: Failed to check agent limit: ${limitError.message}`);
+          // Continue with creation if limit check fails (fail-safe)
+        }
+      }
+
       log(`POST /api/agents - Creating agent with prompt: ${prompt}, sectorId: ${sectorId || 'null'}, role: ${role || 'auto-detect'}`);
 
       const agent = await createAgent(prompt.trim(), sectorId || null, role || null);

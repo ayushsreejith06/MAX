@@ -8,6 +8,7 @@ import type { Agent, Sector } from '@/lib/types';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { AgentSettingsForm } from '@/components/AgentSettingsForm';
 import { usePolling } from '@/hooks/usePolling';
+import { useToast, ToastContainer } from '@/components/Toast';
 
 type AgentWithSector = Agent & {
   sectorSymbol: string;
@@ -128,6 +129,7 @@ export default function Agents() {
   const [showSettings, setShowSettings] = useState(false);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const isFetchingRef = useRef(false);
+  const { toasts, showToast, closeToast } = useToast();
 
   const loadAgents = useCallback(async (showLoading = false) => {
     // Race condition guard: prevent multiple simultaneous fetches
@@ -337,6 +339,7 @@ export default function Agents() {
       </div>
     }>
       <div className="min-h-screen bg-pure-black px-8 py-10 relative">
+      <ToastContainer toasts={toasts} onClose={closeToast} />
       <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-8" style={{ minHeight: '600px' }}>
         {/* Loading overlay */}
         {loading && (
@@ -650,6 +653,9 @@ export default function Agents() {
         onSuccess={() => {
           setShowCreateModal(false);
           void loadAgents();
+        }}
+        onError={(message) => {
+          showToast(message, 'error');
         }}
       />
       </div>

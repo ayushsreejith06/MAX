@@ -16,20 +16,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/discussions/page.js"
     ],
-    "/discussions/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/discussions/[id]/page.js"
-    ],
     "/sectors/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/sectors/page.js"
     ],
+    "/discussions/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/discussions/[id]/page.js"
+    ],
     "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
+    ],
+    "/contract-activity/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/contract-activity/page.js"
     ],
     "/agents/page": [
       "static/chunks/webpack.js",

@@ -7,6 +7,7 @@ class DiscussionRoom {
     this.title = title;
     this.agentIds = agentIds;
     this.messages = [];
+    this.messagesCount = 0;
     this.status = 'in_progress';
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
@@ -14,6 +15,7 @@ class DiscussionRoom {
     this.round = 1;
     this.checklistDraft = [];
     this.checklist = [];
+    this.finalizedChecklist = [];
     this.needsRefinement = [];
     // Decision fields
     this.finalDecision = null;
@@ -31,6 +33,13 @@ class DiscussionRoom {
     const discussionRoom = new DiscussionRoom(data.sectorId, data.title, data.agentIds);
     discussionRoom.id = data.id;
     discussionRoom.messages = data.messages || [];
+    // Calculate messagesCount from messages.length if not present (backward compatibility)
+    if (typeof data.messagesCount === 'number') {
+      discussionRoom.messagesCount = data.messagesCount;
+    } else {
+      // Calculate from messages array length for backward compatibility
+      discussionRoom.messagesCount = Array.isArray(data.messages) ? data.messages.length : 0;
+    }
     // Map old status values to new ones for backward compatibility
     const statusMap = {
       'created': 'in_progress',
@@ -47,6 +56,7 @@ class DiscussionRoom {
     discussionRoom.round = typeof data.round === 'number' ? data.round : 1;
     discussionRoom.checklistDraft = Array.isArray(data.checklistDraft) ? data.checklistDraft : [];
     discussionRoom.checklist = Array.isArray(data.checklist) ? data.checklist : [];
+    discussionRoom.finalizedChecklist = Array.isArray(data.finalizedChecklist) ? data.finalizedChecklist : [];
     discussionRoom.needsRefinement = Array.isArray(data.needsRefinement) ? data.needsRefinement : [];
     // Decision fields
     discussionRoom.finalDecision = data.finalDecision || null;
@@ -72,6 +82,7 @@ class DiscussionRoom {
       createdAt: message.createdAt || new Date().toISOString()
     };
     this.messages.push(messageEntry);
+    this.messagesCount = this.messages.length;
     this.updatedAt = new Date().toISOString();
   }
 
@@ -94,6 +105,7 @@ class DiscussionRoom {
       title: this.title,
       agentIds: this.agentIds,
       messages: this.messages,
+      messagesCount: this.messagesCount,
       status: this.status,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
@@ -101,6 +113,7 @@ class DiscussionRoom {
       round: this.round,
       checklistDraft: this.checklistDraft,
       checklist: this.checklist,
+      finalizedChecklist: this.finalizedChecklist,
       needsRefinement: this.needsRefinement,
       // Decision fields
       finalDecision: this.finalDecision,

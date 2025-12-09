@@ -1,7 +1,8 @@
 const { loadAgents, updateAgent, saveAgents } = require('../utils/agentStorage');
-const { getAllSectors } = require('../utils/sectorStorage');
+const { getAllSectors, updateSector } = require('../utils/sectorStorage');
 const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
 const { startDiscussion } = require('../agents/discussion/discussionLifecycle');
+const { loadDiscussions, saveDiscussions } = require('../utils/discussionStorage');
 
 // Simple logger
 function log(message) {
@@ -346,6 +347,49 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error setting all agents confidence: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // DELETE /debug/discussions/clear - Clear all discussions
+  fastify.delete('/discussions/clear', async (request, reply) => {
+    try {
+      log('DELETE /debug/discussions/clear - Clearing all discussions');
+
+      // Load all discussions to get count
+      const allDiscussions = await loadDiscussions();
+      const deletedCount = allDiscussions.length;
+
+      // Clear all discussions
+      await saveDiscussions([]);
+
+      // Clear discussion references from all sectors
+      const sectors = await getAllSectors();
+      for (const sector of sectors) {
+        if (sector && (sector.discussions || sector.discussion)) {
+          await updateSector(sector.id, {
+            discussions: [],
+            discussion: null
+          });
+        }
+      }
+
+      // Clear discussion locks in SystemOrchestrator instance
+      // Note: locks are per-instance, but we clear them for the current instance
+      const orchestrator = new SystemOrchestrator();
+      orchestrator.discussionLock.clear();
+
+      log(`Cleared ${deletedCount} discussions, reset manager locks, and removed discussion references from sectors`);
+
+      return reply.status(200).send({
+        success: true,
+        deletedCount
+      });
+    } catch (error) {
+      log(`Error clearing discussions: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

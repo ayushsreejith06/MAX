@@ -1,6 +1,7 @@
 const ConfidenceEngine = require('./ConfidenceEngine');
-const { loadAgents, saveAgents } = require('../utils/agentStorage');
+const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage');
 const { updateSector } = require('../utils/sectorStorage');
+const { loadDiscussions } = require('../utils/discussionStorage');
 
 /**
  * SectorEngine - Handles sector-level operations including confidence updates
@@ -8,6 +9,10 @@ const { updateSector } = require('../utils/sectorStorage');
 class SectorEngine {
   constructor() {
     this.confidenceEngine = new ConfidenceEngine();
+    // Track cooldown periods per sector (sectorId -> lastDiscussionEndTick)
+    this.discussionCooldowns = new Map();
+    // Cooldown duration in ticks (default: 2 ticks)
+    this.cooldownTicks = 2;
   }
 
   /**
@@ -35,18 +40,51 @@ class SectorEngine {
       // Create a map of agent ID to updated confidence for quick lookup
       const confidenceMap = new Map();
 
-      // Update confidence for each agent using ConfidenceEngine
-      const confidenceList = [];
+      // Separate manager and non-manager agents
+      const managerAgents = [];
+      const nonManagerAgents = [];
+
       for (const agent of sectorAgents) {
         if (!agent || !agent.id) {
           // Skip invalid agents
           continue;
         }
+        
+        // Check if agent is a manager
+        const isManager = agent.role === 'manager' || 
+                         (agent.role && agent.role.toLowerCase().includes('manager'));
+        
+        if (isManager) {
+          managerAgents.push(agent);
+        } else {
+          nonManagerAgents.push(agent);
+        }
+      }
+
+      // Update confidence for non-manager agents using ConfidenceEngine
+      const confidenceList = [];
+      for (const agent of nonManagerAgents) {
         const newConfidence = this.confidenceEngine.updateAgentConfidence(agent, sector);
         agent.confidence = newConfidence;
         confidenceMap.set(agent.id, newConfidence);
         const agentName = agent.name || agent.id;
         confidenceList.push({ name: agentName, confidence: newConfidence });
+      }
+
+      // Update manager confidence based on weighted aggregate of other agents
+      for (const manager of managerAgents) {
+        const newManagerConfidence = this.confidenceEngine.updateManagerConfidence(manager, allAgents);
+        manager.confidence = newManagerConfidence;
+        confidenceMap.set(manager.id, newManagerConfidence);
+        const managerName = manager.name || manager.id;
+        confidenceList.push({ name: managerName, confidence: newManagerConfidence });
+        
+        // Save manager confidence to storage
+        try {
+          await updateAgent(manager.id, { confidence: newManagerConfidence });
+        } catch (error) {
+          console.error(`[SectorEngine] Error saving manager confidence for ${manager.id}:`, error);
+        }
       }
 
       // DEBUG: Log list of confidence values
@@ -104,22 +142,184 @@ class SectorEngine {
   }
 
   /**
-   * Get discussion ready flag for a sector
-   * Returns true if all agents have confidence >= 65
-   * @param {Object} sector - Sector object with agents array
-   * @returns {boolean} True if all agents have confidence >= 65
+   * Mark that a discussion has ended for a sector (starts cooldown period)
+   * @param {string} sectorId - Sector ID
    */
-  getDiscussionReadyFlag(sector) {
-    if (!sector) {
+  markDiscussionEnded(sectorId) {
+    if (sectorId) {
+      this.discussionCooldowns.set(sectorId, Date.now());
+      console.log(`[SectorEngine] Marked discussion ended for sector ${sectorId}, cooldown started (${this.cooldownTicks} ticks)`);
+    }
+  }
+
+  /**
+   * Set cooldown duration in ticks
+   * @param {number} ticks - Number of ticks for cooldown (default: 2)
+   */
+  setCooldownTicks(ticks) {
+    this.cooldownTicks = Math.max(1, Math.min(10, ticks)); // Clamp between 1 and 10 ticks
+  }
+
+  /**
+   * Evaluate if a sector is ready for discussion
+   * Returns true ONLY if:
+   * 1. ALL non-manager agents have confidence >= CONFIDENCE_THRESHOLD (default = 65)
+   * 2. There are NO active discussions in that sector
+   * 3. Sector is not currently cooling down (optional)
+   * 
+   * @param {Object} sector - Sector object with agents array
+   * @param {number} confidenceThreshold - Confidence threshold (default: 65)
+   * @returns {Promise<boolean>} True if sector is ready for discussion
+   */
+  async evaluateDiscussionReadiness(sector, confidenceThreshold = 65) {
+    if (!sector || !sector.id) {
+      console.log('[SectorEngine] evaluateDiscussionReadiness: Invalid sector');
       return false;
     }
 
-    const discussionReady = this.confidenceEngine.shouldTriggerDiscussion(sector);
-    
-    // DEBUG: Log discussionReady flag
-    console.log(`[SectorEngine] discussionReady = ${discussionReady}`);
-    
-    return discussionReady;
+    try {
+      // Load all agents to ensure we have the latest data for manager confidence calculation
+      const allAgents = await loadAgents();
+      
+      // Load agents if not already present in sector object
+      let agents = sector.agents;
+      if (!Array.isArray(agents) || agents.length === 0) {
+        agents = allAgents.filter(agent => agent.sectorId === sector.id);
+      }
+
+      // Update manager confidence before checking discussion readiness
+      const managerAgents = agents.filter(agent => {
+        if (!agent || !agent.id) return false;
+        const isManager = agent.role === 'manager' || 
+                         (agent.role && agent.role.toLowerCase().includes('manager'));
+        return isManager;
+      });
+
+      // Update each manager's confidence based on other agents
+      for (const manager of managerAgents) {
+        // Find manager in allAgents to get latest data
+        const managerInAllAgents = allAgents.find(a => a.id === manager.id);
+        if (managerInAllAgents) {
+          const newManagerConfidence = this.confidenceEngine.updateManagerConfidence(managerInAllAgents, allAgents);
+          managerInAllAgents.confidence = newManagerConfidence;
+          manager.confidence = newManagerConfidence;
+          
+          // Save manager confidence to storage
+          try {
+            await updateAgent(manager.id, { confidence: newManagerConfidence });
+          } catch (error) {
+            console.error(`[SectorEngine] Error saving manager confidence for ${manager.id}:`, error);
+          }
+        }
+      }
+
+      // Update sector.agents with latest manager confidence values
+      if (Array.isArray(sector.agents)) {
+        sector.agents = sector.agents.map(agent => {
+          if (!agent || !agent.id) return agent;
+          
+          // Check if this is a manager
+          const isManager = agent.role === 'manager' || 
+                           (agent.role && agent.role.toLowerCase().includes('manager'));
+          
+          if (isManager) {
+            // Find updated manager in allAgents
+            const updatedManager = allAgents.find(m => m.id === agent.id);
+            if (updatedManager) {
+              return { ...agent, confidence: updatedManager.confidence };
+            }
+          }
+          
+          return agent;
+        });
+      }
+
+      // STRICT THRESHOLD: Check ALL agents (manager + generals) have confidence >= 65
+      const allAboveThreshold = agents.every(agent => {
+        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        return confidence >= confidenceThreshold;
+      });
+
+      if (!allAboveThreshold) {
+        // DEBUG: Log which agents prevented the discussion from starting
+        const agentsBelowThreshold = agents.filter(agent => {
+          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          return confidence < confidenceThreshold;
+        });
+        const agentDetails = agentsBelowThreshold.map(agent => {
+          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          return `${agent.name || agent.id} (confidence: ${confidence.toFixed(2)})`;
+        }).join(', ');
+        console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - ${agentsBelowThreshold.length} agent(s) below threshold (${confidenceThreshold}): ${agentDetails}`);
+        return false;
+      }
+
+      // Calculate manager confidence as average of ALL agents
+      const totalConfidence = agents.reduce((sum, agent) => {
+        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        return sum + confidence;
+      }, 0);
+      const managerConfidence = totalConfidence / agents.length;
+
+      // Check manager confidence >= 65
+      if (managerConfidence < 65) {
+        console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
+        return false;
+      }
+
+      // Check if there is any active discussion in this sector
+      const discussions = await loadDiscussions();
+      const activeDiscussion = discussions.find(d => 
+        d.sectorId === sector.id && 
+        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+      );
+
+      if (activeDiscussion) {
+        console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - Active discussion exists: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
+        return false;
+      }
+
+      // Check if sector is in cooldown period
+      const lastDiscussionEndTick = this.discussionCooldowns.get(sector.id);
+      if (lastDiscussionEndTick !== undefined) {
+        // Get current tick from SystemOrchestrator if available, or use a simple counter
+        // For now, we'll use a timestamp-based approach
+        const currentTime = Date.now();
+        const cooldownDurationMs = this.cooldownTicks * 2000; // 2 seconds per tick
+        const timeSinceLastDiscussion = currentTime - lastDiscussionEndTick;
+        
+        if (timeSinceLastDiscussion < cooldownDurationMs) {
+          const remainingTicks = Math.ceil((cooldownDurationMs - timeSinceLastDiscussion) / 2000);
+          console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - Sector ${sector.id} is in cooldown (${remainingTicks} tick(s) remaining)`);
+          return false;
+        } else {
+          // Cooldown expired, remove from map
+          this.discussionCooldowns.delete(sector.id);
+        }
+      }
+
+      // All checks passed - sector is ready for discussion
+      const agentDetails = agents.map(agent => {
+        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        return `${agent.name || agent.id} (confidence: ${confidence.toFixed(2)})`;
+      }).join(', ');
+      
+      console.log(`[SectorEngine] evaluateDiscussionReadiness: Sector ${sector.id} is READY for discussion. All ${agents.length} agent(s) meet threshold (>= ${confidenceThreshold}), manager confidence (avg): ${managerConfidence.toFixed(2)}. Agents: ${agentDetails}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`[SectorEngine] Error evaluating discussion readiness for sector ${sector.id}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get discussion ready flag for a sector (legacy method - now calls evaluateDiscussionReadiness)
+   * @param {Object} sector - Sector object with agents array
+   * @returns {Promise<boolean>} True if sector is ready for discussion
+   */
+  async getDiscussionReadyFlag(sector) {
+    return await this.evaluateDiscussionReadiness(sector);
   }
 }
 

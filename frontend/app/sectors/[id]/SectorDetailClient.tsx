@@ -6,9 +6,11 @@ import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Ale
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { SectorSettingsForm } from '@/components/SectorSettingsForm';
-import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, fetchAgents, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
-import type { Sector, Agent } from '@/lib/types';
+import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, fetchAgents, fetchDiscussions, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
+import type { Sector, Agent, Discussion } from '@/lib/types';
 import { usePolling } from '@/hooks/usePolling';
+import { useExecutionRefresh } from '@/hooks/useExecutionRefresh';
+import { useToast, ToastContainer } from '@/components/Toast';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
 const AgentRow = memo(function AgentRow({
@@ -18,6 +20,7 @@ const AgentRow = memo(function AgentRow({
   onDelete,
   onNavigate,
   isManager,
+  isPerformanceHighlighted = false,
 }: {
   agent: Agent;
   agentConfidence: number;
@@ -25,6 +28,7 @@ const AgentRow = memo(function AgentRow({
   onDelete: () => void;
   onNavigate: () => void;
   isManager: boolean;
+  isPerformanceHighlighted?: boolean;
 }) {
   const statusColors = {
     active: 'bg-sage-green/20 text-sage-green border-sage-green/50',
@@ -63,15 +67,15 @@ const AgentRow = memo(function AgentRow({
           {agent.status}
         </span>
       </td>
-      <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
+      <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${
         perf >= 0 ? 'text-sage-green' : 'text-error-red'
-      }`}>
+      } ${isPerformanceHighlighted ? 'value-highlight' : ''}`}>
         {(perf >= 0 ? '+' : '') + perf.toFixed(2) + '%'}
       </td>
-      <td className="px-4 py-3 text-right text-floral-white font-mono text-sm">
+      <td className="px-4 py-3 text-right text-floral-white font-mono text-sm tabular-nums">
         {Array.isArray(agent.trades) ? agent.trades.length : (agent.trades || 0)}
       </td>
-      <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
+      <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${
         agentConfidence >= 65 ? 'text-sage-green' :
         agentConfidence >= 50 ? 'text-sage-green' : 
         agentConfidence >= 0 ? 'text-warning-amber' : 'text-error-red'
@@ -111,7 +115,8 @@ const AgentRow = memo(function AgentRow({
     prevProps.agent.trades === nextProps.agent.trades &&
     prevProps.agentConfidence === nextProps.agentConfidence &&
     prevProps.isDeleting === nextProps.isDeleting &&
-    prevProps.isManager === nextProps.isManager
+    prevProps.isManager === nextProps.isManager &&
+    prevProps.isPerformanceHighlighted === nextProps.isPerformanceHighlighted
   );
 });
 
@@ -125,7 +130,8 @@ const DiscussionItem = memo(function DiscussionItem({
 }) {
   const statusColors = {
     in_progress: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
-    accepted: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+    decided: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+    accepted: 'bg-sage-green/20 text-sage-green border-sage-green/50', // Backward compatibility
     rejected: 'bg-error-red/20 text-error-red border-error-red/50',
     archived: 'bg-floral-white/10 text-floral-white/50 border-floral-white/30',
   };
@@ -192,9 +198,11 @@ export default function SectorDetailClient() {
     recentTrades: any[];
   } | null>(null);
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
   const isLoadingRef = useRef(false); // Prevent concurrent loads
   const lastAgentConfidencesRef = useRef<Map<string, number>>(new Map()); // Cache for comparison
+  const { toasts, showToast, closeToast } = useToast();
 
   // Extract ID from dynamic route and normalize to lowercase
   const sectorId = params?.id as string | undefined;
@@ -432,6 +440,46 @@ export default function SectorDetailClient() {
     allowLowerInterval: true, // Allow 1500ms interval
   });
 
+  // Use execution refresh hook to detect execution completion and manage fast polling
+  const { highlightedFields, immediateRefresh } = useExecutionRefresh({
+    sectorId: normalizedSectorId,
+    enabled: !!normalizedSectorId && !!sector,
+    fastPollInterval: 650,
+    normalPollInterval: 5000,
+    callbacks: {
+      onSectorUpdate: (updatedSector) => {
+        setSector(updatedSector);
+        // Update agent confidences from updated sector
+        const newConfidences = new Map<string, number>();
+        if (updatedSector.agents && Array.isArray(updatedSector.agents)) {
+          updatedSector.agents.forEach(agent => {
+            if (agent && agent.id) {
+              const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+              newConfidences.set(agent.id, confidence);
+            }
+          });
+        }
+        setAgentConfidences(newConfidences);
+        lastAgentConfidencesRef.current = newConfidences;
+      },
+      onAgentsUpdate: (updatedAgents) => {
+        // Update agent confidences from updated agents
+        const newConfidences = new Map<string, number>();
+        updatedAgents.forEach(agent => {
+          if (agent && agent.id) {
+            const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+            newConfidences.set(agent.id, confidence);
+          }
+        });
+        setAgentConfidences(newConfidences);
+        lastAgentConfidencesRef.current = newConfidences;
+      },
+      onDiscussionsUpdate: (updatedDiscussions) => {
+        setDiscussions(updatedDiscussions);
+      },
+    },
+  });
+
   // Helper functions - must be defined before early returns (React Hooks rule)
   const formatPrice = (price: number) => price.toFixed(2);
   const formatVolume = (volume: number) => {
@@ -444,23 +492,14 @@ export default function SectorDetailClient() {
     if (!sector?.id) return;
     try {
       setIsRefreshing(true);
-      const fresh = await fetchSectorById(sector.id);
-      
-      // Check if request was skipped - do not update UI if skipped
-      if (isSkippedResult(fresh)) {
-        console.debug('[SectorDetail] Reload skipped (rate-limited), not updating UI');
-        return; // Do not update state
-      }
-      
-      if (fresh) {
-        setSector(fresh);
-      }
+      // Use immediate refresh from execution hook which handles all updates
+      await immediateRefresh();
     } catch (error) {
       console.error('Failed to reload sector', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [sector?.id]);
+  }, [sector?.id, immediateRefresh]);
 
   const handleDeleteAgent = useCallback(async (agentId: string, agentName: string) => {
     // Check if sector data is available
@@ -629,6 +668,7 @@ export default function SectorDetailClient() {
 
   return (
     <div className="min-h-screen bg-pure-black p-8">
+      <ToastContainer toasts={toasts} onClose={closeToast} />
       <div className="max-w-7xl mx-auto">
         {/* Back Button */}
         <button
@@ -670,10 +710,10 @@ export default function SectorDetailClient() {
               </p>
             </div>
             <div className="text-right">
-              <div className="text-4xl font-bold text-floral-white mb-1 font-mono">${formatPrice(sector.currentPrice)}</div>
+              <div className={`text-4xl font-bold text-floral-white mb-1 font-mono ${highlightedFields.has('currentPrice') ? 'value-highlight' : ''}`}>${formatPrice(sector.currentPrice)}</div>
               <div className={`text-lg font-medium font-mono ${
                 sector.change >= 0 ? 'text-sage-green' : 'text-error-red'
-              }`}>
+              } ${highlightedFields.has('change') || highlightedFields.has('changePercent') ? 'value-highlight' : ''}`}>
                 {sector.change >= 0 ? '+' : ''}{formatPrice(sector.change)} ({sector.changePercent >= 0 ? '+' : ''}{sector.changePercent.toFixed(2)}%)
               </div>
             </div>
@@ -683,12 +723,9 @@ export default function SectorDetailClient() {
         {/* Metrics Grid - 5 cards including balance */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">BALANCE</span>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">DEPOSIT</span>
               <DollarSign className="w-5 h-5 text-sage-green" />
-            </div>
-            <div className="text-3xl font-bold text-floral-white font-mono mb-4">
-              ${formatPrice(sector.balance || 0)}
             </div>
             <form
               onSubmit={async (e) => {
@@ -705,8 +742,12 @@ export default function SectorDetailClient() {
                   console.log('Calling depositSector API...', { normalizedSectorId, amount: parseFloat(depositAmount) });
                   const updatedSector = await depositSector(String(normalizedSectorId), parseFloat(depositAmount));
                   console.log('Deposit successful', updatedSector);
+                  // Update sector state with the returned data (which includes updated balance)
                   setSector(updatedSector);
+                  // Clear deposit input after successful deposit
                   setDepositAmount('');
+                  // Reload sector data to ensure we have the latest balance from API
+                  await reloadSector();
                   // Reload performance after deposit
                   await loadPerformance();
                 } catch (err: any) {
@@ -763,8 +804,8 @@ export default function SectorDetailClient() {
               <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">ACTIVE AGENTS</span>
               <Activity className="w-5 h-5 text-sage-green" />
             </div>
-            <div className="text-3xl font-bold text-floral-white font-mono mb-1">{sector.activeAgents}</div>
-            <div className="text-sm text-sage-green font-mono">{utilizationPercent}% utilization</div>
+            <div className={`text-3xl font-bold text-floral-white font-mono mb-1 ${highlightedFields.has('activeAgents') ? 'value-highlight' : ''}`}>{sector.activeAgents}</div>
+            <div className={`text-sm text-sage-green font-mono ${highlightedFields.has('statusPercent') ? 'value-highlight' : ''}`}>{utilizationPercent}% utilization</div>
           </div>
 
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
@@ -857,17 +898,30 @@ export default function SectorDetailClient() {
             <h2 className="text-xs font-semibold uppercase tracking-[0.35em] text-ink-400">
               SECTOR AGENTS ({sector.agents?.length || 0})
             </h2>
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(true)}
-              className="rounded-2xl bg-sage-green px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-pure-black hover:bg-sage-green/90"
-            >
-              Create Agent
-            </button>
+            {(sector.agents?.length || 0) < 5 ? (
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="rounded-2xl bg-sage-green px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-pure-black hover:bg-sage-green/90"
+              >
+                Create Agent
+              </button>
+            ) : null}
           </div>
           {sector?.agents && sector.agents.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="sector-agents-table w-full border-collapse table-fixed">
+                <colgroup>
+                  <col style={{ width: '200px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '100px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '100px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '100px' }} />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-ink-500/30">
                     <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">AGENT NAME</th>
@@ -886,6 +940,10 @@ export default function SectorDetailClient() {
                     const agentConfidence = agentConfidences.has(agent.id) 
                       ? agentConfidences.get(agent.id)! 
                       : (typeof agent.confidence === 'number' ? agent.confidence : 0);
+                    const perf = typeof agent.performance === 'number' 
+                      ? agent.performance 
+                      : (agent.rawPerformance?.pnl ?? 0);
+                    const isPerformanceHighlighted = highlightedFields.has('totalPL');
                     
                     return (
                       <AgentRow
@@ -896,6 +954,7 @@ export default function SectorDetailClient() {
                         onDelete={() => handleDeleteAgent(agent.id, agent.name || agent.id)}
                         onNavigate={() => router.push(`/agents?agent=${agent.id}`)}
                         isManager={isManagerAgent(agent)}
+                        isPerformanceHighlighted={isPerformanceHighlighted}
                       />
                     );
                   })}
@@ -911,22 +970,101 @@ export default function SectorDetailClient() {
 
         {/* SECTOR DISCUSSIONS - Always show */}
         <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
-          <h2 className="text-xl font-bold text-floral-white font-mono mb-4">SECTOR DISCUSSIONS ({sector.discussions?.length || 0})</h2>
-          {sector.discussions && sector.discussions.length > 0 ? (
-            <div className="space-y-3">
-              {sector.discussions.map((discussion) => (
-                <DiscussionItem
-                  key={discussion.id}
-                  discussion={discussion}
-                  onNavigate={() => router.push(`/discussions?discussion=${discussion.id}`)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-floral-white/60 font-mono">
-              No discussions in this sector
-            </div>
-          )}
+          {(() => {
+            const activeDiscussions = (discussions.length > 0 ? discussions : (sector.discussions || [])).filter(
+              d => d.status !== 'closed' && d.status !== 'archived'
+            );
+            
+            const formatTimestamp = (timestamp: string) => {
+              const date = new Date(timestamp);
+              const now = new Date();
+              const diffMs = now.getTime() - date.getTime();
+              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+              const diffMinutes = Math.floor(diffMs / (1000 * 60));
+              
+              if (diffDays > 0) return `${diffDays}d ago`;
+              if (diffHours > 0) return `${diffHours}h ago`;
+              if (diffMinutes > 0) return `${diffMinutes}m ago`;
+              return 'Just now';
+            };
+
+            const statusColors = {
+              in_progress: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
+              accepted: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+              rejected: 'bg-error-red/20 text-error-red border-error-red/50',
+              archived: 'bg-floral-white/10 text-floral-white/50 border-floral-white/30',
+              decided: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+              finalized: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+            };
+
+            return (
+              <>
+                <h2 className="text-xl font-bold text-floral-white font-mono mb-4">SECTOR DISCUSSIONS ({activeDiscussions.length})</h2>
+                {activeDiscussions.length > 0 ? (
+                  <div className="border border-ink-500/30 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <div className="h-[400px] overflow-y-auto">
+                        <table className="w-full border-collapse">
+                          <thead className="sticky top-0 bg-shadow-grey border-b border-ink-500/30 z-10">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">TITLE</th>
+                              <th className="px-4 py-3 text-center text-floral-white/70 font-mono text-sm font-semibold">STATUS</th>
+                              <th className="px-4 py-3 text-center text-floral-white/70 font-mono text-sm font-semibold">MESSAGES</th>
+                              <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">UPDATED</th>
+                              <th className="px-4 py-3 text-center text-floral-white/70 font-mono text-sm font-semibold">ACTION</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activeDiscussions.map((discussion) => {
+                              const statusColor = statusColors[discussion.status as keyof typeof statusColors] || statusColors.in_progress;
+                              const messageCount = typeof discussion.messagesCount === 'number' 
+                                ? discussion.messagesCount 
+                                : (discussion.messages?.length || 0);
+                              
+                              return (
+                                <tr
+                                  key={discussion.id}
+                                  className="border-b border-ink-500/20 hover:bg-shadow-grey/40 transition-colors"
+                                >
+                                  <td className="px-4 py-3 text-floral-white font-mono text-sm">
+                                    <div className="font-semibold">{discussion.title}</div>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`inline-block px-2 py-1 rounded text-xs font-mono uppercase tracking-wider ${statusColor}`}>
+                                      {discussion.status === 'in_progress' ? 'CREATED' : discussion.status.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-floral-white/85 font-mono text-sm">
+                                    {messageCount}
+                                  </td>
+                                  <td className="px-4 py-3 text-floral-white/70 font-mono text-xs">
+                                    {formatTimestamp(discussion.updatedAt)}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      onClick={() => router.push(`/discussions?discussion=${discussion.id}`)}
+                                      className="px-3 py-1.5 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-xs font-mono font-semibold uppercase tracking-wider hover:bg-sage-green/30 transition-colors"
+                                    >
+                                      VIEW
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-floral-white/60 font-mono">
+                    No discussions in this sector
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* SIMULATION Section */}
@@ -944,8 +1082,8 @@ export default function SectorDetailClient() {
             {performance ? (
               <div className="space-y-3 text-floral-white/90 text-sm">
                 <p>Starting Capital: <span className="text-sage-green">${performance.startingCapital.toFixed(2)}</span></p>
-                <p>Current Capital: <span className="text-sage-green">${performance.currentCapital.toFixed(2)}</span></p>
-                <p>Total P/L: <span className={performance.pnl >= 0 ? "text-sage-green" : "text-red-500"}>${performance.pnl.toFixed(2)}</span></p>
+                <p>Current Capital: <span className={`text-sage-green ${highlightedFields.has('balance') ? 'value-highlight' : ''}`}>${performance.currentCapital.toFixed(2)}</span></p>
+                <p>Total P/L: <span className={`${performance.pnl >= 0 ? "text-sage-green" : "text-red-500"} ${highlightedFields.has('totalPL') ? 'value-highlight' : ''}`}>${performance.pnl.toFixed(2)}</span></p>
                 <p>Recent Trades: {performance.recentTrades?.length || 0}</p>
               </div>
             ) : (
@@ -1042,6 +1180,9 @@ export default function SectorDetailClient() {
           onSuccess={async () => {
             setShowCreateModal(false);
             await reloadSector();
+          }}
+          onError={(message) => {
+            showToast(message, 'error');
           }}
         />
 
