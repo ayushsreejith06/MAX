@@ -418,9 +418,9 @@ class ManagerEngine {
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
 
-      // If discussion is already finalized, skip
-      if (discussionRoom.status === 'finalized' || discussionRoom.status === 'completed') {
-        console.log(`[ManagerEngine] Discussion ${discussion.id} already finalized`);
+      // If discussion is already decided, skip
+      if (discussionRoom.status === 'decided') {
+        console.log(`[ManagerEngine] Discussion ${discussion.id} already decided`);
         return { handled: true, discussionId: discussion.id };
       }
 
@@ -453,8 +453,8 @@ class ManagerEngine {
       const finalizedChecklist = Array.isArray(updatedDiscussionRoom.finalizedChecklist) ? updatedDiscussionRoom.finalizedChecklist : [];
       
       if (finalizedChecklist.length > 0) {
-        // Mark discussion as finalized only if there are approved items
-        updatedDiscussionRoom.status = 'finalized';
+        // Mark discussion as decided only if there are approved items
+        updatedDiscussionRoom.status = 'decided';
         updatedDiscussionRoom.updatedAt = new Date().toISOString();
         await saveDiscussion(updatedDiscussionRoom);
         console.log(`[ManagerEngine] Handled checklist and finalized discussion: ID = ${discussion.id} with ${finalizedChecklist.length} approved items`);
@@ -624,21 +624,23 @@ class ManagerEngine {
       }
     }
     
-    // Only set status to 'finalized' if there are approved checklist items
+    // Only set status to 'decided' if there are approved checklist items
     // Approved discussions must have approved checklist items for execution
+    // Discussion status should only be 'in_progress' or 'decided'
+    // Individual checklist items are classified as 'accepted' or 'rejected', not the discussion itself
     if (approvedItems.length > 0) {
-      discussionRoom.status = 'finalized';
+      discussionRoom.status = 'decided';
       console.log(`[ManagerEngine] Processed ${managerDecisions.length} checklist items for discussion ${discussionRoom.id}. Approved: ${approvedItems.length}, Rejected: ${managerDecisions.filter(d => !d.approved).length}`);
       console.log(`[CHECKLIST FINALIZED]`, discussionRoom.finalizedChecklist);
     } else {
-      // No approved items - discussion cannot be finalized/approved
-      // Keep status as 'in_progress' or set to 'rejected' if all items were rejected
-      const allRejected = managerDecisions.length > 0 && managerDecisions.every(d => !d.approved);
-      if (allRejected) {
-        discussionRoom.status = 'rejected';
-        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} rejected: All ${managerDecisions.length} checklist items were rejected. No approved items for execution.`);
+      // No approved items - discussion remains in progress
+      // Even if all items are rejected, the discussion status stays 'in_progress'
+      // The rejected items are tracked separately and can be viewed
+      discussionRoom.status = 'in_progress';
+      const rejectedCount = managerDecisions.filter(d => !d.approved).length;
+      if (rejectedCount > 0) {
+        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: All ${managerDecisions.length} checklist items were rejected. No approved items for execution.`);
       } else {
-        discussionRoom.status = 'in_progress';
         console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: No approved checklist items yet.`);
       }
     }
@@ -768,9 +770,9 @@ class ManagerEngine {
     // Load discussion room
     const discussionRoom = DiscussionRoom.fromData(discussionData);
     
-    // Prevent duplicate executions - if already finalized, skip
-    if (discussionRoom.status === 'finalized' || discussionRoom.status === 'completed') {
-      console.log(`[ManagerEngine] Discussion ${discussionId} already finalized. Skipping execution.`);
+    // Prevent duplicate executions - if already decided, skip
+    if (discussionRoom.status === 'decided') {
+      console.log(`[ManagerEngine] Discussion ${discussionId} already decided. Skipping execution.`);
       const updatedSector = await updateSector(sector.id, {
         discussions: discussions
       });
@@ -831,8 +833,8 @@ class ManagerEngine {
 
     // Only finalize discussion if execution succeeded
     if (executionResult.success) {
-      // Update discussion status to finalized
-      discussionRoom.status = 'finalized';
+      // Update discussion status to decided
+      discussionRoom.status = 'decided';
       discussionRoom.updatedAt = new Date().toISOString();
       await saveDiscussion(discussionRoom);
     } else {
@@ -1048,8 +1050,8 @@ class ManagerEngine {
     // Clear discussionDraft
     discussionRoom.checklistDraft = [];
     
-    // Mark discussion as completed
-    discussionRoom.status = 'completed';
+    // Mark discussion as decided
+    discussionRoom.status = 'decided';
     discussionRoom.updatedAt = new Date().toISOString();
 
     // Save finalized discussion

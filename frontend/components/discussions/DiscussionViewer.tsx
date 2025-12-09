@@ -238,10 +238,11 @@ export default function DiscussionViewer({
   // Determine if discussion is active (still in progress)
   const isActive = discussion?.status === 'in_progress';
   const isCompleted = discussion?.status === 'decided' || 
-                      discussion?.status === 'rejected' || 
+                      discussion?.status === 'finalized' || // Legacy status
+                      discussion?.status === 'accepted' || // Legacy status
+                      discussion?.status === 'completed' || // Legacy status
                       discussion?.status === 'closed' || 
-                      discussion?.status === 'archived' ||
-                      discussion?.status === 'accepted'; // Backward compatibility
+                      discussion?.status === 'archived';
   
   const showChecklistDraft = isActive && discussion?.checklistDraft && discussion.checklistDraft.length > 0;
   const showFinalizedChecklist = isCompleted && discussion?.checklist && discussion.checklist.length > 0;

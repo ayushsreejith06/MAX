@@ -356,7 +356,7 @@ function normalizeSector(raw: any): Sector {
     statusPercent: Number(raw?.statusPercent ?? raw?.status_percent ?? 0),
     // Performance and balance
     performance: raw?.performance && typeof raw.performance === 'object' ? raw.performance : undefined,
-    balance: typeof raw?.balance === 'number' ? Number(raw.balance.toFixed(2)) : undefined,
+    balance: typeof raw?.balance === 'number' ? Number(raw.balance.toFixed(2)) : 0, // Default balance to 0 for new sectors
     // Additional fields
     lastSimulatedPrice: typeof raw?.lastSimulatedPrice === 'number' ? Number(raw.lastSimulatedPrice.toFixed(2)) : raw?.lastSimulatedPrice === null ? null : undefined,
     discussions,
@@ -1150,6 +1150,49 @@ export async function setSystemMode(mode: SystemMode): Promise<SystemMode> {
     return payload.mode;
   } catch (error: any) {
     throw error;
+  }
+}
+
+/**
+ * Execution log entry
+ */
+export interface ExecutionLog {
+  id: string;
+  sectorId: string;
+  checklistId?: string;
+  timestamp: number;
+  results?: Array<{
+    itemId: string;
+    action: string;
+    amount: number;
+    success: boolean;
+    reason?: string;
+    impact?: number;
+  }>;
+  impact?: number;
+  action?: string;
+}
+
+/**
+ * Fetch execution logs for a sector
+ */
+export async function fetchExecutionLogs(sectorId: string): Promise<ExecutionLog[]> {
+  try {
+    const result = await request<{ success: boolean; logs: ExecutionLog[] }>(`/execution/logs/${sectorId}`);
+    
+    // Handle rate limiting - return empty array when skipped
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return [];
+    }
+    
+    const payload = result as { success: boolean; logs: ExecutionLog[] };
+    if (payload && payload.success && Array.isArray(payload.logs)) {
+      return payload.logs;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching execution logs:', error);
+    return [];
   }
 }
 

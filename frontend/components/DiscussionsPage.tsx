@@ -50,7 +50,7 @@ export default function DiscussionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<{ page: number; pageSize: number; total: number; totalPages: number } | null>(null);
-  const [statusCounts, setStatusCounts] = useState<{ all: number; in_progress: number; decided: number; rejected: number } | null>(null);
+  const [statusCounts, setStatusCounts] = useState<{ all: number; in_progress: number; decided: number } | null>(null);
   const [showRejectedModal, setShowRejectedModal] = useState(false);
   const [rejectedItemsCount, setRejectedItemsCount] = useState<number>(0);
   const [showClearModal, setShowClearModal] = useState(false);
@@ -158,17 +158,22 @@ export default function DiscussionsPage() {
   const statusTabs = [
     { id: 'all', label: 'Total', count: statusCounts?.all ?? 0 },
     { id: 'in_progress', label: 'In Progress', count: statusCounts?.in_progress ?? 0 },
-    { id: 'decided', label: 'Accepted', count: statusCounts?.decided ?? 0 },
+    { id: 'decided', label: 'Decided', count: statusCounts?.decided ?? 0 },
   ];
 
   const getStatusMeta = (status: Discussion['status']) => {
-    switch (status) {
+    // Normalize legacy statuses to 'decided' for display
+    const normalizedStatus = (status === 'finalized' || status === 'accepted' || status === 'completed') ? 'decided' : status;
+    
+    switch (normalizedStatus) {
       case 'in_progress':
         return { label: 'In Progress', className: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40' };
       case 'decided':
-        return { label: 'Accepted', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40' };
-      case 'rejected':
-        return { label: 'Rejected', className: 'bg-error-red/10 text-error-red border border-error-red/30' };
+        return { label: 'Decided', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40' };
+      case 'closed':
+        return { label: 'Closed', className: 'bg-shadow-grey text-floral-white border border-floral-white/20' };
+      case 'archived':
+        return { label: 'Archived', className: 'bg-shadow-grey/50 text-floral-white/70 border border-floral-white/10' };
       default:
         return { label: status, className: 'bg-shadow-grey text-floral-white' };
     }

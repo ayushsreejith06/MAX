@@ -302,8 +302,8 @@ class SystemOrchestrator {
         }
       }
 
-      // 4. Check for finalized discussions with manager-approved checklists and execute them
-      // IF a manager-approved checklist exists AND discussion.status === "finalized": ExecutionEngine.executeChecklist()
+      // 4. Check for decided discussions with manager-approved checklists and execute them
+      // IF a manager-approved checklist exists AND discussion.status === "decided": ExecutionEngine.executeChecklist()
       const finalizedDiscussion = await this._getFinalizedDiscussion(sectorId);
       if (finalizedDiscussion) {
         const discussionRoom = DiscussionRoom.fromData(finalizedDiscussion);
@@ -312,16 +312,16 @@ class SystemOrchestrator {
         const approvedChecklist = this._getApprovedChecklist(discussionRoom);
         
         if (approvedChecklist && approvedChecklist.length > 0) {
-          console.log(`[SystemOrchestrator] Found finalized discussion ${discussionRoom.id} with ${approvedChecklist.length} approved checklist items, executing...`);
+          console.log(`[SystemOrchestrator] Found decided discussion ${discussionRoom.id} with ${approvedChecklist.length} approved checklist items, executing...`);
           
           try {
             // Execute the checklist
             const executionResult = await this.executionEngine.executeChecklist(approvedChecklist, sectorId, discussionRoom.id);
             console.log(`[SystemOrchestrator] Executed checklist: ${executionResult.success ? 'success' : 'failed'}`);
             
-            // After execution: mark as executed but keep checklist items for historical reference
+            // After execution: mark as decided but keep checklist items for historical reference
             // Don't clear checklist or finalizedChecklist - users should see what was proposed and finalized
-            discussionRoom.status = 'executed';
+            discussionRoom.status = 'decided';
             discussionRoom.updatedAt = new Date().toISOString();
             await saveDiscussion(discussionRoom);
             
@@ -485,7 +485,7 @@ class SystemOrchestrator {
       const discussions = await loadDiscussions();
       return discussions.find(d => 
         d.sectorId === sectorId && 
-        d.status === 'finalized'
+        (d.status === 'decided' || d.status === 'finalized') // Include legacy 'finalized' for backward compatibility
       ) || null;
     } catch (error) {
       console.error(`[SystemOrchestrator] Error getting finalized discussion:`, error);

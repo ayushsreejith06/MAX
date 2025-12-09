@@ -111,14 +111,14 @@ export default function DiscussionDetailClient() {
     loadMessages();
   }, [loadDiscussion, loadMessages]);
 
-  // Poll for status updates when discussion is active (to detect when it becomes finalized)
+  // Poll for status updates when discussion is active (to detect when it becomes decided)
   useEffect(() => {
     if (!discussionId || discussionId === 'placeholder') {
       return;
     }
 
-    // Only poll if discussion is not finalized yet (to detect when it becomes finalized)
-    const shouldPoll = discussion && discussion.status !== 'finalized' && discussion.status === 'in_progress';
+    // Only poll if discussion is in progress (to detect when it becomes decided)
+    const shouldPoll = discussion && discussion.status === 'in_progress';
 
     if (!shouldPoll) {
       return;
@@ -219,15 +219,14 @@ export default function DiscussionDetailClient() {
   };
 
   const getStatusMeta = (status: Discussion['status']) => {
-    switch (status) {
+    // Normalize legacy statuses to 'decided' for display
+    const normalizedStatus = (status === 'finalized' || status === 'accepted' || status === 'completed') ? 'decided' : status;
+    
+    switch (normalizedStatus) {
       case 'in_progress':
         return { label: 'In Progress', className: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40', icon: Clock };
       case 'decided':
-        return { label: 'Accepted', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
-      case 'accepted': // Backward compatibility
-        return { label: 'Accepted', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
-      case 'rejected':
-        return { label: 'Rejected', className: 'bg-error-red/10 text-error-red border border-error-red/30', icon: XCircle };
+        return { label: 'Decided', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
       case 'closed':
         return { label: 'Closed', className: 'bg-shadow-grey text-floral-white border border-floral-white/20', icon: Lock };
       case 'archived':

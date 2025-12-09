@@ -3,6 +3,7 @@
  */
 
 const ExecutionAgent = require('../agents/ExecutionAgent');
+const ExecutionLog = require('../models/ExecutionLog');
 
 function log(message) {
   console.log(`[Execution] ${message}`);
@@ -128,6 +129,117 @@ module.exports = async (fastify) => {
       return reply.status(200).send({
         success: true,
         logs
+      });
+    } catch (error) {
+      log(`Error fetching execution logs: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * POST /api/execution/log
+   * 
+   * Log an execution item with action and price change impact.
+   * 
+   * Input:
+   *   {
+   *     sectorId: string (required),
+   *     action: string (required),
+   *     impact: number (required) - price change impact
+   *   }
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     log: ExecutionLog object
+   *   }
+   */
+  fastify.post('/log', async (request, reply) => {
+    try {
+      const { sectorId, action, impact } = request.body;
+
+      // Validate input
+      if (!sectorId) {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId is required'
+        });
+      }
+
+      if (!action) {
+        return reply.status(400).send({
+          success: false,
+          error: 'action is required'
+        });
+      }
+
+      if (typeof impact !== 'number') {
+        return reply.status(400).send({
+          success: false,
+          error: 'impact is required and must be a number'
+        });
+      }
+
+      log(`Logging execution for sector ${sectorId}: ${action} (impact: ${impact})`);
+
+      // Create and save execution log
+      const executionLog = new ExecutionLog({
+        sectorId,
+        action,
+        impact,
+        timestamp: Date.now()
+      });
+
+      await executionLog.save();
+
+      return reply.status(200).send({
+        success: true,
+        log: executionLog.toJSON()
+      });
+    } catch (error) {
+      log(`Error logging execution: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * GET /api/execution/executionLogs?sectorId=xxx
+   * 
+   * Get execution logs for a sector, sorted by timestamp DESC.
+   * 
+   * Query params:
+   *   sectorId: string (required)
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     logs: Array<ExecutionLog>
+   *   }
+   */
+  fastify.get('/executionLogs', async (request, reply) => {
+    try {
+      const { sectorId } = request.query;
+
+      if (!sectorId) {
+        return reply.status(400).send({
+          success: false,
+          error: 'sectorId query parameter is required'
+        });
+      }
+
+      log(`Fetching execution logs for sector ${sectorId}`);
+
+      const logs = await ExecutionLog.getBySectorId(sectorId);
+
+      return reply.status(200).send({
+        success: true,
+        logs: logs.map(log => log.toJSON())
       });
     } catch (error) {
       log(`Error fetching execution logs: ${error.message}`);

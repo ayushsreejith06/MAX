@@ -103,8 +103,6 @@ class ConfidenceEngine {
    * Update manager confidence as a direct reflection of ALL agents in the sector.
    * Manager confidence = average confidence of all non-manager agents in the sector.
    * This ensures the manager gets closer to 65 as ALL agents get closer to 65.
-   * If there are no agents in the sector, manager confidence is set to 0.
-   * Manager confidence relies solely on other agents' confidence levels.
    * @param {Object} manager - Manager agent object
    * @param {Array<Object>} agents - Array of all agents (including manager)
    * @returns {number} Updated manager confidence value (0 to 100)
@@ -116,10 +114,12 @@ class ConfidenceEngine {
     }
 
     if (!Array.isArray(agents) || agents.length === 0) {
-      console.warn('[ConfidenceEngine] No agents provided for manager confidence calculation, setting confidence to 0');
-      // Manager confidence relies solely on other agents' confidence levels
-      // If no agents array or empty, return 0
-      return 0;
+      console.warn('[ConfidenceEngine] No agents provided for manager confidence calculation');
+      // Return current confidence clamped to 0-100, or 0 if not set
+      const currentConfidence = typeof manager.confidence === 'number' 
+        ? Math.max(0, Math.min(100, manager.confidence))
+        : 0;
+      return currentConfidence;
     }
 
     // Filter ALL non-manager agents in the same sector
@@ -138,10 +138,12 @@ class ConfidenceEngine {
     });
 
     if (sectorAgents.length === 0) {
-      // No other agents in sector, manager confidence should be 0
-      // Manager confidence relies solely on other agents' confidence levels
-      console.log(`[ConfidenceEngine] No agents in sector ${sectorId} for manager ${manager.id}, setting confidence to 0`);
-      return 0;
+      // No other agents in sector, keep current confidence clamped to 0-100
+      const currentConfidence = typeof manager.confidence === 'number' 
+        ? Math.max(0, Math.min(100, manager.confidence))
+        : 0;
+      console.log(`[ConfidenceEngine] No agents in sector ${sectorId} for manager ${manager.id}, keeping current confidence: ${currentConfidence}`);
+      return currentConfidence;
     }
 
     // Calculate average confidence of ALL agents in the sector (excluding manager)

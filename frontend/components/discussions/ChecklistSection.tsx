@@ -14,6 +14,7 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showRejected, setShowRejected] = useState(true); // Show rejected items by default
 
   const loadChecklist = async () => {
     if (!discussionId) return;
@@ -39,8 +40,8 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   useEffect(() => {
     if (!discussionId) return;
 
-    // Only poll if discussion is in progress or decided
-    const shouldPoll = discussionStatus === 'in_progress' || discussionStatus === 'decided' || discussionStatus === 'finalized';
+    // Only poll if discussion is in progress, decided, finalized, or accepted
+    const shouldPoll = discussionStatus === 'in_progress' || discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'accepted';
 
     if (!shouldPoll) {
       return;
@@ -55,6 +56,17 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
 
   const proposedItems = checklistData?.checklist || [];
   const finalizedItems = checklistData?.finalizedChecklist || [];
+  
+  // Filter proposed items based on showRejected toggle
+  const filteredProposedItems = showRejected 
+    ? proposedItems 
+    : proposedItems.filter(item => item.approvalStatus !== 'rejected');
+  
+  // Separate items by status for better organization
+  const acceptedItems = proposedItems.filter(item => item.approvalStatus === 'accepted');
+  const rejectedItems = proposedItems.filter(item => item.approvalStatus === 'rejected');
+  const pendingItems = proposedItems.filter(item => item.approvalStatus === 'pending' || !item.approvalStatus);
+  
   const hasProposedItems = proposedItems.length > 0;
   const hasFinalizedItems = finalizedItems.length > 0;
   const hasAnyItems = hasProposedItems || hasFinalizedItems;
@@ -151,17 +163,17 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full bg-ink-600/80 px-4 py-3 border-b border-ink-500 flex items-center justify-between hover:bg-ink-600 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-sage-green" />
-          <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
-            Checklist
-          </span>
-          {checklistData && hasAnyItems && (
-            <span className="text-xs text-floral-white/50 font-mono">
-              ({proposedItems.length} proposed, {finalizedItems.length} finalized)
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-sage-green" />
+            <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
+              Checklist
             </span>
-          )}
-        </div>
+            {checklistData && hasAnyItems && (
+              <span className="text-xs text-floral-white/50 font-mono">
+                ({acceptedItems.length} accepted, {rejectedItems.length} rejected, {pendingItems.length} pending, {finalizedItems.length} finalized)
+              </span>
+            )}
+          </div>
         {isExpanded ? (
           <ChevronUp className="w-4 h-4 text-floral-white/70" />
         ) : (
@@ -191,25 +203,49 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
 
           {!loading && !error && hasAnyItems && (
             <div className="space-y-6">
-              {/* Proposed Checklist Items (if discussion is in progress) */}
-              {hasProposedItems && (discussionStatus === 'in_progress' || discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'executed') && (
+              {/* Filter Toggle for Rejected Items */}
+              {hasProposedItems && rejectedItems.length > 0 && (
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-ink-500">
+                  <span className="text-xs text-floral-white/70 font-mono">
+                    Show rejected items ({rejectedItems.length})
+                  </span>
+                  <button
+                    onClick={() => setShowRejected(!showRejected)}
+                    className={`px-3 py-1 rounded text-xs font-mono transition-colors ${
+                      showRejected
+                        ? 'bg-sage-green/20 text-sage-green border border-sage-green/40'
+                        : 'bg-ink-500 text-floral-white/70 border border-ink-400'
+                    }`}
+                  >
+                    {showRejected ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              )}
+
+              {/* Proposed Checklist Items - show all items (accepted, rejected, pending) */}
+              {hasProposedItems && (discussionStatus === 'in_progress' || discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'accepted' || discussionStatus === 'completed') && (
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-floral-white mb-3 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-warning-amber" />
                     Proposed Checklist Items
                   </h3>
                   <div className="space-y-2">
-                    {proposedItems.map(renderChecklistItem)}
+                    {filteredProposedItems.map(renderChecklistItem)}
                   </div>
+                  {!showRejected && rejectedItems.length > 0 && (
+                    <div className="mt-3 text-xs text-floral-white/50 font-mono italic">
+                      {rejectedItems.length} rejected item{rejectedItems.length !== 1 ? 's' : ''} hidden. Click "Show" to view.
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Finalized Checklist Items (if discussion is decided/finalized/executed) */}
-              {hasFinalizedItems && (discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'executed') && (
+              {/* Finalized Checklist Items (if discussion is decided) */}
+              {hasFinalizedItems && (discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'accepted' || discussionStatus === 'completed') && (
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-floral-white mb-3 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-sage-green" />
-                    Finalized Checklist Items {discussionStatus === 'executed' && <span className="text-xs text-floral-white/50 font-mono">(Executed)</span>}
+                    Finalized Checklist Items
                   </h3>
                   <div className="space-y-2">
                     {finalizedItems.map(renderChecklistItem)}

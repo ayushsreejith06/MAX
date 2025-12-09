@@ -707,11 +707,11 @@ video {
 .h-\[400px\] {
   height: 400px;
 }
-.h-full {
-  height: 100%;
-}
 .h-\[70\%\] {
   height: 70%;
+}
+.h-full {
+  height: 100%;
 }
 .max-h-96 {
   max-height: 24rem;
@@ -770,11 +770,11 @@ video {
 .w-80 {
   width: 20rem;
 }
-.w-full {
-  width: 100%;
-}
 .w-\[60\%\] {
   width: 60%;
+}
+.w-full {
+  width: 100%;
 }
 .min-w-0 {
   min-width: 0px;
@@ -1429,6 +1429,9 @@ video {
 }
 .pt-4 {
   padding-top: 1rem;
+}
+.pb-3 {
+  padding-bottom: 0.75rem;
 }
 .text-left {
   text-align: left;

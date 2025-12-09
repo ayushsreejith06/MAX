@@ -11,6 +11,7 @@ const {
 } = require('../agents/discussion/discussionLifecycle');
 const { loadAgents } = require('../utils/agentStorage');
 const { loadRejectedItems } = require('../utils/rejectedItemsStorage');
+const ExecutionEngine = require('../core/ExecutionEngine');
 
 // Simple logger
 function log(message) {
@@ -57,12 +58,72 @@ module.exports = async (fastify) => {
     try {
       log('GET /discussions/rejected-items - Fetching all rejected items');
       
-      const rejectedItems = await loadRejectedItems();
+      // Load rejected items from storage
+      const storedRejectedItems = await loadRejectedItems();
       
-      log(`Found ${rejectedItems.length} rejected items`);
+      // Also query all discussions directly to find rejected items
+      const allDiscussions = await loadDiscussions();
+      const { getAllSectors } = require('../utils/sectorStorage');
+      const sectors = await getAllSectors();
+      const sectorMap = new Map();
+      sectors.forEach(sector => {
+        if (sector && sector.id) {
+          sectorMap.set(sector.id, {
+            symbol: sector.symbol || sector.sectorSymbol || 'N/A',
+            name: sector.name || sector.sectorName || 'Unknown Sector'
+          });
+        }
+      });
+      
+      // Extract rejected items from all discussions
+      const rejectedItemsFromDiscussions = [];
+      const storedIds = new Set(storedRejectedItems.map(item => item.id));
+      
+      for (const discussion of allDiscussions) {
+        // Get manager decisions to find rejected items
+        const managerDecisions = Array.isArray(discussion.managerDecisions) ? discussion.managerDecisions : [];
+        const checklist = Array.isArray(discussion.checklist) ? discussion.checklist : [];
+        
+        // Find rejected decisions
+        const rejectedDecisions = managerDecisions.filter(decision => 
+          decision.approved === false && decision.item
+        );
+        
+        if (rejectedDecisions.length > 0) {
+          const sectorInfo = discussion.sectorId ? sectorMap.get(discussion.sectorId) : null;
+          const sectorSymbol = sectorInfo?.symbol || 'N/A';
+          
+          for (const decision of rejectedDecisions) {
+            const item = decision.item;
+            const itemText = item.reason || item.reasoning || item.text || item.description || '';
+            const itemId = `rejected-${discussion.id}-${item.id || Date.now()}`;
+            
+            // Only add if not already in stored items
+            if (!storedIds.has(itemId)) {
+              rejectedItemsFromDiscussions.push({
+                id: itemId,
+                text: itemText,
+                discussionId: discussion.id,
+                discussionTitle: discussion.title || 'Untitled Discussion',
+                sectorId: discussion.sectorId || '',
+                sectorSymbol: sectorSymbol,
+                timestamp: discussion.updatedAt ? new Date(discussion.updatedAt).getTime() : Date.now()
+              });
+            }
+          }
+        }
+      }
+      
+      // Combine stored items with items from discussions
+      const allRejectedItems = [...storedRejectedItems, ...rejectedItemsFromDiscussions];
+      
+      // Sort by timestamp (newest first)
+      allRejectedItems.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      
+      log(`Found ${allRejectedItems.length} rejected items (${storedRejectedItems.length} from storage, ${rejectedItemsFromDiscussions.length} from discussions)`);
       
       return reply.status(200).send({
-        rejected: rejectedItems
+        rejected: allRejectedItems
       });
     } catch (error) {
       log(`Error fetching rejected items: ${error.message}`);
@@ -108,11 +169,12 @@ module.exports = async (fastify) => {
       }
 
       // Calculate status counts from all discussions (before filtering)
+      // Discussions only have 'in_progress' or 'decided' status
+      // Checklist items are classified as 'accepted' or 'rejected', not discussions
       const statusCounts = {
         all: allDiscussions.length,
         in_progress: allDiscussions.filter(d => d.status === 'in_progress').length,
-        decided: allDiscussions.filter(d => d.status === 'decided').length,
-        rejected: allDiscussions.filter(d => d.status === 'rejected').length,
+        decided: allDiscussions.filter(d => d.status === 'decided' || d.status === 'finalized' || d.status === 'accepted' || d.status === 'completed').length, // Include legacy statuses for backward compatibility
       };
 
       let discussions = allDiscussions;
@@ -125,7 +187,17 @@ module.exports = async (fastify) => {
 
       // Filter by status if provided (and not 'all')
       if (status && status !== 'all') {
-        discussions = discussions.filter(discussion => discussion.status === status);
+        if (status === 'decided') {
+          // Include legacy statuses (finalized, accepted, completed) when filtering for 'decided'
+          discussions = discussions.filter(discussion => 
+            discussion.status === 'decided' || 
+            discussion.status === 'finalized' || 
+            discussion.status === 'accepted' || 
+            discussion.status === 'completed'
+          );
+        } else {
+          discussions = discussions.filter(discussion => discussion.status === status);
+        }
         log(`Found ${discussions.length} discussions with status: ${status}`);
       }
 
@@ -249,8 +321,8 @@ module.exports = async (fastify) => {
         approvedAt: item.approvedAt
       }));
 
-      // Find finalizedAt timestamp (use updatedAt when status changed to finalized)
-      const finalizedAt = discussion.status === 'finalized' 
+      // Find finalizedAt timestamp (use updatedAt when status changed to decided)
+      const finalizedAt = discussion.status === 'decided' || discussion.status === 'finalized'
         ? (discussion.updatedAt || discussion.createdAt)
         : null;
 
@@ -559,13 +631,43 @@ module.exports = async (fastify) => {
       }
       
       // Discussion has approved checklist items - can be accepted
+      // Execute the checklist items to update balance and sector state
+      const executionEngine = new ExecutionEngine();
+      log(`Executing ${finalizedChecklist.length} approved checklist items for discussion ${id}`);
+      
+      try {
+        const executionResult = await executionEngine.executeChecklist(
+          finalizedChecklist,
+          discussionRoom.sectorId,
+          discussionRoom.id
+        );
+        
+        if (!executionResult.success) {
+          log(`Execution failed for discussion ${id}`);
+          return reply.status(500).send({
+            success: false,
+            error: 'Failed to execute checklist items. Discussion was not accepted.'
+          });
+        }
+        
+        log(`Successfully executed checklist items for discussion ${id}. Balance and sector state updated.`);
+      } catch (executionError) {
+        const errorMessage = executionError?.message || executionError?.toString() || 'Unknown execution error';
+        log(`Error executing checklist for discussion ${id}: ${errorMessage}`);
+        return reply.status(500).send({
+          success: false,
+          error: `Failed to execute checklist items: ${errorMessage}`
+        });
+      }
+      
+      // Update discussion status to decided after successful execution
       discussionRoom.status = 'decided';
       discussionRoom.updatedAt = new Date().toISOString();
       await saveDiscussion(discussionRoom);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
-      log(`Discussion accepted successfully: ${id} with ${finalizedChecklist.length} approved checklist items`);
+      log(`Discussion accepted successfully: ${id} with ${finalizedChecklist.length} approved checklist items executed`);
 
       return reply.status(200).send(enriched);
     } catch (error) {
@@ -578,12 +680,13 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /discussions/:id/reject - Reject a discussion (set status to rejected)
+  // POST /discussions/:id/reject - Mark a discussion as completed (discussions are not rejected, only checklist items are)
+  // This endpoint is kept for backward compatibility but marks discussion as 'completed' instead of 'rejected'
   fastify.post('/:id/reject', async (request, reply) => {
     try {
       const { id } = request.params;
 
-      log(`POST /discussions/${id}/reject - Rejecting discussion: ${id}`);
+      log(`POST /discussions/${id}/reject - Marking discussion as completed: ${id}`);
 
       const discussionData = await findDiscussionById(id);
       if (!discussionData) {
@@ -594,18 +697,20 @@ module.exports = async (fastify) => {
       }
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
-      discussionRoom.status = 'rejected';
+      // Discussions should only be 'in_progress' or 'decided'
+      // Individual checklist items are classified as 'accepted' or 'rejected', not discussions
+      discussionRoom.status = 'decided';
       discussionRoom.updatedAt = new Date().toISOString();
       await saveDiscussion(discussionRoom);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
-      log(`Discussion rejected successfully: ${id}`);
+      log(`Discussion marked as completed successfully: ${id}`);
 
       return reply.status(200).send(enriched);
     } catch (error) {
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
-      log(`Error rejecting discussion: ${errorMessage}`);
+      log(`Error marking discussion as completed: ${errorMessage}`);
       return reply.status(500).send({
         success: false,
         error: errorMessage

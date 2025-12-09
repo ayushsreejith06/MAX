@@ -7,6 +7,7 @@ const { loadDiscussions } = require('../utils/discussionStorage');
 const { addFunds } = require('../utils/userAccount');
 const { v4: uuidv4 } = require('uuid');
 const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
+const ExecutionEngine = require('../core/ExecutionEngine');
 
 // Maximum number of sectors allowed
 const MAX_SECTORS = 6;
@@ -16,6 +17,10 @@ function optimizeSectorForList(sector) {
   // Calculate active agents count from agents array
   const agents = Array.isArray(sector.agents) ? sector.agents : [];
   const activeAgents = agents.filter(agent => agent && agent.status === 'active').length;
+  
+  // Calculate performance using ExecutionEngine
+  const executionEngine = new ExecutionEngine();
+  const performance = executionEngine.updateSectorPerformance(sector);
   
   // Return only essential fields for list view with consistent field names
   return {
@@ -31,6 +36,8 @@ function optimizeSectorForList(sector) {
     change: typeof sector.change === 'number' ? sector.change : 0,
     changePercent: typeof sector.changePercent === 'number' ? sector.changePercent : 0,
     volume: typeof sector.volume === 'number' ? sector.volume : 0,
+    // Performance field
+    performance: performance,
     // Agent and activity fields
     activeAgents: typeof sector.activeAgents === 'number' ? sector.activeAgents : activeAgents,
     statusPercent: typeof sector.statusPercent === 'number' ? sector.statusPercent : 0,
@@ -245,6 +252,10 @@ module.exports = async (fastify) => {
         }
       }
       
+      // Calculate and add performance using ExecutionEngine
+      const executionEngine = new ExecutionEngine();
+      sector.performance = executionEngine.updateSectorPerformance(sector);
+      
       return reply.status(200).send(sector);
     } catch (error) {
       return reply.status(500).send({
@@ -274,6 +285,7 @@ module.exports = async (fastify) => {
       const finalSectorSymbol = (sectorSymbol || symbol || '').trim();
 
       // Create sector using the model (model handles both name/symbol and sectorName/sectorSymbol)
+      // Explicitly set balance and currentPrice to 0 for new sectors (should never default to 100)
       const sector = new Sector({
         name: finalSectorName,
         symbol: finalSectorSymbol,
@@ -281,7 +293,9 @@ module.exports = async (fastify) => {
         sectorSymbol: finalSectorSymbol,
         description: description || '',
         agents: agents || [],
-        performance: performance || {}
+        performance: performance || {},
+        balance: 0, // New sectors always start with 0 balance
+        currentPrice: 0 // New sectors start with 0 price (price is separate from balance)
       });
 
       // Get normalized sector data (already includes both name/symbol and sectorName/sectorSymbol)

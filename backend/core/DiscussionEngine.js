@@ -204,9 +204,9 @@ class DiscussionEngine {
       createdAt: new Date().toISOString()
     }));
 
-    // Set final checklist and mark as completed
+    // Set final checklist and mark as decided
     discussionRoom.checklist = checklist;
-    discussionRoom.status = 'completed';
+    discussionRoom.status = 'decided';
     discussionRoom.updatedAt = new Date().toISOString();
 
     // Save finalized discussion

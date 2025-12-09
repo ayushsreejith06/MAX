@@ -72,6 +72,13 @@ const start = async () => {
       fastify.log.error('Error registering system route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/execution'), { prefix: '/api/execution' });
+      fastify.log.info('✅ Routes registered: /api/execution');
+    } catch (err) {
+      fastify.log.error('Error registering execution route:', err);
+      throw err;
+    }
 
     // Bootstrap SimulationEngine
     try {
@@ -136,6 +143,7 @@ const start = async () => {
     console.log(`   - /api/simulation`);
     console.log(`   - /api/system`);
     console.log(`   - /api/user`);
+    console.log(`   - /api/execution`);
     console.log(`   - /debug`);
     console.log(`📍 Simulation Engine: Initialized`);
   } catch (err) {

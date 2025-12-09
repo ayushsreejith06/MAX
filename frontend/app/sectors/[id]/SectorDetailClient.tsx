@@ -6,10 +6,11 @@ import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, Ale
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { SectorSettingsForm } from '@/components/SectorSettingsForm';
-import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, fetchAgents, fetchDiscussions, type SimulateTickResult, type ConfidenceTickResult, isSkippedResult } from '@/lib/api';
+import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, fetchAgents, fetchDiscussions, fetchExecutionLogs, type SimulateTickResult, type ConfidenceTickResult, type ExecutionLog, isSkippedResult } from '@/lib/api';
 import type { Sector, Agent, Discussion } from '@/lib/types';
 import { usePolling } from '@/hooks/usePolling';
 import { useExecutionRefresh } from '@/hooks/useExecutionRefresh';
+import { useSectorDataPolling } from '@/hooks/useSectorDataPolling';
 import { useToast, ToastContainer } from '@/components/Toast';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
@@ -199,6 +200,7 @@ export default function SectorDetailClient() {
   } | null>(null);
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
   const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
   const isLoadingRef = useRef(false); // Prevent concurrent loads
   const lastAgentConfidencesRef = useRef<Map<string, number>>(new Map()); // Cache for comparison
@@ -387,6 +389,24 @@ export default function SectorDetailClient() {
     void loadPerformance();
   }, [normalizedSectorId, loadPerformance]);
 
+  // Load execution logs
+  const loadExecutionLogs = useCallback(async () => {
+    if (!normalizedSectorId) return;
+    
+    try {
+      const logs = await fetchExecutionLogs(normalizedSectorId);
+      setExecutionLogs(logs);
+    } catch (err) {
+      console.error('Failed to load execution logs:', err);
+    }
+  }, [normalizedSectorId]);
+
+  // Load execution logs on mount and when sector changes
+  useEffect(() => {
+    if (!normalizedSectorId) return;
+    void loadExecutionLogs();
+  }, [normalizedSectorId, loadExecutionLogs]);
+
   // Poll agents every 1500ms to update confidence values without re-rendering entire table
   const pollAgentConfidences = useCallback(async () => {
     if (!normalizedSectorId || !sector) return;
@@ -438,6 +458,45 @@ export default function SectorDetailClient() {
     pauseWhenHidden: true,
     immediate: false, // Don't call immediately, wait for first poll
     allowLowerInterval: true, // Allow 1500ms interval
+  });
+
+  // Poll sector data (including simulated price) every 1.5 seconds
+  // This ensures simulated price, performance, and chart data update automatically
+  useSectorDataPolling({
+    sectorId: normalizedSectorId,
+    enabled: !!normalizedSectorId && !!sector,
+    interval: 1500, // 1.5 seconds - respects minimum 1 second interval
+    onSectorUpdate: (updatedSector) => {
+      // Update sector state with new data (including simulated price and chart data)
+      setSector(prevSector => {
+        // Only update if data actually changed to prevent unnecessary re-renders
+        if (!prevSector) return updatedSector;
+        
+        // Check if key fields changed
+        const hasChanged = 
+          prevSector.lastSimulatedPrice !== updatedSector.lastSimulatedPrice ||
+          prevSector.currentPrice !== updatedSector.currentPrice ||
+          prevSector.balance !== updatedSector.balance ||
+          prevSector.activeAgents !== updatedSector.activeAgents ||
+          prevSector.statusPercent !== updatedSector.statusPercent ||
+          JSON.stringify(prevSector.candleData) !== JSON.stringify(updatedSector.candleData);
+        
+        return hasChanged ? updatedSector : prevSector;
+      });
+      
+      // Update agent confidences from updated sector
+      const newConfidences = new Map<string, number>();
+      if (updatedSector.agents && Array.isArray(updatedSector.agents)) {
+        updatedSector.agents.forEach(agent => {
+          if (agent && agent.id) {
+            const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+            newConfidences.set(agent.id, confidence);
+          }
+        });
+      }
+      setAgentConfidences(newConfidences);
+      lastAgentConfidencesRef.current = newConfidences;
+    },
   });
 
   // Use execution refresh hook to detect execution completion and manage fast polling
@@ -881,6 +940,7 @@ export default function SectorDetailClient() {
           <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase tracking-wider">PRICE CHART - LAST 24 HOURS</h2>
           {sector?.candleData && sector.candleData.length > 0 ? (
             <LineChart 
+              key={sector.id} 
               data={sector.candleData} 
               sectorName={sector?.name || 'N/A'}
               sectorSymbol={sector?.symbol || 'N/A'}

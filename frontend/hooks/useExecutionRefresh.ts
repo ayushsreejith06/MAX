@@ -48,6 +48,7 @@ export function useExecutionRefresh({
     currentPrice?: number;
     change?: number;
     changePercent?: number;
+    lastSimulatedPrice?: number | null;
   }>({});
 
   // Clear fast polling timeout
@@ -91,6 +92,7 @@ export function useExecutionRefresh({
       currentPrice: currentSector.currentPrice,
       change: currentSector.change,
       changePercent: currentSector.changePercent,
+      lastSimulatedPrice: currentSector.lastSimulatedPrice,
     };
 
     // Check if any tracked values changed (indicating execution)
@@ -102,6 +104,7 @@ export function useExecutionRefresh({
       { key: 'currentPrice', prev: prev.currentPrice, curr: current.currentPrice },
       { key: 'change', prev: prev.change, curr: current.change },
       { key: 'changePercent', prev: prev.changePercent, curr: current.changePercent },
+      { key: 'lastSimulatedPrice', prev: prev.lastSimulatedPrice, curr: current.lastSimulatedPrice },
     ];
 
     const changedFields = new Set<string>();
@@ -123,6 +126,7 @@ export function useExecutionRefresh({
       currentPrice: current.currentPrice,
       change: current.change,
       changePercent: current.changePercent,
+      lastSimulatedPrice: current.lastSimulatedPrice,
     };
 
     if (hasChanges && !executionDetectedRef.current) {

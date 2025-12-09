@@ -92,6 +92,12 @@ async function createSector(data) {
       description: data.description || '',
       agents: data.agents || [],
       performance: data.performance || {},
+      balance: typeof data.balance === 'number' ? data.balance : 0, // Default balance to 0 for new sectors
+      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 0, // Default currentPrice to 0 for new sectors
+      change: typeof data.change === 'number' ? data.change : 0,
+      changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
+      volatility: typeof data.volatility === 'number' ? data.volatility : 0.02,
+      riskScore: typeof data.riskScore === 'number' ? data.riskScore : 50,
       createdAt: data.createdAt || new Date().toISOString(),
       // Discussion tracking state (null for new sectors)
       discussion: data.discussion !== undefined ? data.discussion : null
