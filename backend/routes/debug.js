@@ -397,5 +397,228 @@ module.exports = async (fastify) => {
       });
     }
   });
+
+  // GET /debug/execution/status - Get Phase 4 execution status
+  // Returns: lastExecutedChecklistItem, lastPriceUpdate, lastManagerImpact, lastSectorPerformance, lastRewardDistribution
+  fastify.get('/execution/status', async (request, reply) => {
+    try {
+      log('GET /debug/execution/status - Fetching execution status');
+
+      const EXECUTION_LOGS_FILE = 'executionLogs.json';
+
+      // 1. Get last executed checklist item from execution logs
+      let lastExecutedChecklistItem = null;
+      try {
+        const executionLogs = await readDataFile(EXECUTION_LOGS_FILE);
+        const allLogs = Array.isArray(executionLogs) ? executionLogs : [];
+        
+        if (allLogs.length > 0) {
+          // Sort by timestamp descending (newest first)
+          const sortedLogs = allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          const lastLog = sortedLogs[0];
+          
+          if (lastLog && lastLog.results && lastLog.results.length > 0) {
+            // Get the last result from the most recent execution
+            const lastResult = lastLog.results[lastLog.results.length - 1];
+            lastExecutedChecklistItem = {
+              itemId: lastResult.itemId || null,
+              action: lastResult.action || null,
+              amount: lastResult.amount || 0,
+              success: lastResult.success || false,
+              reason: lastResult.reason || null,
+              timestamp: lastLog.timestamp || null,
+              checklistId: lastLog.checklistId || null,
+              sectorId: lastLog.sectorId || null
+            };
+          }
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          log(`Error reading execution logs: ${error.message}`);
+        }
+      }
+
+      // 2. Get last price update from sectors
+      let lastPriceUpdate = null;
+      try {
+        const sectors = await getAllSectors();
+        let latestSector = null;
+        let latestTimestamp = 0;
+
+        for (const sector of sectors) {
+          // Check lastPriceUpdate field
+          if (sector.lastPriceUpdate && sector.lastPriceUpdate > latestTimestamp) {
+            latestTimestamp = sector.lastPriceUpdate;
+            latestSector = sector;
+          }
+          // Also check changePercent timestamp (if available)
+          if (sector.currentPrice && sector.change !== undefined) {
+            // Use a fallback timestamp if lastPriceUpdate is not set
+            const sectorTimestamp = sector.lastPriceUpdate || Date.now();
+            if (sectorTimestamp > latestTimestamp) {
+              latestTimestamp = sectorTimestamp;
+              latestSector = sector;
+            }
+          }
+        }
+
+        if (latestSector) {
+          lastPriceUpdate = {
+            sectorId: latestSector.id || null,
+            sectorSymbol: latestSector.symbol || latestSector.sectorSymbol || null,
+            previousPrice: (latestSector.currentPrice || 0) - (latestSector.change || 0),
+            currentPrice: latestSector.currentPrice || null,
+            change: latestSector.change || 0,
+            changePercent: latestSector.changePercent || 0,
+            timestamp: latestSector.lastPriceUpdate || null
+          };
+        }
+      } catch (error) {
+        log(`Error reading sectors for price update: ${error.message}`);
+      }
+
+      // 3. Calculate last manager impact from execution logs
+      let lastManagerImpact = null;
+      try {
+        const executionLogs = await readDataFile(EXECUTION_LOGS_FILE);
+        const allLogs = Array.isArray(executionLogs) ? executionLogs : [];
+        
+        if (allLogs.length > 0) {
+          const sortedLogs = allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          const lastLog = sortedLogs[0];
+          
+          if (lastLog && lastLog.sectorId) {
+            const sector = await getSectorById(lastLog.sectorId);
+            if (sector) {
+              // Manager impact is the price change from execution
+              // Calculate from the change and changePercent
+              const impact = {
+                sectorId: lastLog.sectorId,
+                sectorSymbol: sector.symbol || sector.sectorSymbol || null,
+                priceChange: sector.change || 0,
+                priceChangePercent: sector.changePercent || 0,
+                timestamp: lastLog.timestamp || null,
+                checklistId: lastLog.checklistId || null
+              };
+              
+              // Calculate impact magnitude (absolute value of change percent)
+              impact.magnitude = Math.abs(impact.priceChangePercent);
+              impact.direction = impact.priceChangePercent >= 0 ? 'positive' : 'negative';
+              
+              lastManagerImpact = impact;
+            }
+          }
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          log(`Error calculating manager impact: ${error.message}`);
+        }
+      }
+
+      // 4. Get last sector performance
+      let lastSectorPerformance = null;
+      try {
+        const sectors = await getAllSectors();
+        let latestSector = null;
+        let latestPerformanceTimestamp = 0;
+
+        for (const sector of sectors) {
+          if (sector.performance) {
+            const perfTimestamp = sector.performance.lastUpdated 
+              ? new Date(sector.performance.lastUpdated).getTime() 
+              : (sector.performance.timestamp || 0);
+            
+            if (perfTimestamp > latestPerformanceTimestamp) {
+              latestPerformanceTimestamp = perfTimestamp;
+              latestSector = sector;
+            }
+          }
+        }
+
+        if (latestSector && latestSector.performance) {
+          lastSectorPerformance = {
+            sectorId: latestSector.id || null,
+            sectorSymbol: latestSector.symbol || latestSector.sectorSymbol || null,
+            totalPL: latestSector.performance.totalPL || 0,
+            pnl: latestSector.performance.pnl || 0,
+            pnlPercent: latestSector.performance.pnlPercent || 0,
+            position: latestSector.performance.position || latestSector.position || 0,
+            capital: latestSector.performance.capital || latestSector.balance || 0,
+            totalValue: latestSector.performance.totalValue || 0,
+            utilization: latestSector.utilization || 0,
+            lastUpdated: latestSector.performance.lastUpdated || null,
+            executions: latestSector.performance.executions || null
+          };
+        }
+      } catch (error) {
+        log(`Error reading sector performance: ${error.message}`);
+      }
+
+      // 5. Get last reward distribution (from agents' reward points and morale)
+      let lastRewardDistribution = null;
+      try {
+        const agents = await loadAgents();
+        
+        // Find agents with recent reward updates
+        const agentsWithRewards = agents
+          .filter(agent => {
+            return (agent.rewardPoints !== undefined && agent.rewardPoints > 0) ||
+                   (agent.lastRewardTimestamp !== undefined) ||
+                   (agent.morale !== undefined);
+          })
+          .map(agent => ({
+            agentId: agent.id,
+            agentName: agent.name,
+            sectorId: agent.sectorId,
+            rewardPoints: agent.rewardPoints || 0,
+            morale: agent.morale || 0,
+            lastRewardTimestamp: agent.lastRewardTimestamp || null
+          }))
+          .sort((a, b) => {
+            const aTime = a.lastRewardTimestamp ? new Date(a.lastRewardTimestamp).getTime() : 0;
+            const bTime = b.lastRewardTimestamp ? new Date(b.lastRewardTimestamp).getTime() : 0;
+            return bTime - aTime;
+          });
+
+        if (agentsWithRewards.length > 0) {
+          const totalRewardPoints = agentsWithRewards.reduce((sum, a) => sum + (a.rewardPoints || 0), 0);
+          const totalMorale = agentsWithRewards.reduce((sum, a) => sum + (a.morale || 0), 0);
+          const avgMorale = agentsWithRewards.length > 0 ? totalMorale / agentsWithRewards.length : 0;
+
+          lastRewardDistribution = {
+            totalAgentsWithRewards: agentsWithRewards.length,
+            totalRewardPoints: totalRewardPoints,
+            averageMorale: avgMorale,
+            lastRewardTimestamp: agentsWithRewards[0].lastRewardTimestamp || null,
+            topRewardedAgents: agentsWithRewards.slice(0, 5).map(a => ({
+              agentId: a.agentId,
+              agentName: a.agentName,
+              sectorId: a.sectorId,
+              rewardPoints: a.rewardPoints,
+              morale: a.morale
+            }))
+          };
+        }
+      } catch (error) {
+        log(`Error reading reward distribution: ${error.message}`);
+      }
+
+      return reply.status(200).send({
+        success: true,
+        lastExecutedChecklistItem,
+        lastPriceUpdate,
+        lastManagerImpact,
+        lastSectorPerformance,
+        lastRewardDistribution,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      log(`Error fetching execution status: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 };
 

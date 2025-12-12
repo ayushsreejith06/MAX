@@ -47,14 +47,28 @@ export function useSectorDataPolling({
 
       // Only update if data actually changed to prevent unnecessary re-renders
       const prevSector = previousSectorRef.current;
+      
+      // Quick reference equality check first
+      if (prevSector && prevSector === sector) {
+        return;
+      }
+      
+      // Check if key fields changed
       const hasChanged = !prevSector || 
         prevSector.lastSimulatedPrice !== sector.lastSimulatedPrice ||
         prevSector.currentPrice !== sector.currentPrice ||
         prevSector.balance !== sector.balance ||
-        prevSector.performance !== sector.performance ||
         prevSector.activeAgents !== sector.activeAgents ||
         prevSector.statusPercent !== sector.statusPercent ||
-        JSON.stringify(prevSector.candleData) !== JSON.stringify(sector.candleData);
+        prevSector.change !== sector.change ||
+        prevSector.changePercent !== sector.changePercent ||
+        // Only compare candleData if arrays exist and have different lengths
+        // Deep comparison is expensive, so we do a shallow check first
+        (prevSector.candleData?.length !== sector.candleData?.length) ||
+        // If lengths match, check if last value changed (most common case)
+        (prevSector.candleData?.length > 0 && sector.candleData?.length > 0 &&
+         prevSector.candleData[prevSector.candleData.length - 1]?.value !== 
+         sector.candleData[sector.candleData.length - 1]?.value);
 
       if (hasChanged) {
         previousSectorRef.current = sector;

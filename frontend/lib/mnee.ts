@@ -19,7 +19,7 @@ const getBase = () => {
 
 export async function registerSectorOnChain(sector: any) {
   const base = typeof window !== 'undefined' ? getBackendBaseUrl() : getBase();
-  return fetch(`${base}/api/simulation/contract/register-sector`, {
+  return fetch(`${base}/api/mnee/register-sector`, {
     method: "POST",
     body: JSON.stringify(sector),
     headers: { "Content-Type": "application/json" }
@@ -28,7 +28,7 @@ export async function registerSectorOnChain(sector: any) {
 
 export async function registerAgentOnChain(agent: any) {
   const base = typeof window !== 'undefined' ? getBackendBaseUrl() : getBase();
-  return fetch(`${base}/api/simulation/contract/register-agent`, {
+  return fetch(`${base}/api/mnee/register-agent`, {
     method: "POST",
     body: JSON.stringify(agent),
     headers: { "Content-Type": "application/json" }
@@ -37,7 +37,7 @@ export async function registerAgentOnChain(agent: any) {
 
 export async function logTradeOnChain(trade: any) {
   const base = typeof window !== 'undefined' ? getBackendBaseUrl() : getBase();
-  return fetch(`${base}/api/simulation/contract/log-trade`, {
+  return fetch(`${base}/api/mnee/log-trade`, {
     method: "POST",
     body: JSON.stringify(trade),
     headers: { "Content-Type": "application/json" }
@@ -46,7 +46,7 @@ export async function logTradeOnChain(trade: any) {
 
 export async function validateActionOnChain(input: any) {
   const base = typeof window !== 'undefined' ? getBackendBaseUrl() : getBase();
-  return fetch(`${base}/api/simulation/contract/validate`, {
+  return fetch(`${base}/api/mnee/validate`, {
     method: "POST",
     body: JSON.stringify(input),
     headers: { "Content-Type": "application/json" }
@@ -59,7 +59,7 @@ export async function validateActionOnChain(input: any) {
  */
 export async function fetchContractEvents() {
   const base = typeof window !== 'undefined' ? getBackendBaseUrl() : getBase();
-  const response = await fetch(`${base}/api/simulation/contract/events`, {
+  const response = await fetch(`${base}/api/mnee/events`, {
     method: "GET",
     headers: { "Content-Type": "application/json" }
   });

@@ -98,7 +98,92 @@ class ExecutionLog {
       timestamp: data.timestamp
     });
   }
+
+  /**
+   * Get all execution logs with optional filters
+   * @param {Object} filters - Filter options
+   * @param {string} filters.sectorId - Filter by sector ID
+   * @param {string} filters.managerId - Filter by manager ID (from checklistId/discussionId)
+   * @param {string} filters.discussionId - Filter by discussion ID
+   * @param {number} filters.startTime - Start timestamp (inclusive)
+   * @param {number} filters.endTime - End timestamp (inclusive)
+   * @param {number} filters.page - Page number (1-based)
+   * @param {number} filters.pageSize - Items per page
+   * @returns {Promise<Object>} Object with logs array and pagination info
+   */
+  static async getAll(filters = {}) {
+    try {
+      const logs = await readDataFile(EXECUTION_LOGS_FILE);
+      let allLogs = Array.isArray(logs) ? logs : [];
+      
+      // Apply filters
+      if (filters.sectorId) {
+        allLogs = allLogs.filter(log => log.sectorId === filters.sectorId);
+      }
+      
+      if (filters.managerId) {
+        // Manager ID can be in managerId field, checklistId, or discussionId field
+        allLogs = allLogs.filter(log => 
+          log.managerId === filters.managerId ||
+          (log.checklistId && log.checklistId.includes(filters.managerId)) ||
+          (log.discussionId && log.discussionId.includes(filters.managerId))
+        );
+      }
+      
+      if (filters.discussionId) {
+        allLogs = allLogs.filter(log => 
+          log.checklistId === filters.discussionId || 
+          log.discussionId === filters.discussionId
+        );
+      }
+      
+      if (filters.startTime) {
+        allLogs = allLogs.filter(log => (log.timestamp || 0) >= filters.startTime);
+      }
+      
+      if (filters.endTime) {
+        allLogs = allLogs.filter(log => (log.timestamp || 0) <= filters.endTime);
+      }
+      
+      // Sort by timestamp DESC (newest first)
+      allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      
+      // Pagination
+      const page = filters.page || 1;
+      const pageSize = filters.pageSize || 20;
+      const total = allLogs.length;
+      const totalPages = Math.ceil(total / pageSize);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedLogs = allLogs.slice(startIndex, endIndex);
+      
+      return {
+        logs: paginatedLogs,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages
+        }
+      };
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return {
+          logs: [],
+          pagination: {
+            page: filters.page || 1,
+            pageSize: filters.pageSize || 20,
+            total: 0,
+            totalPages: 0
+          }
+        };
+      }
+      throw error;
+    }
+  }
 }
 
 module.exports = ExecutionLog;
+
+
 

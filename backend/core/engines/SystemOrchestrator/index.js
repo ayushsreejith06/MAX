@@ -137,7 +137,7 @@ class SystemOrchestrator {
           const discussions = await loadDiscussions();
           const activeDiscussion = discussions.find(d => 
             d.sectorId === sectorId && 
-            (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+            (d.status === 'in_progress' || d.status === 'active') // Include legacy 'active' for backward compatibility
           );
 
           if (activeDiscussion) {
@@ -363,9 +363,12 @@ class SystemOrchestrator {
       if (activeDiscussion) {
         const discussionRoom = DiscussionRoom.fromData(activeDiscussion);
         
-        // Handle 'active' status discussions - transition them to proper state
+        // Handle legacy 'active' status discussions - transition them to 'in_progress'
         if (discussionRoom.status === 'active') {
-          console.log(`[SystemOrchestrator] Found active discussion ${discussionRoom.id}, processing...`);
+          console.log(`[SystemOrchestrator] Found legacy active discussion ${discussionRoom.id}, transitioning to in_progress...`);
+          discussionRoom.status = 'in_progress';
+          discussionRoom.updatedAt = new Date().toISOString();
+          await saveDiscussion(discussionRoom);
           
           // If discussion has checklistDraft, finalize and handle it
           if (Array.isArray(discussionRoom.checklistDraft) && discussionRoom.checklistDraft.length > 0) {
@@ -380,7 +383,12 @@ class SystemOrchestrator {
           } else if (Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0) {
             // Discussion has checklist, handle it directly
             console.log(`[SystemOrchestrator] Active discussion has checklist, handling...`);
-            await this.managerEngine.handleChecklist(discussionRoom);
+            const handledDiscussion = await this.managerEngine.handleChecklist(discussionRoom);
+            // Check if discussion can be closed after handling
+            if (handledDiscussion && this.managerEngine.canDiscussionClose(handledDiscussion)) {
+              console.log(`[SystemOrchestrator] Active discussion ${discussionRoom.id} can be closed, auto-closing...`);
+              await this.managerEngine.closeDiscussion(discussionRoom.id);
+            }
           } else {
             // Active discussion with no checklist - check if it's stale (older than 1 minute)
             const createdAt = new Date(discussionRoom.createdAt).getTime();
@@ -388,8 +396,9 @@ class SystemOrchestrator {
             const ageMs = now - createdAt;
             
             if (ageMs > 60000) { // Older than 1 minute
-              console.log(`[SystemOrchestrator] Active discussion ${discussionRoom.id} is stale (${Math.round(ageMs / 1000)}s old) with no checklist, closing it...`);
-              discussionRoom.status = 'closed';
+              console.log(`[SystemOrchestrator] Active discussion ${discussionRoom.id} is stale (${Math.round(ageMs / 1000)}s old) with no checklist, marking as decided...`);
+              // Discussions can only be 'in_progress' or 'decided'
+              discussionRoom.status = 'decided';
               discussionRoom.updatedAt = new Date().toISOString();
               await saveDiscussion(discussionRoom);
               // Mark discussion as ended to allow new discussions
@@ -414,13 +423,26 @@ class SystemOrchestrator {
             discussionRoom.checklistDraft.length > 0) {
           // If discussion is in_progress with checklistDraft, handle it
           console.log(`[SystemOrchestrator] Found in-progress discussion with checklistDraft, handling...`);
-          await this.managerEngine.handleChecklist(discussionRoom);
+          const handledDiscussion = await this.managerEngine.handleChecklist(discussionRoom);
+          // Check if discussion can be closed after handling
+          if (handledDiscussion && this.managerEngine.canDiscussionClose(handledDiscussion)) {
+            console.log(`[SystemOrchestrator] In-progress discussion ${discussionRoom.id} can be closed, auto-closing...`);
+            await this.managerEngine.closeDiscussion(discussionRoom.id);
+          }
           
           // Reload sector
           updatedSector = await getSectorById(sectorId);
           const allAgents = await loadAgents();
           const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
           updatedSector.agents = sectorAgents;
+        } else if (discussionRoom.status === 'in_progress' && 
+            Array.isArray(discussionRoom.checklist) && 
+            discussionRoom.checklist.length > 0) {
+          // Periodic check: if discussion is in_progress with checklist, check if it can be closed
+          if (this.managerEngine.canDiscussionClose(discussionRoom)) {
+            console.log(`[SystemOrchestrator] Found in-progress discussion ${discussionRoom.id} that can be closed, auto-closing...`);
+            await this.managerEngine.closeDiscussion(discussionRoom.id);
+          }
         }
       }
 
@@ -451,7 +473,7 @@ class SystemOrchestrator {
       const discussions = await loadDiscussions();
       return discussions.some(d => 
         d.sectorId === sectorId && 
-        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+        (d.status === 'in_progress' || d.status === 'active') // Include legacy 'active' for backward compatibility
       );
     } catch (error) {
       console.error(`[SystemOrchestrator] Error checking active discussion:`, error);
@@ -468,7 +490,7 @@ class SystemOrchestrator {
       const discussions = await loadDiscussions();
       return discussions.find(d => 
         d.sectorId === sectorId && 
-        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+        (d.status === 'in_progress' || d.status === 'active') // Include legacy 'active' for backward compatibility
       ) || null;
     } catch (error) {
       console.error(`[SystemOrchestrator] Error getting active discussion:`, error);
@@ -511,26 +533,44 @@ class SystemOrchestrator {
         .filter(decision => decision.approved === true && decision.item)
         .map(decision => {
           const item = decision.item;
-          // Extract action from item
-          let action = item.action;
+          // Extract action from item - check type first, then action, then text
+          let action = item.type || item.action;
+          if (action) {
+            action = action.toLowerCase();
+          }
+          
+          // Try to extract from text if not found
           if (!action && item.text) {
-            // Try to extract action from text
             const upperText = item.text.toUpperCase();
             if (upperText.includes('BUY') || upperText.includes('DEPLOY CAPITAL') || upperText.includes('DEPLOY')) {
               action = 'buy';
-            } else if (upperText.includes('SELL')) {
+            } else if (upperText.includes('SELL') || upperText.includes('WITHDRAW')) {
               action = 'sell';
             } else if (upperText.includes('HOLD')) {
               action = 'hold';
+            } else if (upperText.includes('REBALANCE') || upperText.includes('ALLOCATE')) {
+              action = 'rebalance';
             }
           }
+          
+          // Try to extract from reasoning if still not found
           if (!action && item.reasoning) {
             const upperReasoning = item.reasoning.toUpperCase();
             if (upperReasoning.includes('BUY') || upperReasoning.includes('DEPLOY')) {
               action = 'buy';
-            } else if (upperReasoning.includes('SELL')) {
+            } else if (upperReasoning.includes('SELL') || upperReasoning.includes('WITHDRAW')) {
               action = 'sell';
+            } else if (upperReasoning.includes('HOLD')) {
+              action = 'hold';
+            } else if (upperReasoning.includes('REBALANCE')) {
+              action = 'rebalance';
             }
+          }
+          
+          // If still no action found, skip this item (don't default to 'buy')
+          if (!action) {
+            console.warn(`[SystemOrchestrator] Skipping checklist item ${item.id || 'unknown'}: No action could be determined from type, action, text, or reasoning`);
+            return null;
           }
           
           // Extract or default amount
@@ -543,14 +583,15 @@ class SystemOrchestrator {
 
           return {
             id: item.id || `item-${Date.now()}`,
-            action: action ? action.toLowerCase() : 'buy', // Default to buy if no action found
+            action: action.toLowerCase(),
             amount: amount,
             text: item.text || item.reasoning || '',
             agentId: item.agentId,
             agentName: item.agentName,
             confidence: item.confidence || 0.7
           };
-        });
+        })
+        .filter(item => item !== null); // Remove null items
       
       approvedItems.push(...managerApproved);
     }
@@ -560,27 +601,56 @@ class SystemOrchestrator {
       const checklistApproved = discussionRoom.checklist
         .filter(item => item.status === 'approved' || (!item.status && item.completed === false))
         .map(item => {
-          let action = item.action;
+          // Extract action - check type first, then action, then text
+          let action = item.type || item.action;
+          if (action) {
+            action = action.toLowerCase();
+          }
+          
+          // Try to extract from text if not found
           if (!action && item.text) {
             const upperText = item.text.toUpperCase();
-            if (upperText.includes('BUY') || upperText.includes('DEPLOY')) {
+            if (upperText.includes('BUY') || upperText.includes('DEPLOY CAPITAL') || upperText.includes('DEPLOY')) {
               action = 'buy';
-            } else if (upperText.includes('SELL')) {
+            } else if (upperText.includes('SELL') || upperText.includes('WITHDRAW')) {
               action = 'sell';
             } else if (upperText.includes('HOLD')) {
               action = 'hold';
+            } else if (upperText.includes('REBALANCE') || upperText.includes('ALLOCATE')) {
+              action = 'rebalance';
             }
+          }
+          
+          // Try to extract from reasoning if still not found
+          if (!action && (item.reasoning || item.reason)) {
+            const reasoningText = (item.reasoning || item.reason || '').toUpperCase();
+            if (reasoningText.includes('BUY') || reasoningText.includes('DEPLOY')) {
+              action = 'buy';
+            } else if (reasoningText.includes('SELL') || reasoningText.includes('WITHDRAW')) {
+              action = 'sell';
+            } else if (reasoningText.includes('HOLD')) {
+              action = 'hold';
+            } else if (reasoningText.includes('REBALANCE')) {
+              action = 'rebalance';
+            }
+          }
+          
+          // If still no action found, skip this item (don't default to 'buy')
+          if (!action) {
+            console.warn(`[SystemOrchestrator] Skipping checklist item ${item.id || 'unknown'}: No action could be determined from type, action, text, or reasoning`);
+            return null;
           }
 
           return {
             id: item.id || `item-${Date.now()}`,
-            action: action ? action.toLowerCase() : 'buy',
+            action: action.toLowerCase(),
             amount: item.amount || 100,
             text: item.text || '',
             agentId: item.agentId,
             agentName: item.agentName
           };
-        });
+        })
+        .filter(item => item !== null); // Remove null items
       
       approvedItems.push(...checklistApproved);
     }

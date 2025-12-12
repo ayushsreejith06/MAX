@@ -8,6 +8,15 @@ const ManagerAgent = require('../agents/manager/ManagerAgent');
 const ExecutionAgent = require('../agents/ExecutionAgent');
 const { loadAgents } = require('../utils/agentStorage');
 const { getAgentRuntime } = require('../agents/runtime/agentRuntime');
+const ExecutionEngine = require('../core/ExecutionEngine');
+const { getExecutionList } = require('../utils/executionListStorage');
+const { 
+  getExecutionList, 
+  clearExecutionList, 
+  removeExecutionItem,
+  getManagerBySectorId,
+  getManagerById
+} = require('../utils/executionListStorage');
 
 // Simple logger
 function log(message) {
@@ -268,6 +277,226 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error in /api/manager/decisions/:sectorId: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * GET /api/manager/execution-list/:managerId
+   * 
+   * Get execution list for a manager
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     data: Array<executionItem>
+   *   }
+   */
+  fastify.get('/execution-list/:managerId', async (request, reply) => {
+    try {
+      const { managerId } = request.params;
+      const executionList = await getExecutionList(managerId);
+      
+      return reply.status(200).send({
+        success: true,
+        data: executionList
+      });
+    } catch (error) {
+      log(`Error in /api/manager/execution-list/:managerId: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * GET /api/manager/execution-list-by-sector/:sectorId
+   * 
+   * Get execution list for a manager by sector ID
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     data: Array<executionItem>
+   *   }
+   */
+  fastify.get('/execution-list-by-sector/:sectorId', async (request, reply) => {
+    try {
+      const { sectorId } = request.params;
+      const manager = await getManagerBySectorId(sectorId);
+      
+      if (!manager) {
+        return reply.status(404).send({
+          success: false,
+          error: `Manager not found for sector ${sectorId}`
+        });
+      }
+
+      const executionList = await getExecutionList(manager.id);
+      
+      return reply.status(200).send({
+        success: true,
+        data: executionList,
+        managerId: manager.id
+      });
+    } catch (error) {
+      log(`Error in /api/manager/execution-list-by-sector/:sectorId: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/manager/execution-list/:managerId
+   * 
+   * Clear execution list for a manager
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     message: string
+   *   }
+   */
+  fastify.delete('/execution-list/:managerId', async (request, reply) => {
+    try {
+      const { managerId } = request.params;
+      await clearExecutionList(managerId);
+      
+      return reply.status(200).send({
+        success: true,
+        message: `Execution list cleared for manager ${managerId}`
+      });
+    } catch (error) {
+      log(`Error in DELETE /api/manager/execution-list/:managerId: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/manager/execution-list/:managerId/item/:itemId
+   * 
+   * Remove a specific execution item from a manager's execution list
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     message: string
+   *   }
+   */
+  fastify.delete('/execution-list/:managerId/item/:itemId', async (request, reply) => {
+    try {
+      const { managerId, itemId } = request.params;
+      const removed = await removeExecutionItem(managerId, itemId);
+      
+      if (!removed) {
+        return reply.status(404).send({
+          success: false,
+          error: `Execution item ${itemId} not found in manager ${managerId}'s execution list`
+        });
+      }
+      
+      return reply.status(200).send({
+        success: true,
+        message: `Execution item ${itemId} removed from manager ${managerId}'s execution list`
+      });
+    } catch (error) {
+      log(`Error in DELETE /api/manager/execution-list/:managerId/item/:itemId: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * GET /api/manager/:id/execution-list
+   * 
+   * Get execution list for a manager.
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     executionList: Array<Object>
+   *   }
+   */
+  fastify.get('/:id/execution-list', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      if (!id) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Manager ID is required'
+        });
+      }
+
+      log(`GET /api/manager/${id}/execution-list`);
+
+      const executionList = await getExecutionList(id);
+
+      return reply.status(200).send({
+        success: true,
+        executionList: executionList
+      });
+    } catch (error) {
+      log(`Error in /api/manager/:id/execution-list: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * POST /api/manager/:id/execute-all
+   * 
+   * Execute all items in the manager's execution list.
+   * 
+   * Output:
+   *   {
+   *     success: boolean,
+   *     executed: number,
+   *     total: number,
+   *     results: Array<Object>,
+   *     updatedSectorState?: Object
+   *   }
+   */
+  fastify.post('/:id/execute-all', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      if (!id) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Manager ID is required'
+        });
+      }
+
+      log(`POST /api/manager/${id}/execute-all`);
+
+      const executionEngine = new ExecutionEngine();
+      const result = await executionEngine.processExecutionList(id);
+
+      log(`Execution completed: ${result.executed}/${result.total} items executed`);
+
+      return reply.status(200).send({
+        success: result.success,
+        executed: result.executed,
+        total: result.total,
+        results: result.results,
+        updatedSectorState: result.updatedSectorState
+      });
+    } catch (error) {
+      log(`Error in /api/manager/:id/execute-all: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

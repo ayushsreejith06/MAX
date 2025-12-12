@@ -114,12 +114,9 @@ class ConfidenceEngine {
     }
 
     if (!Array.isArray(agents) || agents.length === 0) {
-      console.warn('[ConfidenceEngine] No agents provided for manager confidence calculation');
-      // Return current confidence clamped to 0-100, or 0 if not set
-      const currentConfidence = typeof manager.confidence === 'number' 
-        ? Math.max(0, Math.min(100, manager.confidence))
-        : 0;
-      return currentConfidence;
+      console.warn('[ConfidenceEngine] No agents provided for manager confidence calculation, returning 0');
+      // Manager has no confidence if there are no other agents
+      return 0;
     }
 
     // Filter ALL non-manager agents in the same sector
@@ -138,12 +135,10 @@ class ConfidenceEngine {
     });
 
     if (sectorAgents.length === 0) {
-      // No other agents in sector, keep current confidence clamped to 0-100
-      const currentConfidence = typeof manager.confidence === 'number' 
-        ? Math.max(0, Math.min(100, manager.confidence))
-        : 0;
-      console.log(`[ConfidenceEngine] No agents in sector ${sectorId} for manager ${manager.id}, keeping current confidence: ${currentConfidence}`);
-      return currentConfidence;
+      // No other agents in sector - manager has no confidence
+      const managerName = manager.name || manager.id;
+      console.log(`[ConfidenceEngine] No agents in sector ${sectorId} for manager ${managerName} (${manager.id}), returning 0 (manager confidence fully depends on other agents)`);
+      return 0;
     }
 
     // Calculate average confidence of ALL agents in the sector (excluding manager)

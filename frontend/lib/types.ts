@@ -20,7 +20,12 @@ export interface AgentPreferences {
 export interface Agent {
   id: string;
   name: string;
+  displayName?: string;
   role: string;
+  style?: 'Aggressive' | 'Balanced' | 'Defensive' | string;
+  riskTolerance?: 'low' | 'medium' | 'high' | string;
+  shortBio?: string;
+  initialConfidence?: number;
   performance: number;
   trades: number;
   status: AgentStatus;
@@ -59,9 +64,36 @@ export interface ChecklistItem {
   reason?: string; // Also called "reasoning" in some places
   reasoning?: string; // Alias for reason
   confidence?: number;
+  // Revision metadata
+  status?: 'PENDING' | 'REJECTED' | 'REVISE_REQUIRED' | 'APPROVED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
+  requiresRevision?: boolean;
+  requiresManagerEvaluation?: boolean;
+  managerReason?: string | null;
+  revisionCount?: number;
+  revisedAt?: string;
+  previousVersions?: Array<{
+    action?: string;
+    amount?: number;
+    reason?: string;
+    confidence?: number;
+    timestamp: string;
+  }>;
 }
 
-export type DiscussionStatus = 'in_progress' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | 'finalized' | string;
+// Round history snapshot for multi-round discussions
+export interface RoundSnapshot {
+  round: number;
+  checklist: ChecklistItem[];
+  managerDecisions?: Array<{
+    item: ChecklistItem;
+    approved: boolean;
+    status: string;
+    reason?: string;
+  }>;
+  timestamp: string;
+}
+
+export type DiscussionStatus = 'OPEN' | 'CLOSED' | 'in_progress' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | 'finalized' | string;
 
 export interface Discussion {
   id: string;
@@ -75,10 +107,22 @@ export interface Discussion {
   updatedAt: string;
   sectorSymbol?: string;
   sectorName?: string;
-  round?: number;
+  round?: number; // Legacy field, use currentRound for multi-round
+  // Multi-round discussion fields
+  currentRound?: number; // Current round number (integer)
+  roundHistory?: RoundSnapshot[]; // Array of round snapshots
   checklistDraft?: ChecklistItem[];
   checklist?: ChecklistItem[];
   finalizedChecklist?: ChecklistItem[];
+  // Manager decision fields
+  managerDecisions?: Array<{
+    item: ChecklistItem;
+    approved: boolean;
+    status: string;
+    reason?: string;
+  }>;
+  // Closure fields
+  discussionClosedAt?: string;
 }
 
 export interface Sector {

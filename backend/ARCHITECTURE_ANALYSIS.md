@@ -7,6 +7,25 @@ The MAX backend is a Node.js/Fastify-based API server that manages a multi-agent
 
 ## File-by-File Analysis
 
+### AI Utilities
+
+#### `ai/llmClient.ts`
+**Purpose:** Wraps calls to the LM Studio OpenAI-compatible server for backend consumers.
+
+**Inputs:**
+- Environment: `USE_LLM`, `LLM_BASE_URL`, `LLM_MODEL_NAME`, optional `LLM_API_KEY`
+- Call params: `systemPrompt`, `userPrompt`, optional `maxTokens`, optional `jsonMode`
+
+**Outputs:**
+- `callLLM()` → first completion message content (string)
+- `checkLLMHealth()` → boolean health result
+
+**Interactions:**
+- Posts to `${LLM_BASE_URL}/chat/completions` with OpenAI-compatible body and optional JSON response format
+- Health check issues a tiny prompt and returns false on any error
+
+---
+
 ### Entry Points
 
 #### `server.js`

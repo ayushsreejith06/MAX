@@ -40,8 +40,13 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   useEffect(() => {
     if (!discussionId) return;
 
-    // Only poll if discussion is in progress, decided, finalized, or accepted
-    const shouldPoll = discussionStatus === 'in_progress' || discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'accepted';
+    // Only poll if discussion is OPEN or in progress, decided, finalized, or accepted
+    // Multi-round: OPEN means active discussion
+    const shouldPoll = discussionStatus === 'OPEN' || 
+                      discussionStatus === 'in_progress' || 
+                      discussionStatus === 'decided' || 
+                      discussionStatus === 'finalized' || 
+                      discussionStatus === 'accepted';
 
     if (!shouldPoll) {
       return;

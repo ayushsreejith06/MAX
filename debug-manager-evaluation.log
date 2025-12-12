@@ -1,0 +1,2703 @@
+[2025-12-10T03:29:12.618Z] [managerEvaluateChecklist] Starting evaluation for discussion e325b990-d3bb-4bde-b491-fbd74702a98b
+{
+  "discussionId": "e325b990-d3bb-4bde-b491-fbd74702a98b",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:29:12.635Z] [evaluateChecklistItem] Item checklist-e325b990-d3bb-4bde-b491-fbd74702a98b-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-e325b990-d3bb-4bde-b491-fbd74702a98b-0",
+  "rawItemContent": {
+    "id": "checklist-e325b990-d3bb-4bde-b491-fbd74702a98b-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:29:12.641Z] [managerEvaluateChecklist] Evaluation summary for discussion e325b990-d3bb-4bde-b491-fbd74702a98b
+{
+  "discussionId": "e325b990-d3bb-4bde-b491-fbd74702a98b",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-e325b990-d3bb-4bde-b491-fbd74702a98b-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:29:12.666Z] [managerEvaluateChecklist] Discussion e325b990-d3bb-4bde-b491-fbd74702a98b - Evaluation complete, discussion remains open
+{
+  "discussionId": "e325b990-d3bb-4bde-b491-fbd74702a98b",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:29:20.780Z] [managerEvaluateChecklist] Starting evaluation for discussion 154415a1-e839-4c55-93f6-8e33aaa7190d
+{
+  "discussionId": "154415a1-e839-4c55-93f6-8e33aaa7190d",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:29:20.784Z] [evaluateChecklistItem] Item checklist-154415a1-e839-4c55-93f6-8e33aaa7190d-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-154415a1-e839-4c55-93f6-8e33aaa7190d-0",
+  "rawItemContent": {
+    "id": "checklist-154415a1-e839-4c55-93f6-8e33aaa7190d-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:29:20.785Z] [managerEvaluateChecklist] Evaluation summary for discussion 154415a1-e839-4c55-93f6-8e33aaa7190d
+{
+  "discussionId": "154415a1-e839-4c55-93f6-8e33aaa7190d",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-154415a1-e839-4c55-93f6-8e33aaa7190d-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:29:20.795Z] [managerEvaluateChecklist] Discussion 154415a1-e839-4c55-93f6-8e33aaa7190d - Evaluation complete, discussion remains open
+{
+  "discussionId": "154415a1-e839-4c55-93f6-8e33aaa7190d",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:29:34.764Z] [managerEvaluateChecklist] Starting evaluation for discussion 6dbf427f-cd28-413e-ac79-0dffd6cef64e
+{
+  "discussionId": "6dbf427f-cd28-413e-ac79-0dffd6cef64e",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:29:34.786Z] [evaluateChecklistItem] Item checklist-6dbf427f-cd28-413e-ac79-0dffd6cef64e-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-6dbf427f-cd28-413e-ac79-0dffd6cef64e-0",
+  "rawItemContent": {
+    "id": "checklist-6dbf427f-cd28-413e-ac79-0dffd6cef64e-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:29:34.799Z] [managerEvaluateChecklist] Evaluation summary for discussion 6dbf427f-cd28-413e-ac79-0dffd6cef64e
+{
+  "discussionId": "6dbf427f-cd28-413e-ac79-0dffd6cef64e",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-6dbf427f-cd28-413e-ac79-0dffd6cef64e-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:29:34.828Z] [managerEvaluateChecklist] Discussion 6dbf427f-cd28-413e-ac79-0dffd6cef64e - Evaluation complete, discussion remains open
+{
+  "discussionId": "6dbf427f-cd28-413e-ac79-0dffd6cef64e",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:29:49.211Z] [managerEvaluateChecklist] Starting evaluation for discussion 383539d2-ee6e-47d9-8afc-e873a43d26de
+{
+  "discussionId": "383539d2-ee6e-47d9-8afc-e873a43d26de",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:29:49.217Z] [evaluateChecklistItem] Item checklist-383539d2-ee6e-47d9-8afc-e873a43d26de-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-383539d2-ee6e-47d9-8afc-e873a43d26de-0",
+  "rawItemContent": {
+    "id": "checklist-383539d2-ee6e-47d9-8afc-e873a43d26de-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:29:49.218Z] [managerEvaluateChecklist] Evaluation summary for discussion 383539d2-ee6e-47d9-8afc-e873a43d26de
+{
+  "discussionId": "383539d2-ee6e-47d9-8afc-e873a43d26de",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-383539d2-ee6e-47d9-8afc-e873a43d26de-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:29:49.225Z] [managerEvaluateChecklist] Discussion 383539d2-ee6e-47d9-8afc-e873a43d26de - Evaluation complete, discussion remains open
+{
+  "discussionId": "383539d2-ee6e-47d9-8afc-e873a43d26de",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:30:03.412Z] [managerEvaluateChecklist] Starting evaluation for discussion 2fa6fe6b-020f-471c-b516-a8665bf9fe86
+{
+  "discussionId": "2fa6fe6b-020f-471c-b516-a8665bf9fe86",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:30:03.429Z] [evaluateChecklistItem] Item checklist-2fa6fe6b-020f-471c-b516-a8665bf9fe86-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-2fa6fe6b-020f-471c-b516-a8665bf9fe86-0",
+  "rawItemContent": {
+    "id": "checklist-2fa6fe6b-020f-471c-b516-a8665bf9fe86-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:30:03.431Z] [managerEvaluateChecklist] Evaluation summary for discussion 2fa6fe6b-020f-471c-b516-a8665bf9fe86
+{
+  "discussionId": "2fa6fe6b-020f-471c-b516-a8665bf9fe86",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-2fa6fe6b-020f-471c-b516-a8665bf9fe86-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:30:03.456Z] [managerEvaluateChecklist] Discussion 2fa6fe6b-020f-471c-b516-a8665bf9fe86 - Evaluation complete, discussion remains open
+{
+  "discussionId": "2fa6fe6b-020f-471c-b516-a8665bf9fe86",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:30:17.835Z] [managerEvaluateChecklist] Starting evaluation for discussion 98fcac4c-0b53-40f9-973e-b2c33b2f8884
+{
+  "discussionId": "98fcac4c-0b53-40f9-973e-b2c33b2f8884",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:30:17.856Z] [evaluateChecklistItem] Item checklist-98fcac4c-0b53-40f9-973e-b2c33b2f8884-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-98fcac4c-0b53-40f9-973e-b2c33b2f8884-0",
+  "rawItemContent": {
+    "id": "checklist-98fcac4c-0b53-40f9-973e-b2c33b2f8884-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:30:17.860Z] [managerEvaluateChecklist] Evaluation summary for discussion 98fcac4c-0b53-40f9-973e-b2c33b2f8884
+{
+  "discussionId": "98fcac4c-0b53-40f9-973e-b2c33b2f8884",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-98fcac4c-0b53-40f9-973e-b2c33b2f8884-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:30:17.886Z] [managerEvaluateChecklist] Discussion 98fcac4c-0b53-40f9-973e-b2c33b2f8884 - Evaluation complete, discussion remains open
+{
+  "discussionId": "98fcac4c-0b53-40f9-973e-b2c33b2f8884",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:30:31.171Z] [managerEvaluateChecklist] Starting evaluation for discussion 236621e8-50e2-4e1c-971a-88465c7c1777
+{
+  "discussionId": "236621e8-50e2-4e1c-971a-88465c7c1777",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:30:31.175Z] [evaluateChecklistItem] Item checklist-236621e8-50e2-4e1c-971a-88465c7c1777-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-236621e8-50e2-4e1c-971a-88465c7c1777-0",
+  "rawItemContent": {
+    "id": "checklist-236621e8-50e2-4e1c-971a-88465c7c1777-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:30:31.176Z] [managerEvaluateChecklist] Evaluation summary for discussion 236621e8-50e2-4e1c-971a-88465c7c1777
+{
+  "discussionId": "236621e8-50e2-4e1c-971a-88465c7c1777",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-236621e8-50e2-4e1c-971a-88465c7c1777-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:30:31.182Z] [managerEvaluateChecklist] Discussion 236621e8-50e2-4e1c-971a-88465c7c1777 - Evaluation complete, discussion remains open
+{
+  "discussionId": "236621e8-50e2-4e1c-971a-88465c7c1777",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:30:47.061Z] [managerEvaluateChecklist] Starting evaluation for discussion 1b005a5f-119e-4be2-8509-d302450bb934
+{
+  "discussionId": "1b005a5f-119e-4be2-8509-d302450bb934",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:30:47.066Z] [evaluateChecklistItem] Item checklist-1b005a5f-119e-4be2-8509-d302450bb934-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-1b005a5f-119e-4be2-8509-d302450bb934-0",
+  "rawItemContent": {
+    "id": "checklist-1b005a5f-119e-4be2-8509-d302450bb934-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:30:47.067Z] [managerEvaluateChecklist] Evaluation summary for discussion 1b005a5f-119e-4be2-8509-d302450bb934
+{
+  "discussionId": "1b005a5f-119e-4be2-8509-d302450bb934",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-1b005a5f-119e-4be2-8509-d302450bb934-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:30:47.075Z] [managerEvaluateChecklist] Discussion 1b005a5f-119e-4be2-8509-d302450bb934 - Evaluation complete, discussion remains open
+{
+  "discussionId": "1b005a5f-119e-4be2-8509-d302450bb934",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:31:01.248Z] [managerEvaluateChecklist] Starting evaluation for discussion 3ab6512f-eafa-44e4-bf1c-fe94c7b61142
+{
+  "discussionId": "3ab6512f-eafa-44e4-bf1c-fe94c7b61142",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:31:01.253Z] [evaluateChecklistItem] Item checklist-3ab6512f-eafa-44e4-bf1c-fe94c7b61142-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-3ab6512f-eafa-44e4-bf1c-fe94c7b61142-0",
+  "rawItemContent": {
+    "id": "checklist-3ab6512f-eafa-44e4-bf1c-fe94c7b61142-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:31:01.254Z] [managerEvaluateChecklist] Evaluation summary for discussion 3ab6512f-eafa-44e4-bf1c-fe94c7b61142
+{
+  "discussionId": "3ab6512f-eafa-44e4-bf1c-fe94c7b61142",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-3ab6512f-eafa-44e4-bf1c-fe94c7b61142-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:31:01.261Z] [managerEvaluateChecklist] Discussion 3ab6512f-eafa-44e4-bf1c-fe94c7b61142 - Evaluation complete, discussion remains open
+{
+  "discussionId": "3ab6512f-eafa-44e4-bf1c-fe94c7b61142",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:31:17.523Z] [managerEvaluateChecklist] Starting evaluation for discussion fc5f396f-59eb-452c-abb8-021c41ec4c37
+{
+  "discussionId": "fc5f396f-59eb-452c-abb8-021c41ec4c37",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:31:17.538Z] [evaluateChecklistItem] Item checklist-fc5f396f-59eb-452c-abb8-021c41ec4c37-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-fc5f396f-59eb-452c-abb8-021c41ec4c37-0",
+  "rawItemContent": {
+    "id": "checklist-fc5f396f-59eb-452c-abb8-021c41ec4c37-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:31:17.550Z] [managerEvaluateChecklist] Evaluation summary for discussion fc5f396f-59eb-452c-abb8-021c41ec4c37
+{
+  "discussionId": "fc5f396f-59eb-452c-abb8-021c41ec4c37",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-fc5f396f-59eb-452c-abb8-021c41ec4c37-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:31:17.580Z] [managerEvaluateChecklist] Discussion fc5f396f-59eb-452c-abb8-021c41ec4c37 - Evaluation complete, discussion remains open
+{
+  "discussionId": "fc5f396f-59eb-452c-abb8-021c41ec4c37",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:31:32.040Z] [managerEvaluateChecklist] Starting evaluation for discussion 2d05dcf4-0022-44f0-ac23-c32622050934
+{
+  "discussionId": "2d05dcf4-0022-44f0-ac23-c32622050934",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:31:32.046Z] [evaluateChecklistItem] Item checklist-2d05dcf4-0022-44f0-ac23-c32622050934-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-2d05dcf4-0022-44f0-ac23-c32622050934-0",
+  "rawItemContent": {
+    "id": "checklist-2d05dcf4-0022-44f0-ac23-c32622050934-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:31:32.047Z] [managerEvaluateChecklist] Evaluation summary for discussion 2d05dcf4-0022-44f0-ac23-c32622050934
+{
+  "discussionId": "2d05dcf4-0022-44f0-ac23-c32622050934",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-2d05dcf4-0022-44f0-ac23-c32622050934-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:31:32.055Z] [managerEvaluateChecklist] Discussion 2d05dcf4-0022-44f0-ac23-c32622050934 - Evaluation complete, discussion remains open
+{
+  "discussionId": "2d05dcf4-0022-44f0-ac23-c32622050934",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:31:47.595Z] [managerEvaluateChecklist] Starting evaluation for discussion f4321ed7-efc2-4f61-a2aa-32791317d2a6
+{
+  "discussionId": "f4321ed7-efc2-4f61-a2aa-32791317d2a6",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:31:47.599Z] [evaluateChecklistItem] Item checklist-f4321ed7-efc2-4f61-a2aa-32791317d2a6-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f4321ed7-efc2-4f61-a2aa-32791317d2a6-0",
+  "rawItemContent": {
+    "id": "checklist-f4321ed7-efc2-4f61-a2aa-32791317d2a6-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:31:47.601Z] [managerEvaluateChecklist] Evaluation summary for discussion f4321ed7-efc2-4f61-a2aa-32791317d2a6
+{
+  "discussionId": "f4321ed7-efc2-4f61-a2aa-32791317d2a6",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f4321ed7-efc2-4f61-a2aa-32791317d2a6-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:31:47.608Z] [managerEvaluateChecklist] Discussion f4321ed7-efc2-4f61-a2aa-32791317d2a6 - Evaluation complete, discussion remains open
+{
+  "discussionId": "f4321ed7-efc2-4f61-a2aa-32791317d2a6",
+  "approvedItemsCount": 0,
+  "rejectedItemsCount": 1,
+  "canClose": false,
+  "discussionStatus": "in_progress"
+}
+
+[2025-12-10T03:32:01.704Z] [managerEvaluateChecklist] Starting evaluation for discussion 13395129-32e1-4daf-9559-c8c8d6d37a97
+{
+  "discussionId": "13395129-32e1-4daf-9559-c8c8d6d37a97",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:01.732Z] [evaluateChecklistItem] Item checklist-13395129-32e1-4daf-9559-c8c8d6d37a97-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-13395129-32e1-4daf-9559-c8c8d6d37a97-0",
+  "rawItemContent": {
+    "id": "checklist-13395129-32e1-4daf-9559-c8c8d6d37a97-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:01.741Z] [managerEvaluateChecklist] Evaluation summary for discussion 13395129-32e1-4daf-9559-c8c8d6d37a97
+{
+  "discussionId": "13395129-32e1-4daf-9559-c8c8d6d37a97",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-13395129-32e1-4daf-9559-c8c8d6d37a97-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:09.083Z] [managerEvaluateChecklist] Starting evaluation for discussion 04ff4a51-c90b-4403-bf86-c3c0753c52ed
+{
+  "discussionId": "04ff4a51-c90b-4403-bf86-c3c0753c52ed",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:09.098Z] [evaluateChecklistItem] Item checklist-04ff4a51-c90b-4403-bf86-c3c0753c52ed-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-04ff4a51-c90b-4403-bf86-c3c0753c52ed-0",
+  "rawItemContent": {
+    "id": "checklist-04ff4a51-c90b-4403-bf86-c3c0753c52ed-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:09.100Z] [managerEvaluateChecklist] Evaluation summary for discussion 04ff4a51-c90b-4403-bf86-c3c0753c52ed
+{
+  "discussionId": "04ff4a51-c90b-4403-bf86-c3c0753c52ed",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-04ff4a51-c90b-4403-bf86-c3c0753c52ed-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:14.202Z] [managerEvaluateChecklist] Starting evaluation for discussion 47fcd75d-aa23-473a-af9d-740d4824c2d9
+{
+  "discussionId": "47fcd75d-aa23-473a-af9d-740d4824c2d9",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:14.220Z] [evaluateChecklistItem] Item checklist-47fcd75d-aa23-473a-af9d-740d4824c2d9-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-47fcd75d-aa23-473a-af9d-740d4824c2d9-0",
+  "rawItemContent": {
+    "id": "checklist-47fcd75d-aa23-473a-af9d-740d4824c2d9-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:14.228Z] [managerEvaluateChecklist] Evaluation summary for discussion 47fcd75d-aa23-473a-af9d-740d4824c2d9
+{
+  "discussionId": "47fcd75d-aa23-473a-af9d-740d4824c2d9",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-47fcd75d-aa23-473a-af9d-740d4824c2d9-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:20.224Z] [managerEvaluateChecklist] Starting evaluation for discussion 12600e24-1e90-416d-bb29-4e9e2dd8d9b3
+{
+  "discussionId": "12600e24-1e90-416d-bb29-4e9e2dd8d9b3",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:20.238Z] [evaluateChecklistItem] Item checklist-12600e24-1e90-416d-bb29-4e9e2dd8d9b3-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-12600e24-1e90-416d-bb29-4e9e2dd8d9b3-0",
+  "rawItemContent": {
+    "id": "checklist-12600e24-1e90-416d-bb29-4e9e2dd8d9b3-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:20.243Z] [managerEvaluateChecklist] Evaluation summary for discussion 12600e24-1e90-416d-bb29-4e9e2dd8d9b3
+{
+  "discussionId": "12600e24-1e90-416d-bb29-4e9e2dd8d9b3",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-12600e24-1e90-416d-bb29-4e9e2dd8d9b3-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:24.460Z] [managerEvaluateChecklist] Starting evaluation for discussion fa2dd93c-1b93-415a-959f-02f2168ae1f6
+{
+  "discussionId": "fa2dd93c-1b93-415a-959f-02f2168ae1f6",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:24.472Z] [evaluateChecklistItem] Item checklist-fa2dd93c-1b93-415a-959f-02f2168ae1f6-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-fa2dd93c-1b93-415a-959f-02f2168ae1f6-0",
+  "rawItemContent": {
+    "id": "checklist-fa2dd93c-1b93-415a-959f-02f2168ae1f6-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:24.474Z] [managerEvaluateChecklist] Evaluation summary for discussion fa2dd93c-1b93-415a-959f-02f2168ae1f6
+{
+  "discussionId": "fa2dd93c-1b93-415a-959f-02f2168ae1f6",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-fa2dd93c-1b93-415a-959f-02f2168ae1f6-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:27.876Z] [managerEvaluateChecklist] Starting evaluation for discussion b9dfc412-f2c2-4cc8-9247-0583a25ed62c
+{
+  "discussionId": "b9dfc412-f2c2-4cc8-9247-0583a25ed62c",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:27.883Z] [evaluateChecklistItem] Item checklist-b9dfc412-f2c2-4cc8-9247-0583a25ed62c-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-b9dfc412-f2c2-4cc8-9247-0583a25ed62c-0",
+  "rawItemContent": {
+    "id": "checklist-b9dfc412-f2c2-4cc8-9247-0583a25ed62c-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:27.890Z] [managerEvaluateChecklist] Evaluation summary for discussion b9dfc412-f2c2-4cc8-9247-0583a25ed62c
+{
+  "discussionId": "b9dfc412-f2c2-4cc8-9247-0583a25ed62c",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-b9dfc412-f2c2-4cc8-9247-0583a25ed62c-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:35.906Z] [managerEvaluateChecklist] Starting evaluation for discussion 8f3b09a3-760e-46e8-8093-1c05875b8909
+{
+  "discussionId": "8f3b09a3-760e-46e8-8093-1c05875b8909",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:35.918Z] [evaluateChecklistItem] Item checklist-8f3b09a3-760e-46e8-8093-1c05875b8909-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-8f3b09a3-760e-46e8-8093-1c05875b8909-0",
+  "rawItemContent": {
+    "id": "checklist-8f3b09a3-760e-46e8-8093-1c05875b8909-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:35.925Z] [managerEvaluateChecklist] Evaluation summary for discussion 8f3b09a3-760e-46e8-8093-1c05875b8909
+{
+  "discussionId": "8f3b09a3-760e-46e8-8093-1c05875b8909",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-8f3b09a3-760e-46e8-8093-1c05875b8909-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:43.903Z] [managerEvaluateChecklist] Starting evaluation for discussion 6a378ce9-593b-4040-8b9d-441417a9686d
+{
+  "discussionId": "6a378ce9-593b-4040-8b9d-441417a9686d",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:43.912Z] [evaluateChecklistItem] Item checklist-6a378ce9-593b-4040-8b9d-441417a9686d-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-6a378ce9-593b-4040-8b9d-441417a9686d-0",
+  "rawItemContent": {
+    "id": "checklist-6a378ce9-593b-4040-8b9d-441417a9686d-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:43.922Z] [managerEvaluateChecklist] Evaluation summary for discussion 6a378ce9-593b-4040-8b9d-441417a9686d
+{
+  "discussionId": "6a378ce9-593b-4040-8b9d-441417a9686d",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-6a378ce9-593b-4040-8b9d-441417a9686d-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:32:52.013Z] [managerEvaluateChecklist] Starting evaluation for discussion aea68fb1-ebe1-4183-8ee0-887385b97c50
+{
+  "discussionId": "aea68fb1-ebe1-4183-8ee0-887385b97c50",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:32:52.024Z] [evaluateChecklistItem] Item checklist-aea68fb1-ebe1-4183-8ee0-887385b97c50-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-aea68fb1-ebe1-4183-8ee0-887385b97c50-0",
+  "rawItemContent": {
+    "id": "checklist-aea68fb1-ebe1-4183-8ee0-887385b97c50-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:32:52.028Z] [managerEvaluateChecklist] Evaluation summary for discussion aea68fb1-ebe1-4183-8ee0-887385b97c50
+{
+  "discussionId": "aea68fb1-ebe1-4183-8ee0-887385b97c50",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-aea68fb1-ebe1-4183-8ee0-887385b97c50-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:33:00.075Z] [managerEvaluateChecklist] Starting evaluation for discussion aef7fd70-f695-423c-a250-70352a1528f3
+{
+  "discussionId": "aef7fd70-f695-423c-a250-70352a1528f3",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:33:00.085Z] [evaluateChecklistItem] Item checklist-aef7fd70-f695-423c-a250-70352a1528f3-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-aef7fd70-f695-423c-a250-70352a1528f3-0",
+  "rawItemContent": {
+    "id": "checklist-aef7fd70-f695-423c-a250-70352a1528f3-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:33:00.087Z] [managerEvaluateChecklist] Evaluation summary for discussion aef7fd70-f695-423c-a250-70352a1528f3
+{
+  "discussionId": "aef7fd70-f695-423c-a250-70352a1528f3",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-aef7fd70-f695-423c-a250-70352a1528f3-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-10T03:33:04.369Z] [managerEvaluateChecklist] Starting evaluation for discussion f71e19a5-cd9e-4163-86fa-5d360430bbdb
+{
+  "discussionId": "f71e19a5-cd9e-4163-86fa-5d360430bbdb",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-10T03:33:04.386Z] [evaluateChecklistItem] Item checklist-f71e19a5-cd9e-4163-86fa-5d360430bbdb-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f71e19a5-cd9e-4163-86fa-5d360430bbdb-0",
+  "rawItemContent": {
+    "id": "checklist-f71e19a5-cd9e-4163-86fa-5d360430bbdb-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-10T03:33:04.388Z] [managerEvaluateChecklist] Evaluation summary for discussion f71e19a5-cd9e-4163-86fa-5d360430bbdb
+{
+  "discussionId": "f71e19a5-cd9e-4163-86fa-5d360430bbdb",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f71e19a5-cd9e-4163-86fa-5d360430bbdb-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:10:15.388Z] [managerEvaluateChecklist] Starting evaluation for discussion da62628a-672e-4d14-80f9-a2255706c118
+{
+  "discussionId": "da62628a-672e-4d14-80f9-a2255706c118",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-12T08:10:15.400Z] [evaluateChecklistItem] Item checklist-da62628a-672e-4d14-80f9-a2255706c118-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
+  "rawItemContent": {
+    "id": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 86.4 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 96.8 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "reasoning": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 86.4 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 96.8 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:10:15.406Z] [managerEvaluateChecklist] Evaluation summary for discussion da62628a-672e-4d14-80f9-a2255706c118
+{
+  "discussionId": "da62628a-672e-4d14-80f9-a2255706c118",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:10:21.525Z] [managerEvaluateChecklist] Starting evaluation for discussion a85cf825-feef-4720-9fe6-51dd9c00e5ab
+{
+  "discussionId": "a85cf825-feef-4720-9fe6-51dd9c00e5ab",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-12T08:10:21.529Z] [evaluateChecklistItem] Item checklist-a85cf825-feef-4720-9fe6-51dd9c00e5ab-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-a85cf825-feef-4720-9fe6-51dd9c00e5ab-0",
+  "rawItemContent": {
+    "id": "checklist-a85cf825-feef-4720-9fe6-51dd9c00e5ab-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 92.4 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "reasoning": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 92.4 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:10:21.529Z] [managerEvaluateChecklist] Evaluation summary for discussion a85cf825-feef-4720-9fe6-51dd9c00e5ab
+{
+  "discussionId": "a85cf825-feef-4720-9fe6-51dd9c00e5ab",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-a85cf825-feef-4720-9fe6-51dd9c00e5ab-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:10:29.509Z] [managerEvaluateChecklist] Starting evaluation for discussion 5fc153bc-8bee-46f9-83e3-3e39a9ea2bea
+{
+  "discussionId": "5fc153bc-8bee-46f9-83e3-3e39a9ea2bea",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-12T08:10:29.512Z] [evaluateChecklistItem] Item checklist-5fc153bc-8bee-46f9-83e3-3e39a9ea2bea-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-5fc153bc-8bee-46f9-83e3-3e39a9ea2bea-0",
+  "rawItemContent": {
+    "id": "checklist-5fc153bc-8bee-46f9-83e3-3e39a9ea2bea-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 92.4 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "reasoning": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 92.4 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:10:29.514Z] [managerEvaluateChecklist] Evaluation summary for discussion 5fc153bc-8bee-46f9-83e3-3e39a9ea2bea
+{
+  "discussionId": "5fc153bc-8bee-46f9-83e3-3e39a9ea2bea",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-5fc153bc-8bee-46f9-83e3-3e39a9ea2bea-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:10:37.497Z] [managerEvaluateChecklist] Starting evaluation for discussion 0fdc8a56-c7df-4203-ac7e-ae98db69cd75
+{
+  "discussionId": "0fdc8a56-c7df-4203-ac7e-ae98db69cd75",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
+  "managerId": "958c0048-ef66-43d0-b92a-990dacb9ab14"
+}
+
+[2025-12-12T08:10:37.515Z] [evaluateChecklistItem] Item checklist-0fdc8a56-c7df-4203-ac7e-ae98db69cd75-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-0fdc8a56-c7df-4203-ac7e-ae98db69cd75-0",
+  "rawItemContent": {
+    "id": "checklist-0fdc8a56-c7df-4203-ac7e-ae98db69cd75-0",
+    "action": "buy",
+    "reason": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "reasoning": "Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 [Refined from earlier rounds: Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0 | Agent TEST_GENERAL: Proposed action for test is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TEST_GENERAL",
+    "agentName": "TEST_GENERAL",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:10:37.519Z] [managerEvaluateChecklist] Evaluation summary for discussion 0fdc8a56-c7df-4203-ac7e-ae98db69cd75
+{
+  "discussionId": "0fdc8a56-c7df-4203-ac7e-ae98db69cd75",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-0fdc8a56-c7df-4203-ac7e-ae98db69cd75-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:11.528Z] [managerEvaluateChecklist] Starting evaluation for discussion a965a459-806c-46a6-903c-2675542bd2bd
+{
+  "discussionId": "a965a459-806c-46a6-903c-2675542bd2bd",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:11.541Z] [evaluateChecklistItem] Item checklist-a965a459-806c-46a6-903c-2675542bd2bd-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-a965a459-806c-46a6-903c-2675542bd2bd-0",
+  "rawItemContent": {
+    "id": "checklist-a965a459-806c-46a6-903c-2675542bd2bd-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:11.548Z] [managerEvaluateChecklist] Evaluation summary for discussion a965a459-806c-46a6-903c-2675542bd2bd
+{
+  "discussionId": "a965a459-806c-46a6-903c-2675542bd2bd",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-a965a459-806c-46a6-903c-2675542bd2bd-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:19.554Z] [managerEvaluateChecklist] Starting evaluation for discussion 6e03e2c2-3b9e-4db9-9436-5311efb5739a
+{
+  "discussionId": "6e03e2c2-3b9e-4db9-9436-5311efb5739a",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:19.579Z] [evaluateChecklistItem] Item checklist-6e03e2c2-3b9e-4db9-9436-5311efb5739a-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-6e03e2c2-3b9e-4db9-9436-5311efb5739a-0",
+  "rawItemContent": {
+    "id": "checklist-6e03e2c2-3b9e-4db9-9436-5311efb5739a-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:19.583Z] [managerEvaluateChecklist] Evaluation summary for discussion 6e03e2c2-3b9e-4db9-9436-5311efb5739a
+{
+  "discussionId": "6e03e2c2-3b9e-4db9-9436-5311efb5739a",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-6e03e2c2-3b9e-4db9-9436-5311efb5739a-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:27.923Z] [managerEvaluateChecklist] Starting evaluation for discussion 50ea77d7-fc12-41ba-8bbc-ac2ce6b46000
+{
+  "discussionId": "50ea77d7-fc12-41ba-8bbc-ac2ce6b46000",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:27.927Z] [evaluateChecklistItem] Item checklist-50ea77d7-fc12-41ba-8bbc-ac2ce6b46000-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-50ea77d7-fc12-41ba-8bbc-ac2ce6b46000-0",
+  "rawItemContent": {
+    "id": "checklist-50ea77d7-fc12-41ba-8bbc-ac2ce6b46000-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:27.928Z] [managerEvaluateChecklist] Evaluation summary for discussion 50ea77d7-fc12-41ba-8bbc-ac2ce6b46000
+{
+  "discussionId": "50ea77d7-fc12-41ba-8bbc-ac2ce6b46000",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-50ea77d7-fc12-41ba-8bbc-ac2ce6b46000-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:35.783Z] [managerEvaluateChecklist] Starting evaluation for discussion 81db52ba-7d7c-4b30-b023-cb28ae2bfbe3
+{
+  "discussionId": "81db52ba-7d7c-4b30-b023-cb28ae2bfbe3",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:35.794Z] [evaluateChecklistItem] Item checklist-81db52ba-7d7c-4b30-b023-cb28ae2bfbe3-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-81db52ba-7d7c-4b30-b023-cb28ae2bfbe3-0",
+  "rawItemContent": {
+    "id": "checklist-81db52ba-7d7c-4b30-b023-cb28ae2bfbe3-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:35.798Z] [managerEvaluateChecklist] Evaluation summary for discussion 81db52ba-7d7c-4b30-b023-cb28ae2bfbe3
+{
+  "discussionId": "81db52ba-7d7c-4b30-b023-cb28ae2bfbe3",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-81db52ba-7d7c-4b30-b023-cb28ae2bfbe3-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:43.743Z] [managerEvaluateChecklist] Starting evaluation for discussion 7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10
+{
+  "discussionId": "7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:43.759Z] [evaluateChecklistItem] Item checklist-7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10-0",
+  "rawItemContent": {
+    "id": "checklist-7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:43.766Z] [managerEvaluateChecklist] Evaluation summary for discussion 7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10
+{
+  "discussionId": "7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-7b5f6ed0-85c6-4f88-b6e0-7511c8fddb10-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:51.611Z] [managerEvaluateChecklist] Starting evaluation for discussion 3049ac21-9ab0-4ae1-b4f7-08cd86f43b11
+{
+  "discussionId": "3049ac21-9ab0-4ae1-b4f7-08cd86f43b11",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:51.620Z] [evaluateChecklistItem] Item checklist-3049ac21-9ab0-4ae1-b4f7-08cd86f43b11-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-3049ac21-9ab0-4ae1-b4f7-08cd86f43b11-0",
+  "rawItemContent": {
+    "id": "checklist-3049ac21-9ab0-4ae1-b4f7-08cd86f43b11-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:51.657Z] [managerEvaluateChecklist] Evaluation summary for discussion 3049ac21-9ab0-4ae1-b4f7-08cd86f43b11
+{
+  "discussionId": "3049ac21-9ab0-4ae1-b4f7-08cd86f43b11",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-3049ac21-9ab0-4ae1-b4f7-08cd86f43b11-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:24:57.775Z] [managerEvaluateChecklist] Starting evaluation for discussion ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6
+{
+  "discussionId": "ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:24:57.782Z] [evaluateChecklistItem] Item checklist-ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6-0",
+  "rawItemContent": {
+    "id": "checklist-ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:24:57.789Z] [managerEvaluateChecklist] Evaluation summary for discussion ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6
+{
+  "discussionId": "ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-ec70b4a8-bcd2-4874-88cc-8b80be4a1cb6-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:25:07.771Z] [managerEvaluateChecklist] Starting evaluation for discussion c79caaed-78cc-46cb-818d-82f3456325d1
+{
+  "discussionId": "c79caaed-78cc-46cb-818d-82f3456325d1",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:25:07.784Z] [evaluateChecklistItem] Item checklist-c79caaed-78cc-46cb-818d-82f3456325d1-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-c79caaed-78cc-46cb-818d-82f3456325d1-0",
+  "rawItemContent": {
+    "id": "checklist-c79caaed-78cc-46cb-818d-82f3456325d1-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:25:07.788Z] [managerEvaluateChecklist] Evaluation summary for discussion c79caaed-78cc-46cb-818d-82f3456325d1
+{
+  "discussionId": "c79caaed-78cc-46cb-818d-82f3456325d1",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-c79caaed-78cc-46cb-818d-82f3456325d1-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T08:25:15.945Z] [managerEvaluateChecklist] Starting evaluation for discussion 4b0a6b36-b13c-4b21-848d-fa77bb28d42a
+{
+  "discussionId": "4b0a6b36-b13c-4b21-848d-fa77bb28d42a",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "c634c609-0548-44ca-95f2-a404b42dfc22",
+  "managerId": "37c794df-2741-4ecc-8ef6-06c33ddecab5"
+}
+
+[2025-12-12T08:25:15.957Z] [evaluateChecklistItem] Item checklist-4b0a6b36-b13c-4b21-848d-fa77bb28d42a-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-4b0a6b36-b13c-4b21-848d-fa77bb28d42a-0",
+  "rawItemContent": {
+    "id": "checklist-4b0a6b36-b13c-4b21-848d-fa77bb28d42a-0",
+    "action": "buy",
+    "reason": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "reasoning": "Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 [Refined from earlier rounds: Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0 | Agent you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it: Proposed action for Crypto BTC is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "CBTC_GENERAL",
+    "agentName": "you need to analyze trends in the cryptocurrency bitcoin and propose investment ideas for it",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T08:25:15.970Z] [managerEvaluateChecklist] Evaluation summary for discussion 4b0a6b36-b13c-4b21-848d-fa77bb28d42a
+{
+  "discussionId": "4b0a6b36-b13c-4b21-848d-fa77bb28d42a",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-4b0a6b36-b13c-4b21-848d-fa77bb28d42a-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+

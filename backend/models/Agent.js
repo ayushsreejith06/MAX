@@ -7,6 +7,9 @@ const DEFAULT_PERSONALITY = Object.freeze({ riskTolerance: 'medium', decisionSty
 const DEFAULT_MORALE = 50;
 const DEFAULT_REWARD_POINTS = 0;
 const DEFAULT_CONFIDENCE = 0;
+const DEFAULT_INITIAL_CONFIDENCE = 50;
+const STYLE_OPTIONS = ['Aggressive', 'Balanced', 'Defensive'];
+const RISK_OPTIONS = ['low', 'medium', 'high'];
 const DEFAULT_PREFERENCES = Object.freeze({
   riskWeight: 0.5,
   profitWeight: 0.5,
@@ -37,11 +40,46 @@ function sanitizePreferences(preferences = DEFAULT_PREFERENCES) {
   };
 }
 
+function normalizeDisplayName(name, fallback = 'Agent') {
+  if (typeof name === 'string' && name.trim()) {
+    return name.trim();
+  }
+  return fallback;
+}
+
+function normalizeStyle(style = 'Balanced') {
+  if (typeof style !== 'string') {
+    return 'Balanced';
+  }
+  const title = style.trim().charAt(0).toUpperCase() + style.trim().slice(1).toLowerCase();
+  return STYLE_OPTIONS.includes(title) ? title : 'Balanced';
+}
+
+function normalizeRiskTolerance(risk = 'medium') {
+  if (typeof risk !== 'string') {
+    return 'medium';
+  }
+  const normalized = risk.trim().toLowerCase();
+  return RISK_OPTIONS.includes(normalized) ? normalized : 'medium';
+}
+
+function clampInitialConfidence(value = DEFAULT_INITIAL_CONFIDENCE) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return DEFAULT_INITIAL_CONFIDENCE;
+  }
+  return Math.min(100, Math.max(0, value));
+}
+
 class Agent {
   constructor({
     id = randomUUID(),
     name,
+    displayName,
     role = 'general',
+    style = 'Balanced',
+    riskTolerance = 'medium',
+    shortBio = '',
+    initialConfidence = DEFAULT_INITIAL_CONFIDENCE,
     prompt = '',
     sectorId = null,
     sectorSymbol = 'GEN',
@@ -58,9 +96,11 @@ class Agent {
     rewardPoints = DEFAULT_REWARD_POINTS,
     lastRewardTimestamp = null,
     confidence = DEFAULT_CONFIDENCE,
+    executionList = [],
     createdAt = null
   }) {
-    if (!name || typeof name !== 'string' || !name.trim()) {
+    const normalizedName = normalizeDisplayName(name || displayName);
+    if (!normalizedName) {
       throw new Error('Agent name is required');
     }
 
@@ -68,9 +108,19 @@ class Agent {
       throw new Error('Agent role is required');
     }
 
+    const normalizedDisplayName = normalizeDisplayName(displayName || name, normalizedName);
+    const normalizedStyle = normalizeStyle(style);
+    const normalizedRiskTolerance = normalizeRiskTolerance(riskTolerance);
+    const normalizedInitialConfidence = clampInitialConfidence(initialConfidence);
+
     this.id = id;
-    this.name = name.trim();
+    this.name = normalizedName;
+    this.displayName = normalizedDisplayName;
     this.role = role.trim();
+    this.style = normalizedStyle;
+    this.riskTolerance = normalizedRiskTolerance;
+    this.shortBio = typeof shortBio === 'string' ? shortBio.trim() : '';
+    this.initialConfidence = normalizedInitialConfidence;
     this.prompt = typeof prompt === 'string' ? prompt : '';
     this.sectorId = sectorId;
     this.sectorSymbol = sectorSymbol;
@@ -78,7 +128,10 @@ class Agent {
     this.status = status;
     this.performance = sanitizePerformance(performance);
     this.trades = Array.isArray(trades) ? trades : [];
-    this.personality = sanitizePersonality(personality);
+    this.personality = sanitizePersonality({
+      ...personality,
+      riskTolerance: normalizedRiskTolerance
+    });
     this.preferences = sanitizePreferences(preferences);
     this.memory = Array.isArray(memory) ? memory : [];
     this.lastDecision = lastDecision || null;
@@ -86,7 +139,9 @@ class Agent {
     this.morale = typeof morale === 'number' ? Math.max(0, Math.min(100, morale)) : DEFAULT_MORALE;
     this.rewardPoints = typeof rewardPoints === 'number' ? Math.max(0, rewardPoints) : DEFAULT_REWARD_POINTS;
     this.lastRewardTimestamp = lastRewardTimestamp || null;
-    this.confidence = typeof confidence === 'number' ? Math.max(-100, Math.min(100, confidence)) : DEFAULT_CONFIDENCE;
+    const rawConfidence = typeof confidence === 'number' ? confidence : normalizedInitialConfidence;
+    this.confidence = typeof rawConfidence === 'number' ? Math.max(-100, Math.min(100, rawConfidence)) : DEFAULT_CONFIDENCE;
+    this.executionList = Array.isArray(executionList) ? executionList : [];
     this.createdAt = createdAt || new Date().toISOString();
   }
 
@@ -94,7 +149,12 @@ class Agent {
     return {
       id: this.id,
       name: this.name,
+      displayName: this.displayName,
       role: this.role,
+      style: this.style,
+      riskTolerance: this.riskTolerance,
+      shortBio: this.shortBio,
+      initialConfidence: this.initialConfidence,
       prompt: this.prompt,
       sectorId: this.sectorId,
       sectorSymbol: this.sectorSymbol,
@@ -111,6 +171,7 @@ class Agent {
       rewardPoints: this.rewardPoints,
       lastRewardTimestamp: this.lastRewardTimestamp,
       confidence: this.confidence,
+      executionList: this.executionList,
       createdAt: this.createdAt
     };
   }
@@ -172,7 +233,12 @@ class Agent {
     return new Agent({
       id: data.id,
       name: data.name,
+      displayName: data.displayName || data.name,
       role: data.role,
+      style: data.style,
+      riskTolerance: data.riskTolerance,
+      shortBio: data.shortBio,
+      initialConfidence: data.initialConfidence,
       prompt: data.prompt || '',
       sectorId: data.sectorId ?? null,
       sectorSymbol: data.sectorSymbol || 'GEN',
@@ -189,6 +255,7 @@ class Agent {
       rewardPoints: data.rewardPoints ?? DEFAULT_REWARD_POINTS,
       lastRewardTimestamp: data.lastRewardTimestamp || null,
       confidence: data.confidence ?? DEFAULT_CONFIDENCE,
+      executionList: data.executionList || [],
       createdAt: data.createdAt
     });
   }

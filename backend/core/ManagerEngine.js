@@ -3,10 +3,14 @@ const { loadDiscussions, findDiscussionById, saveDiscussion } = require('../util
 const DiscussionEngine = require('./DiscussionEngine');
 const DiscussionRoom = require('../models/DiscussionRoom');
 const { loadAgents } = require('../utils/agentStorage');
-const { updateSector } = require('../utils/sectorStorage');
+const { updateSector, getSectorById } = require('../utils/sectorStorage');
 const ExecutionEngine = require('./ExecutionEngine');
 const { saveRejectedItems } = require('../utils/rejectedItemsStorage');
 const { getAllSectors } = require('../utils/sectorStorage');
+const { managerAddToExecutionList, getManagerBySectorId } = require('../utils/executionListStorage');
+const { validateTrade, checkRiskAppetite, loadRules } = require('../simulation/rules');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * ManagerEngine - Handles manager-level decisions including discussion creation
@@ -17,11 +21,624 @@ class ManagerEngine {
     this.discussionEngine = new DiscussionEngine();
     this.confidenceThreshold = 65; // Default threshold for discussion readiness
     this.approvalConfidenceThreshold = 65; // Threshold for auto-approving checklist items
+    this.APPROVAL_THRESHOLD = 70; // Minimum score (0-100) for checklist item approval
     // Track recent discussion creation times per sector to prevent discussion storms
     // Format: sectorId -> timestamp of last discussion creation
     this.lastDiscussionCreation = new Map();
     // Minimum time between discussion creations (5 seconds)
     this.minDiscussionIntervalMs = 5000;
+    // Debug log file path
+    this.debugLogPath = path.join(__dirname, '../../debug-manager-evaluation.log');
+  }
+
+  /**
+   * Write debug log to both console and file
+   * @private
+   */
+  _writeDebugLog(message, data = null) {
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${message}`;
+    const fullLog = data ? `${logLine}\n${JSON.stringify(data, null, 2)}\n` : `${logLine}\n`;
+    
+    // Print to console
+    console.log(logLine);
+    if (data) {
+      console.log(JSON.stringify(data, null, 2));
+    }
+    
+    // Write to file (append mode)
+    try {
+      fs.appendFileSync(this.debugLogPath, fullLog + '\n', 'utf8');
+    } catch (error) {
+      console.error(`[ManagerEngine] Failed to write to debug log file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Evaluate a single checklist item based on scoring criteria and constraints
+   * @param {Object} manager - Manager agent object
+   * @param {Object} item - Checklist item to evaluate
+   * @param {Object} sectorState - Sector state object (includes sector data)
+   * @returns {Promise<Object>} Evaluation result with status, managerReason, and item
+   */
+  async evaluateChecklistItem(manager, item, sectorState) {
+    if (!item || !sectorState) {
+      throw new Error('item and sectorState are required');
+    }
+
+    const sector = sectorState;
+    const sectorId = sector.id || sector.sectorId;
+
+    // Hard constraint 1: Check sector rules violations
+    let isHardConstraintViolated = false;
+    let hardConstraintReason = null;
+    try {
+      const tradeDecision = {
+        quantity: item.amount || 0,
+        assetId: sectorId,
+        sectorId: sectorId,
+        action: item.action,
+        leverage: item.leverage
+      };
+      
+      const validation = await validateTrade(sectorId, tradeDecision);
+      if (!validation.valid) {
+        isHardConstraintViolated = true;
+        hardConstraintReason = `Violates sector rules: ${validation.errors.join(', ')}`;
+        
+        // DEBUG LOG: Hard constraint violation
+        const debugData = {
+          itemId: item.id,
+          rawItemContent: JSON.parse(JSON.stringify(item)),
+          computedExpectedImpact: null,
+          computedConfidence: null,
+          computedRiskLevel: null,
+          alignmentWithSectorGoal: null,
+          finalDecisionScore: null,
+          approvalThreshold: this.APPROVAL_THRESHOLD,
+          isHardConstraintViolated: true,
+          hardConstraintReason: hardConstraintReason,
+          finalDecision: 'REJECTED'
+        };
+        this._writeDebugLog(`[evaluateChecklistItem] Item ${item.id} REJECTED - Hard constraint violation`, debugData);
+        
+        return {
+          status: 'REJECTED',
+          managerReason: hardConstraintReason,
+          item: item
+        };
+      }
+    } catch (error) {
+      console.warn(`[ManagerEngine] Error validating trade rules for item ${item.id}:`, error.message);
+      // Continue evaluation if validation fails (non-critical)
+    }
+
+    // Hard constraint 2: Check risk level
+    try {
+      const itemRiskLevel = this._calculateItemRiskLevel(item, sector);
+      const riskWithinAppetite = await checkRiskAppetite(sectorId, itemRiskLevel);
+      
+      if (!riskWithinAppetite) {
+        isHardConstraintViolated = true;
+        hardConstraintReason = `Risk level (${itemRiskLevel.toFixed(1)}) exceeds sector risk appetite`;
+        
+        // DEBUG LOG: Hard constraint violation (risk)
+        const debugData = {
+          itemId: item.id,
+          rawItemContent: JSON.parse(JSON.stringify(item)),
+          computedExpectedImpact: null,
+          computedConfidence: null,
+          computedRiskLevel: itemRiskLevel,
+          alignmentWithSectorGoal: null,
+          finalDecisionScore: null,
+          approvalThreshold: this.APPROVAL_THRESHOLD,
+          isHardConstraintViolated: true,
+          hardConstraintReason: hardConstraintReason,
+          finalDecision: 'REJECTED'
+        };
+        this._writeDebugLog(`[evaluateChecklistItem] Item ${item.id} REJECTED - Risk constraint violation`, debugData);
+        
+        return {
+          status: 'REJECTED',
+          managerReason: hardConstraintReason,
+          item: item
+        };
+      }
+    } catch (error) {
+      console.warn(`[ManagerEngine] Error checking risk appetite for item ${item.id}:`, error.message);
+      // Continue evaluation if risk check fails (non-critical)
+    }
+
+    // Calculate scoring components
+    const workerConfidence = this._getWorkerConfidence(item);
+    const expectedImpact = this._calculateExpectedImpact(item, sector);
+    const riskLevel = this._calculateItemRiskLevel(item, sector);
+    const alignmentWithSectorGoal = this._calculateAlignmentWithSectorGoal(item, sector);
+
+    // Calculate composite score (weighted average)
+    // Weights can be adjusted based on manager preferences
+    const weights = {
+      workerConfidence: 0.35,
+      expectedImpact: 0.30,
+      riskLevel: 0.20, // Lower risk = higher score (inverted)
+      alignmentWithSectorGoal: 0.15
+    };
+
+    // Normalize risk level (lower risk = higher score)
+    const normalizedRiskScore = 100 - riskLevel;
+
+    const compositeScore = 
+      (workerConfidence * weights.workerConfidence) +
+      (expectedImpact * weights.expectedImpact) +
+      (normalizedRiskScore * weights.riskLevel) +
+      (alignmentWithSectorGoal * weights.alignmentWithSectorGoal);
+
+    // Apply scoring threshold
+    const status = compositeScore >= this.APPROVAL_THRESHOLD ? 'APPROVED' : 'REJECTED';
+    
+    const managerReason = status === 'APPROVED'
+      ? `Approved: Score ${compositeScore.toFixed(1)}/${100} (Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)})`
+      : `Rejected: Score ${compositeScore.toFixed(1)}/${100} below threshold ${this.APPROVAL_THRESHOLD} (Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)})`;
+
+    // DEBUG LOG: Final evaluation result
+    const debugData = {
+      itemId: item.id,
+      rawItemContent: JSON.parse(JSON.stringify(item)),
+      computedExpectedImpact: expectedImpact,
+      computedConfidence: workerConfidence,
+      computedRiskLevel: riskLevel,
+      alignmentWithSectorGoal: alignmentWithSectorGoal,
+      finalDecisionScore: compositeScore,
+      approvalThreshold: this.APPROVAL_THRESHOLD,
+      isHardConstraintViolated: isHardConstraintViolated,
+      hardConstraintReason: hardConstraintReason,
+      finalDecision: status,
+      scoreBreakdown: {
+        workerConfidence,
+        expectedImpact,
+        riskLevel,
+        alignmentWithSectorGoal,
+        normalizedRiskScore,
+        weights
+      }
+    };
+    this._writeDebugLog(`[evaluateChecklistItem] Item ${item.id} evaluation complete: ${status}`, debugData);
+
+    return {
+      status: status,
+      managerReason: managerReason,
+      item: item,
+      score: compositeScore,
+      scoreBreakdown: {
+        workerConfidence,
+        expectedImpact,
+        riskLevel,
+        alignmentWithSectorGoal
+      }
+    };
+  }
+
+  /**
+   * Get worker confidence from checklist item
+   * @private
+   */
+  _getWorkerConfidence(item) {
+    // Use item.confidence if available (0-100 scale)
+    if (typeof item.confidence === 'number') {
+      return Math.max(0, Math.min(100, item.confidence));
+    }
+    
+    // Default to 50 if no confidence provided
+    return 50;
+  }
+
+  /**
+   * Calculate expected impact based on item amount and action
+   * @private
+   */
+  _calculateExpectedImpact(item, sector) {
+    const amount = typeof item.amount === 'number' ? item.amount : 0;
+    const action = (item.action || '').toLowerCase();
+    
+    // Base impact on amount (normalized to 0-100)
+    // Assume max impact at 10000 units = 100 points
+    const amountScore = Math.min(100, (amount / 10000) * 100);
+    
+    // Adjust based on action type
+    let actionMultiplier = 1.0;
+    if (action.includes('buy') || action.includes('deploy')) {
+      actionMultiplier = 1.2; // Buying/deploying has higher impact
+    } else if (action.includes('sell') || action.includes('withdraw')) {
+      actionMultiplier = 0.9; // Selling has lower impact
+    } else if (action.includes('rebalance')) {
+      actionMultiplier = 1.1; // Rebalancing has moderate-high impact
+    }
+    
+    return Math.min(100, amountScore * actionMultiplier);
+  }
+
+  /**
+   * Calculate risk level for checklist item (0-100 scale)
+   * @private
+   */
+  _calculateItemRiskLevel(item, sector) {
+    // Base risk from sector
+    const sectorRisk = typeof sector.riskScore === 'number' ? sector.riskScore : 50;
+    
+    // Adjust based on amount (larger amounts = higher risk)
+    const amount = typeof item.amount === 'number' ? item.amount : 0;
+    const amountRisk = Math.min(30, (amount / 10000) * 30); // Max 30 points from amount
+    
+    // Adjust based on action type
+    const action = (item.action || '').toLowerCase();
+    let actionRisk = 0;
+    if (action.includes('buy') || action.includes('deploy')) {
+      actionRisk = 10; // Buying has moderate risk
+    } else if (action.includes('sell')) {
+      actionRisk = 5; // Selling has lower risk
+    } else if (action.includes('rebalance')) {
+      actionRisk = 15; // Rebalancing has higher risk
+    }
+    
+    // Adjust based on confidence (lower confidence = higher risk)
+    const confidence = this._getWorkerConfidence(item);
+    const confidenceRisk = (100 - confidence) * 0.2; // Max 20 points from low confidence
+    
+    const totalRisk = Math.min(100, sectorRisk * 0.4 + amountRisk + actionRisk + confidenceRisk);
+    
+    return totalRisk;
+  }
+
+  /**
+   * Calculate alignment with sector goals
+   * @private
+   */
+  _calculateAlignmentWithSectorGoal(item, sector) {
+    // Base alignment score
+    let alignment = 60; // Default moderate alignment
+    
+    // Check if item action aligns with sector description/goals
+    const sectorDescription = (sector.description || '').toLowerCase();
+    const itemReason = ((item.reason || item.reasoning || '') + ' ' + (item.action || '')).toLowerCase();
+    
+    // Simple keyword matching (can be enhanced with NLP)
+    const keywords = sectorDescription.split(/\s+/).filter(w => w.length > 3);
+    const matches = keywords.filter(keyword => itemReason.includes(keyword)).length;
+    
+    if (keywords.length > 0) {
+      const matchRatio = matches / keywords.length;
+      alignment = 40 + (matchRatio * 60); // 40-100 range based on keyword matches
+    }
+    
+    // Boost alignment if confidence is high
+    const confidence = this._getWorkerConfidence(item);
+    alignment = alignment * 0.7 + (confidence * 0.3);
+    
+    return Math.min(100, Math.max(0, alignment));
+  }
+
+  /**
+   * Evaluate all PENDING checklist items for a discussion
+   * @param {string} discussionId - Discussion ID
+   * @returns {Promise<Object>} Updated discussion with manager decisions
+   */
+  async managerEvaluateChecklist(discussionId) {
+    if (!discussionId) {
+      throw new Error('discussionId is required');
+    }
+
+    const discussionData = await findDiscussionById(discussionId);
+    if (!discussionData) {
+      throw new Error(`Discussion ${discussionId} not found`);
+    }
+
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+
+    // Ensure discussion is in_progress (not decided/closed)
+    if (discussionRoom.status === 'decided' || discussionRoom.status === 'CLOSED' || discussionRoom.status === 'closed') {
+      throw new Error(`Cannot evaluate checklist: Discussion ${discussionId} is already decided/closed. Current status: ${discussionRoom.status}`);
+    }
+
+    // Get sector state
+    const sector = await getSectorById(discussionRoom.sectorId);
+    if (!sector) {
+      throw new Error(`Sector ${discussionRoom.sectorId} not found`);
+    }
+
+    // Get manager agent
+    const manager = await getManagerBySectorId(discussionRoom.sectorId);
+    if (!manager) {
+      throw new Error(`Manager agent not found for sector ${discussionRoom.sectorId}`);
+    }
+
+    // Ensure checklist exists
+    if (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
+      console.warn(`[ManagerEngine] Discussion ${discussionId} has no checklist items to evaluate`);
+      
+      // DEBUG LOG: No checklist items
+      const debugData = {
+        discussionId: discussionId,
+        checklistLength: 0,
+        pendingItemsCount: 0,
+        reason: 'No checklist items to evaluate'
+      };
+      this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No checklist items`, debugData);
+      
+      return discussionRoom;
+    }
+
+    // Filter for PENDING and RESUBMITTED items (RESUBMITTED items need re-evaluation after worker revision)
+    const pendingItems = discussionRoom.checklist.filter(item => {
+      const status = (item.status || '').toUpperCase();
+      return !item.status || 
+             status === 'PENDING' || 
+             status === 'RESUBMITTED' ||
+             (status === 'REVISE_REQUIRED' && !item.requiresRevision); // Items that were REVISE_REQUIRED but worker hasn't responded yet
+    });
+
+    if (pendingItems.length === 0) {
+      console.log(`[ManagerEngine] No PENDING items to evaluate for discussion ${discussionId}`);
+      
+      // DEBUG LOG: No pending items
+      const debugData = {
+        discussionId: discussionId,
+        checklistLength: discussionRoom.checklist.length,
+        pendingItemsCount: 0,
+        reason: 'No PENDING items to evaluate',
+        allItemStatuses: discussionRoom.checklist.map(item => ({ id: item.id, status: item.status }))
+      };
+      this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No pending items`, debugData);
+      
+      return discussionRoom;
+    }
+
+    console.log(`[ManagerEngine] Evaluating ${pendingItems.length} PENDING checklist items for discussion ${discussionId}`);
+
+    // DEBUG LOG: Start of evaluation
+    this._writeDebugLog(`[managerEvaluateChecklist] Starting evaluation for discussion ${discussionId}`, {
+      discussionId: discussionId,
+      totalChecklistItems: discussionRoom.checklist.length,
+      pendingItemsCount: pendingItems.length,
+      sectorId: discussionRoom.sectorId,
+      managerId: manager?.id
+    });
+
+    // Ensure managerDecisions array exists
+    if (!Array.isArray(discussionRoom.managerDecisions)) {
+      discussionRoom.managerDecisions = [];
+    }
+
+    // Evaluate each PENDING item
+    const managerDecisions = [];
+    const updatedChecklist = [];
+    const evaluationResults = [];
+
+    for (const item of discussionRoom.checklist) {
+      // Skip items that are not PENDING or RESUBMITTED
+      const itemStatus = (item.status || '').toUpperCase();
+      const shouldEvaluate = !item.status || 
+                            itemStatus === 'PENDING' || 
+                            itemStatus === 'RESUBMITTED' ||
+                            (itemStatus === 'REVISE_REQUIRED' && !item.requiresRevision);
+      
+      if (!shouldEvaluate) {
+        // Keep existing decision if any
+        const existingDecision = discussionRoom.managerDecisions.find(
+          decision => decision.item && decision.item.id === item.id
+        );
+        if (existingDecision) {
+          managerDecisions.push(existingDecision);
+        }
+        updatedChecklist.push(item);
+        continue;
+      }
+
+      // Evaluate the item
+      const evaluation = await this.evaluateChecklistItem(manager, item, sector);
+
+      // Store evaluation result for summary log
+      evaluationResults.push({
+        itemId: item.id,
+        status: evaluation.status,
+        score: evaluation.score,
+        scoreBreakdown: evaluation.scoreBreakdown,
+        managerReason: evaluation.managerReason
+      });
+
+      // Update item status - follow lifecycle: REJECTED -> REVISE_REQUIRED
+      // Step 1: Set status to REJECTED and add managerReason
+      item.status = evaluation.status;
+      item.managerReason = evaluation.managerReason;
+
+      // Step 2: If rejected, immediately convert to REVISE_REQUIRED
+      if (evaluation.status === 'REJECTED') {
+        item.status = 'REVISE_REQUIRED';
+        item.requiresRevision = true;
+        if (!item.revisionCount) {
+          item.revisionCount = 0;
+        }
+        // Don't increment revisionCount here - it will be incremented when worker revises
+      }
+
+      // Create manager decision
+      const managerDecision = {
+        item: { ...item },
+        approved: evaluation.status === 'APPROVED',
+        status: item.status,
+        reason: evaluation.managerReason,
+        score: evaluation.score,
+        scoreBreakdown: evaluation.scoreBreakdown
+      };
+
+      managerDecisions.push(managerDecision);
+      updatedChecklist.push(item);
+
+      console.log(`[ManagerEngine] Item ${item.id}: ${evaluation.status} - ${evaluation.managerReason}`);
+    }
+
+    // DEBUG LOG: Summary of all evaluations
+    const approvedCount = evaluationResults.filter(r => r.status === 'APPROVED').length;
+    const rejectedCount = evaluationResults.filter(r => r.status === 'REJECTED').length;
+    const summaryDebugData = {
+      discussionId: discussionId,
+      totalItemsEvaluated: evaluationResults.length,
+      approvedCount: approvedCount,
+      rejectedCount: rejectedCount,
+      approvalThreshold: this.APPROVAL_THRESHOLD,
+      evaluationResults: evaluationResults,
+      averageScore: evaluationResults.length > 0 
+        ? evaluationResults.reduce((sum, r) => sum + (r.score || 0), 0) / evaluationResults.length 
+        : 0
+    };
+    this._writeDebugLog(`[managerEvaluateChecklist] Evaluation summary for discussion ${discussionId}`, summaryDebugData);
+
+    // Update discussion with manager decisions and updated checklist
+    discussionRoom.managerDecisions = managerDecisions;
+    discussionRoom.checklist = updatedChecklist;
+
+    // Extract approved items for finalizedChecklist
+    const approvedItems = managerDecisions
+      .filter(decision => decision.approved === true && decision.item)
+      .map(decision => {
+        const item = decision.item;
+        return {
+          id: item.id,
+          action: item.action,
+          amount: item.amount,
+          reason: item.reason || item.reasoning || '',
+          confidence: item.confidence,
+          round: item.round || discussionRoom.currentRound,
+          agentId: item.agentId,
+          agentName: item.agentName,
+          approved: true,
+          approvedAt: new Date().toISOString()
+        };
+      });
+
+    // Update finalizedChecklist (append approved items, don't replace)
+    if (!Array.isArray(discussionRoom.finalizedChecklist)) {
+      discussionRoom.finalizedChecklist = [];
+    }
+    
+    // Only add items that aren't already in finalizedChecklist
+    const existingApprovedIds = new Set(discussionRoom.finalizedChecklist.map(item => item.id));
+    const newApprovedItems = approvedItems.filter(item => !existingApprovedIds.has(item.id));
+    discussionRoom.finalizedChecklist = [...discussionRoom.finalizedChecklist, ...newApprovedItems];
+
+    // Keep discussion status as in_progress when checklist items exist
+    // Use 'in_progress' instead of 'OPEN' to match UI expectations
+    if (discussionRoom.status !== 'OPEN' && discussionRoom.status !== 'in_progress' && discussionRoom.status !== 'decided') {
+      discussionRoom.status = 'in_progress';
+    }
+    discussionRoom.updatedAt = new Date().toISOString();
+
+    // Save updated discussion
+    await saveDiscussion(discussionRoom);
+
+    // Extract rejected items and store them globally (for rejected items count)
+    const rejectedDecisions = managerDecisions.filter(decision => decision.approved === false && decision.item);
+    if (rejectedDecisions.length > 0) {
+      try {
+        // Get sector info for rejected items
+        const sectors = await getAllSectors();
+        const sectorInfo = sectors.find(s => s.id === discussionRoom.sectorId);
+        const sectorSymbol = sectorInfo?.symbol || sectorInfo?.sectorSymbol || 'N/A';
+        
+        // Create rejected items with required metadata
+        const rejectedItems = rejectedDecisions.map(decision => {
+          const item = decision.item;
+          const itemText = item.reason || item.reasoning || item.text || item.description || '';
+          
+          return {
+            id: `rejected-${discussionRoom.id}-${item.id || Date.now()}`,
+            text: itemText,
+            discussionId: discussionRoom.id,
+            discussionTitle: discussionRoom.title || 'Untitled Discussion',
+            sectorId: discussionRoom.sectorId,
+            sectorSymbol: sectorSymbol,
+            timestamp: Date.now()
+          };
+        });
+        
+        // Save rejected items to global storage
+        await saveRejectedItems(rejectedItems);
+        console.log(`[ManagerEngine] Stored ${rejectedItems.length} rejected items to global storage`);
+        
+        // DEBUG LOG: Rejected items saved
+        this._writeDebugLog(`[managerEvaluateChecklist] Saved ${rejectedItems.length} rejected items to storage`, {
+          discussionId: discussionId,
+          rejectedItemsCount: rejectedItems.length,
+          rejectedItemIds: rejectedItems.map(item => item.id)
+        });
+      } catch (error) {
+        console.error(`[ManagerEngine] Error storing rejected items:`, error);
+        // Don't throw - continue with discussion processing even if rejected items storage fails
+      }
+    }
+
+    // Trigger worker responses for all REVISE_REQUIRED items
+    const reviseRequiredItems = updatedChecklist.filter(item => 
+      item.status === 'REVISE_REQUIRED' || item.requiresRevision === true
+    );
+    
+    if (reviseRequiredItems.length > 0) {
+      console.log(`[ManagerEngine] Triggering worker responses for ${reviseRequiredItems.length} REVISE_REQUIRED items`);
+      const discussionEngine = new DiscussionEngine();
+      
+      // Process worker responses for each rejected item
+      for (const item of reviseRequiredItems) {
+        try {
+          await discussionEngine.workerRespondToRejection(discussionId, item.id);
+          console.log(`[ManagerEngine] Worker responded to rejection for item ${item.id}`);
+        } catch (error) {
+          console.error(`[ManagerEngine] Error processing worker response for item ${item.id}:`, error);
+          // Continue processing other items even if one fails
+        }
+      }
+      
+      // Reload discussion after worker responses to get updated state
+      const updatedAfterWorkerResponse = await findDiscussionById(discussionId);
+      if (updatedAfterWorkerResponse) {
+        discussionRoom = DiscussionRoom.fromData(updatedAfterWorkerResponse);
+      }
+    }
+
+    console.log(`[ManagerEngine] Completed evaluation for discussion ${discussionId}: ${approvedItems.length} approved, ${pendingItems.length - approvedItems.length} rejected`);
+
+    // Check if discussion can be closed after evaluation
+    // Reload discussion to get latest state after save
+    const reloadedData = await findDiscussionById(discussionId);
+    if (reloadedData) {
+      const reloadedRoom = DiscussionRoom.fromData(reloadedData);
+      if (this.canDiscussionClose(reloadedRoom)) {
+        console.log(`[ManagerEngine] Discussion ${discussionId} is ready to close after managerEvaluateChecklist. All items resolved. Auto-closing...`);
+        
+        // DEBUG LOG: Discussion closing
+        const closeDebugData = {
+          discussionId: discussionId,
+          approvedItemsCount: approvedItems.length,
+          rejectedItemsCount: pendingItems.length - approvedItems.length,
+          canClose: true,
+          reason: 'All items resolved'
+        };
+        this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - Closing discussion`, closeDebugData);
+        
+        return await this.closeDiscussion(discussionId);
+      }
+    }
+
+    // DEBUG LOG: Final return (discussion not closing)
+    const finalDebugData = {
+      discussionId: discussionId,
+      approvedItemsCount: approvedItems.length,
+      rejectedItemsCount: pendingItems.length - approvedItems.length,
+      canClose: false,
+      discussionStatus: discussionRoom.status,
+      reviseRequiredCount: reviseRequiredItems.length
+    };
+    this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - Evaluation complete, discussion remains open`, finalDebugData);
+
+    return discussionRoom;
   }
 
   /**
@@ -44,9 +661,10 @@ class ManagerEngine {
     try {
       // Check if there's already an open discussion for this sector
       const existingDiscussions = await loadDiscussions();
+      // Find discussions that are in progress (include legacy statuses for backward compatibility)
       const openDiscussion = existingDiscussions.find(d => 
         d.sectorId === sectorId && 
-        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress')
+        (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
       );
 
       if (openDiscussion) {
@@ -151,14 +769,14 @@ class ManagerEngine {
         return { started: false, discussionId: null };
       }
 
-      // Check ALL agents (manager + generals) have confidence >= 65
+      // VALIDATION 1: Check ALL agents (manager + generals) have confidence > 65
       const allAboveThreshold = agents.every(agent => {
         const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return confidence >= 65;
+        return confidence > 65;
       });
 
       if (!allAboveThreshold) {
-        console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (>= 65)`);
+        console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (> 65)`);
         console.log(`[DISCUSSION CHECK]`, {
           sectorId,
           agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
@@ -167,35 +785,24 @@ class ManagerEngine {
         return { started: false, discussionId: null };
       }
 
-      // Calculate manager confidence as average of ALL agents
-      const totalConfidence = agents.reduce((sum, agent) => {
-        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return sum + confidence;
-      }, 0);
-      const managerConfidence = totalConfidence / agents.length;
-
-      // Check manager confidence >= 65
-      if (managerConfidence < 65) {
-        console.log(`[DISCUSSION BLOCKED] Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
-        console.log(`[DISCUSSION CHECK]`, {
-          sectorId,
-          agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
-          allAboveThreshold: true,
-          managerConfidence: managerConfidence.toFixed(2)
-        });
-        return { started: false, discussionId: null };
-      }
-
-      // Check if there's already an active or in-progress discussion for this sector
+      // VALIDATION 2: Check if there's already an active or in-progress discussion for this sector
       const existingDiscussions = await loadDiscussions();
+      // Find discussions that are in progress (include legacy statuses for backward compatibility)
       const activeDiscussion = existingDiscussions.find(d => 
         d.sectorId === sectorId && 
-        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+        (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
       );
 
       if (activeDiscussion) {
         console.log(`[DISCUSSION BLOCKED] Active discussion exists: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
         return { started: false, discussionId: activeDiscussion.id };
+      }
+
+      // VALIDATION 3: Check sector balance > 0
+      const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+      if (sectorBalance <= 0) {
+        console.log(`[DISCUSSION BLOCKED] Sector balance (${sectorBalance}) must be greater than 0`);
+        return { started: false, discussionId: null };
       }
 
       // Safeguard: Check for at least 1 non-manager agent before creating discussion
@@ -214,7 +821,7 @@ class ManagerEngine {
         sectorId,
         agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
         allAboveThreshold: true,
-        managerConfidence: managerConfidence.toFixed(2)
+        sectorBalance: sectorBalance
       });
 
       // Start new discussion
@@ -293,21 +900,6 @@ class ManagerEngine {
     try {
       console.log(`[ManagerEngine] createDiscussion called for sector ${sectorId}`);
       
-      // Check if there's already an active discussion for this sector
-      const existingDiscussions = await loadDiscussions();
-      const activeDiscussion = existingDiscussions.find(d => 
-        d.sectorId === sectorId && 
-        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
-      );
-
-      if (activeDiscussion) {
-        console.log(`[ManagerEngine] Active discussion already exists for sector ${sectorId}: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
-        return { 
-          created: false, 
-          discussion: DiscussionRoom.fromData(activeDiscussion) 
-        };
-      }
-
       // Load sector to get sector name and agents
       const { getSectorById } = require('../utils/sectorStorage');
       const sector = await getSectorById(sectorId);
@@ -316,15 +908,56 @@ class ManagerEngine {
         throw new Error(`Sector ${sectorId} not found`);
       }
 
+      // VALIDATION 1: Check if there's already an active discussion for this sector
+      const existingDiscussions = await loadDiscussions();
+      // Find discussions that are in progress (include legacy statuses for backward compatibility)
+      const activeDiscussion = existingDiscussions.find(d => 
+        d.sectorId === sectorId && 
+        (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
+      );
+
+      if (activeDiscussion) {
+        console.log(`[ManagerEngine] Cannot create discussion - Active discussion already exists for sector ${sectorId}: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
+        return { 
+          created: false, 
+          discussion: DiscussionRoom.fromData(activeDiscussion) 
+        };
+      }
+
+      // VALIDATION 2: Check sector balance > 0
+      const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+      if (sectorBalance <= 0) {
+        console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: balance must be greater than 0. Current balance: ${sectorBalance}`);
+        return { created: false, discussion: null };
+      }
+
+      // VALIDATION 3: Check all agents have confidence > 65
+      const { loadAgents } = require('../utils/agentStorage');
+      const allAgents = await loadAgents();
+      const allSectorAgents = allAgents.filter(a => a && a.id && a.sectorId === sectorId);
+      
+      if (allSectorAgents.length > 0) {
+        const allAboveThreshold = allSectorAgents.every(agent => {
+          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          return confidence > 65;
+        });
+        
+        if (!allAboveThreshold) {
+          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`).join(', ');
+          console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: Not all agents have confidence > 65. Agents: ${agentDetails}`);
+          return { created: false, discussion: null };
+        }
+      }
+
       // Get agent IDs from sector (non-manager agents only)
-      const allAgents = Array.isArray(sector.agents) ? sector.agents.filter(a => a && a.id) : [];
-      const nonManagerAgents = allAgents.filter(agent => {
+      const sectorAgents = Array.isArray(sector.agents) ? sector.agents.filter(a => a && a.id) : [];
+      const nonManagerAgents = sectorAgents.filter(agent => {
         const role = (agent.role || '').toLowerCase();
         return role !== 'manager' && !role.includes('manager');
       });
       const agentIds = nonManagerAgents.map(a => a.id);
 
-      console.log(`[ManagerEngine] Sector ${sectorId} has ${allAgents.length} total agents, ${nonManagerAgents.length} non-manager agents`);
+      console.log(`[ManagerEngine] Sector ${sectorId} has ${sectorAgents.length} total agents, ${nonManagerAgents.length} non-manager agents`);
 
       // Safeguard: Require at least 1 non-manager agent for discussion
       // (Changed from 2 to 1 to allow discussions with manager + 1 general)
@@ -449,21 +1082,21 @@ class ManagerEngine {
 
       const updatedDiscussionRoom = DiscussionRoom.fromData(updatedDiscussionData);
 
-      // Only mark as finalized if there are approved checklist items
+      // NOTE: Discussion status is NOT automatically changed here.
+      // The discussion remains in 'in_progress' until the manager explicitly calls closeDiscussion().
       const finalizedChecklist = Array.isArray(updatedDiscussionRoom.finalizedChecklist) ? updatedDiscussionRoom.finalizedChecklist : [];
       
+      // Keep discussion in progress - manager will close when ready
+      if (updatedDiscussionRoom.status !== 'CLOSED' && updatedDiscussionRoom.status !== 'closed') {
+        updatedDiscussionRoom.status = 'in_progress';
+      }
+      updatedDiscussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(updatedDiscussionRoom);
+      
       if (finalizedChecklist.length > 0) {
-        // Mark discussion as decided only if there are approved items
-        updatedDiscussionRoom.status = 'decided';
-        updatedDiscussionRoom.updatedAt = new Date().toISOString();
-        await saveDiscussion(updatedDiscussionRoom);
-        console.log(`[ManagerEngine] Handled checklist and finalized discussion: ID = ${discussion.id} with ${finalizedChecklist.length} approved items`);
+        console.log(`[ManagerEngine] Handled checklist for discussion: ID = ${discussion.id} with ${finalizedChecklist.length} approved items. Manager should call closeDiscussion() when ready.`);
       } else {
-        // No approved items - cannot finalize
-        console.warn(`[ManagerEngine] Discussion ${discussion.id} cannot be finalized: No approved checklist items found`);
-        // Keep status as is (should be 'in_progress' or 'rejected')
-        updatedDiscussionRoom.updatedAt = new Date().toISOString();
-        await saveDiscussion(updatedDiscussionRoom);
+        console.warn(`[ManagerEngine] Discussion ${discussion.id} has no approved checklist items. Manager should evaluate and close when ready.`);
       }
 
       return { 
@@ -482,6 +1115,217 @@ class ManagerEngine {
   getNextTick() {
     this.tickCounter++;
     return this.tickCounter;
+  }
+
+  /**
+   * Evaluate checklist items for multi-round discussion
+   * Multi-round: Manager evaluates items and marks them with statuses
+   * @param {string} discussionId - Discussion ID
+   * @param {Array<Object>} itemEvaluations - Array of {itemId, status, reason?}
+   *   status: 'APPROVED' | 'REJECTED' | 'PENDING' | 'REVISE_REQUIRED' | 'ACCEPT_REJECTION'
+   * @returns {Promise<Object>} Updated discussion
+   */
+  async evaluateChecklistRound(discussionId, itemEvaluations) {
+    if (!discussionId) {
+      throw new Error('discussionId is required');
+    }
+
+    if (!Array.isArray(itemEvaluations)) {
+      throw new Error('itemEvaluations must be an array');
+    }
+
+    const discussionData = await findDiscussionById(discussionId);
+    if (!discussionData) {
+      throw new Error(`Discussion ${discussionId} not found`);
+    }
+
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+
+    // Ensure discussion is in_progress (not decided/closed)
+    if (discussionRoom.status === 'decided' || discussionRoom.status === 'CLOSED' || discussionRoom.status === 'closed') {
+      throw new Error(`Cannot evaluate checklist: Discussion ${discussionId} is already decided/closed. Current status: ${discussionRoom.status}`);
+    }
+
+    // Ensure checklist exists
+    if (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
+      throw new Error(`Discussion ${discussionId} has no checklist items to evaluate`);
+    }
+
+    // Ensure managerDecisions array exists
+    if (!Array.isArray(discussionRoom.managerDecisions)) {
+      discussionRoom.managerDecisions = [];
+    }
+
+    const validStatuses = ['APPROVED', 'REJECTED', 'PENDING', 'REVISE_REQUIRED', 'ACCEPT_REJECTION'];
+    const evaluationMap = new Map();
+    itemEvaluations.forEach(evaluation => {
+      if (!validStatuses.includes(evaluation.status)) {
+        throw new Error(`Invalid status: ${evaluation.status}. Must be one of: ${validStatuses.join(', ')}`);
+      }
+      evaluationMap.set(evaluation.itemId, evaluation);
+    });
+
+    // Process each checklist item
+    const managerDecisions = [];
+    const updatedChecklist = [];
+
+    for (const item of discussionRoom.checklist) {
+      const evaluation = evaluationMap.get(item.id);
+      
+      if (!evaluation) {
+        // No evaluation provided for this item - keep existing status or set to PENDING
+        const existingDecision = discussionRoom.managerDecisions.find(
+          decision => decision.item && decision.item.id === item.id
+        );
+        if (existingDecision) {
+          managerDecisions.push(existingDecision);
+          updatedChecklist.push(item);
+        } else {
+          // New item without evaluation - set to PENDING
+          item.status = item.status || 'PENDING';
+          updatedChecklist.push(item);
+          managerDecisions.push({
+            item: item,
+            approved: false,
+            reason: 'No evaluation provided - set to PENDING'
+          });
+        }
+        continue;
+      }
+
+      // Update item status based on evaluation - follow lifecycle: REJECTED -> REVISE_REQUIRED
+      const status = evaluation.status;
+      
+      // Step 1: Set status to evaluation status (could be REJECTED) and add managerReason
+      item.status = status;
+      item.managerReason = evaluation.reason || `Manager evaluation: ${status}`;
+
+      // Step 2: If rejected, immediately convert to REVISE_REQUIRED
+      if (status === 'REJECTED') {
+        item.status = 'REVISE_REQUIRED';
+        item.requiresRevision = true;
+        if (!item.revisionCount) {
+          item.revisionCount = 0;
+        }
+        // Don't increment revisionCount here - it will be incremented when worker revises
+      }
+
+      // Determine approved flag for manager decision
+      const approved = status === 'APPROVED' || status === 'ACCEPT_REJECTION';
+
+      // Create manager decision
+      const managerDecision = {
+        item: { ...item },
+        approved: approved,
+        status: item.status,
+        reason: evaluation.reason || `Manager evaluation: ${status}`
+      };
+
+      managerDecisions.push(managerDecision);
+      updatedChecklist.push(item);
+    }
+
+    // Update discussion with manager decisions and updated checklist
+    discussionRoom.managerDecisions = managerDecisions;
+    discussionRoom.checklist = updatedChecklist;
+
+    // Extract approved items for finalizedChecklist
+    const approvedItems = managerDecisions
+      .filter(decision => (decision.approved === true || decision.status === 'APPROVED') && decision.item)
+      .map(decision => {
+        const item = decision.item;
+        return {
+          id: item.id,
+          action: item.action,
+          amount: item.amount,
+          reason: item.reason || item.reasoning || '',
+          confidence: item.confidence,
+          round: item.round || discussionRoom.currentRound,
+          agentId: item.agentId,
+          agentName: item.agentName,
+          approved: true,
+          approvedAt: new Date().toISOString()
+        };
+      });
+
+    // Update finalizedChecklist (append approved items, don't replace)
+    if (!Array.isArray(discussionRoom.finalizedChecklist)) {
+      discussionRoom.finalizedChecklist = [];
+    }
+    discussionRoom.finalizedChecklist = [...discussionRoom.finalizedChecklist, ...approvedItems];
+
+    // Discussion must stay in_progress (don't change status to decided yet)
+    // Use 'in_progress' instead of 'OPEN' to match UI expectations
+    if (discussionRoom.status !== 'decided' && discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
+      discussionRoom.status = 'in_progress';
+    }
+    discussionRoom.updatedAt = new Date().toISOString();
+
+    // Save updated discussion
+    await saveDiscussion(discussionRoom);
+
+    // Trigger worker responses for all REVISE_REQUIRED items
+    const discussionEngine = new DiscussionEngine();
+    
+    const reviseRequiredItems = updatedChecklist.filter(item => 
+      item.status === 'REVISE_REQUIRED' || item.requiresRevision === true
+    );
+    
+    // Process worker responses for each rejected item
+    for (const item of reviseRequiredItems) {
+      try {
+        await discussionEngine.workerRespondToRejection(discussionId, item.id);
+      } catch (error) {
+        console.error(`[ManagerEngine] Error processing worker response for item ${item.id}:`, error);
+        // Continue processing other items even if one fails
+      }
+    }
+
+    // Reload discussion after worker responses to get updated state
+    const updatedDiscussionData = await findDiscussionById(discussionId);
+    if (updatedDiscussionData) {
+      discussionRoom = DiscussionRoom.fromData(updatedDiscussionData);
+    }
+
+    // Check if discussion can be closed after this evaluation
+    if (this.canDiscussionClose(discussionRoom)) {
+      console.log(`[ManagerEngine] Discussion ${discussionId} is ready to close after evaluation. All items resolved. Auto-closing...`);
+      // Auto-close discussion by setting status to 'decided' when all items are resolved
+      discussionRoom.status = 'decided';
+      discussionRoom.updatedAt = new Date().toISOString();
+      
+      // Save final round snapshot to roundHistory
+      const roundCount = discussionRoom.currentRound || discussionRoom.round || 1;
+      if (!Array.isArray(discussionRoom.roundHistory)) {
+        discussionRoom.roundHistory = [];
+      }
+      
+      const finalRoundSnapshot = {
+        round: roundCount,
+        checklist: JSON.parse(JSON.stringify(discussionRoom.checklist || [])),
+        finalizedChecklist: JSON.parse(JSON.stringify(discussionRoom.finalizedChecklist || [])),
+        managerDecisions: JSON.parse(JSON.stringify(discussionRoom.managerDecisions || [])),
+        messages: JSON.parse(JSON.stringify(discussionRoom.messages || [])),
+        timestamp: new Date().toISOString()
+      };
+      
+      discussionRoom.roundHistory.push(finalRoundSnapshot);
+      
+      // Set discussionClosedAt timestamp
+      discussionRoom.discussionClosedAt = new Date().toISOString();
+      
+      await saveDiscussion(discussionRoom);
+      
+      console.log(`[ManagerEngine] Discussion ${discussionId} auto-closed and marked as 'decided' after ${roundCount} rounds.`);
+      // Do not advance to next round if discussion can close
+      return discussionRoom;
+    }
+
+    // Advance to next round only if discussion cannot close yet
+    // (increments currentRound, saves snapshot to roundHistory)
+    const advancedDiscussion = await discussionEngine.advanceDiscussionRound(discussionId);
+
+    return advancedDiscussion;
   }
 
   /**
@@ -556,6 +1400,37 @@ class ManagerEngine {
         ? `Auto-approved: confidence (${confidence.toFixed(2)}) exceeds threshold (${this.approvalConfidenceThreshold})`
         : `Auto-rejected: confidence (${confidence.toFixed(2)}) below threshold (${this.approvalConfidenceThreshold}). Needs refinement.`;
 
+      // If rejected, update the item with revision metadata
+      if (!approved) {
+        // Initialize revision metadata if not present
+        if (!item.revisionCount) {
+          item.revisionCount = 0;
+        }
+        if (!item.previousVersions) {
+          item.previousVersions = [];
+        }
+        
+        // Store current version in previousVersions before marking for revision
+        item.previousVersions.push({
+          action: item.action,
+          amount: item.amount,
+          reason: item.reason || item.reasoning || '',
+          confidence: item.confidence,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Set revision status and metadata
+        item.status = 'REVISE_REQUIRED';
+        item.managerReason = reason;
+        item.requiresRevision = true;
+      } else {
+        // Approved items should have status 'PENDING' or 'APPROVED'
+        if (!item.status || item.status === 'REVISE_REQUIRED') {
+          item.status = 'PENDING';
+        }
+        item.requiresRevision = false;
+      }
+
       // Create manager decision object
       const managerDecision = {
         item: item,
@@ -569,11 +1444,23 @@ class ManagerEngine {
     // Update discussion with manager decisions
     discussionRoom.managerDecisions = managerDecisions;
     
+    // Update checklist items with their new status and revision metadata
+    discussionRoom.checklist = discussionRoom.checklist.map(item => {
+      const decision = managerDecisions.find(d => d.item && d.item.id === item.id);
+      if (decision) {
+        // Merge the updated item from the decision back into the checklist
+        return decision.item;
+      }
+      return item;
+    });
+    
     // Extract approved items and store in finalizedChecklist
     const approvedItems = managerDecisions
       .filter(decision => decision.approved === true && decision.item)
       .map(decision => {
         const item = decision.item;
+        // Mark item as APPROVED in the discussion
+        item.status = 'APPROVED';
         return {
           id: item.id || `finalized-${discussionRoom.id}-${Date.now()}`,
           action: item.action,
@@ -589,6 +1476,60 @@ class ManagerEngine {
       });
     
     discussionRoom.finalizedChecklist = approvedItems;
+
+    // Add approved items to manager's execution list (instead of executing immediately)
+    if (approvedItems.length > 0) {
+      try {
+        // Get manager for this sector
+        const manager = await getManagerBySectorId(discussionRoom.sectorId);
+        if (!manager) {
+          console.warn(`[ManagerEngine] No manager found for sector ${discussionRoom.sectorId}. Cannot add items to execution list.`);
+        } else {
+          // Get sector to extract symbol
+          const sector = await getSectorById(discussionRoom.sectorId);
+          const symbol = sector?.symbol || sector?.sectorSymbol || 'UNKNOWN';
+
+          // Add each approved item to the manager's execution list
+          for (const item of approvedItems) {
+            try {
+              // Extract action type from item.action (convert to uppercase)
+              let actionType = 'HOLD'; // Default
+              if (item.action) {
+                const actionUpper = item.action.toUpperCase();
+                if (['BUY', 'SELL', 'HOLD', 'REBALANCE'].includes(actionUpper)) {
+                  actionType = actionUpper;
+                } else if (actionUpper.includes('BUY') || actionUpper.includes('DEPLOY')) {
+                  actionType = 'BUY';
+                } else if (actionUpper.includes('SELL') || actionUpper.includes('WITHDRAW')) {
+                  actionType = 'SELL';
+                } else if (actionUpper.includes('REBALANCE') || actionUpper.includes('ALLOCATE')) {
+                  actionType = 'REBALANCE';
+                }
+              }
+
+              // Extract allocation amount
+              const allocation = typeof item.amount === 'number' && item.amount > 0 
+                ? item.amount 
+                : (item.confidence ? Math.floor(1000 * item.confidence) : 1000);
+
+              // Add to execution list
+              await managerAddToExecutionList(manager.id, {
+                actionType,
+                symbol,
+                allocation,
+                generatedFromDiscussion: discussionRoom.id
+              });
+            } catch (error) {
+              console.error(`[ManagerEngine] Error adding item ${item.id} to execution list:`, error);
+              // Continue with other items even if one fails
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`[ManagerEngine] Error adding approved items to execution list:`, error);
+        // Don't throw - continue with discussion processing even if execution list update fails
+      }
+    }
     
     // Extract rejected items and store them globally
     const rejectedDecisions = managerDecisions.filter(decision => decision.approved === false && decision.item);
@@ -624,31 +1565,55 @@ class ManagerEngine {
       }
     }
     
-    // Only set status to 'decided' if there are approved checklist items
-    // Approved discussions must have approved checklist items for execution
-    // Discussion status should only be 'in_progress' or 'decided'
-    // Individual checklist items are classified as 'accepted' or 'rejected', not the discussion itself
-    if (approvedItems.length > 0) {
-      discussionRoom.status = 'decided';
-      console.log(`[ManagerEngine] Processed ${managerDecisions.length} checklist items for discussion ${discussionRoom.id}. Approved: ${approvedItems.length}, Rejected: ${managerDecisions.filter(d => !d.approved).length}`);
-      console.log(`[CHECKLIST FINALIZED]`, discussionRoom.finalizedChecklist);
-    } else {
-      // No approved items - discussion remains in progress
-      // Even if all items are rejected, the discussion status stays 'in_progress'
-      // The rejected items are tracked separately and can be viewed
+    // NOTE: Discussion status is NOT automatically changed here.
+    // The discussion remains in 'in_progress' (or 'OPEN') until the manager explicitly
+    // calls closeDiscussion() after evaluating that all items are resolved.
+    // 
+    // Discussion closure conditions (checked in closeDiscussion):
+    // 1. No items in 'PENDING' or 'REVISE_REQUIRED'
+    // 2. All items are either 'APPROVED' or 'ACCEPT_REJECTION'
+    
+    const allItems = discussionRoom.checklist || [];
+    const hasRevisionsRequired = allItems.some(item => 
+      item.status === 'REVISE_REQUIRED' || item.requiresRevision === true
+    );
+    const hasPendingItems = allItems.some(item => 
+      item.status === 'PENDING' || (!item.status && !item.requiresRevision)
+    );
+    const rejectedCount = managerDecisions.filter(d => !d.approved).length;
+    
+    // Keep discussion in progress - manager will close when ready
+    if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
       discussionRoom.status = 'in_progress';
-      const rejectedCount = managerDecisions.filter(d => !d.approved).length;
-      if (rejectedCount > 0) {
-        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: All ${managerDecisions.length} checklist items were rejected. No approved items for execution.`);
-      } else {
-        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: No approved checklist items yet.`);
-      }
+    }
+    
+    // Log current state for manager evaluation
+    console.log(`[ManagerEngine] Processed ${managerDecisions.length} checklist items for discussion ${discussionRoom.id}. Approved: ${approvedItems.length}, Rejected: ${rejectedCount}`);
+    if (hasRevisionsRequired) {
+      console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: Items require revision.`);
+    } else if (hasPendingItems) {
+      console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: Items still pending.`);
+    } else if (rejectedCount > 0 && approvedItems.length === 0) {
+      console.log(`[ManagerEngine] Discussion ${discussionRoom.id} remains in progress: All items rejected. No approved items for execution.`);
+    } else {
+      console.log(`[ManagerEngine] Discussion ${discussionRoom.id} ready for manager evaluation. Manager should call closeDiscussion() when ready.`);
     }
     
     discussionRoom.updatedAt = new Date().toISOString();
 
     // Save updated discussion
     await saveDiscussion(discussionRoom);
+
+    // Check if discussion can be closed after handling checklist
+    // Reload discussion to get latest state after save
+    const reloadedData = await findDiscussionById(discussionRoom.id);
+    if (reloadedData) {
+      const reloadedRoom = DiscussionRoom.fromData(reloadedData);
+      if (this.canDiscussionClose(reloadedRoom)) {
+        console.log(`[ManagerEngine] Discussion ${discussionRoom.id} is ready to close after handleChecklist. All items resolved. Auto-closing...`);
+        return await this.closeDiscussion(discussionRoom.id);
+      }
+    }
 
     return discussionRoom;
   }
@@ -709,9 +1674,10 @@ class ManagerEngine {
 
     // Check if there's already an active or in-progress discussion
     const existingDiscussions = await loadDiscussions();
+    // Find discussions that are in progress (include legacy statuses for backward compatibility)
     const activeDiscussion = existingDiscussions.find(d => 
       d.sectorId === sector.id && 
-      (d.status === 'active' || d.status === 'in_progress' || d.status === 'open' || d.status === 'created')
+      (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
     );
 
     if (activeDiscussion) {
@@ -820,26 +1786,77 @@ class ManagerEngine {
       return updated || item;
     });
 
+    // Mark approved items as APPROVED in the discussion
+    for (const item of approvedItems) {
+      const draftItem = discussionRoom.checklistDraft.find(d => d.id === item.id);
+      if (draftItem) {
+        draftItem.status = 'APPROVED';
+      }
+    }
+
     // Save discussion with approved items
     await saveDiscussion(discussionRoom);
 
-    // Execute the approved checklist
-    const executionEngine = new ExecutionEngine();
-    
-    // Log execution
-    console.log(`[EXECUTION] Checklist sent to ExecutionEngine for sector ${sector.id}`);
-    
-    const executionResult = await executionEngine.executeChecklist(discussionRoom.checklistDraft, sector.id);
+    // Add approved items to manager's execution list (instead of executing immediately)
+    if (approvedItems.length > 0) {
+      try {
+        // Get manager for this sector
+        const manager = await getManagerBySectorId(sector.id);
+        if (!manager) {
+          console.warn(`[ManagerEngine] No manager found for sector ${sector.id}. Cannot add items to execution list.`);
+        } else {
+          // Get sector symbol
+          const symbol = sector.symbol || sector.sectorSymbol || 'UNKNOWN';
 
-    // Only finalize discussion if execution succeeded
-    if (executionResult.success) {
-      // Update discussion status to decided
-      discussionRoom.status = 'decided';
+          // Add each approved item to the manager's execution list
+          for (const item of approvedItems) {
+            try {
+              // Extract action type from item.action or item.text
+              let actionType = 'HOLD'; // Default
+              const actionText = (item.action || item.text || '').toUpperCase();
+              if (['BUY', 'SELL', 'HOLD', 'REBALANCE'].includes(actionText)) {
+                actionType = actionText;
+              } else if (actionText.includes('BUY') || actionText.includes('DEPLOY')) {
+                actionType = 'BUY';
+              } else if (actionText.includes('SELL') || actionText.includes('WITHDRAW')) {
+                actionType = 'SELL';
+              } else if (actionText.includes('REBALANCE') || actionText.includes('ALLOCATE')) {
+                actionType = 'REBALANCE';
+              }
+
+              // Extract allocation amount
+              const allocation = typeof item.amount === 'number' && item.amount > 0 
+                ? item.amount 
+                : (item.confidence ? Math.floor(1000 * item.confidence) : 1000);
+
+              // Add to execution list
+              await managerAddToExecutionList(manager.id, {
+                actionType,
+                symbol,
+                allocation,
+                generatedFromDiscussion: discussionId
+              });
+            } catch (error) {
+              console.error(`[ManagerEngine] Error adding item ${item.id} to execution list:`, error);
+              // Continue with other items even if one fails
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`[ManagerEngine] Error adding approved items to execution list:`, error);
+        // Don't throw - continue with discussion processing even if execution list update fails
+      }
+    }
+
+    // NOTE: Discussion status is NOT automatically changed here.
+    // The discussion remains in 'in_progress' until the manager explicitly calls closeDiscussion().
+    if (approvedItems.length > 0) {
+      if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
+        discussionRoom.status = 'in_progress';
+      }
       discussionRoom.updatedAt = new Date().toISOString();
       await saveDiscussion(discussionRoom);
-    } else {
-      // If execution failed, log warning but don't finalize
-      console.warn(`[ManagerEngine] Execution failed for sector ${sector.id}. Discussion not finalized.`);
+      console.log(`[ManagerEngine] Added ${approvedItems.length} approved items to execution backlog for sector ${sector.id}. Manager should call closeDiscussion() when ready.`);
     }
 
     // Update sector
@@ -947,8 +1964,206 @@ class ManagerEngine {
    * @returns {Promise<Object>} Updated sector with approved/rejected items
    */
   async approveOrRejectChecklist(sector) {
-    // For backward compatibility, auto-approve all items
-    return await this.approveChecklist(sector);
+    const useLlm = (process.env.USE_LLM || '').toLowerCase() === 'true';
+
+    // Fallback to legacy auto-approve when LLM is disabled
+    if (!useLlm) {
+      return await this.approveChecklist(sector);
+    }
+
+    if (!sector || !sector.id) {
+      throw new Error('Invalid sector: sector and sector.id are required');
+    }
+
+    const discussions = Array.isArray(sector.discussions) ? sector.discussions : [];
+    if (discussions.length === 0) {
+      throw new Error(`No discussion found for sector ${sector.id}`);
+    }
+
+    const discussionId = discussions[discussions.length - 1];
+    const discussionData = await findDiscussionById(discussionId);
+
+    if (!discussionData) {
+      throw new Error(`Discussion ${discussionId} not found`);
+    }
+
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+
+    // Ensure checklistDraft exists
+    const checklistDraft = Array.isArray(discussionRoom.checklistDraft) ? discussionRoom.checklistDraft : [];
+    if (checklistDraft.length === 0) {
+      console.warn(`[ManagerEngine] Discussion ${discussionId} has no checklist items to evaluate`);
+      return sector;
+    }
+
+    const manager = await getManagerBySectorId(sector.id);
+    if (!manager) {
+      throw new Error(`Manager agent not found for sector ${sector.id}`);
+    }
+
+    const riskToleranceRaw = (manager.personality?.riskTolerance || 'medium').toString().toLowerCase();
+    const riskTolerance = ['low', 'medium', 'high'].includes(riskToleranceRaw) ? riskToleranceRaw : 'medium';
+
+    const managerProfile = {
+      name: manager.name || manager.id || 'manager',
+      sectorGoal: manager.prompt || sector.description || '',
+      riskTolerance
+    };
+
+    const sectorTypeRaw = (
+      sector.sectorType ||
+      sector.type ||
+      sector.category ||
+      sector.assetClass ||
+      ''
+    ).toString().toLowerCase();
+    const sectorType = ['crypto', 'equities', 'forex', 'commodities'].includes(sectorTypeRaw)
+      ? sectorTypeRaw
+      : 'other';
+
+    const sectorState = {
+      sectorName: sector.sectorName || sector.name || sector.symbol || sector.id,
+      sectorType,
+      simulatedPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : 100,
+      baselinePrice: typeof sector.baselinePrice === 'number'
+        ? sector.baselinePrice
+        : (typeof sector.initialPrice === 'number' ? sector.initialPrice : 100),
+      volatility: typeof sector.volatility === 'number' ? sector.volatility : (sector.riskScore || 0) / 100,
+      trendDescriptor: typeof sector.changePercent === 'number'
+        ? `${sector.changePercent}% change`
+        : 'flat'
+    };
+
+    const { evaluateChecklistItem } = require('../ai/managerBrain');
+
+    const approvedItems = [];
+    const rejectedItems = [];
+
+    for (const item of checklistDraft) {
+      if (item.status === 'approved' || item.status === 'rejected') {
+        if (item.status === 'approved') {
+          approvedItems.push(item);
+        } else {
+          rejectedItems.push(item);
+        }
+        continue;
+      }
+
+      const workerProposal = item.workerProposal || {
+        action: (item.action || 'HOLD').toUpperCase(),
+        symbol: item.symbol || sector.symbol || sector.sectorSymbol || '',
+        allocationPercent: typeof item.allocationPercent === 'number'
+          ? item.allocationPercent
+          : Math.max(0, Math.min(100, (item.amount && typeof sector.balance === 'number' && sector.balance > 0)
+            ? (item.amount / sector.balance) * 100
+            : 0)),
+        confidence: typeof item.workerConfidence === 'number'
+          ? item.workerConfidence
+          : (typeof item.confidence === 'number' ? item.confidence : 50),
+        reasoning: item.reasoning || item.reason || item.text || 'No reasoning provided'
+      };
+
+      let decision;
+      try {
+        decision = await evaluateChecklistItem({
+          managerProfile,
+          sectorState,
+          workerProposal
+        });
+      } catch (error) {
+        console.error(`[ManagerEngine] LLM manager evaluation failed for item ${item.id}. Falling back to rejection.`, error);
+        decision = {
+          approve: false,
+          confidence: workerProposal.confidence,
+          reasoning: 'Manager evaluation failed; rejecting by default.'
+        };
+      }
+
+      const allocationPercent = typeof decision.editedAllocationPercent === 'number'
+        ? decision.editedAllocationPercent
+        : workerProposal.allocationPercent;
+
+      item.allocationPercent = allocationPercent;
+      item.managerConfidence = decision.confidence;
+      item.managerReasoning = decision.reasoning;
+      item.workerProposal = workerProposal;
+
+      if (decision.approve === true) {
+        item.status = 'approved';
+        approvedItems.push(item);
+      } else {
+        item.status = 'rejected';
+        item.managerFeedback = decision.reasoning;
+        rejectedItems.push(item);
+      }
+    }
+
+    // Persist statuses back to checklistDraft
+    discussionRoom.checklistDraft = discussionRoom.checklistDraft.map(draft => {
+      const updated = [...approvedItems, ...rejectedItems].find(i => i.id === draft.id);
+      return updated || draft;
+    });
+
+    // Mirror statuses in checklist if present
+    if (Array.isArray(discussionRoom.checklist)) {
+      discussionRoom.checklist = discussionRoom.checklist.map(item => {
+        const updated = [...approvedItems, ...rejectedItems].find(i => i.id === item.id);
+        return updated ? { ...item, status: updated.status, managerFeedback: updated.managerFeedback, managerReasoning: updated.managerReasoning } : item;
+      });
+    }
+
+    await saveDiscussion(discussionRoom);
+
+    // Add approved items to execution list (manager backlog)
+    if (approvedItems.length > 0) {
+      const symbol = sector.symbol || sector.sectorSymbol || 'UNKNOWN';
+
+      for (const item of approvedItems) {
+        try {
+          const actionText = (item.action || '').toUpperCase();
+          let actionType = 'HOLD';
+          if (['BUY', 'SELL', 'HOLD', 'REBALANCE'].includes(actionText)) {
+            actionType = actionText;
+          } else if (actionText.includes('BUY') || actionText.includes('DEPLOY')) {
+            actionType = 'BUY';
+          } else if (actionText.includes('SELL') || actionText.includes('WITHDRAW')) {
+            actionType = 'SELL';
+          } else if (actionText.includes('REBALANCE') || actionText.includes('ALLOCATE')) {
+            actionType = 'REBALANCE';
+          }
+
+          const allocation = typeof sector.balance === 'number'
+            ? Math.max(0, Math.round((item.allocationPercent || 0) / 100 * sector.balance))
+            : Math.max(0, Math.round((item.allocationPercent || 0) * 10));
+
+          await managerAddToExecutionList(manager.id, {
+            actionType,
+            symbol,
+            allocation,
+            generatedFromDiscussion: discussionId
+          });
+        } catch (error) {
+          console.error(`[ManagerEngine] Error adding approved item ${item.id} to execution list:`, error);
+        }
+      }
+    }
+
+    if (approvedItems.length > 0) {
+      if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
+        discussionRoom.status = 'in_progress';
+      }
+      discussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(discussionRoom);
+      console.log(`[ManagerEngine] LLM-approved ${approvedItems.length} items for sector ${sector.id}. Added to execution backlog.`);
+    }
+
+    // Update sector
+    const updatedSector = await updateSector(sector.id, {
+      discussions: discussions
+    });
+    updatedSector.discussions = discussions;
+
+    return updatedSector;
   }
 
   /**
@@ -1002,6 +2217,155 @@ class ManagerEngine {
   }
 
   /**
+   * Check if a discussion can be closed
+   * Returns true only if ALL closure conditions are met:
+   * 1. No items remain with status: 'PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'
+   * 2. All checklist items are either: 'APPROVED' or 'ACCEPT_REJECTION'
+   * 
+   * @param {DiscussionRoom|Object} discussion - DiscussionRoom instance or discussion data object
+   * @returns {boolean} True if discussion can be closed, false otherwise
+   */
+  canDiscussionClose(discussion) {
+    if (!discussion) {
+      return false;
+    }
+
+    // Convert to DiscussionRoom if needed
+    const discussionRoom = discussion instanceof DiscussionRoom 
+      ? discussion 
+      : DiscussionRoom.fromData(discussion);
+
+    // Get all checklist items
+    const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
+    
+    // If no items, cannot close (discussion should have items to close)
+    if (allItems.length === 0) {
+      return false;
+    }
+
+    // Check for items with statuses that prevent closure
+    const blockingStatuses = ['PENDING', 'pending', 'REVISE_REQUIRED', 'revise_required', 'RESUBMITTED', 'resubmitted'];
+    const blockingItems = allItems.filter(item => {
+      const status = (item.status || '').toUpperCase();
+      return blockingStatuses.includes(status) || item.requiresRevision === true;
+    });
+
+    if (blockingItems.length > 0) {
+      return false;
+    }
+
+    // Ensure all items are either APPROVED or ACCEPT_REJECTION
+    const validFinalStatuses = ['APPROVED', 'approved', 'ACCEPT_REJECTION', 'accept_rejection'];
+    const invalidItems = allItems.filter(item => {
+      const status = (item.status || '').toUpperCase();
+      return !validFinalStatuses.includes(status);
+    });
+
+    if (invalidItems.length > 0) {
+      return false;
+    }
+
+    // All conditions met - discussion can be closed
+    return true;
+  }
+
+  /**
+   * Close a discussion - ONLY called by manager agent when all checklist items are resolved
+   * A discussion should only close when ALL of the following are true:
+   * 1. No checklist items are left in 'PENDING', 'REVISE_REQUIRED', or 'RESUBMITTED'
+   * 2. All items are either 'APPROVED' or 'ACCEPT_REJECTION'
+   * 3. Manager evaluates final state and calls closeDiscussion(discussionId)
+   * 
+   * On close:
+   * - status → 'decided' (even if all items are rejected/accepted as rejection)
+   * - finalRound saved to roundHistory
+   * - discussionClosedAt timestamp recorded
+   * - DO NOT execute approved items (executionList handles that)
+   * 
+   * @param {string} discussionId - Discussion ID
+   * @returns {Promise<DiscussionRoom>} Closed discussion room
+   */
+  async closeDiscussion(discussionId) {
+    try {
+      const discussionData = await findDiscussionById(discussionId);
+      if (!discussionData) {
+        throw new Error(`Discussion ${discussionId} not found`);
+      }
+
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
+
+      // Check if already closed (handle various status formats)
+      const closedStatuses = ['CLOSED', 'closed', 'decided', 'finalized', 'archived', 'accepted', 'completed'];
+      if (closedStatuses.includes(discussionRoom.status)) {
+        console.log(`[ManagerEngine] Discussion ${discussionId} is already closed (status: ${discussionRoom.status})`);
+        // Ensure status is normalized to 'decided' if it's a closed variant
+        if (discussionRoom.status !== 'decided' && closedStatuses.includes(discussionRoom.status)) {
+          discussionRoom.status = 'decided';
+          discussionRoom.updatedAt = new Date().toISOString();
+          await saveDiscussion(discussionRoom);
+        }
+        return discussionRoom;
+      }
+
+      // Validate closure conditions using canDiscussionClose
+      if (!this.canDiscussionClose(discussionRoom)) {
+        const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
+        const blockingStatuses = ['PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'];
+        const blockingItems = allItems.filter(item => {
+          const status = (item.status || '').toUpperCase();
+          return blockingStatuses.includes(status) || item.requiresRevision === true;
+        });
+        const invalidItems = allItems.filter(item => {
+          const status = (item.status || '').toUpperCase();
+          return status !== 'APPROVED' && status !== 'ACCEPT_REJECTION';
+        });
+
+        const errorMsg = `Cannot close discussion ${discussionId}: Closure conditions not met. ` +
+          `${blockingItems.length} items with blocking statuses (PENDING/REVISE_REQUIRED/RESUBMITTED), ` +
+          `${invalidItems.length} items not in final state (APPROVED/ACCEPT_REJECTION)`;
+        console.warn(`[ManagerEngine] ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+
+      // All validations passed - close the discussion
+      const roundCount = discussionRoom.currentRound || discussionRoom.round || 1;
+      
+      // Save final round to roundHistory
+      if (!Array.isArray(discussionRoom.roundHistory)) {
+        discussionRoom.roundHistory = [];
+      }
+      
+      // Create snapshot of final round
+      const finalRoundSnapshot = {
+        round: roundCount,
+        checklist: JSON.parse(JSON.stringify(discussionRoom.checklist || [])),
+        finalizedChecklist: JSON.parse(JSON.stringify(discussionRoom.finalizedChecklist || [])),
+        managerDecisions: JSON.parse(JSON.stringify(discussionRoom.managerDecisions || [])),
+        messages: JSON.parse(JSON.stringify(discussionRoom.messages || [])),
+        timestamp: new Date().toISOString()
+      };
+      
+      discussionRoom.roundHistory.push(finalRoundSnapshot);
+
+      // Update status and timestamps
+      // Use 'decided' status instead of 'CLOSED' to match UI expectations
+      discussionRoom.status = 'decided';
+      discussionRoom.discussionClosedAt = new Date().toISOString();
+      discussionRoom.updatedAt = new Date().toISOString();
+
+      // Save updated discussion
+      await saveDiscussion(discussionRoom);
+
+      console.log(`[ManagerEngine] Discussion ${discussionId} closed successfully after ${roundCount} rounds. Status set to 'decided'.`);
+      
+      return discussionRoom;
+    } catch (error) {
+      console.error(`[ManagerEngine] Error closing discussion ${discussionId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Finalize checklist by moving approved items to sector checklistItems
    * @param {Object} sector - Sector object
    * @returns {Promise<Object>} Updated sector with finalized checklist
@@ -1050,8 +2414,11 @@ class ManagerEngine {
     // Clear discussionDraft
     discussionRoom.checklistDraft = [];
     
-    // Mark discussion as decided
-    discussionRoom.status = 'decided';
+    // NOTE: Discussion status is NOT automatically changed here.
+    // The discussion remains in 'in_progress' until the manager explicitly calls closeDiscussion().
+    if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
+      discussionRoom.status = 'in_progress';
+    }
     discussionRoom.updatedAt = new Date().toISOString();
 
     // Save finalized discussion

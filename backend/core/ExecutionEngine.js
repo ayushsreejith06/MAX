@@ -4,6 +4,8 @@ const { v4: uuidv4 } = require('uuid');
 const { findDiscussionById } = require('../utils/discussionStorage');
 const { updateAgent } = require('../utils/agentStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
+const { getManagerById, getExecutionList, removeExecutionItem } = require('../utils/executionListStorage');
+const { calculateNewPrice, mapActionToImpact } = require('../simulation/priceModel');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -41,20 +43,50 @@ class ExecutionEngine {
     // Price should only update when there are active agents
     const { loadAgents } = require('../utils/agentStorage');
     const allAgents = await loadAgents();
-    const sectorAgents = allAgents.filter(agent => agent && agent.sectorId === sectorId);
-    const activeAgents = sectorAgents.filter(agent => agent && agent.status === 'active');
-    const activeAgentsCount = activeAgents.length;
 
     // Initialize sectorState with capital and position
     // Map balance to capital, and track position in performance or as separate field
+    const initialHoldings = (sector.holdings && typeof sector.holdings === 'object')
+      ? { ...sector.holdings }
+      : {};
+
+    if (typeof initialHoldings.position !== 'number') {
+      initialHoldings.position = typeof sector.position === 'number'
+        ? sector.position
+        : (sector.performance?.position || 0);
+    }
+
+    const startingBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+
     const sectorState = {
       id: sector.id,
-      capital: typeof sector.balance === 'number' ? sector.balance : 0,
-      position: typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0),
+      balance: startingBalance,
+      capital: startingBalance,
+      holdings: initialHoldings,
+      position: typeof initialHoldings.position === 'number' ? initialHoldings.position : 0,
       performance: sector.performance && typeof sector.performance === 'object' ? { ...sector.performance } : {},
       utilization: typeof sector.utilization === 'number' ? sector.utilization : 0,
       currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : 100,
       agents: Array.isArray(sector.agents) ? sector.agents : []
+    };
+
+    const startingPrice = sectorState.currentPrice;
+
+    const getHoldingsTotal = () => {
+      const holdings = sectorState.holdings || {};
+      return Object.entries(holdings).reduce((sum, [key, value]) => {
+        const keyLower = key.toLowerCase();
+        if (keyLower === 'balance' || keyLower === 'cash') {
+          return sum;
+        }
+        return sum + (typeof value === 'number' ? value : 0);
+      }, 0);
+    };
+
+    const syncPosition = () => {
+      sectorState.position = typeof sectorState.holdings.position === 'number'
+        ? sectorState.holdings.position
+        : 0;
     };
 
     const tradeResults = [];
@@ -86,18 +118,24 @@ class ExecutionEngine {
         }
       }
 
-      // Extract amount - support multiple formats
+      // Extract amount - must come from checklist JSON (no defaults)
       let amount = 0;
       if (typeof item.amount === 'number' && item.amount > 0) {
         amount = item.amount;
       } else if (typeof item.quantity === 'number' && item.quantity > 0) {
         amount = item.quantity;
-      } else if (item.confidence && typeof item.confidence === 'number') {
-        // Calculate amount from confidence if available (default: 1000 * confidence)
-        amount = Math.floor(1000 * item.confidence);
-      } else {
-        // Default amount if none specified
-        amount = 1000;
+      }
+
+      const requiresAmount = !['rebalance', 'hold'].includes(action || '');
+      if (requiresAmount && amount <= 0) {
+        tradeResults.push({
+          itemId: item.id || null,
+          action: action,
+          amount: 0,
+          success: false,
+          reason: 'Invalid or missing amount'
+        });
+        continue;
       }
 
       if (!action) {
@@ -112,12 +150,17 @@ class ExecutionEngine {
         continue;
       }
 
+      let executionSucceeded = false;
+      let executedAction = null;
+
       try {
         switch (action) {
           case 'buy':
-            if (amount > 0 && sectorState.capital >= amount) {
-              sectorState.capital -= amount;
+            if (amount > 0 && sectorState.balance >= amount) {
+              sectorState.balance -= amount;
+              sectorState.capital = sectorState.balance;
               sectorState.position += amount;
+              sectorState.holdings.position = sectorState.position;
               tradeResults.push({
                 itemId: item.id || null,
                 action: 'buy',
@@ -125,6 +168,8 @@ class ExecutionEngine {
                 success: true,
                 reason: 'Buy executed successfully'
               });
+              executionSucceeded = true;
+              executedAction = 'BUY';
               // Update agent rewards for successful execution
               try {
                 await this.updateAgentRewards(allAgents, item, checklistId);
@@ -137,15 +182,17 @@ class ExecutionEngine {
                 action: 'buy',
                 amount: amount,
                 success: false,
-                reason: amount <= 0 ? 'Invalid amount' : 'Insufficient capital'
+                reason: amount <= 0 ? 'Invalid amount' : 'Insufficient balance'
               });
             }
             break;
 
           case 'sell':
             if (amount > 0 && sectorState.position >= amount) {
-              sectorState.capital += amount;
+              sectorState.balance += amount;
+              sectorState.capital = sectorState.balance;
               sectorState.position -= amount;
+              sectorState.holdings.position = sectorState.position;
               tradeResults.push({
                 itemId: item.id || null,
                 action: 'sell',
@@ -153,6 +200,8 @@ class ExecutionEngine {
                 success: true,
                 reason: 'Sell executed successfully'
               });
+              executionSucceeded = true;
+              executedAction = 'SELL';
               // Update agent rewards for successful execution
               try {
                 await this.updateAgentRewards(allAgents, item, checklistId);
@@ -179,43 +228,111 @@ class ExecutionEngine {
               success: true,
               reason: 'Hold action - no changes'
             });
+            executionSucceeded = true;
+            executedAction = 'HOLD';
+            // Update agent rewards for successful execution
+            try {
+              await this.updateAgentRewards(allAgents, item, checklistId);
+            } catch (rewardError) {
+              console.warn(`[ExecutionEngine] Failed to update rewards for item ${item.id}: ${rewardError.message}`);
+            }
             break;
 
-          case 'rebalance':
-            // Rebalance: adjust position to target allocation
-            // Target: 50% capital, 50% position (both in same units)
-            // This can be enhanced with more sophisticated logic
-            const totalValue = sectorState.capital + sectorState.position;
-            const targetPosition = totalValue * 0.5; // 50% target
-            const currentPosition = sectorState.position;
-            const rebalanceAmount = targetPosition - currentPosition;
+          case 'rebalance': {
+            const totalValue = sectorState.balance + getHoldingsTotal();
+            const ratioInput = item.ratio || item.targetRatio || item.targetAllocation || item.allocationRatio;
+            let rebalanceSuccess = false;
+            let rebalanceReason = 'Rebalance executed successfully';
 
-            if (Math.abs(rebalanceAmount) > 0.01) { // Only rebalance if difference is significant
-              if (rebalanceAmount > 0) {
-                // Need to buy more - move capital to position
-                const buyAmount = Math.min(rebalanceAmount, sectorState.capital);
-                if (buyAmount > 0) {
-                  sectorState.capital -= buyAmount;
-                  sectorState.position += buyAmount;
+            if (ratioInput && typeof ratioInput === 'object') {
+              const ratioEntries = Object.entries(ratioInput).filter(([, value]) => typeof value === 'number' && value > 0);
+              if (ratioEntries.length > 0 && totalValue > 0) {
+                const ratioSum = ratioEntries.reduce((sum, [, value]) => sum + value, 0);
+                const newHoldings = { ...sectorState.holdings };
+                let newBalance = 0;
+                let allocatedTotal = 0;
+
+                for (const [key, value] of ratioEntries) {
+                  const targetValue = totalValue * (value / ratioSum);
+                  const keyLower = key.toLowerCase();
+                  if (keyLower === 'balance' || keyLower === 'cash') {
+                    newBalance += targetValue;
+                  } else {
+                    newHoldings[key] = targetValue;
+                    if (key === 'position') {
+                      sectorState.position = targetValue;
+                    }
+                  }
+                  allocatedTotal += targetValue;
                 }
+
+                // Any leftover goes to balance
+                newBalance += Math.max(totalValue - allocatedTotal, 0);
+
+                sectorState.holdings = newHoldings;
+                sectorState.balance = newBalance;
+                sectorState.capital = newBalance;
+                syncPosition();
+                rebalanceSuccess = true;
               } else {
-                // Need to sell - move position to capital
-                const sellAmount = Math.min(Math.abs(rebalanceAmount), sectorState.position);
-                if (sellAmount > 0) {
-                  sectorState.capital += sellAmount;
-                  sectorState.position -= sellAmount;
-                }
+                rebalanceReason = 'Invalid ratio for rebalance';
               }
+            } else if (typeof ratioInput === 'number' && ratioInput >= 0) {
+              const clampedRatio = Math.min(Math.max(ratioInput, 0), 1);
+              const targetPosition = totalValue * clampedRatio;
+              const rebalanceAmount = targetPosition - sectorState.position;
+
+              if (Math.abs(rebalanceAmount) > 0.01) {
+                if (rebalanceAmount > 0) {
+                  const buyAmount = Math.min(rebalanceAmount, sectorState.balance);
+                  if (buyAmount > 0) {
+                    sectorState.balance -= buyAmount;
+                    sectorState.capital = sectorState.balance;
+                    sectorState.position += buyAmount;
+                  }
+                } else {
+                  const sellAmount = Math.min(Math.abs(rebalanceAmount), sectorState.position);
+                  if (sellAmount > 0) {
+                    sectorState.balance += sellAmount;
+                    sectorState.capital = sectorState.balance;
+                    sectorState.position -= sellAmount;
+                  }
+                }
+                sectorState.holdings.position = sectorState.position;
+              }
+
+              rebalanceSuccess = true;
+            } else {
+              rebalanceReason = 'Missing or invalid rebalance ratio';
             }
 
-            tradeResults.push({
-              itemId: item.id || null,
-              action: 'rebalance',
-              amount: Math.abs(rebalanceAmount),
-              success: true,
-              reason: 'Rebalance executed successfully'
-            });
+            if (rebalanceSuccess) {
+              tradeResults.push({
+                itemId: item.id || null,
+                action: 'rebalance',
+                amount: totalValue,
+                success: true,
+                reason: 'Rebalance executed successfully'
+              });
+              executionSucceeded = true;
+              executedAction = 'REBALANCE';
+              // Update agent rewards for successful execution
+              try {
+                await this.updateAgentRewards(allAgents, item, checklistId);
+              } catch (rewardError) {
+                console.warn(`[ExecutionEngine] Failed to update rewards for item ${item.id}: ${rewardError.message}`);
+              }
+            } else {
+              tradeResults.push({
+                itemId: item.id || null,
+                action: 'rebalance',
+                amount: 0,
+                success: false,
+                reason: rebalanceReason
+              });
+            }
             break;
+          }
 
           default:
             console.warn(`[ExecutionEngine] Unknown action: ${action} for item ${item.id || 'unknown'}`);
@@ -226,6 +343,10 @@ class ExecutionEngine {
               success: false,
               reason: `Unknown action: ${action}`
             });
+        }
+
+        if (executionSucceeded && executedAction) {
+          await this.applyPriceUpdateForAction(sector, sectorState, executedAction);
         }
       } catch (error) {
         console.error(`[ExecutionEngine] Error processing item ${item.id || 'unknown'}:`, error);
@@ -241,10 +362,13 @@ class ExecutionEngine {
 
     // Recalculate performance
     const previousCapital = typeof sector.balance === 'number' ? sector.balance : 0;
-    const previousPosition = typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0);
+    const previousPosition = typeof sector.holdings?.position === 'number'
+      ? sector.holdings.position
+      : (typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0));
     const previousTotalValue = previousCapital + previousPosition;
 
-    const currentTotalValue = sectorState.capital + sectorState.position;
+    const currentPosition = sectorState.position;
+    const currentTotalValue = sectorState.balance + getHoldingsTotal();
     const pnl = currentTotalValue - previousTotalValue;
     const pnlPercent = previousTotalValue > 0 ? (pnl / previousTotalValue) * 100 : 0;
 
@@ -253,79 +377,39 @@ class ExecutionEngine {
       totalPL: (sectorState.performance.totalPL || 0) + pnl,
       pnl: pnl,
       pnlPercent: pnlPercent,
-      position: sectorState.position,
-      capital: sectorState.capital,
+      position: currentPosition,
+      capital: sectorState.balance,
       totalValue: currentTotalValue,
       lastUpdated: timestamp
     };
 
     // Recalculate utilization
     // Utilization = (position / total value) * 100
-    const totalValue = sectorState.capital + sectorState.position;
+    const totalValue = sectorState.balance + getHoldingsTotal();
     sectorState.utilization = totalValue > 0 
-      ? (sectorState.position / totalValue) * 100 
+      ? (currentPosition / totalValue) * 100 
       : 0;
 
-    // CRITICAL: Update price ONLY when checklist items are executed AND there are active agents
-    // Price should NOT change if there are no active agents in the sector
-    // Price changes based on executed actions:
-    // - Buy actions increase price (demand increases)
-    // - Sell actions decrease price (supply increases)
-    // - Change magnitude is proportional to the amount executed relative to total value
-    const previousPrice = sector.currentPrice || 100;
-    let priceChange = 0;
-    let totalExecutedAmount = 0;
-    
-    // Only update price if there are active agents
-    if (activeAgentsCount > 0) {
-      // Calculate price impact from executed trades
-      for (const result of tradeResults) {
-        if (result.success && result.amount > 0) {
-          if (result.action === 'buy') {
-            // Buy actions increase price (positive impact)
-            totalExecutedAmount += result.amount;
-            // Price impact: 0.1% per $1000 of buy orders (scaled by total value)
-            const impactPercent = (result.amount / Math.max(totalValue, 1000)) * 0.1;
-            priceChange += previousPrice * impactPercent;
-          } else if (result.action === 'sell') {
-            // Sell actions decrease price (negative impact)
-            totalExecutedAmount += result.amount;
-            // Price impact: -0.1% per $1000 of sell orders (scaled by total value)
-            const impactPercent = (result.amount / Math.max(totalValue, 1000)) * 0.1;
-            priceChange -= previousPrice * impactPercent;
-          }
-        }
-      }
-    } else {
-      console.log(`[ExecutionEngine] Skipping price update - no active agents in sector (${activeAgentsCount} active)`);
-    }
-    
-    // Calculate new price (only if priceChange was calculated)
-    const newPrice = activeAgentsCount > 0 && priceChange !== 0
-      ? Math.max(0.01, previousPrice + priceChange)
-      : previousPrice;
+    // Price is already updated per executed item via applyPriceUpdateForAction.
+    // Calculate aggregate change for logging purposes only.
+    const previousPrice = startingPrice || sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100;
+    const newPrice = sectorState.currentPrice;
     const priceChangePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
-    
-    // Update sectorState with new price
-    sectorState.currentPrice = Number(newPrice.toFixed(2));
-    
-    if (activeAgentsCount > 0 && priceChange !== 0) {
-      console.log(`[ExecutionEngine] Price updated after checklist execution: ${previousPrice.toFixed(2)} -> ${newPrice.toFixed(2)} (${priceChangePercent.toFixed(2)}%)`);
-    }
 
-    // Write updated sectorState back to persistent state
-    // Update balance when checklist items are executed (balance changes only via checklist execution)
-    // Balance represents the actual funds available in the sector
-    // Price is ONLY updated when checklist items are executed (not in simulation ticks)
+    // Ensure the latest balance/positions snapshot is persisted alongside the final price
     const updates = {
-      balance: sectorState.capital, // Update balance to reflect capital changes from checklist execution
+      balance: sectorState.balance,
+      holdings: sectorState.holdings,
       position: sectorState.position,
+      positions: sectorState.position,
       performance: sectorState.performance,
       utilization: sectorState.utilization,
-      currentPrice: sectorState.currentPrice, // Update price based on executed actions
+      currentPrice: newPrice,
+      simulatedPrice: newPrice,
+      lastSimulatedPrice: newPrice,
+      lastPriceUpdate: Date.now(),
       change: newPrice - previousPrice,
-      changePercent: priceChangePercent,
-      lastSimulatedPrice: sectorState.currentPrice // Also update lastSimulatedPrice to match currentPrice
+      changePercent: priceChangePercent
     };
 
     await updateSector(sectorId, updates);
@@ -346,7 +430,8 @@ class ExecutionEngine {
       success: true,
       updatedSectorState: {
         id: sectorState.id,
-        capital: sectorState.capital,
+        balance: sectorState.balance,
+        holdings: sectorState.holdings,
         position: sectorState.position,
         performance: sectorState.performance,
         utilization: sectorState.utilization,
@@ -379,7 +464,36 @@ class ExecutionEngine {
       : 0;
 
     // Normalize item type to uppercase
-    const itemType = (item.type || item.action || '').toUpperCase();
+    // Check item.type first, then item.action, then try to extract from item.text
+    let itemType = (item.type || item.action || '').toUpperCase();
+    
+    // If still no type found, try to extract from text
+    if (!itemType && item.text) {
+      const textUpper = item.text.toUpperCase();
+      if (textUpper.includes('BUY') || textUpper.includes('DEPLOY CAPITAL') || textUpper.includes('DEPLOY')) {
+        itemType = 'BUY';
+      } else if (textUpper.includes('SELL') || textUpper.includes('WITHDRAW')) {
+        itemType = 'SELL';
+      } else if (textUpper.includes('HOLD')) {
+        itemType = 'HOLD';
+      } else if (textUpper.includes('REBALANCE') || textUpper.includes('ALLOCATE')) {
+        itemType = 'REBALANCE';
+      }
+    }
+    
+    // Also check reasoning field
+    if (!itemType && item.reasoning) {
+      const reasoningUpper = item.reasoning.toUpperCase();
+      if (reasoningUpper.includes('BUY') || reasoningUpper.includes('DEPLOY')) {
+        itemType = 'BUY';
+      } else if (reasoningUpper.includes('SELL')) {
+        itemType = 'SELL';
+      } else if (reasoningUpper.includes('HOLD')) {
+        itemType = 'HOLD';
+      } else if (reasoningUpper.includes('REBALANCE')) {
+        itemType = 'REBALANCE';
+      }
+    }
 
     let exposureDelta = 0;
     let managerImpact = 0;
@@ -432,6 +546,61 @@ class ExecutionEngine {
   }
 
   /**
+   * Resolve trend factor from sector object (supports trendCurveValue or trendCurve)
+   */
+  getTrendFactor(sector) {
+    if (!sector) {
+      return 0;
+    }
+    if (typeof sector.trendCurveValue === 'number') {
+      return sector.trendCurveValue;
+    }
+    if (typeof sector.trendCurve === 'number') {
+      return sector.trendCurve;
+    }
+    return 0;
+  }
+
+  /**
+   * Apply the mandated price model and persist sector state (price + balance/positions)
+   * after an executed action.
+   */
+  async applyPriceUpdateForAction(sector, sectorState, actionType) {
+    const previousPrice = typeof sectorState.currentPrice === 'number'
+      ? sectorState.currentPrice
+      : (sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100);
+
+    const trendFactor = this.getTrendFactor(sector);
+    const managerImpact = mapActionToImpact(actionType);
+    const newPrice = calculateNewPrice(previousPrice, { managerImpact, trendFactor });
+
+    sectorState.currentPrice = newPrice;
+    const updates = {
+      balance: sectorState.balance,
+      holdings: sectorState.holdings,
+      position: sectorState.position,
+      positions: sectorState.position,
+      currentPrice: newPrice,
+      simulatedPrice: newPrice,
+      lastSimulatedPrice: newPrice,
+      lastPriceUpdate: Date.now(),
+      change: newPrice - previousPrice,
+      changePercent: previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0
+    };
+
+    await updateSector(sector.id, updates);
+
+    // Keep sector reference aligned for subsequent actions within the same execution
+    sector.currentPrice = newPrice;
+    sector.balance = sectorState.balance;
+    sector.holdings = sectorState.holdings;
+    sector.position = sectorState.position;
+    sector.positions = sectorState.position;
+
+    return newPrice;
+  }
+
+  /**
    * Update simulated price for a sector based on volatility, noise, trend, and manager impact
    * @param {Object} sector - Sector object
    * @param {Object} executionImpact - Execution impact object with managerImpact
@@ -441,39 +610,24 @@ class ExecutionEngine {
     // Read old price from sector.simulatedPrice, fallback to currentPrice or lastSimulatedPrice
     const oldPrice = sector.simulatedPrice || sector.currentPrice || sector.lastSimulatedPrice || 100;
 
-    // Calculate volatility: vol = sector.volatility / 100
-    const vol = typeof sector.volatility === 'number' ? sector.volatility / 100 : 0.02 / 100;
-
-    // Generate volatility noise: random in [-vol, +vol]
-    const volatilityNoise = (Math.random() * 2 - 1) * vol;
-
-    // Generate random noise: random in [-0.005, +0.005]
-    const randomNoise = (Math.random() * 2 - 1) * 0.005;
-
-    // Get trend component: sector.trendCurve or 0 if not present
-    const trendComponent = typeof sector.trendCurve === 'number' ? sector.trendCurve : 0;
-
-    // Get manager impact: executionImpact.managerImpact or 0
-    // Multiply by 1.5 to increase visibility of BUY/SELL actions
-    const managerImpact = executionImpact && typeof executionImpact.managerImpact === 'number' 
-      ? executionImpact.managerImpact * 1.5
+    const managerImpact = executionImpact && typeof executionImpact.managerImpact === 'number'
+      ? executionImpact.managerImpact
       : 0;
 
-    // Calculate new price using the formula
-    let newPrice = oldPrice * (1 + volatilityNoise + randomNoise + trendComponent + managerImpact);
-
-    // Clamp newPrice to minimum 0.01
-    newPrice = Math.max(0.01, newPrice);
+    const trendFactor = this.getTrendFactor(sector);
+    const newPrice = calculateNewPrice(oldPrice, { managerImpact, trendFactor });
+    const priceChange = newPrice - oldPrice;
+    const changePercent = oldPrice > 0 ? (priceChange / oldPrice) * 100 : 0;
 
     // Update sector with new simulated price and timestamp
     const updates = {
       simulatedPrice: newPrice,
-      lastPriceUpdate: Date.now()
+      lastPriceUpdate: Date.now(),
+      currentPrice: newPrice,
+      lastSimulatedPrice: newPrice,
+      change: priceChange,
+      changePercent: changePercent
     };
-
-    // Also update currentPrice and lastSimulatedPrice for consistency
-    updates.currentPrice = newPrice;
-    updates.lastSimulatedPrice = newPrice;
 
     await updateSector(sector.id, updates);
 
@@ -573,15 +727,11 @@ class ExecutionEngine {
     // Extract action from checklist item
     const itemAction = (checklistItem.action || '').toLowerCase();
     
+    // Track which agents have already been counted (to avoid double-counting)
+    const processedAgents = new Set();
+    
     // Determine support/opposition from discussion messages
     if (discussionRoom && Array.isArray(discussionRoom.messages)) {
-      const actionMap = {
-        'buy': 'buy',
-        'sell': 'sell',
-        'hold': 'hold',
-        'rebalance': 'rebalance'
-      };
-
       // Analyze each message to determine support/opposition
       discussionRoom.messages.forEach(message => {
         if (!message.agentId || !message.content) {
@@ -590,6 +740,11 @@ class ExecutionEngine {
 
         // Skip the proposer (already rewarded)
         if (message.agentId === checklistItem.agentId) {
+          return;
+        }
+
+        // Skip if we've already processed this agent
+        if (processedAgents.has(message.agentId)) {
           return;
         }
 
@@ -618,6 +773,7 @@ class ExecutionEngine {
           if (messageAction === itemAction) {
             agent.rewards += 1;
             agent.updated = true;
+            processedAgents.add(message.agentId);
             console.log(`[ExecutionEngine] Rewarded supporter ${message.agentId}: +1 token`);
           }
           // Oppose: opposite actions (buy vs sell)
@@ -627,6 +783,7 @@ class ExecutionEngine {
           ) {
             agent.rewards -= 1;
             agent.updated = true;
+            processedAgents.add(message.agentId);
             console.log(`[ExecutionEngine] Penalized opposer ${message.agentId}: -1 token`);
           }
         }
@@ -695,6 +852,336 @@ class ExecutionEngine {
       console.error(`[ExecutionEngine] Failed to log execution: ${error.message}`);
       // Don't throw - logging failure shouldn't break execution
     }
+  }
+
+  /**
+   * Process execution list from manager - Phase 4 implementation
+   * Reads items from manager.executionList FIFO and executes them
+   * @param {string} managerId - Manager agent ID
+   * @returns {Promise<Object>} Execution results with summary
+   */
+  async processExecutionList(managerId) {
+    if (!managerId) {
+      throw new Error('managerId is required');
+    }
+
+    // Get manager and execution list
+    const manager = await getManagerById(managerId);
+    if (!manager) {
+      throw new Error(`Manager with ID ${managerId} not found`);
+    }
+
+    const executionList = await getExecutionList(managerId);
+    if (!Array.isArray(executionList) || executionList.length === 0) {
+      console.log(`[ExecutionEngine] No items in execution list for manager ${managerId}`);
+      return {
+        success: true,
+        executed: 0,
+        results: []
+      };
+    }
+
+    const sectorId = manager.sectorId;
+    if (!sectorId) {
+      throw new Error(`Manager ${managerId} has no sectorId`);
+    }
+
+    // Load sector state
+    const sector = await getSectorById(sectorId);
+    if (!sector) {
+      throw new Error(`Sector ${sectorId} not found`);
+    }
+
+    // Check if there are active agents in the sector
+    const { loadAgents } = require('../utils/agentStorage');
+    const allAgents = await loadAgents();
+    const sectorAgents = allAgents.filter(agent => agent && agent.sectorId === sectorId);
+    const activeAgents = sectorAgents.filter(agent => agent && agent.status === 'active');
+    const activeAgentsCount = activeAgents.length;
+
+    // Initialize sectorState
+    const sectorState = {
+      id: sector.id,
+      balance: typeof sector.balance === 'number' ? sector.balance : 0,
+      capital: typeof sector.balance === 'number' ? sector.balance : 0,
+      position: typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0),
+      holdings: { position: typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0) },
+      performance: sector.performance && typeof sector.performance === 'object' ? { ...sector.performance } : {},
+      utilization: typeof sector.utilization === 'number' ? sector.utilization : 0,
+      currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : 100,
+      agents: Array.isArray(sector.agents) ? sector.agents : []
+    };
+
+    const executionResults = [];
+    const timestamp = Date.now();
+    const startingPrice = sectorState.currentPrice;
+
+    // Process each item FIFO
+    for (const item of executionList) {
+      try {
+        const actionType = item.actionType?.toUpperCase();
+        const symbol = item.symbol || sectorId;
+        const allocation = typeof item.allocation === 'number' ? item.allocation : 0;
+
+        if (!actionType || !['BUY', 'SELL', 'HOLD', 'REBALANCE'].includes(actionType)) {
+          console.warn(`[ExecutionEngine] Skipping invalid actionType: ${actionType} for item ${item.id}`);
+          executionResults.push({
+            itemId: item.id,
+            actionType: actionType || 'UNKNOWN',
+            symbol: symbol,
+            success: false,
+            reason: `Invalid actionType: ${actionType}`
+          });
+          continue;
+        }
+
+        // Execute action
+        let result;
+        switch (actionType) {
+          case 'BUY':
+            result = await this.applyBuy(sectorState, allocation, symbol);
+            break;
+          case 'SELL':
+            result = await this.applySell(sectorState, allocation, symbol);
+            break;
+          case 'HOLD':
+            result = await this.applyHold(sectorState, symbol);
+            break;
+          case 'REBALANCE':
+            result = await this.applyRebalance(sectorState, allocation);
+            break;
+          default:
+            result = { success: false, reason: `Unknown action: ${actionType}` };
+        }
+
+        // Store result
+        executionResults.push({
+          itemId: item.id,
+          actionType: actionType,
+          symbol: symbol,
+          allocation: allocation,
+          success: result.success,
+          reason: result.reason || 'Executed successfully',
+          managerImpact: result.managerImpact || 0
+        });
+
+        // Remove item from execution list after successful execution
+        if (result.success) {
+          await this.applyPriceUpdateForAction(sector, sectorState, actionType);
+          await removeExecutionItem(managerId, item.id);
+          console.log(`[ExecutionEngine] Executed ${actionType} on ${symbol} for manager ${managerId}.`);
+        } else {
+          console.warn(`[ExecutionEngine] Failed to execute ${actionType} on ${symbol} for manager ${managerId}: ${result.reason}`);
+        }
+      } catch (error) {
+        console.error(`[ExecutionEngine] Error processing execution item ${item.id}:`, error);
+        executionResults.push({
+          itemId: item.id,
+          actionType: item.actionType || 'UNKNOWN',
+          symbol: item.symbol || sectorId,
+          success: false,
+          reason: error.message
+        });
+      }
+    }
+
+    // Recalculate performance
+    const previousCapital = typeof sector.balance === 'number' ? sector.balance : 0;
+    const previousPosition = typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0);
+    const previousTotalValue = previousCapital + previousPosition;
+
+    const currentTotalValue = sectorState.capital + sectorState.position;
+    const pnl = currentTotalValue - previousTotalValue;
+    const pnlPercent = previousTotalValue > 0 ? (pnl / previousTotalValue) * 100 : 0;
+
+    sectorState.performance = {
+      ...sectorState.performance,
+      totalPL: (sectorState.performance.totalPL || 0) + pnl,
+      pnl: pnl,
+      pnlPercent: pnlPercent,
+      position: sectorState.position,
+      capital: sectorState.capital,
+      totalValue: currentTotalValue,
+      lastUpdated: timestamp
+    };
+
+    // Recalculate utilization
+    const totalValue = sectorState.capital + sectorState.position;
+    sectorState.utilization = totalValue > 0 
+      ? (sectorState.position / totalValue) * 100 
+      : 0;
+
+    const previousPrice = startingPrice || sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100;
+    const newPrice = sectorState.currentPrice;
+    const priceChangePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
+
+    // Update sector
+    const updates = {
+      balance: sectorState.capital,
+      position: sectorState.position,
+      positions: sectorState.position,
+      performance: sectorState.performance,
+      utilization: sectorState.utilization,
+      currentPrice: newPrice,
+      simulatedPrice: newPrice,
+      lastSimulatedPrice: newPrice,
+      lastPriceUpdate: Date.now(),
+      change: newPrice - previousPrice,
+      changePercent: priceChangePercent
+    };
+
+    await updateSector(sectorId, updates);
+
+    // Generate execution log
+    const logEntry = {
+      id: uuidv4(),
+      sectorId: sectorId,
+      managerId: managerId,
+      timestamp: timestamp,
+      executionType: 'execution_list',
+      results: executionResults
+    };
+
+    await this._appendExecutionLog(logEntry);
+
+    const executedCount = executionResults.filter(r => r.success).length;
+
+    return {
+      success: true,
+      executed: executedCount,
+      total: executionResults.length,
+      results: executionResults,
+      updatedSectorState: {
+        id: sectorState.id,
+        capital: sectorState.capital,
+        position: sectorState.position,
+        performance: sectorState.performance,
+        utilization: sectorState.utilization,
+        currentPrice: sectorState.currentPrice
+      }
+    };
+  }
+
+  /**
+   * Apply BUY action
+   * @param {Object} sectorState - Current sector state
+   * @param {number} amount - Amount to buy
+   * @param {string} symbol - Symbol/ticker
+   * @returns {Promise<Object>} Result with success, reason, and managerImpact
+   */
+  async applyBuy(sectorState, amount, symbol) {
+    if (amount <= 0) {
+      return { success: false, reason: 'Invalid amount: must be positive' };
+    }
+
+    if (sectorState.capital < amount) {
+      return { success: false, reason: 'Insufficient capital' };
+    }
+
+    sectorState.capital -= amount;
+    sectorState.balance = sectorState.capital;
+    sectorState.position += amount;
+
+    // Calculate manager impact: positive impact for buy orders
+    const currentExposure = sectorState.position;
+    const managerImpact = amount > 0 ? (amount / Math.max(currentExposure, 1000)) * 0.001 : 0;
+
+    return {
+      success: true,
+      reason: 'Buy executed successfully',
+      managerImpact: managerImpact
+    };
+  }
+
+  /**
+   * Apply SELL action
+   * @param {Object} sectorState - Current sector state
+   * @param {number} amount - Amount to sell
+   * @param {string} symbol - Symbol/ticker
+   * @returns {Promise<Object>} Result with success, reason, and managerImpact
+   */
+  async applySell(sectorState, amount, symbol) {
+    if (amount <= 0) {
+      return { success: false, reason: 'Invalid amount: must be positive' };
+    }
+
+    if (sectorState.position < amount) {
+      return { success: false, reason: 'Insufficient position' };
+    }
+
+    sectorState.capital += amount;
+    sectorState.balance = sectorState.capital;
+    sectorState.position -= amount;
+
+    // Calculate manager impact: negative impact for sell orders
+    const currentExposure = sectorState.position + amount; // Use position before sell
+    const managerImpact = amount > 0 ? -(amount / Math.max(currentExposure, 1000)) * 0.001 : 0;
+
+    return {
+      success: true,
+      reason: 'Sell executed successfully',
+      managerImpact: managerImpact
+    };
+  }
+
+  /**
+   * Apply HOLD action (no-op)
+   * @param {Object} sectorState - Current sector state
+   * @param {string} symbol - Symbol/ticker
+   * @returns {Promise<Object>} Result with success, reason, and managerImpact
+   */
+  async applyHold(sectorState, symbol) {
+    // HOLD is a no-op, but we still log it
+    return {
+      success: true,
+      reason: 'Hold action - no changes',
+      managerImpact: 0.001 // Small neutral impact
+    };
+  }
+
+  /**
+   * Apply REBALANCE action
+   * @param {Object} sectorState - Current sector state
+   * @param {number} targetAllocation - Target allocation (optional, defaults to 50/50)
+   * @returns {Promise<Object>} Result with success, reason, and managerImpact
+   */
+  async applyRebalance(sectorState, targetAllocation = 0.5) {
+    const totalValue = sectorState.capital + sectorState.position;
+    const targetPosition = totalValue * targetAllocation;
+    const currentPosition = sectorState.position;
+    const rebalanceAmount = targetPosition - currentPosition;
+
+    if (Math.abs(rebalanceAmount) < 0.01) {
+      return {
+        success: true,
+        reason: 'Rebalance not needed - already balanced',
+        managerImpact: 0.002
+      };
+    }
+
+    if (rebalanceAmount > 0) {
+      // Need to buy more
+      const buyAmount = Math.min(rebalanceAmount, sectorState.capital);
+      if (buyAmount > 0) {
+        sectorState.capital -= buyAmount;
+        sectorState.balance = sectorState.capital;
+        sectorState.position += buyAmount;
+      }
+    } else {
+      // Need to sell
+      const sellAmount = Math.min(Math.abs(rebalanceAmount), sectorState.position);
+      if (sellAmount > 0) {
+        sectorState.capital += sellAmount;
+        sectorState.balance = sectorState.capital;
+        sectorState.position -= sellAmount;
+      }
+    }
+
+    return {
+      success: true,
+      reason: 'Rebalance executed successfully',
+      managerImpact: 0.002 // Small positive impact indicating risk reduction
+    };
   }
 }
 

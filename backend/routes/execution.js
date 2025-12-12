@@ -208,46 +208,5 @@ module.exports = async (fastify) => {
     }
   });
 
-  /**
-   * GET /api/execution/executionLogs?sectorId=xxx
-   * 
-   * Get execution logs for a sector, sorted by timestamp DESC.
-   * 
-   * Query params:
-   *   sectorId: string (required)
-   * 
-   * Output:
-   *   {
-   *     success: boolean,
-   *     logs: Array<ExecutionLog>
-   *   }
-   */
-  fastify.get('/executionLogs', async (request, reply) => {
-    try {
-      const { sectorId } = request.query;
-
-      if (!sectorId) {
-        return reply.status(400).send({
-          success: false,
-          error: 'sectorId query parameter is required'
-        });
-      }
-
-      log(`Fetching execution logs for sector ${sectorId}`);
-
-      const logs = await ExecutionLog.getBySectorId(sectorId);
-
-      return reply.status(200).send({
-        success: true,
-        logs: logs.map(log => log.toJSON())
-      });
-    } catch (error) {
-      log(`Error fetching execution logs: ${error.message}`);
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
-    }
-  });
 };
 

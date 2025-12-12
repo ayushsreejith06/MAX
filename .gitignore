@@ -1,3 +1,19 @@
+# ============================
+# MAX — ENVIRONMENT VARIABLES
+# ============================
+
+# --- LLM Configuration (LM Studio Local Server) ---
+USE_LLM=true
+LLM_BASE_URL=http://127.0.0.1:1234/v1
+LLM_MODEL_NAME=llama-3.2-3b-instruct
+LLM_API_KEY=
+
+# ============================
+# Common project ignores
+# (These are reference comments only;
+# actual ignores belong in .gitignore.)
+# ============================
+
 # Dependencies
 node_modules/
 /.pnp
@@ -6,7 +22,7 @@ node_modules/
 # Testing
 /coverage
 
-# Next.js
+# Next.js / Build outputs
 /.next/
 /out/
 build
@@ -25,11 +41,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Local env files
-.env
 .env*.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # Vercel
 .vercel
@@ -63,7 +75,7 @@ foundry.toml.local
 # OS
 Thumbs.db
 
-# Tauri
+# Tauri desktop packaging
 src-tauri/target/
 src-tauri/Cargo.lock
 frontend/out/
@@ -79,6 +91,3 @@ frontend-out/
 *.pkg
 *.tar.gz
 *.zip
-!src-tauri/icons/*.ico
-!src-tauri/icons/*.icns
-!src-tauri/icons/*.png

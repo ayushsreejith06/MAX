@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock, Settings, Trash2 } from 'lucide-react';
 import type { Discussion, Message } from '@/lib/types';
-import { fetchDiscussionById, fetchDiscussionMessages, addDiscussionMessage, sendMessageToManager, deleteDiscussion } from '@/lib/api';
+import { fetchDiscussionById, fetchDiscussionMessages, addDiscussionMessage, sendMessageToManager, deleteDiscussion, isSkippedResult, isRateLimitError } from '@/lib/api';
 import ChecklistSection from '@/components/discussions/ChecklistSection';
+import { usePolling } from '@/hooks/usePolling';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -53,87 +54,234 @@ export default function DiscussionDetailClient() {
 
   const discussionId = params?.id as string | undefined;
 
-  const loadDiscussion = useCallback(async () => {
+  // Refs to track previous data and prevent unnecessary updates
+  const previousDiscussionRef = useRef<string>('');
+  const previousMessagesRef = useRef<string>('');
+  const isFetchingDiscussionRef = useRef(false);
+  const isFetchingMessagesRef = useRef(false);
+  const currentDiscussionRef = useRef<Discussion | null>(null);
+  const currentMessagesRef = useRef<Message[]>([]);
+
+  // Helper function to check if discussion data changed
+  const hasDiscussionChanged = useCallback((newDiscussion: Discussion | null): boolean => {
+    if (!newDiscussion) return false;
+    
+    const discussionKey = JSON.stringify({
+      id: newDiscussion.id,
+      status: newDiscussion.status,
+      title: newDiscussion.title,
+      updatedAt: newDiscussion.updatedAt,
+      agentIds: newDiscussion.agentIds?.length || 0,
+      sectorId: newDiscussion.sectorId,
+      sectorSymbol: newDiscussion.sectorSymbol,
+    });
+
+    if (previousDiscussionRef.current !== discussionKey) {
+      previousDiscussionRef.current = discussionKey;
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Helper function to check if messages data changed
+  const hasMessagesChanged = useCallback((newMessages: Message[]): boolean => {
+    const messagesKey = JSON.stringify(newMessages.map(m => ({
+      id: m.id,
+      content: m.content,
+      timestamp: m.timestamp,
+      agentName: m.agentName,
+    })));
+
+    if (previousMessagesRef.current !== messagesKey) {
+      previousMessagesRef.current = messagesKey;
+      return true;
+    }
+    return false;
+  }, []);
+
+  const loadDiscussion = useCallback(async (showLoading = false) => {
     if (!discussionId || discussionId === 'placeholder') {
-      setError('Invalid discussion ID');
-      setLoading(false);
-      setMessagesLoading(false);
+      if (showLoading) {
+        setError('Invalid discussion ID');
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Race condition guard
+    if (isFetchingDiscussionRef.current) {
       return;
     }
 
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
+      isFetchingDiscussionRef.current = true;
       setError(null);
       
       const data = await fetchDiscussionById(discussionId);
+      
+      // Handle skipped requests
+      if (isSkippedResult(data) || data === null) {
+        if (showLoading) {
+          setError('Discussion not found');
+          setDiscussion(null);
+        }
+        return;
+      }
+
       if (process.env.NODE_ENV !== 'production') {
         console.debug('[DiscussionDetail] fetch result:', data);
       }
       
-      if (data) {
+      // Only update if data actually changed (prevents flickering)
+      if (hasDiscussionChanged(data)) {
         setDiscussion(data);
+        currentDiscussionRef.current = data; // Update ref immediately
         setError(null);
-      } else {
-        setError('Discussion not found');
-        setDiscussion(null);
       }
     } catch (err) {
+      // Only handle actual server rate limit errors (HTTP 429)
+      if (isRateLimitError(err)) {
+        if (!showLoading) {
+          // During polling, silently skip - will retry on next poll
+          console.debug('Server rate limited during polling, will retry automatically');
+          isFetchingDiscussionRef.current = false;
+          return;
+        } else {
+          // During initial load, wait a bit and retry once
+          console.debug('Server rate limited on initial load, retrying after delay...');
+          isFetchingDiscussionRef.current = false;
+          setTimeout(() => {
+            void loadDiscussion(showLoading);
+          }, 1000);
+          return;
+        }
+      }
       console.error('Failed to fetch discussion', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unable to load discussion. Please try again later.';
-      setError(errorMessage);
-      setDiscussion(null);
+      if (showLoading) {
+        const errorMessage = err instanceof Error ? err.message : 'Unable to load discussion. Please try again later.';
+        setError(errorMessage);
+        setDiscussion(null);
+      }
     } finally {
-      setLoading(false);
+      if (showLoading && isFetchingDiscussionRef.current) {
+        setLoading(false);
+      }
+      isFetchingDiscussionRef.current = false;
     }
-  }, [discussionId]);
+  }, [discussionId, hasDiscussionChanged]);
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (showLoading = false) => {
     if (!discussionId || discussionId === 'placeholder') {
-      setMessagesLoading(false);
+      if (showLoading) {
+        setMessagesLoading(false);
+      }
+      return;
+    }
+
+    // Race condition guard
+    if (isFetchingMessagesRef.current) {
       return;
     }
 
     try {
-      setMessagesLoading(true);
+      if (showLoading) {
+        setMessagesLoading(true);
+      }
+      isFetchingMessagesRef.current = true;
+      
       const messagesData = await fetchDiscussionMessages(discussionId);
-      setMessages(messagesData);
+      
+      // Handle skipped requests - if we get empty array when we had messages, likely skipped
+      // But also check if messages actually changed to prevent unnecessary updates
+      if (Array.isArray(messagesData) && messagesData.length === 0 && currentMessagesRef.current.length > 0) {
+        // Likely skipped - don't update state, just return
+        return;
+      }
+
+      // Only update if messages actually changed (prevents flickering)
+      // This handles both new messages and skipped requests (same data = no update)
+      if (hasMessagesChanged(messagesData)) {
+        setMessages(messagesData);
+        currentMessagesRef.current = messagesData; // Update ref immediately
+      }
     } catch (err) {
+      // Only handle actual server rate limit errors (HTTP 429)
+      if (isRateLimitError(err)) {
+        if (!showLoading) {
+          // During polling, silently skip - will retry on next poll
+          console.debug('Server rate limited during polling, will retry automatically');
+          isFetchingMessagesRef.current = false;
+          return;
+        }
+      }
       console.error('Failed to fetch messages', err);
       // Don't set error state for messages - just log it
-      setMessages([]);
+      if (showLoading) {
+        setMessages([]);
+      }
     } finally {
-      setMessagesLoading(false);
+      if (showLoading && isFetchingMessagesRef.current) {
+        setMessagesLoading(false);
+      }
+      isFetchingMessagesRef.current = false;
     }
-  }, [discussionId]);
+  }, [discussionId, hasMessagesChanged]);
+
+  // Update refs when state changes
+  useEffect(() => {
+    currentDiscussionRef.current = discussion;
+  }, [discussion]);
 
   useEffect(() => {
-    loadDiscussion();
-    loadMessages();
-  }, [loadDiscussion, loadMessages]);
+    currentMessagesRef.current = messages;
+  }, [messages]);
 
-  // Poll for status updates when discussion is active (to detect when it becomes decided)
+  // Initial load with loading state
   useEffect(() => {
-    if (!discussionId || discussionId === 'placeholder') {
-      return;
-    }
+    void loadDiscussion(true);
+    void loadMessages(true);
+  }, [discussionId]); // Only reload when discussionId changes
 
+  // Polling callbacks for auto-refresh (without loading state)
+  const pollDiscussion = useCallback(async () => {
     // Only poll if discussion is in progress (to detect when it becomes decided)
-    const shouldPoll = discussion && discussion.status === 'in_progress';
-
-    if (!shouldPoll) {
-      return;
+    if (currentDiscussionRef.current?.status === 'in_progress') {
+      await loadDiscussion(false);
     }
+  }, [loadDiscussion]);
 
-    const interval = setInterval(() => {
-      loadDiscussion();
-    }, 2000); // Poll every 2 seconds
+  const pollMessages = useCallback(async () => {
+    // Only poll if discussion is in progress (messages are still being added)
+    if (currentDiscussionRef.current?.status === 'in_progress') {
+      await loadMessages(false);
+    }
+  }, [loadMessages]);
 
-    return () => clearInterval(interval);
-  }, [discussionId, discussion?.status, loadDiscussion]);
+  // Use centralized polling utility with 1500ms interval for live updates
+  usePolling({
+    callback: pollDiscussion,
+    interval: 1500,
+    enabled: !!discussionId && discussionId !== 'placeholder',
+    pauseWhenHidden: true,
+    immediate: false, // Don't call immediately since we already loaded above
+    allowLowerInterval: true, // Allow 1500ms interval
+  });
+
+  usePolling({
+    callback: pollMessages,
+    interval: 1500,
+    enabled: !!discussionId && discussionId !== 'placeholder',
+    pauseWhenHidden: true,
+    immediate: false, // Don't call immediately since we already loaded above
+    allowLowerInterval: true, // Allow 1500ms interval
+  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadDiscussion(), loadMessages()]);
+    await Promise.all([loadDiscussion(true), loadMessages(true)]);
     setIsRefreshing(false);
   };
 
@@ -156,8 +304,8 @@ export default function DiscussionDetailClient() {
       });
 
       setNewMessage('');
-      // Reload both discussion and messages
-      await Promise.all([loadDiscussion(), loadMessages()]);
+      // Reload both discussion and messages (with loading state since user action)
+      await Promise.all([loadDiscussion(true), loadMessages(true)]);
     } catch (err) {
       console.error('Failed to send message', err);
       alert(err instanceof Error ? err.message : 'Failed to send message');
@@ -219,20 +367,23 @@ export default function DiscussionDetailClient() {
   };
 
   const getStatusMeta = (status: Discussion['status']) => {
-    // Normalize legacy statuses to 'decided' for display
-    const normalizedStatus = (status === 'finalized' || status === 'accepted' || status === 'completed') ? 'decided' : status;
+    // Normalize all statuses to only 'in_progress' or 'decided'
+    let normalizedStatus = status;
+    if (status === 'active' || status === 'open' || status === 'OPEN' || status === 'created' || status === 'in_progress') {
+      normalizedStatus = 'in_progress';
+    } else if (status === 'closed' || status === 'CLOSED' || status === 'archived' || 
+               status === 'finalized' || status === 'accepted' || status === 'completed' ||
+               status === 'decided') {
+      normalizedStatus = 'decided';
+    }
     
     switch (normalizedStatus) {
       case 'in_progress':
         return { label: 'In Progress', className: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40', icon: Clock };
       case 'decided':
         return { label: 'Decided', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
-      case 'closed':
-        return { label: 'Closed', className: 'bg-shadow-grey text-floral-white border border-floral-white/20', icon: Lock };
-      case 'archived':
-        return { label: 'Archived', className: 'bg-shadow-grey/50 text-floral-white/70 border border-floral-white/10', icon: Archive };
       default:
-        return { label: status, className: 'bg-shadow-grey text-floral-white', icon: MessageSquare };
+        return { label: normalizedStatus, className: 'bg-shadow-grey text-floral-white', icon: MessageSquare };
     }
   };
 

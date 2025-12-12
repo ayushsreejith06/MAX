@@ -8,15 +8,18 @@ class DiscussionRoom {
     this.agentIds = agentIds;
     this.messages = [];
     this.messagesCount = 0;
-    this.status = 'in_progress';
+    this.status = 'in_progress'; // Discussion status: 'in_progress' | 'decided'
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     // Discussion lifecycle fields
     this.round = 1;
+    this.currentRound = 1; // Multi-round: tracks current round number
     this.checklistDraft = [];
     this.checklist = [];
     this.finalizedChecklist = [];
     this.needsRefinement = [];
+    // Multi-round discussion fields
+    this.roundHistory = []; // Array of round snapshots
     // Decision fields
     this.finalDecision = null;
     this.rationale = null;
@@ -27,6 +30,8 @@ class DiscussionRoom {
     this.decidedAt = null;
     // Manager decision fields
     this.managerDecisions = [];
+    // Closure fields
+    this.discussionClosedAt = null;
   }
 
   static fromData(data) {
@@ -41,23 +46,35 @@ class DiscussionRoom {
       discussionRoom.messagesCount = Array.isArray(data.messages) ? data.messages.length : 0;
     }
     // Map old status values to new ones for backward compatibility
+    // Use 'in_progress' and 'decided' to match API/UI expectations
     const statusMap = {
       'created': 'in_progress',
       'debating': 'in_progress',
       'open': 'in_progress',
+      'OPEN': 'in_progress',
+      'active': 'in_progress',
+      'in_progress': 'in_progress',
       'decided': 'decided',
-      'closed': 'closed',
-      'archived': 'archived'
+      'closed': 'decided',
+      'CLOSED': 'decided',
+      'archived': 'decided',
+      'finalized': 'decided',
+      'accepted': 'decided',
+      'completed': 'decided'
     };
     discussionRoom.status = statusMap[data.status] || data.status || 'in_progress';
     discussionRoom.createdAt = data.createdAt;
     discussionRoom.updatedAt = data.updatedAt;
     // Discussion lifecycle fields
     discussionRoom.round = typeof data.round === 'number' ? data.round : 1;
+    // Multi-round: currentRound tracks the current round number
+    discussionRoom.currentRound = typeof data.currentRound === 'number' ? data.currentRound : (typeof data.round === 'number' ? data.round : 1);
     discussionRoom.checklistDraft = Array.isArray(data.checklistDraft) ? data.checklistDraft : [];
     discussionRoom.checklist = Array.isArray(data.checklist) ? data.checklist : [];
     discussionRoom.finalizedChecklist = Array.isArray(data.finalizedChecklist) ? data.finalizedChecklist : [];
     discussionRoom.needsRefinement = Array.isArray(data.needsRefinement) ? data.needsRefinement : [];
+    // Multi-round: roundHistory stores snapshots of previous rounds
+    discussionRoom.roundHistory = Array.isArray(data.roundHistory) ? data.roundHistory : [];
     // Decision fields
     discussionRoom.finalDecision = data.finalDecision || null;
     discussionRoom.rationale = data.rationale || null;
@@ -68,6 +85,8 @@ class DiscussionRoom {
     discussionRoom.decidedAt = data.decidedAt || null;
     // Manager decision fields
     discussionRoom.managerDecisions = Array.isArray(data.managerDecisions) ? data.managerDecisions : [];
+    // Closure fields
+    discussionRoom.discussionClosedAt = data.discussionClosedAt || null;
     return discussionRoom;
   }
 
@@ -95,7 +114,7 @@ class DiscussionRoom {
     this.conflictScore = decision.conflictScore || null;
     this.decidedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
-    this.status = 'decided';
+    this.status = 'decided'; // Discussion status: 'in_progress' | 'decided'
   }
 
   toJSON() {
@@ -111,10 +130,13 @@ class DiscussionRoom {
       updatedAt: this.updatedAt,
       // Discussion lifecycle fields
       round: this.round,
+      currentRound: this.currentRound, // Multi-round: current round number
       checklistDraft: this.checklistDraft,
       checklist: this.checklist,
       finalizedChecklist: this.finalizedChecklist,
       needsRefinement: this.needsRefinement,
+      // Multi-round discussion fields
+      roundHistory: this.roundHistory, // Array of round snapshots
       // Decision fields
       finalDecision: this.finalDecision,
       rationale: this.rationale,
@@ -124,7 +146,9 @@ class DiscussionRoom {
       conflictScore: this.conflictScore,
       decidedAt: this.decidedAt,
       // Manager decision fields
-      managerDecisions: this.managerDecisions
+      managerDecisions: this.managerDecisions,
+      // Closure fields
+      discussionClosedAt: this.discussionClosedAt
     };
   }
 }

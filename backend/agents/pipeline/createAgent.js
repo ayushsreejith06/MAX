@@ -3,9 +3,9 @@ const { loadAgents, saveAgents, updateAgent } = require('../../utils/agentStorag
 const { loadSectors } = require('../../utils/storage');
 const { getSectorById: getSectorByIdStorage, updateSector } = require('../../utils/sectorStorage');
 const { MAX_AGENTS_PER_SECTOR, MAX_TOTAL_AGENTS } = require('../../config/agentLimits');
+const { generateAgentProfileFromDescription, AgentProfileEnums } = require('../../ai/agentProfileBrain');
 
-// Enhanced role inference based on keywords and context
-// 100% accurate role decoding from user prompts
+// Role inference tuned to the new profile enums
 function inferRole(promptText) {
   if (!promptText || typeof promptText !== 'string') {
     return 'general';
@@ -13,50 +13,27 @@ function inferRole(promptText) {
   
   const lowerPrompt = promptText.toLowerCase().trim();
   
-  // More comprehensive role keywords with priority order
   const roleKeywords = {
-    'manager': ['manage', 'coordinate', 'oversee', 'supervise', 'lead', 'direct', 'control', 'organize'],
-    'riskmanager': ['risk', 'risk management', 'limit', 'exposure', 'risk control', 'risk mitigation', 'stop loss', 'risk assessment'],
-    'trader': ['trade', 'trading', 'buy', 'sell', 'order', 'market', 'execute', 'position', 'entry', 'exit'],
-    'research': ['research', 'analyze', 'analysis', 'study', 'investigate', 'examine', 'evaluate', 'assess'],
-    'analyst': ['analyze', 'analysis', 'report', 'forecast', 'predict', 'projection', 'model', 'data'],
-    'advisor': ['advise', 'recommend', 'suggest', 'consult', 'guidance', 'counsel', 'opinion'],
-    'arbitrage': ['arbitrage', 'spread', 'price difference', 'inefficiency', 'arb']
+    macro: ['macro', 'inflation', 'fed', 'rates', 'gdp', 'economy', 'cpi', 'employment'],
+    risk: ['risk', 'drawdown', 'hedge', 'hedging', 'limit', 'exposure', 'stop loss'],
+    sentiment: ['sentiment', 'social', 'twitter', 'reddit', 'news', 'buzz', 'headline'],
+    technical: ['technical', 'chart', 'price action', 'rsi', 'macd', 'indicator', 'moving average', 'momentum', 'support', 'resistance']
   };
 
-  // Check for manager first (highest priority)
-  if (roleKeywords.manager.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'manager';
+  if (roleKeywords.macro.some(keyword => lowerPrompt.includes(keyword))) {
+    return 'macro';
   }
   
-  // Check for risk manager (before trader to avoid conflicts)
-  if (roleKeywords.riskmanager.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'riskmanager';
+  if (roleKeywords.risk.some(keyword => lowerPrompt.includes(keyword))) {
+    return 'risk';
   }
   
-  // Check for trader
-  if (roleKeywords.trader.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'trader';
+  if (roleKeywords.sentiment.some(keyword => lowerPrompt.includes(keyword))) {
+    return 'sentiment';
   }
   
-  // Check for research (more specific than analyst)
-  if (roleKeywords.research.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'research';
-  }
-  
-  // Check for analyst
-  if (roleKeywords.analyst.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'analyst';
-  }
-  
-  // Check for advisor
-  if (roleKeywords.advisor.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'advisor';
-  }
-  
-  // Check for arbitrage
-  if (roleKeywords.arbitrage.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'arbitrage';
+  if (roleKeywords.technical.some(keyword => lowerPrompt.includes(keyword))) {
+    return 'technical';
   }
 
   return 'general'; // default role
@@ -66,6 +43,22 @@ const STATUS_POOL = ['idle', 'active', 'processing'];
 
 function getDefaultPersonality(role) {
   const templates = {
+    macro: {
+      riskTolerance: 'medium',
+      decisionStyle: 'deliberate'
+    },
+    risk: {
+      riskTolerance: 'low',
+      decisionStyle: 'cautious'
+    },
+    sentiment: {
+      riskTolerance: 'medium',
+      decisionStyle: 'rapid'
+    },
+    technical: {
+      riskTolerance: 'medium',
+      decisionStyle: 'analytical'
+    },
     trader: {
       riskTolerance: 'high',
       decisionStyle: 'rapid'
@@ -106,6 +99,30 @@ function getDefaultPersonality(role) {
 // Generate preference weights based on role
 function getDefaultPreferences(role) {
   const templates = {
+    macro: {
+      riskWeight: 0.6,
+      profitWeight: 0.6,
+      speedWeight: 0.4,
+      accuracyWeight: 0.8
+    },
+    risk: {
+      riskWeight: 0.85,
+      profitWeight: 0.45,
+      speedWeight: 0.4,
+      accuracyWeight: 0.9
+    },
+    sentiment: {
+      riskWeight: 0.5,
+      profitWeight: 0.65,
+      speedWeight: 0.8,
+      accuracyWeight: 0.55
+    },
+    technical: {
+      riskWeight: 0.55,
+      profitWeight: 0.65,
+      speedWeight: 0.65,
+      accuracyWeight: 0.7
+    },
     trader: {
       riskWeight: 0.3,      // Lower risk weight (more aggressive)
       profitWeight: 0.8,    // High profit focus
@@ -270,19 +287,44 @@ async function resolveSectorMetadata(sectorId) {
 }
 
 async function createAgent(promptText = '', sectorId = null, roleOverride = null) {
-  // Use provided role or auto-detect from prompt
-  const role = roleOverride && typeof roleOverride === 'string' && roleOverride.trim() 
+  const sectorMeta = await resolveSectorMetadata(sectorId);
+  const userProvidedName = typeof promptText === 'string' && promptText.trim().length > 0
+    ? promptText.trim()
+    : 'New Agent';
+
+  const profile = await generateAgentProfileFromDescription({
+    sectorName: sectorMeta.sectorName,
+    userDescription: promptText,
+    userProvidedName
+  });
+
+  // Use provided role or profile role, then fall back to inference
+  let role = roleOverride && typeof roleOverride === 'string' && roleOverride.trim() 
     ? roleOverride.trim().toLowerCase() 
-    : inferRole(promptText);
+    : profile.role || inferRole(promptText);
+
+  // Normalize role against allowed enums
+  if (!AgentProfileEnums.ROLE_OPTIONS.includes(role) && role !== 'manager') {
+    role = inferRole(promptText);
+  }
   
   // Validate role
   if (!role || typeof role !== 'string' || role.trim().length === 0) {
     throw new Error('Invalid role: role must be a non-empty string');
   }
 
-  const personality = getDefaultPersonality(role);
+  const personalityBase = getDefaultPersonality(role);
   const preferences = getDefaultPreferences(role);
-  const sectorMeta = await resolveSectorMetadata(sectorId);
+  const decisionStyleMap = {
+    Aggressive: 'rapid',
+    Balanced: 'balanced',
+    Defensive: 'cautious'
+  };
+  const personality = {
+    ...personalityBase,
+    riskTolerance: profile.riskTolerance || personalityBase.riskTolerance,
+    decisionStyle: decisionStyleMap[profile.style] || personalityBase.decisionStyle
+  };
   
   // Load existing agents to check limits and generate unique ID
   const allAgents = await loadAgents();
@@ -316,7 +358,7 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
   
   // Generate unique ID and name using existing agents
   const agentId = generateAgentId(role, sectorMeta.sectorSymbol, allAgents);
-  const agentName = generateAgentName(role, sectorMeta.sectorSymbol, allAgents);
+  const agentName = profile.displayName || generateAgentName(role, sectorMeta.sectorSymbol, allAgents);
 
   // Initialize memory array with initial reasoning log
   const initialMemory = [{
@@ -335,7 +377,12 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
   const agent = new Agent({
     id: agentId,
     name: agentName,
+    displayName: agentName,
     role,
+    style: profile.style,
+    riskTolerance: profile.riskTolerance,
+    shortBio: profile.shortBio,
+    initialConfidence: profile.initialConfidence,
     prompt: promptText,
     sectorId: sectorMeta.sectorId,
     sectorSymbol: sectorMeta.sectorSymbol,
@@ -349,7 +396,7 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
     lastDecision: null,
     lastDecisionAt: null,
     morale: 50, // Required: default morale
-    confidence: 0, // Required: default confidence
+    confidence: profile.initialConfidence, // Required: default confidence
     rewardPoints: 0,
     lastRewardTimestamp: null,
     createdAt: new Date().toISOString() // Required: creation timestamp
@@ -371,8 +418,14 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
   }
 
   // Ensure defaults are set correctly
+  if (!agentData.displayName) {
+    agentData.displayName = agentData.name;
+  }
+  if (!agentData.name) {
+    agentData.name = agentData.displayName;
+  }
   if (typeof agentData.confidence !== 'number') {
-    agentData.confidence = 0;
+    agentData.confidence = profile.initialConfidence ?? 0;
   }
   if (typeof agentData.morale !== 'number') {
     agentData.morale = 50;

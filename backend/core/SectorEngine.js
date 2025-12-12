@@ -269,9 +269,10 @@ class SectorEngine {
 
       // Check if there is any active discussion in this sector
       const discussions = await loadDiscussions();
+      // Find discussions that are in progress (include legacy statuses for backward compatibility)
       const activeDiscussion = discussions.find(d => 
         d.sectorId === sector.id && 
-        (d.status === 'open' || d.status === 'created' || d.status === 'in_progress' || d.status === 'active')
+        (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
       );
 
       if (activeDiscussion) {

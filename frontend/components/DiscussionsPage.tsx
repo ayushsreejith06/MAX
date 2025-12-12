@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Discussion, Sector } from '@/lib/types';
-import { fetchDiscussions, fetchSectors, isRateLimitError, clearAllDiscussions, fetchRejectedItems, type DiscussionSummary, type PaginatedDiscussionsResponse } from '@/lib/api';
+import { fetchDiscussions, fetchSectors, isRateLimitError, clearAllDiscussions, fetchRejectedItems, isSkippedResult, type DiscussionSummary, type PaginatedDiscussionsResponse } from '@/lib/api';
 import { useToast, ToastContainer } from '@/components/Toast';
 import RejectedItemsModal from '@/components/discussions/RejectedItemsModal';
+import { usePolling } from '@/hooks/usePolling';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -59,83 +60,195 @@ export default function DiscussionsPage() {
   const { toasts, showToast, closeToast } = useToast();
   const pageSize = 20;
 
-  useEffect(() => {
-    let isMounted = true;
+  // Refs to track previous data and prevent unnecessary updates
+  const previousDiscussionsRef = useRef<string>('');
+  const previousPaginationRef = useRef<string>('');
+  const previousStatusCountsRef = useRef<string>('');
+  const previousSectorsRef = useRef<string>('');
+  const previousRejectedCountRef = useRef<number>(0);
+  const isFetchingRef = useRef(false);
+  // Refs to track current state for comparison (to avoid dependency issues)
+  const currentSectorsDataRef = useRef<Sector[]>([]);
+  const currentDiscussionsRef = useRef<DiscussionWithSector[]>([]);
 
-    const loadDiscussions = async () => {
-      try {
-        setLoading(true);
-        const sectorId = sectorFilter !== 'all' ? sectorFilter : undefined;
-        const [sectorResponse, discussionResponse, rejectedItemsResponse] = await Promise.all([
-          fetchSectors(),
-          fetchDiscussions(currentPage, pageSize, sectorId, statusFilter),
-          fetchRejectedItems().catch(() => ({ rejected: [] })), // Fetch rejected items count
-        ]);
+  // Helper function to process and update discussions data
+  const processDiscussionsData = useCallback((
+    sectorResponse: Sector[] | { skipped: true },
+    discussionResponse: PaginatedDiscussionsResponse | { skipped: true },
+    rejectedItemsResponse?: { rejected: any[] } | { skipped: true },
+    showLoading = false
+  ) => {
+    // Handle skipped requests - don't update state if skipped
+    if (isSkippedResult(sectorResponse) || isSkippedResult(discussionResponse)) {
+      return false;
+    }
 
-        if (!isMounted) return;
+    const sectorsList = sectorResponse as Sector[];
+    const discussionData = discussionResponse as PaginatedDiscussionsResponse;
 
-        // If both calls returned empty arrays and we already have data, 
-        // don't update state (prevents flicker from skipped calls)
-        if (Array.isArray(sectorResponse) && sectorResponse.length === 0 &&
-            discussionResponse.discussions.length === 0 &&
-            (sectorsData.length > 0 || discussions.length > 0)) {
-          // Likely skipped - don't update state, just return
-          if (isMounted) {
-            setLoading(false);
-          }
-          return;
-        }
+    // If both calls returned empty arrays and we already have data, 
+    // don't update state (prevents flicker from skipped calls)
+    if (sectorsList.length === 0 &&
+        discussionData.discussions.length === 0 &&
+        (currentSectorsDataRef.current.length > 0 || currentDiscussionsRef.current.length > 0)) {
+      // Likely skipped - don't update state, just return
+      return false;
+    }
 
-        const sectorsList = sectorResponse as Sector[];
-        const sectorMap = new Map<string, Sector>(sectorsList.map(sector => [sector.id, sector]));
+    const sectorMap = new Map<string, Sector>(sectorsList.map(sector => [sector.id, sector]));
 
-        const discussionsWithSector: DiscussionWithSector[] = discussionResponse.discussions.map(discussion => {
-          // Use sector symbol from backend response (already optimized)
-          const sectorSymbol = discussion.sector || 'N/A';
-          // Still look up sector for name if sectorId is available
-          const sector = discussion.sectorId ? sectorMap.get(discussion.sectorId) : undefined;
-          return {
-            ...discussion,
-            sectorSymbol: sectorSymbol,
-            sectorName: sector?.name ?? 'Unknown Sector',
-          };
-        });
+    const discussionsWithSector: DiscussionWithSector[] = discussionData.discussions.map(discussion => {
+      // Use sector symbol from backend response (already optimized)
+      const sectorSymbol = discussion.sector || 'N/A';
+      // Still look up sector for name if sectorId is available
+      const sector = discussion.sectorId ? sectorMap.get(discussion.sectorId) : undefined;
+      return {
+        ...discussion,
+        sectorSymbol: sectorSymbol,
+        sectorName: sector?.name ?? 'Unknown Sector',
+      };
+    });
 
-        setSectorsData(sectorsList);
+    // Create serialized versions for comparison to detect changes
+    const discussionsKey = JSON.stringify(discussionsWithSector.map(d => ({
+      id: d.id,
+      status: d.status,
+      messagesCount: d.messagesCount,
+      updatedAt: d.updatedAt,
+      participants: d.participants.length,
+    })));
+    const paginationKey = JSON.stringify(discussionData.pagination);
+    const statusCountsKey = JSON.stringify(discussionData.statusCounts || {});
+    const sectorsKey = JSON.stringify(sectorsList.map(s => ({ id: s.id, name: s.name, symbol: s.symbol })));
+
+    // Only update state if data actually changed (prevents flickering)
+    const hasDiscussionsChanged = previousDiscussionsRef.current !== discussionsKey;
+    const hasPaginationChanged = previousPaginationRef.current !== paginationKey;
+    const hasStatusCountsChanged = previousStatusCountsRef.current !== statusCountsKey;
+    const hasSectorsChanged = previousSectorsRef.current !== sectorsKey;
+
+    // Update rejected items count
+    let hasRejectedCountChanged = false;
+    if (rejectedItemsResponse && !isSkippedResult(rejectedItemsResponse) && Array.isArray(rejectedItemsResponse.rejected)) {
+      const newRejectedCount = rejectedItemsResponse.rejected.length;
+      hasRejectedCountChanged = previousRejectedCountRef.current !== newRejectedCount;
+      if (hasRejectedCountChanged) {
+        previousRejectedCountRef.current = newRejectedCount;
+        setRejectedItemsCount(newRejectedCount);
+      }
+    }
+
+    // Only update if something changed
+    if (hasDiscussionsChanged || hasPaginationChanged || hasStatusCountsChanged || hasSectorsChanged) {
+      if (hasDiscussionsChanged) {
+        previousDiscussionsRef.current = discussionsKey;
+        currentDiscussionsRef.current = discussionsWithSector;
         setDiscussions(discussionsWithSector);
-        setPagination(discussionResponse.pagination);
-        if (discussionResponse.statusCounts) {
-          setStatusCounts(discussionResponse.statusCounts);
-        }
-        // Update rejected items count
-        if (rejectedItemsResponse && Array.isArray(rejectedItemsResponse.rejected)) {
-          setRejectedItemsCount(rejectedItemsResponse.rejected.length);
-        }
-        setError(null);
-      } catch (err) {
-        // Only handle actual server rate limit errors (HTTP 429)
-        // Skipped calls from rateLimitedFetch return empty arrays, not errors
-        if (isRateLimitError(err)) {
-          console.debug('Server rate limited, will retry automatically');
-          return;
-        }
-        console.error('Failed to fetch discussions', err);
-        if (isMounted) {
-          setError('Unable to load discussions. Please try again later.');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+      }
+      if (hasPaginationChanged) {
+        previousPaginationRef.current = paginationKey;
+        setPagination(discussionData.pagination);
+      }
+      if (hasStatusCountsChanged) {
+        previousStatusCountsRef.current = statusCountsKey;
+        if (discussionData.statusCounts) {
+          setStatusCounts(discussionData.statusCounts);
         }
       }
-    };
+      if (hasSectorsChanged) {
+        previousSectorsRef.current = sectorsKey;
+        currentSectorsDataRef.current = sectorsList;
+        setSectorsData(sectorsList);
+      }
+      return true;
+    }
 
-    loadDiscussions();
+    return false;
+  }, []);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [currentPage, sectorFilter, statusFilter]);
+  // Initial load with loading state
+  const loadDiscussions = useCallback(async (showLoading = false) => {
+    // Race condition guard: prevent multiple simultaneous fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    try {
+      if (showLoading) {
+        setLoading(true);
+      }
+      isFetchingRef.current = true;
+
+      const sectorId = sectorFilter !== 'all' ? sectorFilter : undefined;
+      const [sectorResponse, discussionResponse, rejectedItemsResponse] = await Promise.all([
+        fetchSectors(),
+        fetchDiscussions(currentPage, pageSize, sectorId, statusFilter),
+        fetchRejectedItems().catch(() => ({ rejected: [] })), // Fetch rejected items count
+      ]);
+
+      // Process and update data (only updates if changed)
+      processDiscussionsData(sectorResponse, discussionResponse, rejectedItemsResponse, showLoading);
+      setError(null);
+    } catch (err) {
+      // Only handle actual server rate limit errors (HTTP 429)
+      // Skipped calls from rateLimitedFetch return empty arrays, not errors
+      if (isRateLimitError(err)) {
+        if (!showLoading) {
+          // During polling, silently skip - will retry on next poll
+          console.debug('Server rate limited during polling, will retry automatically');
+          isFetchingRef.current = false; // Clear the flag so polling can retry
+          return;
+        } else {
+          // During initial load, wait a bit and retry once
+          console.debug('Server rate limited on initial load, retrying after delay...');
+          isFetchingRef.current = false; // Clear flag before retry
+          setTimeout(() => {
+            void loadDiscussions(showLoading);
+          }, 1000);
+          return;
+        }
+      }
+      console.error('Failed to fetch discussions', err);
+      if (showLoading) {
+        setError('Unable to load discussions. Please try again later.');
+      }
+    } finally {
+      // Only clear loading state if we actually set it (not for skipped requests)
+      if (showLoading && isFetchingRef.current) {
+        setLoading(false);
+      }
+      isFetchingRef.current = false;
+    }
+  }, [currentPage, sectorFilter, statusFilter, processDiscussionsData]);
+
+  // Update refs when state changes (for comparison in processDiscussionsData)
+  useEffect(() => {
+    currentSectorsDataRef.current = sectorsData;
+  }, [sectorsData]);
+
+  useEffect(() => {
+    currentDiscussionsRef.current = discussions;
+  }, [discussions]);
+
+  // Initial load with loading state
+  useEffect(() => {
+    void loadDiscussions(true);
+  }, [currentPage, sectorFilter, statusFilter, loadDiscussions]); // Only reload on filter/page changes
+
+  // Polling callback for auto-refresh (without loading state)
+  const pollDiscussions = useCallback(async () => {
+    await loadDiscussions(false);
+  }, [loadDiscussions]);
+
+  // Use centralized polling utility with 1500ms interval for live updates (without loading state)
+  usePolling({
+    callback: pollDiscussions,
+    interval: 1500,
+    enabled: true,
+    pauseWhenHidden: true,
+    immediate: false, // Don't call immediately since we already loaded above
+    allowLowerInterval: true, // Allow 1500ms interval for discussions updates
+  });
 
   const toCamelRole = (role: string) => {
     return role
@@ -211,32 +324,13 @@ export default function DiscussionsPage() {
       setShowClearModal(false);
       setConfirmationText('');
       
-      // Refresh the discussions list
-      setCurrentPage(1);
-      const sectorId = sectorFilter !== 'all' ? sectorFilter : undefined;
-      const [sectorResponse, discussionResponse] = await Promise.all([
-        fetchSectors(),
-        fetchDiscussions(1, pageSize, sectorId, statusFilter),
-      ]);
-      
-      const sectorsList = sectorResponse as Sector[];
-      const sectorMap = new Map<string, Sector>(sectorsList.map(sector => [sector.id, sector]));
-      
-      const discussionsWithSector: DiscussionWithSector[] = discussionResponse.discussions.map(discussion => {
-        const sectorSymbol = discussion.sector || 'N/A';
-        const sector = discussion.sectorId ? sectorMap.get(discussion.sectorId) : undefined;
-        return {
-          ...discussion,
-          sectorSymbol: sectorSymbol,
-          sectorName: sector?.name ?? 'Unknown Sector',
-        };
-      });
-      
-      setSectorsData(sectorsList);
-      setDiscussions(discussionsWithSector);
-      setPagination(discussionResponse.pagination);
-      if (discussionResponse.statusCounts) {
-        setStatusCounts(discussionResponse.statusCounts);
+      // Reset to first page if not already there, then refresh
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+        // The useEffect will handle the reload when currentPage changes
+      } else {
+        // If already on page 1, manually trigger refresh
+        await loadDiscussions(true);
       }
     } catch (error: any) {
       showToast(error?.message || 'Failed to clear discussions', 'error');

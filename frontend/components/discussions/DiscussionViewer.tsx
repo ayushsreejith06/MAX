@@ -236,8 +236,10 @@ export default function DiscussionViewer({
   }, [discussionId, isActive, loadDiscussion]);
 
   // Determine if discussion is active (still in progress)
-  const isActive = discussion?.status === 'in_progress';
-  const isCompleted = discussion?.status === 'decided' || 
+  // Multi-round: OPEN means active, CLOSED means completed
+  const isActive = discussion?.status === 'OPEN' || discussion?.status === 'in_progress';
+  const isCompleted = discussion?.status === 'CLOSED' || 
+                      discussion?.status === 'decided' || 
                       discussion?.status === 'finalized' || // Legacy status
                       discussion?.status === 'accepted' || // Legacy status
                       discussion?.status === 'completed' || // Legacy status
@@ -273,9 +275,14 @@ export default function DiscussionViewer({
             <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
               Messages ({discussion.messages.length})
             </span>
-            {discussion.round && (
+            {(discussion.currentRound || discussion.round) && (
               <span className="text-xs text-floral-white/50 font-mono ml-auto">
-                Current Round: {discussion.round}
+                Current Round: {discussion.currentRound || discussion.round}
+                {discussion.roundHistory && discussion.roundHistory.length > 0 && (
+                  <span className="ml-2 text-floral-white/30">
+                    ({discussion.roundHistory.length} completed)
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -296,6 +303,60 @@ export default function DiscussionViewer({
           )}
         </div>
       </div>
+
+      {/* Round History (Multi-round discussions) */}
+      {discussion.roundHistory && discussion.roundHistory.length > 0 && (
+        <div className="bg-ink-600/60 rounded-lg border border-ink-500 overflow-hidden">
+          <div className="bg-ink-600/80 px-4 py-3 border-b border-ink-500">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-sage-green" />
+              <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
+                Round History ({discussion.roundHistory.length} rounds)
+              </span>
+            </div>
+          </div>
+          <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+            {discussion.roundHistory.map((snapshot, idx) => (
+              <div key={`round-${snapshot.round}-${idx}`} className="border border-ink-500 rounded-lg p-3 bg-ink-700/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-sage-green font-mono">
+                    Round {snapshot.round}
+                  </span>
+                  <span className="text-xs text-floral-white/50 font-mono">
+                    {new Date(snapshot.timestamp).toLocaleString()}
+                  </span>
+                </div>
+                {snapshot.checklist && snapshot.checklist.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <div className="text-xs text-floral-white/70 font-mono mb-1">
+                      Checklist Items ({snapshot.checklist.length}):
+                    </div>
+                    {snapshot.checklist.map((item) => (
+                      <div key={item.id} className="text-xs text-floral-white/60 font-mono pl-2 border-l-2 border-sage-green/30">
+                        {item.action && (
+                          <span className="text-sage-green">{item.action}</span>
+                        )}
+                        {item.reason && (
+                          <span className="ml-2">{item.reason.substring(0, 100)}{item.reason.length > 100 ? '...' : ''}</span>
+                        )}
+                        {item.status && (
+                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[0.65rem] ${
+                            item.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
+                            item.status === 'REJECTED' || item.status === 'REVISE_REQUIRED' ? 'bg-red-500/20 text-red-400' :
+                            'bg-yellow-500/20 text-yellow-400'
+                          }`}>
+                            {item.status}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Checklist Draft (Active Discussions) */}
       {showChecklistDraft && (

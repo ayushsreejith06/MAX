@@ -7,12 +7,20 @@ const { updateSector } = require('../utils/sectorStorage');
 
 interface Sector {
   id: string;
+  sectorType?: string;
   simulationMode?: boolean;
   currentPrice?: number;
   lastSimulatedPrice?: number;
   simulatedPrice?: number;
   volatility?: number;
   trendCurve?: number;
+  trendDescriptor?: string;
+  baselinePrice?: number;
+  initialPrice?: number;
+  sectorName?: string;
+  symbol?: string;
+  sectorSymbol?: string;
+  description?: string;
   performance?: {
     totalPL?: number;
     pnl?: number;
@@ -30,6 +38,124 @@ interface Sector {
 
 interface ExecutionImpact {
   managerImpact?: number;
+}
+
+interface DomainSimulationProfile {
+  baseVolatility: number; // percentage value (e.g., 5 === 5%)
+  randomNoiseRange: number;
+  managerImpactMultiplier: number;
+  trendSmoothing: number;
+  meanReversionStrength: number;
+  momentumBurstChance: number;
+  momentumBurstMagnitude: number;
+  cycleAmplitude: number;
+  cyclePeriodMs: number;
+  slowFactor: number;
+}
+
+const DEFAULT_PROFILE: DomainSimulationProfile = {
+  baseVolatility: 1,
+  randomNoiseRange: 0.003,
+  managerImpactMultiplier: 1,
+  trendSmoothing: 1,
+  meanReversionStrength: 0.05,
+  momentumBurstChance: 0,
+  momentumBurstMagnitude: 0,
+  cycleAmplitude: 0,
+  cyclePeriodMs: 0,
+  slowFactor: 1
+};
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+function getDomainProfile(sectorTypeRaw?: string): DomainSimulationProfile {
+  const sectorType = (sectorTypeRaw || '').toString().toLowerCase();
+
+  switch (sectorType) {
+    case 'crypto':
+      return {
+        baseVolatility: 5.5,
+        randomNoiseRange: 0.01,
+        managerImpactMultiplier: 2.5,
+        trendSmoothing: 0.6,
+        meanReversionStrength: 0.08,
+        momentumBurstChance: 0.15,
+        momentumBurstMagnitude: 0.06,
+        cycleAmplitude: 0,
+        cyclePeriodMs: 0,
+        slowFactor: 1
+      };
+    case 'equities':
+      return {
+        baseVolatility: 1.2,
+        randomNoiseRange: 0.003,
+        managerImpactMultiplier: 0.7,
+        trendSmoothing: 0.85,
+        meanReversionStrength: 0.1,
+        momentumBurstChance: 0.02,
+        momentumBurstMagnitude: 0.01,
+        cycleAmplitude: 0,
+        cyclePeriodMs: 0,
+        slowFactor: 1
+      };
+    case 'forex':
+      return {
+        baseVolatility: 0.6,
+        randomNoiseRange: 0.0012,
+        managerImpactMultiplier: 0.4,
+        trendSmoothing: 0.7,
+        meanReversionStrength: 0.35,
+        momentumBurstChance: 0,
+        momentumBurstMagnitude: 0,
+        cycleAmplitude: 0,
+        cyclePeriodMs: 0,
+        slowFactor: 0.9
+      };
+    case 'commodities':
+      return {
+        baseVolatility: 1.8,
+        randomNoiseRange: 0.004,
+        managerImpactMultiplier: 0.9,
+        trendSmoothing: 0.75,
+        meanReversionStrength: 0.12,
+        momentumBurstChance: 0.05,
+        momentumBurstMagnitude: 0.02,
+        cycleAmplitude: 0.012,
+        cyclePeriodMs: FIVE_MINUTES_MS,
+        slowFactor: 1
+      };
+    case 'macro':
+      return {
+        baseVolatility: 0.25,
+        randomNoiseRange: 0.0008,
+        managerImpactMultiplier: 0.25,
+        trendSmoothing: 0.9,
+        meanReversionStrength: 0.2,
+        momentumBurstChance: 0,
+        momentumBurstMagnitude: 0,
+        cycleAmplitude: 0,
+        cyclePeriodMs: 0,
+        slowFactor: 0.35
+      };
+    default:
+      return DEFAULT_PROFILE;
+  }
+}
+
+function describeTrend(changePercent: number, sectorTypeRaw?: string): string {
+  const sectorLabel = sectorTypeRaw ? sectorTypeRaw.toLowerCase() : 'market';
+
+  if (!isFinite(changePercent)) {
+    return `${sectorLabel} flat`;
+  }
+
+  if (changePercent > 2.5) return `${sectorLabel} surge`;
+  if (changePercent > 0.75) return `${sectorLabel} uptrend`;
+  if (changePercent > 0.15) return `${sectorLabel} mild rise`;
+  if (changePercent < -2.5) return `${sectorLabel} slump`;
+  if (changePercent < -0.75) return `${sectorLabel} downtrend`;
+  if (changePercent < -0.15) return `${sectorLabel} soft pullback`;
+  return `${sectorLabel} flat`;
 }
 
 class SimulationEngine {
@@ -69,16 +195,23 @@ class SimulationEngine {
       // Step 1: Apply long-term trend curve to sector price
       const oldPrice = sector.simulatedPrice || sector.currentPrice || sector.lastSimulatedPrice || 100;
       const trendComponent = typeof sector.trendCurve === 'number' ? sector.trendCurve : 0;
+      const baselinePrice = typeof sector.baselinePrice === 'number'
+        ? sector.baselinePrice
+        : (typeof sector.initialPrice === 'number' ? sector.initialPrice : oldPrice);
+      const domainProfile = getDomainProfile(sector.sectorType);
 
       // Step 2: Apply volatility noise (same method used in ExecutionEngine)
       // Calculate volatility: vol = sector.volatility / 100
-      const vol = typeof sector.volatility === 'number' ? sector.volatility / 100 : 0.02 / 100;
+      const baseVolatility = typeof sector.volatility === 'number'
+        ? sector.volatility
+        : domainProfile.baseVolatility;
+      const vol = Math.max(0, baseVolatility) / 100;
       // Generate volatility noise: random in [-vol, +vol]
       const volatilityNoise = (Math.random() * 2 - 1) * vol;
 
       // Step 3: Apply random noise
-      // Generate random noise: random in [-0.005, +0.005]
-      const randomNoise = (Math.random() * 2 - 1) * 0.005;
+      // Generate random noise: random in [-range, +range]
+      const randomNoise = (Math.random() * 2 - 1) * domainProfile.randomNoiseRange;
 
       // Step 4: If a checklist was recently executed, apply execution-based managerImpact
       let managerImpact = 0;
@@ -100,19 +233,48 @@ class SimulationEngine {
           
           // Apply a small positive impact for recent execution (simplified)
           // In production, this would come from the actual execution result's managerImpact
-          managerImpact = 0.001; // Small positive impact
+          // Multiply by 1.5 to match ExecutionEngine.updateSimulatedPrice behavior
+          const baseManagerImpact = 0.001 * 1.5; // Small positive impact, multiplied for visibility
+          managerImpact = baseManagerImpact * domainProfile.managerImpactMultiplier;
         }
       }
 
-      // Calculate new price using the formula (same as ExecutionEngine.updateSimulatedPrice)
-      let newPrice = oldPrice * (1 + volatilityNoise + randomNoise + trendComponent + managerImpact);
+      // Domain-specific adjustments
+      const appliedTrend = trendComponent * domainProfile.trendSmoothing;
+      const meanReversion = domainProfile.meanReversionStrength > 0 && baselinePrice > 0
+        ? ((baselinePrice - oldPrice) / baselinePrice) * domainProfile.meanReversionStrength
+        : 0;
+      const momentumDirection = appliedTrend !== 0 ? Math.sign(appliedTrend) : (Math.random() < 0.5 ? -1 : 1);
+      const momentumBurst = domainProfile.momentumBurstChance > 0 && Math.random() < domainProfile.momentumBurstChance
+        ? (Math.random() * domainProfile.momentumBurstMagnitude) * momentumDirection
+        : 0;
+      const cycleComponent = domainProfile.cycleAmplitude > 0 && domainProfile.cyclePeriodMs > 0
+        ? domainProfile.cycleAmplitude * Math.sin((2 * Math.PI * now) / domainProfile.cyclePeriodMs)
+        : 0;
+
+      const combinedChange =
+        volatilityNoise +
+        randomNoise +
+        appliedTrend +
+        managerImpact +
+        meanReversion +
+        momentumBurst +
+        cycleComponent;
+
+      // Macro and forex domains dampen overall movement through slowFactor
+      const domainScaledChange = combinedChange * (domainProfile.slowFactor || 1);
+
+      // Calculate new price using the formula (same as ExecutionEngine.updateSimulatedPrice) with domain scaling
+      const newSimulatedPrice = Math.max(0.01, oldPrice * (1 + domainScaledChange));
 
       // Clamp newPrice to minimum 0.01
-      newPrice = Math.max(0.01, newPrice);
+      const newPrice = newSimulatedPrice;
 
       // Step 5: Update simulated price
       const priceChange = newPrice - oldPrice;
       const priceChangePercent = oldPrice > 0 ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
+      const newVolatility = Math.max(0, parseFloat((baseVolatility * (1 + Math.min(Math.abs(domainScaledChange) * 10, 1))).toFixed(4)));
+      const updatedTrendDescriptor = describeTrend(priceChangePercent, sector.sectorType);
 
       // Step 6: Update performance
       const previousCapital = typeof sector.balance === 'number' ? sector.balance : 0;
@@ -139,12 +301,14 @@ class SimulationEngine {
 
       // Step 7: Save updates to sector state
       const updates = {
-        simulatedPrice: newPrice,
-        currentPrice: newPrice,
-        lastSimulatedPrice: newPrice,
+        simulatedPrice: newSimulatedPrice,
+        currentPrice: newSimulatedPrice,
+        lastSimulatedPrice: newSimulatedPrice,
         lastPriceUpdate: now,
         change: priceChange,
         changePercent: priceChangePercent,
+        volatility: newVolatility,
+        trendDescriptor: updatedTrendDescriptor,
         performance: updatedPerformance
       };
 

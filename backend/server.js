@@ -79,6 +79,20 @@ const start = async () => {
       fastify.log.error('Error registering execution route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/executionLogs'), { prefix: '/api' });
+      fastify.log.info('✅ Routes registered: /api/executionLogs');
+    } catch (err) {
+      fastify.log.error('Error registering executionLogs route:', err);
+      throw err;
+    }
+    try {
+      await fastify.register(require('./routes/decisionLogs'), { prefix: '/api/decision-logs' });
+      fastify.log.info('✅ Routes registered: /api/decision-logs');
+    } catch (err) {
+      fastify.log.error('Error registering decisionLogs route:', err);
+      throw err;
+    }
 
     // Bootstrap SimulationEngine
     try {
@@ -144,6 +158,8 @@ const start = async () => {
     console.log(`   - /api/system`);
     console.log(`   - /api/user`);
     console.log(`   - /api/execution`);
+    console.log(`   - /api/executionLogs`);
+    console.log(`   - /api/decision-logs`);
     console.log(`   - /debug`);
     console.log(`📍 Simulation Engine: Initialized`);
   } catch (err) {

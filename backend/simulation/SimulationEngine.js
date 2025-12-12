@@ -10,6 +10,7 @@ const CrossSignals = require('./crossSignals');
 const { loadSectors } = require('../utils/storage');
 const { updateSector } = require('../utils/sectorStorage');
 const { updateAgentsConfidenceForSector } = require('./confidence');
+const { calculateNewPrice, mapActionToImpact } = require('./priceModel');
 
 class SimulationEngine {
   constructor() {
@@ -92,9 +93,24 @@ class SimulationEngine {
 
     const { orderbook, priceSimulator, executionEngine } = sectorState;
 
-    // Step 1: Generate new price
+    let sectorsCache = [];
+    let sectorRecord = null;
+    try {
+      sectorsCache = await loadSectors();
+      sectorRecord = sectorsCache.find(s => s.id === sectorId);
+    } catch (error) {
+      console.warn(`[SimulationEngine] Unable to load sectors for ${sectorId}:`, error.message);
+    }
+
+    // Step 1: Generate new price using mandated price model
     const oldPrice = priceSimulator.getPrice() || priceSimulator.currentPrice;
-    const newPrice = priceSimulator.generateNextPrice();
+    const trendFactor = sectorRecord && typeof sectorRecord.trendCurveValue === 'number'
+      ? sectorRecord.trendCurveValue
+      : (sectorRecord && typeof sectorRecord.trendCurve === 'number' ? sectorRecord.trendCurve : 0);
+    const managerImpactForTick = managerDecisions.length > 0
+      ? mapActionToImpact(managerDecisions[managerDecisions.length - 1].action)
+      : 0;
+    const newPrice = calculateNewPrice(oldPrice, { managerImpact: managerImpactForTick, trendFactor });
     priceSimulator.setPrice(newPrice);
 
     // Step 1.5: Calculate price change for confidence updates
@@ -178,7 +194,7 @@ class SimulationEngine {
     let updatedAgents = [];
     try {
       // Get previous volatility for comparison
-      const sectors = await loadSectors();
+      const sectors = sectorsCache.length > 0 ? sectorsCache : await loadSectors();
       const sector = sectors.find(s => s.id === sectorId);
       const previousVolatility = sector?.volatility || priceSimulator.volatility;
       const volatilityChange = priceSimulator.volatility - previousVolatility;

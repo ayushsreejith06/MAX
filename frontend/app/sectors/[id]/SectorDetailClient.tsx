@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, BarChart3, AlertCircle, DollarSign, Plus, Trash2, Settings } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, AlertCircle, DollarSign, Plus, Trash2, Settings, ArrowDown } from 'lucide-react';
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { SectorSettingsForm } from '@/components/SectorSettingsForm';
-import { fetchSectorById, simulateTick, depositSector, deleteAgent, deleteSector, runConfidenceTick, fetchAgents, fetchDiscussions, fetchExecutionLogs, type SimulateTickResult, type ConfidenceTickResult, type ExecutionLog, isSkippedResult } from '@/lib/api';
+import { fetchSectorById, depositSector, withdrawSector, deleteAgent, deleteSector, fetchAgents, fetchDiscussions, fetchExecutionLogs, type ExecutionLog, isSkippedResult } from '@/lib/api';
 import type { Sector, Agent, Discussion } from '@/lib/types';
 import { usePolling } from '@/hooks/usePolling';
 import { useExecutionRefresh } from '@/hooks/useExecutionRefresh';
@@ -37,11 +37,17 @@ const AgentRow = memo(function AgentRow({
     processing: 'bg-sky-blue/20 text-sky-blue border-sky-blue/50',
   };
   const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.idle;
-  
-  const riskTolerance = agent.personality?.riskTolerance 
-    ? agent.personality.riskTolerance.charAt(0).toUpperCase() + agent.personality.riskTolerance.slice(1).toLowerCase()
+  const agentDisplayName = agent.displayName || agent.name || agent.id;
+  const formattedRole = agent.role
+    ? agent.role.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'General';
+  const riskTolerance = agent.riskTolerance || agent.personality?.riskTolerance;
+  const riskLabel = riskTolerance
+    ? riskTolerance.toString().charAt(0).toUpperCase() + riskTolerance.toString().slice(1).toLowerCase()
     : 'Unknown';
-  const decisionStyle = agent.personality?.decisionStyle
+  const styleLabel = agent.style
+    ? agent.style
+    : agent.personality?.decisionStyle
     ? agent.personality.decisionStyle.charAt(0).toUpperCase() + agent.personality.decisionStyle.slice(1).toLowerCase()
     : 'Unknown';
   
@@ -58,10 +64,10 @@ const AgentRow = memo(function AgentRow({
       onClick={onNavigate}
     >
       <td className="px-4 py-3 text-floral-white font-mono text-sm">
-        {agent.name || agent.id}
+        {agentDisplayName}
       </td>
       <td className="px-4 py-3 text-floral-white/85 font-mono text-sm">
-        {agent.role}
+        {formattedRole}
       </td>
       <td className="px-4 py-3 text-center">
         <span className={`inline-block px-2 py-1 rounded text-xs font-mono uppercase tracking-wider ${statusColor}`}>
@@ -84,10 +90,10 @@ const AgentRow = memo(function AgentRow({
         {agentConfidence.toFixed(0)}
       </td>
       <td className="px-4 py-3 text-floral-white/80 font-mono text-sm">
-        {riskTolerance}
+        {riskLabel}
       </td>
       <td className="px-4 py-3 text-floral-white/80 font-mono text-sm">
-        {decisionStyle}
+        {styleLabel}
       </td>
       <td className="px-4 py-3 text-center">
         {!isManager && (
@@ -110,7 +116,10 @@ const AgentRow = memo(function AgentRow({
   return (
     prevProps.agent.id === nextProps.agent.id &&
     prevProps.agent.name === nextProps.agent.name &&
+    prevProps.agent.displayName === nextProps.agent.displayName &&
     prevProps.agent.role === nextProps.agent.role &&
+    prevProps.agent.style === nextProps.agent.style &&
+    prevProps.agent.riskTolerance === nextProps.agent.riskTolerance &&
     prevProps.agent.status === nextProps.agent.status &&
     prevProps.agent.performance === nextProps.agent.performance &&
     prevProps.agent.trades === nextProps.agent.trades &&
@@ -158,7 +167,7 @@ const DiscussionItem = memo(function DiscussionItem({
         <h3 className="text-sm font-semibold text-floral-white mb-1 font-mono">{discussion.title}</h3>
         <div className="flex items-center gap-3 text-xs text-floral-white/60 font-mono">
           <span className={`px-2 py-1 rounded text-xs uppercase tracking-wider ${statusColor}`}>
-            {discussion.status === 'in_progress' ? 'CREATED' : discussion.status.toUpperCase()}
+            {discussion.status === 'in_progress' ? 'IN PROGRESS' : discussion.status.toUpperCase()}
           </span>
           <span>Updated {timeAgo}</span>
           <span>{discussion.agentIds?.length || 0} participants</span>
@@ -182,22 +191,18 @@ export default function SectorDetailClient() {
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [simulationResult, setSimulationResult] = useState<SimulateTickResult | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [depositing, setDepositing] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const [deletingSector, setDeletingSector] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmationCode, setDeleteConfirmationCode] = useState('');
   const [showSectorSettings, setShowSectorSettings] = useState(false);
-  const [performance, setPerformance] = useState<{
-    startingCapital: number;
-    currentCapital: number;
-    pnl: number;
-    recentTrades: any[];
-  } | null>(null);
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
@@ -364,31 +369,6 @@ export default function SectorDetailClient() {
     };
   }, [normalizedSectorId]);
 
-  // Load simulation performance once on mount (no polling)
-  const loadPerformance = useCallback(async () => {
-    if (!normalizedSectorId) return;
-    
-    try {
-      const { getApiBaseUrl } = await import('@/lib/desktopEnv');
-      const apiBase = typeof window !== 'undefined' 
-        ? getApiBaseUrl()
-        : '/api';
-      const res = await fetch(`${apiBase}/simulation/performance?sectorId=${normalizedSectorId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPerformance(data);
-      }
-    } catch (err) {
-      console.error('Failed to load simulation performance:', err);
-    }
-  }, [normalizedSectorId]);
-
-  // Load performance once on mount
-  useEffect(() => {
-    if (!normalizedSectorId) return;
-    void loadPerformance();
-  }, [normalizedSectorId, loadPerformance]);
-
   // Load execution logs
   const loadExecutionLogs = useCallback(async () => {
     if (!normalizedSectorId) return;
@@ -462,27 +442,15 @@ export default function SectorDetailClient() {
 
   // Poll sector data (including simulated price) every 1.5 seconds
   // This ensures simulated price, performance, and chart data update automatically
+  // The hook already filters out unchanged data, so we can update state directly
   useSectorDataPolling({
     sectorId: normalizedSectorId,
     enabled: !!normalizedSectorId && !!sector,
     interval: 1500, // 1.5 seconds - respects minimum 1 second interval
     onSectorUpdate: (updatedSector) => {
       // Update sector state with new data (including simulated price and chart data)
-      setSector(prevSector => {
-        // Only update if data actually changed to prevent unnecessary re-renders
-        if (!prevSector) return updatedSector;
-        
-        // Check if key fields changed
-        const hasChanged = 
-          prevSector.lastSimulatedPrice !== updatedSector.lastSimulatedPrice ||
-          prevSector.currentPrice !== updatedSector.currentPrice ||
-          prevSector.balance !== updatedSector.balance ||
-          prevSector.activeAgents !== updatedSector.activeAgents ||
-          prevSector.statusPercent !== updatedSector.statusPercent ||
-          JSON.stringify(prevSector.candleData) !== JSON.stringify(updatedSector.candleData);
-        
-        return hasChanged ? updatedSector : prevSector;
-      });
+      // The hook already ensures only changed data triggers this callback
+      setSector(updatedSector);
       
       // Update agent confidences from updated sector
       const newConfidences = new Map<string, number>();
@@ -648,6 +616,76 @@ export default function SectorDetailClient() {
     }
   }, [sector, deleteConfirmationCode, router]);
 
+  const handleWithdrawClick = useCallback(() => {
+    if (!sector) return;
+    
+    const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+    
+    if (sectorBalance <= 0) {
+      alert('Sector has no balance to withdraw');
+      return;
+    }
+
+    // Show withdraw modal
+    setShowWithdrawModal(true);
+    setWithdrawAmount('');
+  }, [sector]);
+
+  const handleWithdraw = useCallback(async () => {
+    if (!sector) return;
+    
+    const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+    
+    if (sectorBalance <= 0) {
+      alert('Sector has no balance to withdraw');
+      setShowWithdrawModal(false);
+      return;
+    }
+
+    // Parse withdraw amount
+    const amount = withdrawAmount.trim();
+    let withdrawValue: number | 'all';
+    
+    if (amount === '' || amount.toLowerCase() === 'all') {
+      withdrawValue = 'all';
+    } else {
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        alert('Please enter a valid positive amount');
+        return;
+      }
+      if (parsedAmount > sectorBalance) {
+        alert(`Insufficient balance. Available: $${sectorBalance.toFixed(2)}, Requested: $${parsedAmount.toFixed(2)}`);
+        return;
+      }
+      withdrawValue = parsedAmount;
+    }
+
+    try {
+      setWithdrawing(true);
+      const result = await withdrawSector(sector.id, withdrawValue);
+      
+      // Update sector with new balance
+      setSector(result.sector);
+      
+      // Show success message
+      showToast(`Successfully withdrew $${result.withdrawnAmount.toFixed(2)} to your account`, 'success');
+      
+      // Close modal and reset input
+      setShowWithdrawModal(false);
+      setWithdrawAmount('');
+      
+      // Reload sector data to ensure we have the latest balance
+      await reloadSector();
+    } catch (error: any) {
+      console.error('Failed to withdraw from sector', error);
+      const errorMessage = error?.message || 'Failed to withdraw from sector';
+      alert(`Failed to withdraw: ${errorMessage}`);
+    } finally {
+      setWithdrawing(false);
+    }
+  }, [sector, withdrawAmount, reloadSector, showToast]);
+
   // Computed values - must be defined before early returns
   const utilizationPercent = sector && sector.agents && sector.agents.length > 0 && sector.activeAgents !== undefined
     ? Math.round((sector.activeAgents / sector.agents.length) * 100) 
@@ -769,7 +807,18 @@ export default function SectorDetailClient() {
               </p>
             </div>
             <div className="text-right">
-              <div className={`text-4xl font-bold text-floral-white mb-1 font-mono ${highlightedFields.has('currentPrice') ? 'value-highlight' : ''}`}>${formatPrice(sector.currentPrice)}</div>
+              <div className="flex items-center gap-3 justify-end mb-2">
+                <div className={`text-4xl font-bold text-floral-white font-mono ${highlightedFields.has('currentPrice') ? 'value-highlight' : ''}`}>${formatPrice(sector.currentPrice)}</div>
+                <button
+                  onClick={handleWithdrawClick}
+                  disabled={(typeof sector.balance === 'number' ? sector.balance : 0) <= 0}
+                  className="px-4 py-2 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-sm font-mono font-semibold uppercase tracking-wider hover:bg-sage-green/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  title="Withdraw balance to your account"
+                >
+                  <ArrowDown className="w-4 h-4" />
+                  Withdraw
+                </button>
+              </div>
               <div className={`text-lg font-medium font-mono ${
                 sector.change >= 0 ? 'text-sage-green' : 'text-error-red'
               } ${highlightedFields.has('change') || highlightedFields.has('changePercent') ? 'value-highlight' : ''}`}>
@@ -807,8 +856,6 @@ export default function SectorDetailClient() {
                   setDepositAmount('');
                   // Reload sector data to ensure we have the latest balance from API
                   await reloadSector();
-                  // Reload performance after deposit
-                  await loadPerformance();
                 } catch (err: any) {
                   console.error('Deposit error:', err);
                   const errorMessage = err?.message || 'Failed to deposit funds';
@@ -877,27 +924,7 @@ export default function SectorDetailClient() {
         </div>
 
         {/* Performance Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">SIMULATED PRICE</span>
-              <BarChart3 className="w-5 h-5 text-sage-green" />
-            </div>
-            <div className="text-3xl font-bold text-floral-white font-mono">
-              {sector.lastSimulatedPrice !== null && sector.lastSimulatedPrice !== undefined
-                ? `$${formatPrice(sector.lastSimulatedPrice)}`
-                : 'N/A'}
-            </div>
-            {sector.lastSimulatedPrice !== null && sector.lastSimulatedPrice !== undefined && (
-              <div className={`text-sm font-mono mt-1 ${
-                sector.lastSimulatedPrice >= sector.currentPrice ? 'text-sage-green' : 'text-error-red'
-              }`}>
-                {sector.lastSimulatedPrice >= sector.currentPrice ? '+' : ''}
-                {((sector.lastSimulatedPrice - sector.currentPrice) / sector.currentPrice * 100).toFixed(2)}% vs current
-              </div>
-            )}
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
             <div className="flex items-center justify-between mb-2">
               <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">VOLATILITY</span>
@@ -950,6 +977,86 @@ export default function SectorDetailClient() {
               No chart data available
             </div>
           )}
+        </div>
+
+        {/* Execution Log List */}
+        <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
+          <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase tracking-wider">EXECUTION LOGS</h2>
+          <div className="max-h-[200px] overflow-y-auto border border-ink-500/30 rounded-lg">
+            {executionLogs.length > 0 ? (
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 bg-shadow-grey border-b border-ink-500/30 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">TIMESTAMP</th>
+                    <th className="px-4 py-3 text-left text-floral-white/70 font-mono text-sm font-semibold">ACTION</th>
+                    <th className="px-4 py-3 text-right text-floral-white/70 font-mono text-sm font-semibold">IMPACT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {executionLogs.map((log) => {
+                    // Extract action from results array or use log.action
+                    const actionName = log.results && log.results.length > 0
+                      ? log.results[0].action?.toUpperCase() || 'N/A'
+                      : log.action?.toUpperCase() || 'N/A';
+                    
+                    // Calculate or extract impact
+                    // If impact is directly in the log, use it; otherwise calculate from results
+                    let impact = log.impact;
+                    if (impact === undefined && log.results && log.results.length > 0) {
+                      // Try to get impact from first result
+                      impact = log.results[0].impact;
+                      // If still undefined, calculate a simple impact based on action type
+                      if (impact === undefined) {
+                        const result = log.results[0];
+                        if (result.action === 'buy') {
+                          // Positive impact for buy
+                          impact = result.amount > 0 ? Math.min((result.amount / 1000) * 0.1, 5) : 0;
+                        } else if (result.action === 'sell') {
+                          // Negative impact for sell
+                          impact = result.amount > 0 ? -Math.min((result.amount / 1000) * 0.1, 5) : 0;
+                        } else {
+                          impact = 0;
+                        }
+                      }
+                    }
+                    
+                    // Format timestamp
+                    const timestamp = new Date(log.timestamp);
+                    const formattedTime = timestamp.toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    });
+                    
+                    return (
+                      <tr
+                        key={log.id}
+                        className="border-b border-ink-500/20 hover:bg-shadow-grey/40 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-floral-white/85 font-mono text-sm">
+                          {formattedTime}
+                        </td>
+                        <td className="px-4 py-3 text-floral-white/85 font-mono text-sm">
+                          {actionName}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${
+                          (impact ?? 0) >= 0 ? 'text-sage-green' : 'text-error-red'
+                        }`}>
+                          {(impact ?? 0) >= 0 ? '+' : ''}{((impact ?? 0)).toFixed(2)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-8 text-floral-white/60 font-mono">
+                No execution logs available
+              </div>
+            )}
+          </div>
         </div>
 
         {/* SECTOR AGENTS Table - Always show */}
@@ -1092,7 +1199,7 @@ export default function SectorDetailClient() {
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     <span className={`inline-block px-2 py-1 rounded text-xs font-mono uppercase tracking-wider ${statusColor}`}>
-                                      {discussion.status === 'in_progress' ? 'CREATED' : discussion.status.toUpperCase()}
+                                      {discussion.status === 'in_progress' ? 'IN PROGRESS' : discussion.status.toUpperCase()}
                                     </span>
                                   </td>
                                   <td className="px-4 py-3 text-center text-floral-white/85 font-mono text-sm">
@@ -1125,112 +1232,6 @@ export default function SectorDetailClient() {
               </>
             );
           })()}
-        </div>
-
-        {/* SIMULATION Section */}
-        <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-floral-white font-mono">SIMULATION</h2>
-          </div>
-
-          {/* Auto-updating Performance Display */}
-          <section className="mt-10 rounded-2xl border border-ink-500/40 p-6 bg-pure-black/40">
-            <h2 className="text-xl font-semibold tracking-widest text-floral-white mb-4">
-              SIMULATION PERFORMANCE
-            </h2>
-
-            {performance ? (
-              <div className="space-y-3 text-floral-white/90 text-sm">
-                <p>Starting Capital: <span className="text-sage-green">${performance.startingCapital.toFixed(2)}</span></p>
-                <p>Current Capital: <span className={`text-sage-green ${highlightedFields.has('balance') ? 'value-highlight' : ''}`}>${performance.currentCapital.toFixed(2)}</span></p>
-                <p>Total P/L: <span className={`${performance.pnl >= 0 ? "text-sage-green" : "text-red-500"} ${highlightedFields.has('totalPL') ? 'value-highlight' : ''}`}>${performance.pnl.toFixed(2)}</span></p>
-                <p>Recent Trades: {performance.recentTrades?.length || 0}</p>
-              </div>
-            ) : (
-              <p className="text-ink-500">Simulation not started.</p>
-            )}
-          </section>
-
-          {simulationResult && (
-            <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-pure-black/50 rounded p-4 border border-ink-500/30">
-                  <div className="text-floral-white/70 font-mono text-xs uppercase tracking-wider mb-1">Last Price</div>
-                  <div className="text-2xl font-bold text-floral-white font-mono">
-                    ${simulationResult.newPrice.toFixed(2)}
-                  </div>
-                  <div className={`text-sm font-mono mt-1 ${
-                    simulationResult.priceChange >= 0 ? 'text-sage-green' : 'text-error-red'
-                  }`}>
-                    {simulationResult.priceChange >= 0 ? '+' : ''}
-                    {simulationResult.priceChange.toFixed(2)} ({simulationResult.priceChangePercent >= 0 ? '+' : ''}
-                    {simulationResult.priceChangePercent.toFixed(2)}%)
-                  </div>
-                </div>
-
-                <div className="bg-pure-black/50 rounded p-4 border border-ink-500/30">
-                  <div className="text-floral-white/70 font-mono text-xs uppercase tracking-wider mb-1">Risk Score</div>
-                  <div className="text-2xl font-bold text-floral-white font-mono">
-                    {simulationResult.riskScore}
-                  </div>
-                  <div className="text-xs text-floral-white/60 font-mono mt-1">0-100 scale</div>
-                </div>
-
-                <div className="bg-pure-black/50 rounded p-4 border border-ink-500/30">
-                  <div className="text-floral-white/70 font-mono text-xs uppercase tracking-wider mb-1">Trades Executed</div>
-                  <div className="text-2xl font-bold text-floral-white font-mono">
-                    {simulationResult.executedTrades.length}
-                  </div>
-                  {simulationResult.rejectedTrades.length > 0 && (
-                    <div className="text-xs text-error-red font-mono mt-1">
-                      {simulationResult.rejectedTrades.length} rejected
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {simulationResult.lastTrade && (
-                <div className="bg-pure-black/50 rounded p-4 border border-ink-500/30">
-                  <div className="text-floral-white/70 font-mono text-xs uppercase tracking-wider mb-2">Last Simulated Trade</div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-floral-white font-mono text-sm">
-                        Price: <span className="text-sage-green">${simulationResult.lastTrade.price.toFixed(2)}</span>
-                      </div>
-                      <div className="text-floral-white/80 font-mono text-sm mt-1">
-                        Quantity: {simulationResult.lastTrade.quantity}
-                      </div>
-                    </div>
-                    <div className="text-floral-white/60 font-mono text-xs">
-                      {new Date(simulationResult.lastTrade.timestamp).toLocaleTimeString()}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {simulationResult.rejectedTrades.length > 0 && (
-                <div className="bg-error-red/10 border border-error-red/30 rounded p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-4 h-4 text-error-red" />
-                    <div className="text-error-red font-mono text-sm font-semibold">Rejected Trades</div>
-                  </div>
-                  <div className="space-y-1">
-                    {simulationResult.rejectedTrades.slice(0, 3).map((rejected, idx) => (
-                      <div key={idx} className="text-floral-white/70 font-mono text-xs">
-                        {rejected.error || 'Validation failed'}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!simulationResult && (
-            <p className="text-sm text-floral-white/60 font-mono">
-              Simulation ticks run automatically every 2 seconds. Use the toggle in the navbar to control simulation mode.
-            </p>
-          )}
         </div>
 
         <CreateAgentModal
@@ -1298,6 +1299,62 @@ export default function SectorDetailClient() {
                     setDeleteConfirmationCode('');
                   }}
                   disabled={deletingSector}
+                  className="flex-1 rounded-full border border-ink-500 px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-floral-white hover:border-sage-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Withdraw Modal */}
+        {showWithdrawModal && sector && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-shadow-grey rounded-lg p-6 border border-ink-500 max-w-md w-full mx-4">
+              <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase">Withdraw Funds</h2>
+              <p className="text-floral-white/70 mb-4 font-mono">
+                Withdraw funds from <span className="font-bold text-floral-white">"{sector.name}"</span> to your account.
+              </p>
+              <p className="text-sage-green text-sm mb-4 font-mono">
+                💰 Available balance: ${(sector.balance || 0).toFixed(2)}
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm text-floral-white/70 mb-2 font-mono uppercase tracking-wider">
+                  Amount to Withdraw
+                </label>
+                <input
+                  type="text"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder={`Enter amount or "all" for $${(sector.balance || 0).toFixed(2)}`}
+                  className="w-full rounded-lg border border-ink-500 bg-ink-600/70 px-4 py-2 text-floral-white font-mono focus:outline-none focus:border-sage-green focus:ring-1 focus:ring-sage-green"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void handleWithdraw();
+                    }
+                  }}
+                />
+                <p className="text-xs text-floral-white/50 mt-2 font-mono">
+                  Enter a specific amount or "all" to withdraw everything
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleWithdraw}
+                  disabled={withdrawing || !withdrawAmount.trim()}
+                  className="flex-1 rounded-full bg-sage-green px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-pure-black hover:bg-sage-green/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {withdrawing ? 'Withdrawing...' : 'Withdraw'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowWithdrawModal(false);
+                    setWithdrawAmount('');
+                  }}
+                  disabled={withdrawing}
                   className="flex-1 rounded-full border border-ink-500 px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-floral-white hover:border-sage-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel

@@ -139,6 +139,109 @@ module.exports = async (fastify) => {
     }
   });
 
+  // POST /sectors/:id/withdraw - Withdraw money from a sector to user account
+  fastify.post('/:id/withdraw', async (request, reply) => {
+    try {
+      let { id } = request.params;
+      const { amount } = request.body || {};
+
+      // Normalize ID to lowercase for consistent case-sensitivity
+      if (id && typeof id === 'string') {
+        id = id.trim().toLowerCase();
+      }
+
+      // Get the sector
+      const sector = await getSectorById(id);
+      if (!sector) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Sector not found'
+        });
+      }
+
+      // Get current balance and price
+      const currentBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+      const currentPrice = typeof sector.currentPrice === 'number' ? sector.currentPrice : 0;
+      
+      // Determine withdrawal amount
+      let withdrawAmount;
+      if (amount === undefined || amount === null || amount === 'all') {
+        // Withdraw all available balance
+        withdrawAmount = currentBalance;
+      } else if (typeof amount === 'number' && amount > 0 && isFinite(amount)) {
+        // Validate partial withdrawal
+        if (amount > currentBalance) {
+          return reply.status(400).send({
+            success: false,
+            error: `Insufficient balance. Available: $${currentBalance.toFixed(2)}, Requested: $${amount.toFixed(2)}`
+          });
+        }
+        withdrawAmount = amount;
+      } else {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid amount. Amount must be a positive number or "all" to withdraw everything.'
+        });
+      }
+
+      // Check if there's anything to withdraw
+      if (withdrawAmount <= 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Sector has no balance to withdraw'
+        });
+      }
+
+      // Calculate new balance and price (withdraw from both)
+      const newBalance = Math.max(0, currentBalance - withdrawAmount);
+      const newPrice = Math.max(0, currentPrice - withdrawAmount);
+
+      // Update sector with new balance and price
+      const updatedSector = await updateSector(id, { 
+        currentPrice: newPrice,
+        balance: newBalance 
+      });
+      if (!updatedSector) {
+        return reply.status(500).send({
+          success: false,
+          error: 'Failed to update sector'
+        });
+      }
+
+      // Add withdrawn amount to user account
+      try {
+        await addFunds(withdrawAmount);
+        console.log(`Withdrew ${withdrawAmount} from sector ${id} to user account`);
+      } catch (balanceError) {
+        console.error(`Error adding funds to user account: ${balanceError.message}`);
+        // Rollback sector update if user account update fails
+        await updateSector(id, { 
+          currentPrice: currentPrice,
+          balance: currentBalance 
+        });
+        return reply.status(500).send({
+          success: false,
+          error: 'Failed to update user account balance'
+        });
+      }
+
+      // Normalize the updated sector before sending
+      const normalizedSector = normalizeSectorRecord(updatedSector);
+
+      return reply.status(200).send({
+        success: true,
+        sector: normalizedSector,
+        withdrawnAmount: withdrawAmount
+      });
+    } catch (error) {
+      console.error(`Error withdrawing from sector: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // GET /sectors/:id - Get a single sector by ID
   fastify.get('/:id', async (request, reply) => {
     try {

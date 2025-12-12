@@ -189,10 +189,34 @@ function normalizeAgent(raw: any): Agent {
     ? raw.trades
     : 0;
 
+  const riskTolerance =
+    raw?.riskTolerance ??
+    raw?.personality?.riskTolerance ??
+    raw?.personality?.risk_tolerance ??
+    'Unknown';
+  const displayName =
+    typeof raw?.displayName === 'string' && raw.displayName.trim().length > 0
+      ? raw.displayName.trim()
+      : typeof raw?.name === 'string'
+      ? raw.name
+      : 'Unnamed Agent';
+  const style = typeof raw?.style === 'string' ? raw.style : undefined;
+  const initialConfidence =
+    typeof raw?.initialConfidence === 'number'
+      ? raw.initialConfidence
+      : typeof raw?.confidence === 'number'
+      ? raw.confidence
+      : undefined;
+
   return {
     id: normalizeAgentId(raw?.id),
-    name: String(raw?.name ?? 'Unnamed Agent'),
+    name: displayName,
+    displayName,
     role: String(raw?.role ?? 'agent'),
+    style,
+    riskTolerance,
+    shortBio: typeof raw?.shortBio === 'string' ? raw.shortBio : undefined,
+    initialConfidence,
     performance: Number(performanceValue || 0),
     trades: Number(tradesCount || 0),
     status: (raw?.status ?? 'idle') as Agent['status'],
@@ -200,7 +224,7 @@ function normalizeAgent(raw: any): Agent {
     sectorSymbol: raw?.sectorSymbol ?? raw?.sector_symbol ?? undefined,
     sectorName: raw?.sectorName ?? raw?.sector_name ?? undefined,
     personality: {
-      riskTolerance: raw?.personality?.riskTolerance ?? raw?.personality?.risk_tolerance ?? 'Unknown',
+      riskTolerance,
       decisionStyle: raw?.personality?.decisionStyle ?? raw?.personality?.decision_style ?? 'Unknown',
     },
     prompt: typeof raw?.prompt === 'string' ? raw.prompt : undefined,
@@ -212,7 +236,11 @@ function normalizeAgent(raw: any): Agent {
     } : undefined,
     morale: typeof raw?.morale === 'number' ? raw.morale : undefined,
     rewardPoints: typeof raw?.rewardPoints === 'number' ? raw.rewardPoints : undefined,
-    confidence: typeof raw?.confidence === 'number' ? raw.confidence : 0,
+    confidence: typeof raw?.confidence === 'number'
+      ? raw.confidence
+      : typeof initialConfidence === 'number'
+      ? initialConfidence
+      : 0,
     createdAt: raw?.createdAt ?? raw?.created_at ?? new Date().toISOString(),
     rawTrades: Array.isArray(raw?.trades) ? raw.trades : undefined,
     rawPerformance: typeof raw?.performance === 'object' ? raw.performance : undefined,
@@ -269,11 +297,23 @@ function normalizeDiscussion(raw: any): Discussion {
       }))
     : undefined;
 
+  // Normalize status: only 'in_progress' or 'decided' are valid
+  let normalizedStatus = raw?.status ?? 'in_progress';
+  if (normalizedStatus === 'active' || normalizedStatus === 'open' || normalizedStatus === 'OPEN' || 
+      normalizedStatus === 'created' || normalizedStatus === 'in_progress') {
+    normalizedStatus = 'in_progress';
+  } else if (normalizedStatus === 'closed' || normalizedStatus === 'CLOSED' || 
+             normalizedStatus === 'archived' || normalizedStatus === 'finalized' || 
+             normalizedStatus === 'accepted' || normalizedStatus === 'completed' ||
+             normalizedStatus === 'decided') {
+    normalizedStatus = 'decided';
+  }
+
   return {
     id: String(raw?.id ?? ''),
     sectorId: String(raw?.sectorId ?? raw?.sector_id ?? ''),
     title: String(raw?.title ?? 'Untitled discussion'),
-    status: (raw?.status ?? 'in_progress') as Discussion['status'],
+    status: normalizedStatus as Discussion['status'],
     agentIds: Array.isArray(raw?.agentIds)
       ? raw.agentIds.map((agentId: any) => String(agentId))
       : Array.isArray(raw?.agent_ids)
@@ -406,73 +446,6 @@ export async function fetchSectorById(id: string): Promise<Sector | null> {
 }
 
 // Manager Agent API functions
-export interface ManagerStatus {
-  isRunning: boolean;
-  managerCount: number;
-  tickIntervalMs: number;
-  decisionLogSize: number;
-  managers: Array<{
-    id: string;
-    sectorId: string;
-    name: string;
-    lastDecision: {
-      action: string;
-      confidence: number;
-      reason: string;
-      timestamp: number;
-    } | null;
-    decisionCount: number;
-  }>;
-}
-
-export interface ManagerDecision {
-  managerId: string;
-  sectorId: string;
-  decision: {
-    action: string;
-    confidence: number;
-    reason: string;
-    voteBreakdown?: { BUY: number; SELL: number; HOLD: number };
-    conflictScore?: number;
-    timestamp: number;
-  };
-  timestamp: number;
-}
-
-export async function fetchManagerStatus(): Promise<ManagerStatus | null> {
-  try {
-    const result = await request<{ success: boolean; data: ManagerStatus }>('/simulation/status');
-    
-    // Handle rate limiting - return null when skipped
-    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
-      return null;
-    }
-    
-    const payload = result as { success: boolean; data: ManagerStatus };
-    return payload && payload.success ? payload.data : null;
-  } catch (error) {
-    console.error('Error fetching manager status:', error);
-    return null;
-  }
-}
-
-export async function fetchManagerDecisions(sectorId: string): Promise<ManagerDecision[]> {
-  try {
-    const result = await request<{ success: boolean; data: ManagerDecision[] }>(`/simulation/decisions/${sectorId}`);
-    
-    // Handle rate limiting - return empty array when skipped
-    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
-      return [];
-    }
-    
-    const payload = result as { success: boolean; data: ManagerDecision[] };
-    return payload && payload.success ? payload.data : [];
-  } catch (error) {
-    console.error('Error fetching manager decisions:', error);
-    return [];
-  }
-}
-
 export async function fetchAgents(): Promise<Agent[]> {
   const result = await request<Agent[]>('/agents');
   
@@ -640,9 +613,22 @@ export interface ChecklistItemResponse {
   round?: number;
   agentId?: string;
   agentName?: string;
-  approvalStatus?: 'pending' | 'accepted' | 'rejected';
+  approvalStatus?: 'pending' | 'accepted' | 'rejected' | 'accept_rejection';
   approvalReason?: string | null;
   approvedAt?: string;
+  // Revision metadata
+  status?: 'PENDING' | 'REVISE_REQUIRED' | 'APPROVED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
+  requiresRevision?: boolean;
+  managerReason?: string | null;
+  revisionCount?: number;
+  revisedAt?: string;
+  previousVersions?: Array<{
+    action?: string;
+    amount?: number;
+    reason?: string;
+    confidence?: number;
+    timestamp: string;
+  }>;
 }
 
 export interface ChecklistResponse {
@@ -665,6 +651,119 @@ export async function fetchChecklist(discussionId: string): Promise<ChecklistRes
   }
   
   return result as ChecklistResponse | null;
+}
+
+export interface RejectedItemsResponse {
+  success: boolean;
+  discussionId: string;
+  rejectedItems: ChecklistItemResponse[];
+}
+
+export async function getRejectedItemsForDiscussion(discussionId: string): Promise<RejectedItemsResponse | null> {
+  if (!discussionId) {
+    return null;
+  }
+
+  const result = await request<RejectedItemsResponse>(`/discussions/${discussionId}/rejected-items`);
+  
+  // Handle rate limiting - return null when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return null;
+  }
+  
+  return result as RejectedItemsResponse | null;
+}
+
+export interface SubmitRevisionParams {
+  itemId: string;
+  newContent: {
+    action?: string;
+    amount?: number;
+    reason?: string;
+    reasoning?: string;
+    confidence?: number;
+  };
+}
+
+export interface SubmitRevisionResponse {
+  success: boolean;
+  discussionId: string;
+  itemId: string;
+  item: {
+    id: string;
+    action?: string;
+    amount?: number;
+    reason?: string;
+    confidence?: number;
+    status: string;
+    revisionCount: number;
+  };
+  allItemsResolved?: boolean;
+}
+
+export async function submitRevision(
+  discussionId: string,
+  params: SubmitRevisionParams
+): Promise<SubmitRevisionResponse> {
+  if (!discussionId || !params.itemId) {
+    throw new Error('discussionId and itemId are required');
+  }
+
+  const result = await request<SubmitRevisionResponse>(`/discussions/${discussionId}/submit-revision`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      itemId: params.itemId,
+      newContent: params.newContent,
+    }),
+  });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  return result as SubmitRevisionResponse;
+}
+
+export interface AcceptRejectionResponse {
+  success: boolean;
+  discussionId: string;
+  itemId: string;
+  item: {
+    id: string;
+    status: string;
+  };
+  allItemsResolved?: boolean;
+  discussionStatus?: string;
+}
+
+export async function acceptRejection(
+  discussionId: string,
+  itemId: string
+): Promise<AcceptRejectionResponse> {
+  if (!discussionId || !itemId) {
+    throw new Error('discussionId and itemId are required');
+  }
+
+  const result = await request<AcceptRejectionResponse>(`/discussions/${discussionId}/accept-rejection`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      itemId: itemId,
+    }),
+  });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  return result as AcceptRejectionResponse;
 }
 
 export async function createDiscussion(
@@ -886,61 +985,6 @@ export async function createAgent(
   }
 }
 
-export interface SimulateTickResult {
-  sectorId: string;
-  timestamp: number;
-  newPrice: number;
-  riskScore: number;
-  executedTrades: any[];
-  rejectedTrades: any[];
-  orderbook: any;
-  lastTrade: any;
-  priceChange: number;
-  priceChangePercent: number;
-}
-
-export async function simulateTick(sectorId: string, decisions: any[] = []): Promise<SimulateTickResult> {
-  const result = await request<{ success: boolean; data: SimulateTickResult } | SimulateTickResult>(`/simulation/tick`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      sectorId,
-      decisions,
-    }),
-  });
-  
-  // Handle rate limiting - throw generic error for mutations
-  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
-    throw new Error('Request was skipped. Please try again.');
-  }
-  
-  const payload = result as { success: boolean; data: SimulateTickResult } | SimulateTickResult;
-  
-  // Handle both wrapped and unwrapped responses
-  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
-    return (payload as { success: boolean; data: SimulateTickResult }).data;
-  }
-  return payload as SimulateTickResult;
-}
-
-export async function updateSectorPerformance(sectorId: string): Promise<Sector> {
-  const payload = await request<{ success: boolean; data: Sector } | Sector>(`/simulation/${sectorId}/performance`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  
-  // Handle both wrapped and unwrapped responses
-  let sectorData: any = payload;
-  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
-    sectorData = (payload as { success: boolean; data: Sector }).data;
-  }
-  return normalizeSector(sectorData);
-}
-
 export async function depositSector(sectorId: string, amount: number): Promise<Sector> {
   const payload = await request<{ success: boolean; data: Sector } | Sector>(`/sectors/${sectorId}/deposit`, {
     method: 'POST',
@@ -956,6 +1000,27 @@ export async function depositSector(sectorId: string, amount: number): Promise<S
     sectorData = (payload as { success: boolean; data: Sector }).data;
   }
   return normalizeSector(sectorData);
+}
+
+export async function withdrawSector(sectorId: string, amount?: number | 'all'): Promise<{ sector: Sector; withdrawnAmount: number }> {
+  const payload = await request<{ success: boolean; sector: Sector; withdrawnAmount: number }>(`/sectors/${sectorId}/withdraw`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ amount: amount ?? 'all' }),
+  });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (payload && typeof payload === 'object' && 'skipped' in payload && (payload as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const result = payload as { success: boolean; sector: Sector; withdrawnAmount: number };
+  return {
+    sector: normalizeSector(result.sector),
+    withdrawnAmount: result.withdrawnAmount
+  };
 }
 
 export async function updateAgent(agentId: string, updates: {
@@ -1103,74 +1168,57 @@ export async function sendMessageToManager(sectorId: string, message: string): P
 }
 
 /**
- * System mode types
- */
-export type SystemMode = 'simulation' | 'realtime';
-
-/**
- * Get current system mode
- */
-export async function getSystemMode(): Promise<SystemMode> {
-  try {
-    const result = await request<{ success: boolean; mode: SystemMode }>('/system/mode', {
-      method: 'GET',
-    });
-    
-    // Handle rate limiting
-    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
-      throw new Error('Request was rate-limited. Please try again later.');
-    }
-    
-    const payload = result as { success: boolean; mode: SystemMode };
-    return payload.mode;
-  } catch (error: any) {
-    throw error;
-  }
-}
-
-/**
- * Set system mode
- */
-export async function setSystemMode(mode: SystemMode): Promise<SystemMode> {
-  try {
-    const result = await request<{ success: boolean; mode: SystemMode }>('/system/mode', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ mode }),
-    });
-    
-    // Handle rate limiting
-    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
-      throw new Error('Request was rate-limited. Please try again later.');
-    }
-    
-    const payload = result as { success: boolean; mode: SystemMode };
-    return payload.mode;
-  } catch (error: any) {
-    throw error;
-  }
-}
-
-/**
  * Execution log entry
  */
 export interface ExecutionLog {
   id: string;
   sectorId: string;
   checklistId?: string;
+  managerId?: string;
   timestamp: number;
+  executionType?: string;
   results?: Array<{
     itemId: string;
     action: string;
+    actionType?: string;
     amount: number;
+    allocation?: number;
+    symbol?: string;
     success: boolean;
     reason?: string;
     impact?: number;
+    managerImpact?: number;
   }>;
   impact?: number;
   action?: string;
+  status?: string; // For approved items: 'APPROVED'
+  score?: number; // Manager decision score
+  managerReason?: string; // Manager's reason for approval/rejection
+}
+
+/**
+ * Execution list item
+ */
+export interface ExecutionListItem {
+  id: string;
+  actionType: 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
+  symbol: string;
+  allocation: number;
+  generatedFromDiscussion?: string;
+  createdAt: number;
+}
+
+/**
+ * Execution result
+ */
+export interface ExecutionResult {
+  itemId: string;
+  actionType: string;
+  symbol: string;
+  allocation: number;
+  success: boolean;
+  reason: string;
+  managerImpact?: number;
 }
 
 /**
@@ -1194,6 +1242,73 @@ export async function fetchExecutionLogs(sectorId: string): Promise<ExecutionLog
     console.error('Error fetching execution logs:', error);
     return [];
   }
+}
+
+/**
+ * Get execution list for a manager
+ */
+export async function getManagerExecutionList(managerId: string): Promise<ExecutionListItem[]> {
+  try {
+    const result = await request<{ success: boolean; executionList: ExecutionListItem[] }>(`/manager/${managerId}/execution-list`);
+    
+    // Handle rate limiting - return empty array when skipped
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return [];
+    }
+    
+    const payload = result as { success: boolean; executionList: ExecutionListItem[] };
+    if (payload && payload.success && Array.isArray(payload.executionList)) {
+      return payload.executionList;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching manager execution list:', error);
+    return [];
+  }
+}
+
+/**
+ * Execute all items in manager's execution list
+ */
+export async function executeManagerExecutionList(managerId: string): Promise<{
+  success: boolean;
+  executed: number;
+  total: number;
+  results: ExecutionResult[];
+  updatedSectorState?: {
+    id: string;
+    capital: number;
+    position: number;
+    performance: any;
+    utilization: number;
+    currentPrice: number;
+  };
+}> {
+  const result = await request<{
+    success: boolean;
+    executed: number;
+    total: number;
+    results: ExecutionResult[];
+    updatedSectorState?: any;
+  }>(`/manager/${managerId}/execute-all`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  return result as {
+    success: boolean;
+    executed: number;
+    total: number;
+    results: ExecutionResult[];
+    updatedSectorState?: any;
+  };
 }
 
 /**
@@ -1237,6 +1352,122 @@ export async function clearAllDiscussions(): Promise<{ success: boolean; deleted
     return payload as { success: boolean; deletedCount: number };
   } catch (error: any) {
     throw error;
+  }
+}
+
+/**
+ * Decision Logs API
+ */
+
+export interface ExecutionLogsFilters {
+  page?: number;
+  pageSize?: number;
+  sectorId?: string;
+  managerId?: string;
+  discussionId?: string;
+  startTime?: number;
+  endTime?: number;
+  actionType?: string;
+}
+
+
+export interface FinalizedRejectionsFilters {
+  page?: number;
+  pageSize?: number;
+  sectorId?: string;
+  managerId?: string;
+  discussionId?: string;
+  startTime?: number;
+  endTime?: number;
+}
+
+export interface FinalizedRejection {
+  id: string;
+  timestamp: number;
+  sectorSymbol: string;
+  discussionId: string;
+  discussionTitle: string;
+  managerId?: string | null;
+  action?: string;
+  amount?: number | null;
+  confidence?: number | null;
+  managerReason?: string | null;
+  text?: string;
+  status?: string;
+  isFinalized?: boolean;
+  revisionCount?: number;
+}
+
+export async function fetchAllExecutionLogs(filters: ExecutionLogsFilters = {}): Promise<{ logs: ExecutionLog[]; pagination?: any }> {
+  try {
+    const params = new URLSearchParams();
+    // Backend uses 'sector' not 'sectorId'
+    if (filters.sectorId) params.append('sector', filters.sectorId);
+    if (filters.managerId) params.append('managerId', filters.managerId);
+    if (filters.discussionId) params.append('discussionId', filters.discussionId);
+    if (filters.actionType) params.append('actionType', filters.actionType);
+    if (filters.startTime && filters.endTime) {
+      // Backend expects timeRange in format "start:end" or "lastNhours" or "lastNdays"
+      const hours = Math.round((filters.endTime - filters.startTime) / (1000 * 60 * 60));
+      if (hours <= 24) {
+        params.append('timeRange', `last${hours}hours`);
+      } else {
+        const days = Math.round(hours / 24);
+        params.append('timeRange', `last${days}days`);
+      }
+    }
+
+    const result = await request<{ success: boolean; logs: ExecutionLog[] }>(`/decision-logs/executed?${params.toString()}`);
+    
+    // Handle rate limiting
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return { logs: [] };
+    }
+    
+    const payload = result as { success: boolean; logs: ExecutionLog[] };
+    return {
+      logs: payload && payload.success && Array.isArray(payload.logs) ? payload.logs : [],
+      pagination: { page: filters.page || 1, pageSize: filters.pageSize || 20, total: 0, totalPages: 0 }
+    };
+  } catch (error) {
+    console.error('Error fetching execution logs:', error);
+    return { logs: [] };
+  }
+}
+
+export async function fetchFinalizedRejections(filters: FinalizedRejectionsFilters = {}): Promise<{ rejections: FinalizedRejection[]; pagination?: any }> {
+  try {
+    const params = new URLSearchParams();
+    // Backend uses 'sector' not 'sectorId'
+    if (filters.sectorId) params.append('sector', filters.sectorId);
+    if (filters.managerId) params.append('managerId', filters.managerId);
+    if (filters.discussionId) params.append('discussionId', filters.discussionId);
+    if (filters.startTime && filters.endTime) {
+      // Backend expects timeRange in format "start:end" or "lastNhours" or "lastNdays"
+      const hours = Math.round((filters.endTime - filters.startTime) / (1000 * 60 * 60));
+      if (hours <= 24) {
+        params.append('timeRange', `last${hours}hours`);
+      } else {
+        const days = Math.round(hours / 24);
+        params.append('timeRange', `last${days}days`);
+      }
+    }
+
+    const result = await request<{ success: boolean; finalizedRejections: FinalizedRejection[] }>(`/decision-logs/finalized-rejections?${params.toString()}`);
+    
+    // Handle rate limiting
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      return { rejections: [] };
+    }
+    
+    const payload = result as { success: boolean; finalizedRejections: FinalizedRejection[] };
+    return {
+      rejections: payload && payload.success && Array.isArray(payload.finalizedRejections) ? payload.finalizedRejections : [],
+      pagination: { page: filters.page || 1, pageSize: filters.pageSize || 20, total: 0, totalPages: 0 }
+    };
+  } catch (error) {
+    console.error('Error fetching finalized rejections:', error);
+    return { rejections: [] };
   }
 }
 
