@@ -15249,7 +15249,7 @@
     "morale": 50,
     "rewardPoints": 0,
     "lastRewardTimestamp": null,
-    "confidence": -2,
+    "confidence": 0,
     "executionList": [],
     "createdAt": "2025-12-12T08:53:35.647Z"
   }
