@@ -12,6 +12,7 @@ const {
 const { loadAgents } = require('../utils/agentStorage');
 const { loadRejectedItems } = require('../utils/rejectedItemsStorage');
 const ExecutionEngine = require('../core/ExecutionEngine');
+const { formatChecklistItemDescription } = require('../discussions/workflow/checklistBuilder');
 
 // Simple logger
 function log(message) {
@@ -386,20 +387,21 @@ module.exports = async (fastify) => {
       }
 
       // Calculate status counts from all discussions (before filtering)
-      // Discussions only have 'in_progress' or 'decided' status
-      // Normalize all statuses: 'in_progress' or 'decided' only
+      // Handle both uppercase and lowercase status values
+      // State transitions: OPEN → IN_PROGRESS → DECIDED → CLOSED
       const statusCounts = {
         all: allDiscussions.length,
         in_progress: allDiscussions.filter(d => {
-          const status = d.status || '';
-          return status === 'in_progress' || status === 'active' || status === 'open' || 
-                 status === 'OPEN' || status === 'created';
+          const status = (d.status || '').toUpperCase();
+          // OPEN and IN_PROGRESS are considered "in progress"
+          return status === 'IN_PROGRESS' || status === 'OPEN' || status === 'ACTIVE' || 
+                 status === 'CREATED' || status === 'IN_PROGRESS';
         }).length,
         decided: allDiscussions.filter(d => {
-          const status = d.status || '';
-          return status === 'decided' || status === 'closed' || status === 'CLOSED' || 
-                 status === 'finalized' || status === 'accepted' || status === 'completed' ||
-                 status === 'archived';
+          const status = (d.status || '').toUpperCase();
+          // DECIDED and CLOSED are considered "decided"
+          return status === 'DECIDED' || status === 'CLOSED' || status === 'FINALIZED' || 
+                 status === 'ACCEPTED' || status === 'COMPLETED' || status === 'ARCHIVED';
         }).length,
       };
 
@@ -518,7 +520,7 @@ module.exports = async (fastify) => {
       }
 
       // Get proposed checklist items (from discussion.checklist)
-      const checklistItems = Array.isArray(discussion.checklist) ? discussion.checklist : [];
+      const rawChecklistItems = Array.isArray(discussion.checklist) ? discussion.checklist : [];
       
       // Get finalized checklist items (from discussion.finalizedChecklist)
       const finalizedChecklistItems = Array.isArray(discussion.finalizedChecklist) ? discussion.finalizedChecklist : [];
@@ -536,8 +538,47 @@ module.exports = async (fastify) => {
       });
 
       // Format proposed checklist items with approval status and revision metadata
-      const checklist = checklistItems.map(item => {
+      // Handle both new strict payload format and legacy format for backward compatibility
+      const checklist = rawChecklistItems.map(item => {
         const decision = decisionMap.get(item.id);
+        
+        // Map new format to old format for backward compatibility
+        // New format: sourceAgentId, actionType (uppercase: "BUY", "SELL", "HOLD")
+        // Old format: agentId, action (lowercase: "buy", "sell", "hold")
+        const agentId = item.sourceAgentId || item.agentId;
+        const actionTypeRaw = item.actionType || item.action || item.type;
+        // Convert to lowercase for frontend compatibility
+        const actionType = typeof actionTypeRaw === 'string' ? actionTypeRaw.toUpperCase() : 'HOLD';
+        const action = actionType.toLowerCase(); // Frontend expects lowercase
+        const reasoning = item.reasoning || item.reason || item.text || '';
+        
+        // Generate description from executable payload (for UI display)
+        let description = '';
+        try {
+          if (item.actionType && item.symbol) {
+            // New format - generate description using allocationPercent if available
+            const allocationPercent = item.allocationPercent !== undefined ? item.allocationPercent : 0;
+            description = formatChecklistItemDescription({
+              id: item.id,
+              sourceAgentId: agentId,
+              actionType: actionType,
+              symbol: item.symbol,
+              amount: item.amount || 0,
+              allocationPercent: allocationPercent,
+              confidence: item.confidence || 0,
+              reasoning: reasoning,
+              rationale: item.rationale || reasoning,
+              status: item.status || 'PENDING'
+            });
+          } else {
+            // Legacy format - use existing description or generate from available fields
+            description = item.description || item.reason || item.reasoning || item.text || '';
+          }
+        } catch (error) {
+          // Fallback to simple description if formatting fails
+          description = reasoning || `${actionType} ${item.symbol || ''} - ${reasoning}`;
+        }
+        
         // Determine approval status from item status or decision
         let approvalStatus = 'pending';
         if (item.status === 'REVISE_REQUIRED') {
@@ -554,12 +595,13 @@ module.exports = async (fastify) => {
         
         return {
           id: item.id,
-          description: item.reason || item.reasoning || item.text || '',
-          action: item.action,
-          amount: item.amount,
-          confidence: item.confidence,
+          description: description,
+          action: action, // Lowercase for frontend
+          amount: item.amount || 0,
+          allocationPercent: item.allocationPercent !== undefined ? item.allocationPercent : 0,
+          confidence: item.confidence || 0,
           round: item.round,
-          agentId: item.agentId,
+          agentId: agentId,
           agentName: item.agentName,
           approvalStatus: approvalStatus,
           approvalReason: decision ? decision.reason : item.managerReason || null,
@@ -569,37 +611,89 @@ module.exports = async (fastify) => {
           managerReason: item.managerReason || null,
           revisionCount: item.revisionCount || 0,
           revisedAt: item.revisedAt || null,
-          previousVersions: item.previousVersions || []
+          previousVersions: item.previousVersions || [],
+          // Include new format fields for reference
+          symbol: item.symbol,
+          sourceAgentId: agentId,
+          actionType: actionType, // Uppercase for backend
+          reasoning: reasoning,
+          rationale: item.rationale || reasoning
         };
       });
 
       // Format finalized checklist items
-      const finalizedChecklist = finalizedChecklistItems.map(item => ({
-        id: item.id,
-        description: item.reason || item.reasoning || '',
-        action: item.action,
-        amount: item.amount,
-        confidence: item.confidence,
-        round: item.round,
-        agentId: item.agentId,
-        agentName: item.agentName,
-        approvalStatus: 'accepted',
-        approvedAt: item.approvedAt
-      }));
+      // Handle both new strict payload format and legacy format
+      const finalizedChecklist = finalizedChecklistItems.map(item => {
+        const agentId = item.sourceAgentId || item.agentId;
+        const actionTypeRaw = item.actionType || item.action || item.type;
+        // Convert to uppercase for backend, lowercase for frontend
+        const actionType = typeof actionTypeRaw === 'string' ? actionTypeRaw.toUpperCase() : 'HOLD';
+        const action = actionType.toLowerCase(); // Frontend expects lowercase
+        const reasoning = item.reasoning || item.reason || item.text || '';
+        
+        // Generate description from executable payload
+        let description = '';
+        try {
+          if (item.actionType && item.symbol) {
+            const allocationPercent = item.allocationPercent !== undefined ? item.allocationPercent : 0;
+            description = formatChecklistItemDescription({
+              id: item.id,
+              sourceAgentId: agentId,
+              actionType: actionType,
+              symbol: item.symbol,
+              amount: item.amount || 0,
+              allocationPercent: allocationPercent,
+              confidence: item.confidence || 0,
+              reasoning: reasoning,
+              rationale: item.rationale || reasoning,
+              status: item.status || 'APPROVED'
+            });
+          } else {
+            description = item.description || reasoning;
+          }
+        } catch (error) {
+          description = reasoning || `${actionType} ${item.symbol || ''} - ${reasoning}`;
+        }
+        
+        return {
+          id: item.id,
+          description: description,
+          action: action, // Lowercase for frontend
+          amount: item.amount || 0,
+          allocationPercent: item.allocationPercent !== undefined ? item.allocationPercent : 0,
+          confidence: item.confidence || 0,
+          round: item.round,
+          agentId: agentId,
+          agentName: item.agentName,
+          approvalStatus: 'accepted',
+          approvedAt: item.approvedAt,
+          // Include new format fields
+          symbol: item.symbol,
+          sourceAgentId: agentId,
+          actionType: actionType, // Uppercase for backend
+          reasoning: reasoning,
+          rationale: item.rationale || reasoning
+        };
+      });
 
       // Find finalizedAt timestamp (use updatedAt when status changed to decided)
       const finalizedAt = discussion.status === 'decided' || discussion.status === 'finalized'
         ? (discussion.updatedAt || discussion.createdAt)
         : null;
 
+      // Create unified checklistItems array (combining both proposed and finalized items)
+      // This is the single source of truth for all checklist items
+      const checklistItems = [...checklist, ...finalizedChecklist];
+
       const response = {
         discussionId: id,
         status: discussion.status,
-        checklist: checklist,
-        finalizedChecklist: finalizedChecklist
+        checklistItems: checklistItems, // Primary field - unified array
+        checklist: checklist, // Legacy field - kept for backward compatibility
+        finalizedChecklist: finalizedChecklist // Legacy field - kept for backward compatibility
       };
 
-      log(`Found checklist for discussion ${id}: ${checklist.length} proposed items, ${finalizedChecklist.length} finalized items`);
+      log(`Found checklist for discussion ${id}: ${checklist.length} proposed items, ${finalizedChecklist.length} finalized items, ${checklistItems.length} total items`);
       return reply.status(200).send(response);
     } catch (error) {
       log(`Error fetching checklist: ${error.message}`);
@@ -670,25 +764,59 @@ module.exports = async (fastify) => {
       log(`[REJECTED ITEMS] Discussion ${id}: Found ${rejectedItems.length} rejected items after filtering`);
 
       // Format rejected items with revision metadata
+      // Handle both new strict payload format and legacy format
       const formattedRejectedItems = rejectedItems.map(item => {
         const decision = (discussionRoom.managerDecisions || []).find(d => 
           d.item && d.item.id === item.id
         );
         
+        const agentId = item.sourceAgentId || item.agentId;
+        const actionTypeRaw = item.actionType || item.action || item.type;
+        // Convert to uppercase for backend, lowercase for frontend
+        const actionType = typeof actionTypeRaw === 'string' ? actionTypeRaw.toUpperCase() : 'HOLD';
+        const action = actionType.toLowerCase(); // Frontend expects lowercase
+        const reasoning = item.reasoning || item.reason || item.text || '';
+        
+        // Generate description from executable payload
+        let description = '';
+        try {
+          if (item.actionType && item.symbol && typeof item.amount === 'number') {
+            description = formatChecklistItemDescription({
+              id: item.id,
+              sourceAgentId: agentId,
+              actionType: actionType,
+              symbol: item.symbol,
+              amount: item.amount,
+              confidence: item.confidence || 0,
+              reasoning: reasoning,
+              status: item.status || 'REVISE_REQUIRED'
+            });
+          } else {
+            description = item.description || reasoning;
+          }
+        } catch (error) {
+          description = reasoning || `${actionType} ${item.symbol || ''} - ${reasoning}`;
+        }
+        
         return {
           id: item.id,
-          description: item.reason || item.reasoning || item.text || '',
-          action: item.action,
-          amount: item.amount,
-          confidence: item.confidence,
+          description: description,
+          action: action, // Lowercase for frontend
+          amount: item.amount || 0,
+          confidence: item.confidence || 0,
           round: item.round,
-          agentId: item.agentId,
+          agentId: agentId,
           agentName: item.agentName,
           status: item.status || 'REVISE_REQUIRED',
           requiresRevision: item.requiresRevision || true,
           managerReason: item.managerReason || (decision ? decision.reason : null),
           revisionCount: item.revisionCount || 0,
-          previousVersions: item.previousVersions || []
+          previousVersions: item.previousVersions || [],
+          // Include new format fields
+          symbol: item.symbol,
+          sourceAgentId: agentId,
+          actionType: actionType,
+          reasoning: reasoning
         };
       });
 
@@ -837,12 +965,16 @@ module.exports = async (fastify) => {
         itemId: itemId,
         item: {
           id: item.id,
-          action: item.action,
+          action: item.actionType || item.action || item.type,
+          actionType: item.actionType || item.action || item.type,
           amount: item.amount,
-          reason: item.reason || item.reasoning,
+          reason: item.reasoning || item.reason,
+          reasoning: item.reasoning || item.reason,
           confidence: item.confidence,
           status: item.status,
-          revisionCount: item.revisionCount
+          revisionCount: item.revisionCount,
+          symbol: item.symbol,
+          sourceAgentId: item.sourceAgentId || item.agentId
         },
         allItemsResolved: allItemsResolved
       });
@@ -1108,13 +1240,17 @@ module.exports = async (fastify) => {
         itemId: itemId,
         item: {
           id: item.id,
-          action: item.action,
+          action: item.actionType || item.action || item.type,
+          actionType: item.actionType || item.action || item.type,
           amount: item.amount,
-          reason: item.reason || item.reasoning,
+          reason: item.reasoning || item.reason,
+          reasoning: item.reasoning || item.reason,
           confidence: item.confidence,
           status: item.status,
           revisionCount: item.revisionCount,
-          requiresManagerEvaluation: item.requiresManagerEvaluation
+          requiresManagerEvaluation: item.requiresManagerEvaluation,
+          symbol: item.symbol,
+          sourceAgentId: item.sourceAgentId || item.agentId
         },
         allItemsResolved: allItemsResolved
       });
@@ -1299,7 +1435,22 @@ module.exports = async (fastify) => {
       }
 
       const enriched = await enrichDiscussion(discussion);
-      log(`Found discussion - ID: ${enriched.id}, Title: ${enriched.title}`);
+      log(`Found discussion - ID: ${enriched.id}, Title: ${enriched.title}, Status: ${enriched.status}, Messages: ${enriched.messages?.length || 0}`);
+      
+      // Auto-start rounds if discussion is OPEN and has no messages
+      if ((enriched.status === 'OPEN' || enriched.status === 'open' || enriched.status === 'IN_PROGRESS' || enriched.status === 'in_progress') && (!enriched.messages || enriched.messages.length === 0)) {
+        log(`Auto-starting rounds for discussion ${id} (status: ${enriched.status}, messages: ${enriched.messages?.length || 0})`);
+        // Start rounds in background (fire and forget)
+        const DiscussionEngine = require('../core/DiscussionEngine');
+        const discussionEngine = new DiscussionEngine();
+        setImmediate(() => {
+          discussionEngine.startRounds(id, 3).catch(error => {
+            console.error(`[Discussions Route] Error auto-starting rounds for discussion ${id}:`, error);
+            console.error(`[Discussions Route] Error stack:`, error.stack);
+          });
+        });
+      }
+      
       return reply.status(200).send(enriched);
     } catch (error) {
       log(`Error fetching discussion: ${error.message}`);
@@ -1365,13 +1516,65 @@ module.exports = async (fastify) => {
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
 
-      // Add message
-      discussionRoom.addMessage({ 
+      // Ensure checklist array exists
+      if (!Array.isArray(discussionRoom.checklist)) {
+        discussionRoom.checklist = [];
+      }
+
+      // Add message (validation happens inside addMessage)
+      const messageAdded = discussionRoom.addMessage({ 
         agentId, 
         content, 
         role: role || 'agent',
         agentName: agentName || undefined
       });
+
+      // If message validation failed, return error without saving
+      if (!messageAdded) {
+        log(`Message validation failed for discussion: ${id}, agent: ${agentId}`);
+        return reply.status(400).send({
+          success: false,
+          error: 'Message validation failed: message must include symbol, confidence, and reasoning'
+        });
+      }
+
+      // Try to extract structured proposal (BUY/SELL/HOLD) from message and create checklist item
+      try {
+        // Get sector information for checklist creation
+        const { getSectorById } = require('../utils/sectorStorage');
+        const sector = await getSectorById(discussionRoom.sectorId);
+        
+        if (sector) {
+          const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
+          const checklistItem = await createChecklistFromLLM({
+            messageContent: content,
+            discussionId: discussionRoom.id,
+            agentId,
+            sector: {
+              id: sector.id,
+              symbol: sector.symbol || sector.sectorSymbol,
+              name: sector.name || sector.sectorName,
+              allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+            },
+            sectorData: {
+              currentPrice: sector.currentPrice,
+              baselinePrice: sector.currentPrice,
+              balance: sector.balance,
+            },
+            availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
+            currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
+          });
+
+          // If a checklist item was created, add it to the discussion's checklist
+          if (checklistItem) {
+            discussionRoom.checklist.push(checklistItem);
+            console.log(`[POST /discussions/:id/message] Created checklist item from agent ${agentId} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
+          }
+        }
+      } catch (error) {
+        // Log error but don't fail the request if checklist creation fails
+        console.warn(`[POST /discussions/:id/message] Failed to create checklist item from message: ${error.message}`);
+      }
 
       // Ensure status is in_progress if it was created
       if (discussionRoom.status === 'created') {
@@ -1713,6 +1916,52 @@ module.exports = async (fastify) => {
       return reply.status(500).send({
         success: false,
         error: error.message
+      });
+    }
+  });
+
+  // POST /discussions/:id/start-rounds - Manually trigger rounds for an existing discussion
+  fastify.post('/:id/start-rounds', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { numRounds } = request.body || {};
+
+      if (!id) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Discussion ID is required'
+        });
+      }
+
+      log(`POST /discussions/${id}/start-rounds - Starting rounds for discussion ${id}`);
+
+      const DiscussionEngine = require('../core/DiscussionEngine');
+      const discussionEngine = new DiscussionEngine();
+      
+      await discussionEngine.startRounds(id, numRounds || 3);
+
+      const discussionData = await findDiscussionById(id);
+      if (!discussionData) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Discussion not found'
+        });
+      }
+
+      const enriched = await enrichDiscussion(discussionData);
+
+      return reply.status(200).send({
+        success: true,
+        message: `Started ${numRounds || 3} rounds for discussion`,
+        discussion: enriched
+      });
+    } catch (error) {
+      log(`Error starting rounds: ${error.message}`);
+      console.error('Error starting rounds:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   });

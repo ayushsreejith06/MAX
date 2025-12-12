@@ -60,8 +60,7 @@ class ExecutionEngine {
 
     const sectorState = {
       id: sector.id,
-      balance: startingBalance,
-      capital: startingBalance,
+      balance: startingBalance, // Single source of truth for sector balance
       holdings: initialHoldings,
       position: typeof initialHoldings.position === 'number' ? initialHoldings.position : 0,
       performance: sector.performance && typeof sector.performance === 'object' ? { ...sector.performance } : {},
@@ -157,8 +156,7 @@ class ExecutionEngine {
         switch (action) {
           case 'buy':
             if (amount > 0 && sectorState.balance >= amount) {
-              sectorState.balance -= amount;
-              sectorState.capital = sectorState.balance;
+              sectorState.balance -= amount; // Update balance (single source of truth)
               sectorState.position += amount;
               sectorState.holdings.position = sectorState.position;
               tradeResults.push({
@@ -189,8 +187,7 @@ class ExecutionEngine {
 
           case 'sell':
             if (amount > 0 && sectorState.position >= amount) {
-              sectorState.balance += amount;
-              sectorState.capital = sectorState.balance;
+              sectorState.balance += amount; // Update balance (single source of truth)
               sectorState.position -= amount;
               sectorState.holdings.position = sectorState.position;
               tradeResults.push({
@@ -270,8 +267,7 @@ class ExecutionEngine {
                 newBalance += Math.max(totalValue - allocatedTotal, 0);
 
                 sectorState.holdings = newHoldings;
-                sectorState.balance = newBalance;
-                sectorState.capital = newBalance;
+                sectorState.balance = newBalance; // Update balance (single source of truth)
                 syncPosition();
                 rebalanceSuccess = true;
               } else {
@@ -286,15 +282,13 @@ class ExecutionEngine {
                 if (rebalanceAmount > 0) {
                   const buyAmount = Math.min(rebalanceAmount, sectorState.balance);
                   if (buyAmount > 0) {
-                    sectorState.balance -= buyAmount;
-                    sectorState.capital = sectorState.balance;
+                    sectorState.balance -= buyAmount; // Update balance (single source of truth)
                     sectorState.position += buyAmount;
                   }
                 } else {
                   const sellAmount = Math.min(Math.abs(rebalanceAmount), sectorState.position);
                   if (sellAmount > 0) {
-                    sectorState.balance += sellAmount;
-                    sectorState.capital = sectorState.balance;
+                    sectorState.balance += sellAmount; // Update balance (single source of truth)
                     sectorState.position -= sellAmount;
                   }
                 }
@@ -378,7 +372,7 @@ class ExecutionEngine {
       pnl: pnl,
       pnlPercent: pnlPercent,
       position: currentPosition,
-      capital: sectorState.balance,
+      capital: sectorState.balance, // Keep for backward compatibility in performance tracking
       totalValue: currentTotalValue,
       lastUpdated: timestamp
     };
@@ -902,8 +896,7 @@ class ExecutionEngine {
     // Initialize sectorState
     const sectorState = {
       id: sector.id,
-      balance: typeof sector.balance === 'number' ? sector.balance : 0,
-      capital: typeof sector.balance === 'number' ? sector.balance : 0,
+      balance: typeof sector.balance === 'number' ? sector.balance : 0, // Single source of truth for sector balance
       position: typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0),
       holdings: { position: typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0) },
       performance: sector.performance && typeof sector.performance === 'object' ? { ...sector.performance } : {},
@@ -990,7 +983,7 @@ class ExecutionEngine {
     const previousPosition = typeof sector.position === 'number' ? sector.position : (sector.performance?.position || 0);
     const previousTotalValue = previousCapital + previousPosition;
 
-    const currentTotalValue = sectorState.capital + sectorState.position;
+    const currentTotalValue = sectorState.balance + sectorState.position;
     const pnl = currentTotalValue - previousTotalValue;
     const pnlPercent = previousTotalValue > 0 ? (pnl / previousTotalValue) * 100 : 0;
 
@@ -1000,13 +993,13 @@ class ExecutionEngine {
       pnl: pnl,
       pnlPercent: pnlPercent,
       position: sectorState.position,
-      capital: sectorState.capital,
+      capital: sectorState.balance, // Keep for backward compatibility in performance tracking
       totalValue: currentTotalValue,
       lastUpdated: timestamp
     };
 
     // Recalculate utilization
-    const totalValue = sectorState.capital + sectorState.position;
+    const totalValue = sectorState.balance + sectorState.position;
     sectorState.utilization = totalValue > 0 
       ? (sectorState.position / totalValue) * 100 
       : 0;
@@ -1017,7 +1010,7 @@ class ExecutionEngine {
 
     // Update sector
     const updates = {
-      balance: sectorState.capital,
+      balance: sectorState.balance, // Persist balance (single source of truth)
       position: sectorState.position,
       positions: sectorState.position,
       performance: sectorState.performance,
@@ -1053,7 +1046,7 @@ class ExecutionEngine {
       results: executionResults,
       updatedSectorState: {
         id: sectorState.id,
-        capital: sectorState.capital,
+        balance: sectorState.balance,
         position: sectorState.position,
         performance: sectorState.performance,
         utilization: sectorState.utilization,
@@ -1074,12 +1067,11 @@ class ExecutionEngine {
       return { success: false, reason: 'Invalid amount: must be positive' };
     }
 
-    if (sectorState.capital < amount) {
-      return { success: false, reason: 'Insufficient capital' };
+    if (sectorState.balance < amount) {
+      return { success: false, reason: 'Insufficient balance' };
     }
 
-    sectorState.capital -= amount;
-    sectorState.balance = sectorState.capital;
+    sectorState.balance -= amount; // Update balance (single source of truth)
     sectorState.position += amount;
 
     // Calculate manager impact: positive impact for buy orders
@@ -1109,8 +1101,7 @@ class ExecutionEngine {
       return { success: false, reason: 'Insufficient position' };
     }
 
-    sectorState.capital += amount;
-    sectorState.balance = sectorState.capital;
+    sectorState.balance += amount; // Update balance (single source of truth)
     sectorState.position -= amount;
 
     // Calculate manager impact: negative impact for sell orders
@@ -1146,7 +1137,7 @@ class ExecutionEngine {
    * @returns {Promise<Object>} Result with success, reason, and managerImpact
    */
   async applyRebalance(sectorState, targetAllocation = 0.5) {
-    const totalValue = sectorState.capital + sectorState.position;
+    const totalValue = sectorState.balance + sectorState.position;
     const targetPosition = totalValue * targetAllocation;
     const currentPosition = sectorState.position;
     const rebalanceAmount = targetPosition - currentPosition;
@@ -1161,18 +1152,16 @@ class ExecutionEngine {
 
     if (rebalanceAmount > 0) {
       // Need to buy more
-      const buyAmount = Math.min(rebalanceAmount, sectorState.capital);
+      const buyAmount = Math.min(rebalanceAmount, sectorState.balance);
       if (buyAmount > 0) {
-        sectorState.capital -= buyAmount;
-        sectorState.balance = sectorState.capital;
+        sectorState.balance -= buyAmount; // Update balance (single source of truth)
         sectorState.position += buyAmount;
       }
     } else {
       // Need to sell
       const sellAmount = Math.min(Math.abs(rebalanceAmount), sectorState.position);
       if (sellAmount > 0) {
-        sectorState.capital += sellAmount;
-        sectorState.balance = sectorState.capital;
+        sectorState.balance += sellAmount; // Update balance (single source of truth)
         sectorState.position -= sellAmount;
       }
     }

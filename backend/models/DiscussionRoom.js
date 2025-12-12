@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
+const { validateAgentMessage } = require('../utils/messageValidation');
 
 class DiscussionRoom {
   constructor(sectorId, title, agentIds = []) {
@@ -8,7 +9,7 @@ class DiscussionRoom {
     this.agentIds = agentIds;
     this.messages = [];
     this.messagesCount = 0;
-    this.status = 'in_progress'; // Discussion status: 'in_progress' | 'decided'
+    this.status = 'OPEN'; // Discussion status: 'OPEN' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     // Discussion lifecycle fields
@@ -46,23 +47,25 @@ class DiscussionRoom {
       discussionRoom.messagesCount = Array.isArray(data.messages) ? data.messages.length : 0;
     }
     // Map old status values to new ones for backward compatibility
-    // Use 'in_progress' and 'decided' to match API/UI expectations
+    // State transitions: OPEN → IN_PROGRESS → DECIDED → CLOSED
     const statusMap = {
-      'created': 'in_progress',
-      'debating': 'in_progress',
-      'open': 'in_progress',
-      'OPEN': 'in_progress',
-      'active': 'in_progress',
-      'in_progress': 'in_progress',
-      'decided': 'decided',
-      'closed': 'decided',
-      'CLOSED': 'decided',
-      'archived': 'decided',
-      'finalized': 'decided',
-      'accepted': 'decided',
-      'completed': 'decided'
+      'created': 'OPEN',
+      'debating': 'IN_PROGRESS',
+      'open': 'OPEN',
+      'OPEN': 'OPEN',
+      'active': 'IN_PROGRESS',
+      'in_progress': 'IN_PROGRESS',
+      'IN_PROGRESS': 'IN_PROGRESS',
+      'decided': 'DECIDED',
+      'DECIDED': 'DECIDED',
+      'closed': 'CLOSED',
+      'CLOSED': 'CLOSED',
+      'archived': 'CLOSED',
+      'finalized': 'CLOSED',
+      'accepted': 'CLOSED',
+      'completed': 'CLOSED'
     };
-    discussionRoom.status = statusMap[data.status] || data.status || 'in_progress';
+    discussionRoom.status = statusMap[data.status] || data.status || 'OPEN';
     discussionRoom.createdAt = data.createdAt;
     discussionRoom.updatedAt = data.updatedAt;
     // Discussion lifecycle fields
@@ -87,10 +90,24 @@ class DiscussionRoom {
     discussionRoom.managerDecisions = Array.isArray(data.managerDecisions) ? data.managerDecisions : [];
     // Closure fields
     discussionRoom.discussionClosedAt = data.discussionClosedAt || null;
+    // Migration flag
+    discussionRoom.checklistMigrated = data.checklistMigrated === true;
     return discussionRoom;
   }
 
   addMessage(message) {
+    // Validate message content before adding
+    const validation = validateAgentMessage(
+      message.content,
+      message.agentId,
+      message.agentName
+    );
+
+    if (!validation.isValid) {
+      console.warn(`[DiscussionRoom] Message validation failed: ${validation.reason}`);
+      return false; // Return false to indicate message was not added
+    }
+
     const messageEntry = {
       id: message.id || `${this.id}-msg-${this.messages.length}`,
       agentId: message.agentId,
@@ -103,6 +120,7 @@ class DiscussionRoom {
     this.messages.push(messageEntry);
     this.messagesCount = this.messages.length;
     this.updatedAt = new Date().toISOString();
+    return true; // Return true to indicate message was added successfully
   }
 
   setDecision(decision) {
@@ -114,7 +132,7 @@ class DiscussionRoom {
     this.conflictScore = decision.conflictScore || null;
     this.decidedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
-    this.status = 'decided'; // Discussion status: 'in_progress' | 'decided'
+    this.status = 'DECIDED'; // Discussion status: 'OPEN' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
   }
 
   toJSON() {
@@ -148,7 +166,9 @@ class DiscussionRoom {
       // Manager decision fields
       managerDecisions: this.managerDecisions,
       // Closure fields
-      discussionClosedAt: this.discussionClosedAt
+      discussionClosedAt: this.discussionClosedAt,
+      // Migration flag
+      checklistMigrated: this.checklistMigrated === true
     };
   }
 }

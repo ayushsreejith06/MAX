@@ -47,7 +47,15 @@ export interface Message {
   id: string;
   agentId?: string;
   agentName: string;
-  content: string;
+  content: string; // For backward compatibility, this is now proposal.reasoning
+  analysis?: string; // Internal analysis (not shown in UI)
+  proposal?: { // Structured proposal JSON for checklist creation
+    action: 'BUY' | 'SELL' | 'HOLD';
+    symbol: string;
+    allocationPercent: number;
+    confidence: number;
+    reasoning: string;
+  };
   timestamp: string;
   role?: string;
 }
@@ -60,10 +68,16 @@ export interface ChecklistItem {
   round?: number;
   // Finalized checklist fields
   action?: string; // "buy" | "sell" | "hold" | "rebalance"
-  amount?: number;
+  amount?: number; // Required field - must be displayed
+  allocationPercent?: number; // 0–100 (primary field)
+  symbol?: string;
   reason?: string; // Also called "reasoning" in some places
-  reasoning?: string; // Alias for reason
-  confidence?: number;
+  reasoning?: string; // Alias for rationale
+  rationale?: string; // Primary field (1–2 sentences, concise)
+  confidence?: number; // 0–100 - Required field - must be displayed
+  // Manager approval status - Required field - must be displayed
+  approvalStatus?: 'pending' | 'accepted' | 'rejected' | 'accept_rejection';
+  approvalReason?: string | null;
   // Revision metadata
   status?: 'PENDING' | 'REJECTED' | 'REVISE_REQUIRED' | 'APPROVED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
   requiresRevision?: boolean;
@@ -74,6 +88,7 @@ export interface ChecklistItem {
   previousVersions?: Array<{
     action?: string;
     amount?: number;
+    allocationPercent?: number;
     reason?: string;
     confidence?: number;
     timestamp: string;
@@ -111,9 +126,10 @@ export interface Discussion {
   // Multi-round discussion fields
   currentRound?: number; // Current round number (integer)
   roundHistory?: RoundSnapshot[]; // Array of round snapshots
-  checklistDraft?: ChecklistItem[];
-  checklist?: ChecklistItem[];
-  finalizedChecklist?: ChecklistItem[];
+  checklistItems?: ChecklistItem[]; // Primary field - unified array of all checklist items
+  checklistDraft?: ChecklistItem[]; // Legacy field
+  checklist?: ChecklistItem[]; // Legacy field
+  finalizedChecklist?: ChecklistItem[]; // Legacy field
   // Manager decision fields
   managerDecisions?: Array<{
     item: ChecklistItem;

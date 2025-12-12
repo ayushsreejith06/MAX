@@ -1,14 +1,16 @@
 /**
- * ConfidenceEngine - Balanced dummy logic for updating agent confidence
+ * ConfidenceEngine - LLM-driven confidence updates
  * 
- * Implements balanced confidence system that prevents endless decrease:
- * - Each tick: confidence += random(-3, +4) (slight positive bias)
- * - Clamp confidence between -100 and 100
- * - Rebound: If confidence < 0 for 3 consecutive ticks, add random(5, 15)
- * - Damping: If confidence > 80, subtract random(1, 4)
+ * Phase 4: Confidence is monotonically increasing.
+ * Phase 5: Confidence will be data-driven and bidirectional.
  * 
- * Confidence range: -100 to +100
- * Discussion trigger: All agents must have confidence >= 65
+ * Phase 4 Rule: confidence_next = min(100, max(previous_confidence, llm_confidence_output))
+ * - Confidence can ONLY stay the same or increase
+ * - Confidence can NEVER decrease in Phase 4
+ * - Confidence MUST be capped at 100
+ * 
+ * NOTE: This engine now requires LLM confidence output. If LLM confidence is not provided,
+ * confidence will remain at its previous value (no decay).
  */
 
 class ConfidenceEngine {
@@ -22,29 +24,35 @@ class ConfidenceEngine {
      * }
      */
     this.customRules = customRules;
-    
-    /**
-     * Track consecutive ticks below 0 per agent
-     * Map<agentId, count>
-     */
-    this.consecutiveNegativeTicks = new Map();
   }
 
   /**
-   * Generate random integer between min (inclusive) and max (inclusive)
+   * Clamp confidence value to 0-100 range
    * @private
    */
-  _randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  _clampConfidence(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, value));
   }
 
   /**
-   * Update agent confidence using balanced dummy logic
+   * Update agent confidence using LLM-driven Phase 4 rule
+   * 
+   * Phase 4: Confidence is monotonically increasing.
+   * Phase 5: Confidence will be data-driven and bidirectional.
+   * 
+   * Phase 4 confidence growth assist:
+   * - If LLM confidence <= previous_confidence, then confidence_next = min(previous_confidence + 2, 100)
+   * - If LLM confidence > previous_confidence, then confidence_next = min(100, llm_confidence_output)
+   * 
    * @param {Object} agent - Agent object with id, role, performance, personality, morale, etc.
-   * @param {Object} sector - Sector object (kept for compatibility, not used in dummy logic)
-   * @returns {number} Updated confidence value (-100 to +100)
+   * @param {Object} sector - Sector object (optional, for context)
+   * @param {number} llmConfidenceOutput - LLM-provided confidence value (0-100). If not provided, uses agent.llmAction.confidence or maintains current confidence.
+   * @returns {number} Updated confidence value (0 to 100)
    */
-  updateAgentConfidence(agent, sector) {
+  updateAgentConfidence(agent, sector = null, llmConfidenceOutput = null) {
     if (!agent) {
       return 0; // Default neutral confidence
     }
@@ -55,46 +63,42 @@ class ConfidenceEngine {
       return 0;
     }
 
-    // Get current confidence from agent (default to 0 if not set)
-    let currentConfidence = typeof agent.confidence === 'number' 
-      ? Math.max(-100, Math.min(100, agent.confidence))
-      : 0;
+    // Get previous confidence (normalize to 0-100 range)
+    const previousConfidence = this._clampConfidence(
+      typeof agent.confidence === 'number' ? agent.confidence : 0
+    );
 
-    // Step 1: Base tick change - random(-3, +4) for slight positive bias
-    const baseChange = this._randomInt(-3, 4);
-    currentConfidence += baseChange;
+    // Get LLM confidence output
+    let llmConfidence = previousConfidence; // Default: maintain current confidence (no decay)
+    
+    if (llmConfidenceOutput !== null && typeof llmConfidenceOutput === 'number') {
+      llmConfidence = llmConfidenceOutput;
+    } else if (agent.llmAction && typeof agent.llmAction.confidence === 'number') {
+      // Fallback: try to get LLM confidence from agent's llmAction
+      llmConfidence = agent.llmAction.confidence;
+    }
+    
+    // Clamp LLM confidence to valid range
+    llmConfidence = this._clampConfidence(llmConfidence);
 
-    // Step 2: Track consecutive ticks below 0
-    const agentId = agent.id;
-    if (currentConfidence < 0) {
-      const negativeCount = (this.consecutiveNegativeTicks.get(agentId) || 0) + 1;
-      this.consecutiveNegativeTicks.set(agentId, negativeCount);
-
-      // Step 3: Rebound after 3 consecutive ticks below 0
-      if (negativeCount >= 3) {
-        const rebound = this._randomInt(5, 15);
-        currentConfidence += rebound;
-        // Reset counter after rebound
-        this.consecutiveNegativeTicks.set(agentId, 0);
-        console.log(`[ConfidenceEngine] Agent ${agentId} rebound: +${rebound} (was below 0 for ${negativeCount} ticks)`);
-      }
+    // Phase 4: Confidence is monotonically increasing.
+    // Phase 5: Confidence will be data-driven and bidirectional.
+    
+    // Phase 4 confidence growth assist
+    // If LLM confidence <= previous_confidence, ensure minimum growth of +2
+    let finalConfidence;
+    if (llmConfidence <= previousConfidence) {
+      finalConfidence = Math.min(previousConfidence + 2, 100);
     } else {
-      // Reset counter when confidence goes above 0
-      this.consecutiveNegativeTicks.set(agentId, 0);
+      // LLM confidence is higher, use it (capped at 100)
+      finalConfidence = Math.min(100, llmConfidence);
     }
-
-    // Step 4: Soft damping for high confidence (>80)
-    if (currentConfidence > 80) {
-      const damping = this._randomInt(1, 4);
-      currentConfidence -= damping;
-    }
-
-    // Step 5: Clamp to valid range [-100, 100]
-    const finalConfidence = Math.max(-100, Math.min(100, currentConfidence));
 
     // DEBUG: Log agent ID and new confidence value
     const agentName = agent.name || agent.id;
-    console.log(`[ConfidenceEngine] Agent ${agent.id} (${agentName}): confidence = ${finalConfidence.toFixed(2)} (change: ${baseChange})`);
+    if (Math.abs(finalConfidence - previousConfidence) > 0.01) {
+      console.log(`[ConfidenceEngine] Agent ${agent.id} (${agentName}): confidence = ${previousConfidence.toFixed(2)} → ${finalConfidence.toFixed(2)} (LLM: ${llmConfidence.toFixed(2)})`);
+    }
 
     return finalConfidence;
   }

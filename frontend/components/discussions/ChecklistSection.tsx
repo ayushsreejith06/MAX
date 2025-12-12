@@ -59,22 +59,20 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
     return () => clearInterval(interval);
   }, [discussionId, discussionStatus]);
 
-  const proposedItems = checklistData?.checklist || [];
-  const finalizedItems = checklistData?.finalizedChecklist || [];
+  // Read from checklistItems[] - single source of truth
+  const allItems = checklistData?.checklistItems || [];
   
-  // Filter proposed items based on showRejected toggle
-  const filteredProposedItems = showRejected 
-    ? proposedItems 
-    : proposedItems.filter(item => item.approvalStatus !== 'rejected');
+  // Separate items by approval status
+  const acceptedItems = allItems.filter(item => item.approvalStatus === 'accepted');
+  const rejectedItems = allItems.filter(item => item.approvalStatus === 'rejected');
+  const pendingItems = allItems.filter(item => item.approvalStatus === 'pending' || !item.approvalStatus);
   
-  // Separate items by status for better organization
-  const acceptedItems = proposedItems.filter(item => item.approvalStatus === 'accepted');
-  const rejectedItems = proposedItems.filter(item => item.approvalStatus === 'rejected');
-  const pendingItems = proposedItems.filter(item => item.approvalStatus === 'pending' || !item.approvalStatus);
+  // Filter items based on showRejected toggle
+  const filteredItems = showRejected 
+    ? allItems 
+    : allItems.filter(item => item.approvalStatus !== 'rejected');
   
-  const hasProposedItems = proposedItems.length > 0;
-  const hasFinalizedItems = finalizedItems.length > 0;
-  const hasAnyItems = hasProposedItems || hasFinalizedItems;
+  const hasAnyItems = allItems.length > 0;
 
   const getApprovalStatusIcon = (status: string) => {
     switch (status) {
@@ -99,11 +97,14 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   };
 
   const renderChecklistItem = (item: ChecklistItemResponse) => {
+    const rationale = item.rationale || item.reasoning || item.reason || item.description || 'No rationale';
+    
     return (
       <div key={item.id} className="mb-3 p-3 bg-pure-black/60 rounded-lg border border-ink-500">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {/* Action Badge - REQUIRED */}
               <span
                 className={`px-2 py-1 rounded text-xs font-semibold uppercase ${
                   item.action === 'buy'
@@ -115,8 +116,38 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
                     : 'bg-shadow-grey/50 text-floral-white border border-floral-white/20'
                 }`}
               >
-                {item.action || 'N/A'}
+                {item.action?.toUpperCase() || 'N/A'}
               </span>
+              
+              {/* Symbol */}
+              {item.symbol && (
+                <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+                  {item.symbol}
+                </span>
+              )}
+              
+              {/* Amount - REQUIRED */}
+              {item.amount !== undefined && item.amount !== null && (
+                <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+                  ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              )}
+              
+              {/* Allocation % */}
+              {item.allocationPercent !== undefined && item.allocationPercent !== null && (
+                <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+                  {item.allocationPercent.toFixed(1)}%
+                </span>
+              )}
+              
+              {/* Confidence % - REQUIRED */}
+              {item.confidence !== undefined && item.confidence !== null && (
+                <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+                  {item.confidence.toFixed(1)}% confidence
+                </span>
+              )}
+              
+              {/* Manager Approval Status - REQUIRED */}
               {item.approvalStatus && (
                 <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 ${getApprovalStatusBadge(item.approvalStatus)}`}>
                   {getApprovalStatusIcon(item.approvalStatus)}
@@ -124,11 +155,15 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
                 </span>
               )}
             </div>
+            
+            {/* Rationale Text */}
             <p className="text-floral-white text-sm font-mono mb-2">
-              {item.description || item.reason || item.reasoning || 'No description'}
+              {rationale}
             </p>
           </div>
         </div>
+        
+        {/* Additional Metadata */}
         <div className="flex flex-wrap gap-4 text-xs text-floral-white/70 font-mono">
           {item.agentName && (
             <span>
@@ -140,17 +175,9 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
               <span className="text-floral-white/50">Round:</span> {item.round}
             </span>
           )}
-          {item.amount !== undefined && item.amount !== null && (
-            <span>
-              <span className="text-floral-white/50">Amount:</span> {item.amount.toLocaleString()}
-            </span>
-          )}
-          {item.confidence !== undefined && item.confidence !== null && (
-            <span>
-              <span className="text-floral-white/50">Confidence:</span> {item.confidence.toFixed(1)}%
-            </span>
-          )}
         </div>
+        
+        {/* Manager Approval Reason */}
         {item.approvalReason && (
           <div className="mt-2 pt-2 border-t border-ink-500">
             <p className="text-xs text-floral-white/60 font-mono">
@@ -209,7 +236,7 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
           {!loading && !error && hasAnyItems && (
             <div className="space-y-6">
               {/* Filter Toggle for Rejected Items */}
-              {hasProposedItems && rejectedItems.length > 0 && (
+              {hasAnyItems && rejectedItems.length > 0 && (
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-ink-500">
                   <span className="text-xs text-floral-white/70 font-mono">
                     Show rejected items ({rejectedItems.length})
@@ -227,41 +254,21 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
                 </div>
               )}
 
-              {/* Proposed Checklist Items - show all items (accepted, rejected, pending) */}
-              {hasProposedItems && (discussionStatus === 'in_progress' || discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'accepted' || discussionStatus === 'completed') && (
+              {/* Checklist Items - unified display from checklistItems[] */}
+              {hasAnyItems && (
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-floral-white mb-3 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-warning-amber" />
-                    Proposed Checklist Items
+                    <CheckCircle2 className="w-4 h-4 text-sage-green" />
+                    Checklist Items ({allItems.length})
                   </h3>
                   <div className="space-y-2">
-                    {filteredProposedItems.map(renderChecklistItem)}
+                    {filteredItems.map(renderChecklistItem)}
                   </div>
                   {!showRejected && rejectedItems.length > 0 && (
                     <div className="mt-3 text-xs text-floral-white/50 font-mono italic">
                       {rejectedItems.length} rejected item{rejectedItems.length !== 1 ? 's' : ''} hidden. Click "Show" to view.
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Finalized Checklist Items (if discussion is decided) */}
-              {hasFinalizedItems && (discussionStatus === 'decided' || discussionStatus === 'finalized' || discussionStatus === 'accepted' || discussionStatus === 'completed') && (
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-floral-white mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-sage-green" />
-                    Finalized Checklist Items
-                  </h3>
-                  <div className="space-y-2">
-                    {finalizedItems.map(renderChecklistItem)}
-                  </div>
-                </div>
-              )}
-              
-              {/* Show message if finalized items exist but no proposed items (historical view) */}
-              {!hasProposedItems && hasFinalizedItems && (
-                <div className="text-xs text-floral-white/50 font-mono italic">
-                  Note: Proposed items are no longer available. Showing finalized items only.
                 </div>
               )}
             </div>

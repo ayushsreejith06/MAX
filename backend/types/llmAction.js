@@ -78,7 +78,8 @@ function validateLLMTradeAction(raw, options) {
     throw new Error('LLMTradeAction must be a JSON object.');
   }
 
-  const { upper: side, lower: action } = normalizeSide(raw.side ?? raw.action);
+  // Support both "action" (new schema) and "side" (legacy) for backward compatibility
+  const { upper: side, lower: action } = normalizeSide(raw.action ?? raw.side);
   const sizingBasis = normalizeSizingBasis(raw.sizingBasis ?? raw.sizing_basis ?? raw.sizingbasis);
   const hasRemainingCapital = typeof options?.remainingCapital === 'number' && options.remainingCapital > 0;
   const sizeRaw = ensureNumber(
@@ -95,7 +96,18 @@ function validateLLMTradeAction(raw, options) {
       ? raw.reasoning.trim()
       : 'LLM did not provide reasoning';
 
-  const confidence = Math.min(Math.max(ensureNumber(raw.confidence, 50), 0), 100);
+  // CRITICAL: Confidence is REQUIRED - reject if missing or invalid
+  const rawConfidence = raw.confidence;
+  if (rawConfidence === undefined || rawConfidence === null) {
+    throw new Error('LLMTradeAction is missing required confidence field. Confidence must be a number between 0-100.');
+  }
+  
+  const confidenceValue = ensureNumber(rawConfidence, NaN);
+  if (Number.isNaN(confidenceValue)) {
+    throw new Error('LLMTradeAction has invalid confidence value. Confidence must be a number between 0-100.');
+  }
+  
+  const confidence = Math.min(Math.max(confidenceValue, 0), 100);
 
   const fallbackSymbol = options?.fallbackSymbol || options?.fallbackSector || 'UNKNOWN';
   const symbol =
@@ -119,6 +131,14 @@ function validateLLMTradeAction(raw, options) {
 
   const amount = resolveAmountFromSizing(size, sizingBasis, options?.remainingCapital, options?.currentPrice);
 
+  // Extract new fields (allocation_percent, risk_notes) if present
+  const allocationPercent = toNumberOrNull(raw.allocation_percent ?? raw.allocationPercent);
+  const riskNotes = typeof raw.risk_notes === 'string' 
+    ? raw.risk_notes.trim() 
+    : typeof raw.riskNotes === 'string'
+      ? raw.riskNotes.trim()
+      : undefined;
+
   return {
     side,
     action,
@@ -132,6 +152,8 @@ function validateLLMTradeAction(raw, options) {
     takeProfit,
     reasoning,
     confidence,
+    allocationPercent: allocationPercent ?? undefined,
+    riskNotes: riskNotes,
   };
 }
 

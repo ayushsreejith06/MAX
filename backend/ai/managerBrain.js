@@ -3,6 +3,7 @@ const { validateManagerChecklistDecision } = require('./agentSchemas');
 const { validateLLMTradeAction, normalizeActionToUpper } = require('../types/llmAction');
 const { buildDecisionPrompt } = require('./prompts/buildDecisionPrompt');
 const { parseLLMTradeAction } = require('./parseLLMTradeAction');
+const { normalizeLLMResponse } = require('./normalizeLLMResponse');
 
 function parseTrendPercent(trendDescriptor) {
   if (typeof trendDescriptor === 'number' && Number.isFinite(trendDescriptor)) {
@@ -94,14 +95,18 @@ async function evaluateChecklistItem(params) {
       throw new Error('LLMTradeAction.amount exceeds sector balance.');
     }
 
-    const confidence = llmTrade.confidence;
-    const boundedConfidence = Math.min(Math.max(confidence, 0), 100);
+    // Normalize LLM response before checklist creation
+    const normalized = normalizeLLMResponse(llmTrade, {
+      sectorRiskProfile: params.sectorState.riskScore,
+      lastConfidence: params.managerConfidence,
+      allowedSymbols,
+    });
 
     const trade = {
-      action: normalizeActionToUpper(llmTrade.side),
-      amount: llmTrade.amount,
-      confidence: boundedConfidence,
-      reasoning: llmTrade.reasoning,
+      action: normalized.actionType,
+      amount: llmTrade.amount, // Keep original amount calculation
+      confidence: normalized.confidence,
+      reasoning: normalized.reasoning,
     };
 
     return mapTradeToDecision(trade, params.sectorState);

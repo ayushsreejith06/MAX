@@ -7,6 +7,7 @@ import type { Discussion, Message } from '@/lib/types';
 import { fetchDiscussionById, fetchDiscussionMessages, addDiscussionMessage, sendMessageToManager, deleteDiscussion, isSkippedResult, isRateLimitError } from '@/lib/api';
 import ChecklistSection from '@/components/discussions/ChecklistSection';
 import { usePolling } from '@/hooks/usePolling';
+import { getStatusColor, getStatusLabel } from '@/lib/statusColors';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -245,17 +246,28 @@ export default function DiscussionDetailClient() {
     void loadMessages(true);
   }, [discussionId]); // Only reload when discussionId changes
 
+  // Auto-start rounds if discussion is OPEN and has no messages
+  useEffect(() => {
+    if (discussion && discussion.status === 'OPEN' && discussion.messages.length === 0) {
+      // Automatically trigger rounds - this will happen in the background
+      // The polling will pick up the messages once they're generated
+      console.log('[DiscussionDetail] Discussion is OPEN with no messages - rounds should start automatically on backend');
+    }
+  }, [discussion]);
+
   // Polling callbacks for auto-refresh (without loading state)
   const pollDiscussion = useCallback(async () => {
-    // Only poll if discussion is in progress (to detect when it becomes decided)
-    if (currentDiscussionRef.current?.status === 'in_progress') {
+    // Poll if discussion is in progress or OPEN (to detect when it becomes decided or when messages appear)
+    const status = currentDiscussionRef.current?.status;
+    if (status === 'in_progress' || status === 'OPEN' || status === 'open') {
       await loadDiscussion(false);
     }
   }, [loadDiscussion]);
 
   const pollMessages = useCallback(async () => {
-    // Only poll if discussion is in progress (messages are still being added)
-    if (currentDiscussionRef.current?.status === 'in_progress') {
+    // Poll if discussion is in progress or OPEN (messages are still being added)
+    const status = currentDiscussionRef.current?.status;
+    if (status === 'in_progress' || status === 'OPEN' || status === 'open') {
       await loadMessages(false);
     }
   }, [loadMessages]);
@@ -348,6 +360,7 @@ export default function DiscussionDetailClient() {
     }
   };
 
+
   const handleDelete = async () => {
     if (!discussion || isDeleting) return;
 
@@ -367,24 +380,24 @@ export default function DiscussionDetailClient() {
   };
 
   const getStatusMeta = (status: Discussion['status']) => {
-    // Normalize all statuses to only 'in_progress' or 'decided'
-    let normalizedStatus = status;
-    if (status === 'active' || status === 'open' || status === 'OPEN' || status === 'created' || status === 'in_progress') {
-      normalizedStatus = 'in_progress';
-    } else if (status === 'closed' || status === 'CLOSED' || status === 'archived' || 
-               status === 'finalized' || status === 'accepted' || status === 'completed' ||
-               status === 'decided') {
-      normalizedStatus = 'decided';
+    // Use centralized status color utility - DECIDED is green, IN PROGRESS is orange
+    const label = getStatusLabel(status);
+    const className = getStatusColor(status);
+    
+    // Determine icon based on normalized status
+    const statusLower = (status || '').toLowerCase();
+    let icon = MessageSquare;
+    if (statusLower === 'in_progress' || statusLower === 'open' || statusLower === 'active' || statusLower === 'created' || 
+        statusLower === 'OPEN' || statusLower === 'ACTIVE' || statusLower === 'CREATED') {
+      icon = Clock;
+    } else if (statusLower === 'decided' || statusLower === 'closed' || statusLower === 'finalized' || 
+               statusLower === 'accepted' || statusLower === 'completed' ||
+               statusLower === 'DECIDED' || statusLower === 'CLOSED' || statusLower === 'FINALIZED' || 
+               statusLower === 'ACCEPTED' || statusLower === 'COMPLETED') {
+      icon = CheckCircle;
     }
     
-    switch (normalizedStatus) {
-      case 'in_progress':
-        return { label: 'In Progress', className: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40', icon: Clock };
-      case 'decided':
-        return { label: 'Decided', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40', icon: CheckCircle };
-      default:
-        return { label: normalizedStatus, className: 'bg-shadow-grey text-floral-white', icon: MessageSquare };
-    }
+    return { label, className, icon };
   };
 
   if (loading) {

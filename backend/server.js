@@ -105,6 +105,16 @@ const start = async () => {
       // Don't throw - allow server to start even if simulation engine fails
     }
 
+    // Run checklist items migration (runs once per discussion)
+    try {
+      const { migrateChecklistItems } = require('./migrations/migrateChecklistItems');
+      await migrateChecklistItems();
+      fastify.log.info('Checklist items migration completed successfully');
+    } catch (err) {
+      fastify.log.error('Error running checklist items migration:', err);
+      // Don't throw - allow server to start even if migration fails
+    }
+
     // Bootstrap AgentRuntime
     try {
       const { getAgentRuntime } = require('./agents/runtime/agentRuntime');

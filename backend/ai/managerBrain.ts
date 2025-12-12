@@ -7,6 +7,7 @@ import {
 import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmAction';
 import { buildDecisionPrompt } from './prompts/buildDecisionPrompt';
 import { parseLLMTradeAction } from './parseLLMTradeAction';
+import { normalizeLLMResponse } from './normalizeLLMResponse';
 
 type EvaluateChecklistItemParams = {
   managerProfile: {
@@ -25,8 +26,10 @@ type EvaluateChecklistItemParams = {
     indicators?: Record<string, number | string>;
     allowedSymbols?: string[];
     trendPercent?: number;
+    riskScore?: number; // Sector risk profile (0-100)
   };
   workerProposal: WorkerAgentProposal;
+  managerConfidence?: number; // Manager's last confidence (0-100)
 };
 
 function parseTrendPercent(trendDescriptor?: string | number): number | undefined {
@@ -119,14 +122,18 @@ export async function evaluateChecklistItem(
       throw new Error('LLMTradeAction.amount exceeds sector balance.');
     }
 
-    const confidence = llmTrade.confidence;
-    const boundedConfidence = Math.min(Math.max(confidence, 0), 100);
+    // Normalize LLM response before checklist creation
+    const normalized = normalizeLLMResponse(llmTrade, {
+      sectorRiskProfile: params.sectorState.riskScore,
+      lastConfidence: params.managerConfidence,
+      allowedSymbols,
+    });
 
     const trade = {
-      action: normalizeActionToUpper(llmTrade.side) as WorkerAgentProposal['action'],
-      amount: llmTrade.amount,
-      confidence: boundedConfidence,
-      reasoning: llmTrade.reasoning,
+      action: normalized.actionType as WorkerAgentProposal['action'],
+      amount: llmTrade.amount, // Keep original amount calculation
+      confidence: normalized.confidence,
+      reasoning: normalized.reasoning,
     };
 
     return mapTradeToDecision(trade, params.sectorState);

@@ -74,7 +74,8 @@ export function buildDecisionPrompt(params: BuildDecisionPromptParams): BuildDec
     'Think about risks, available capital, and whether to BUY, SELL, HOLD, or REBALANCE.',
     'Pick a sizingBasis (fixed_units | fixed_dollars | percent_of_capital) and a numeric size that matches the basis and capital.',
     'Optionally include entryPrice, stopLoss, and takeProfit (numbers) or null.',
-    'Output ONLY one JSON object, no markdown or extra prose, matching LLMTradeAction.',
+    'Output ONLY one JSON object, no markdown or extra prose, matching the REQUIRED schema below.',
+    'CRITICAL: You MUST include confidence (0-100), allocation_percent (0-100), and risk_notes in your response.',
   ].join(' ');
 
   const sizingRule = remainingCapital
@@ -90,24 +91,34 @@ export function buildDecisionPrompt(params: BuildDecisionPromptParams): BuildDec
     `allowedSymbols: ${JSON.stringify(allowedSymbols)}`,
     `remainingCapital: ${remainingCapital ?? 'unknown (assume conservative sizing)'}`,
     `realTimeData: ${JSON.stringify(realTimeData)}`,
-    'Respond with one JSON object following LLMTradeAction:',
+    '',
+    'REQUIRED JSON Schema (all fields are mandatory):',
     '{',
+    '  "action": "BUY" | "SELL" | "HOLD",',
+    '  "confidence": number (0-100), // REQUIRED: Your confidence level in this decision',
+    '  "reasoning": "string", // REQUIRED: Explanation for your decision',
+    '  "allocation_percent": number (0-100), // REQUIRED: Percentage of capital to allocate',
+    '  "risk_notes": "string", // REQUIRED: Risk assessment and considerations',
     '  "sector": "<sector name or symbol>",',
     '  "symbol": "<one of allowedSymbols>",',
-    '  "side": "BUY" | "SELL" | "HOLD" | "REBALANCE",',
     '  "sizingBasis": "fixed_units" | "fixed_dollars" | "percent_of_capital",',
     '  "size": number,',
     '  "entryPrice": number | null,',
     '  "stopLoss": number | null,',
-    '  "takeProfit": number | null,',
-    '  "reasoning": "short explanation"',
+    '  "takeProfit": number | null',
     '}',
+    '',
     'Rules:',
     '- Select symbol from allowedSymbols.',
-    '- Choose side based on risk and trend; HOLD if nothing stands out.',
+    '- Choose action (BUY/SELL/HOLD) based on risk and trend; HOLD if nothing stands out.',
+    '- confidence MUST be a number between 0-100. This is REQUIRED and cannot be omitted.',
+    '- allocation_percent MUST be a number between 0-100. This is REQUIRED and cannot be omitted.',
+    '- risk_notes MUST be a string describing your risk assessment. This is REQUIRED and cannot be omitted.',
+    '- Confidence is allowed to increase across rounds as you gather more information.',
     `- ${sizingRule}`,
     '- Base reasoning on realTimeData (price, baseline, trend %, volatility, P/L, indicators).',
-    '- Output pure JSON only (jsonMode=true).'
+    '- Output pure JSON only (jsonMode=true).',
+    '- If you omit confidence, allocation_percent, or risk_notes, your response will be rejected.'
   ].join('\n');
 
   return { systemPrompt, userPrompt, allowedSymbols };

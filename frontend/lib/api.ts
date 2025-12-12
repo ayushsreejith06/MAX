@@ -273,13 +273,20 @@ function normalizeDiscussion(raw: any): Discussion {
     ? raw.checklist.map((item: any) => ({
         id: String(item?.id ?? ''),
         text: String(item?.text ?? ''),
-        agentId: item?.agentId ?? item?.agent_id ?? undefined,
+        agentId: item?.agentId ?? item?.agent_id ?? item?.sourceAgentId ?? undefined,
         agentName: item?.agentName ?? item?.agent_name ?? undefined,
         round: typeof item?.round === 'number' ? item.round : undefined,
         action: item?.action ?? undefined,
         amount: typeof item?.amount === 'number' ? item.amount : undefined,
+        allocationPercent: typeof item?.allocationPercent === 'number' ? item.allocationPercent : undefined,
+        symbol: item?.symbol ?? undefined,
         reason: item?.reason ?? item?.reasoning ?? undefined,
+        reasoning: item?.reasoning ?? item?.reason ?? undefined,
+        rationale: item?.rationale ?? item?.reasoning ?? item?.reason ?? undefined,
         confidence: typeof item?.confidence === 'number' ? item.confidence : undefined,
+        approvalStatus: item?.approvalStatus ?? undefined,
+        approvalReason: item?.approvalReason ?? undefined,
+        status: item?.status ?? undefined,
       }))
     : undefined;
 
@@ -287,15 +294,47 @@ function normalizeDiscussion(raw: any): Discussion {
     ? raw.finalizedChecklist.map((item: any) => ({
         id: String(item?.id ?? ''),
         text: String(item?.text ?? ''),
-        agentId: item?.agentId ?? item?.agent_id ?? undefined,
+        agentId: item?.agentId ?? item?.agent_id ?? item?.sourceAgentId ?? undefined,
         agentName: item?.agentName ?? item?.agent_name ?? undefined,
         round: typeof item?.round === 'number' ? item.round : undefined,
         action: item?.action ?? undefined,
         amount: typeof item?.amount === 'number' ? item.amount : undefined,
+        allocationPercent: typeof item?.allocationPercent === 'number' ? item.allocationPercent : undefined,
+        symbol: item?.symbol ?? undefined,
         reason: item?.reason ?? item?.reasoning ?? undefined,
+        reasoning: item?.reasoning ?? item?.reason ?? undefined,
+        rationale: item?.rationale ?? item?.reasoning ?? item?.reason ?? undefined,
         confidence: typeof item?.confidence === 'number' ? item.confidence : undefined,
+        approvalStatus: item?.approvalStatus ?? 'accepted', // Finalized items are accepted by default
+        approvalReason: item?.approvalReason ?? undefined,
+        status: item?.status ?? 'APPROVED',
       }))
     : undefined;
+
+  // Normalize checklistItems - primary field (unified array)
+  // If checklistItems is provided, use it; otherwise combine checklist and finalizedChecklist
+  const checklistItems = Array.isArray(raw?.checklistItems)
+    ? raw.checklistItems.map((item: any) => ({
+        id: String(item?.id ?? ''),
+        text: String(item?.text ?? ''),
+        agentId: item?.agentId ?? item?.agent_id ?? item?.sourceAgentId ?? undefined,
+        agentName: item?.agentName ?? item?.agent_name ?? undefined,
+        round: typeof item?.round === 'number' ? item.round : undefined,
+        action: item?.action ?? undefined,
+        amount: typeof item?.amount === 'number' ? item.amount : undefined,
+        allocationPercent: typeof item?.allocationPercent === 'number' ? item.allocationPercent : undefined,
+        symbol: item?.symbol ?? undefined,
+        reason: item?.reason ?? item?.reasoning ?? undefined,
+        reasoning: item?.reasoning ?? item?.reason ?? undefined,
+        rationale: item?.rationale ?? item?.reasoning ?? item?.reason ?? undefined,
+        confidence: typeof item?.confidence === 'number' ? item.confidence : undefined,
+        approvalStatus: item?.approvalStatus ?? undefined,
+        approvalReason: item?.approvalReason ?? undefined,
+        status: item?.status ?? undefined,
+      }))
+    : (checklist && finalizedChecklist 
+        ? [...(checklist || []), ...(finalizedChecklist || [])]
+        : checklist || finalizedChecklist || undefined);
 
   // Normalize status: only 'in_progress' or 'decided' are valid
   let normalizedStatus = raw?.status ?? 'in_progress';
@@ -328,6 +367,7 @@ function normalizeDiscussion(raw: any): Discussion {
     sectorSymbol: raw?.sectorSymbol ?? raw?.sector_symbol ?? undefined,
     sectorName: raw?.sectorName ?? raw?.sector_name ?? undefined,
     round: typeof raw?.round === 'number' ? raw.round : undefined,
+    checklistItems: checklistItems && checklistItems.length > 0 ? checklistItems : undefined,
     checklistDraft: checklistDraft && checklistDraft.length > 0 ? checklistDraft : undefined,
     checklist: checklist && checklist.length > 0 ? checklist : undefined,
     finalizedChecklist: finalizedChecklist && finalizedChecklist.length > 0 ? finalizedChecklist : undefined,
@@ -607,9 +647,12 @@ export interface ChecklistItemResponse {
   description?: string;
   action?: string;
   amount?: number;
+  allocationPercent?: number; // 0–100
+  symbol?: string;
   reason?: string;
   reasoning?: string;
-  confidence?: number;
+  rationale?: string; // Primary field (1–2 sentences, concise)
+  confidence?: number; // 0–100
   round?: number;
   agentId?: string;
   agentName?: string;
@@ -625,6 +668,7 @@ export interface ChecklistItemResponse {
   previousVersions?: Array<{
     action?: string;
     amount?: number;
+    allocationPercent?: number;
     reason?: string;
     confidence?: number;
     timestamp: string;
@@ -634,8 +678,9 @@ export interface ChecklistItemResponse {
 export interface ChecklistResponse {
   discussionId: string;
   status: string;
-  checklist: ChecklistItemResponse[];
-  finalizedChecklist: ChecklistItemResponse[];
+  checklistItems: ChecklistItemResponse[]; // Primary field - unified array
+  checklist?: ChecklistItemResponse[]; // Legacy field
+  finalizedChecklist?: ChecklistItemResponse[]; // Legacy field
 }
 
 export async function fetchChecklist(discussionId: string): Promise<ChecklistResponse | null> {
@@ -826,6 +871,24 @@ export async function closeDiscussion(discussionId: string): Promise<Discussion>
     headers: {
       'Content-Type': 'application/json',
     },
+  });
+  
+  // Handle rate limiting - throw generic error for mutations
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    throw new Error('Request was skipped. Please try again.');
+  }
+  
+  const payload = result as Discussion;
+  return normalizeDiscussion(payload);
+}
+
+export async function startDiscussionRounds(discussionId: string, numRounds: number = 3): Promise<Discussion> {
+  const result = await request<Discussion>(`/discussions/${discussionId}/start-rounds`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ numRounds }),
   });
   
   // Handle rate limiting - throw generic error for mutations
@@ -1468,6 +1531,33 @@ export async function fetchFinalizedRejections(filters: FinalizedRejectionsFilte
   } catch (error) {
     console.error('Error fetching finalized rejections:', error);
     return { rejections: [] };
+  }
+}
+
+/**
+ * Clear all decision logs (development/testing only)
+ */
+export async function clearDecisionLogs(): Promise<{ success: boolean }> {
+  try {
+    const result = await request<{ success: boolean }>(
+      '/decision-logs/clear',
+      {
+        method: 'DELETE',
+        cache: 'no-store',
+        credentials: 'omit',
+      },
+      true // Bypass rate limiting for user-triggered actions
+    );
+
+    // Handle rate limiting
+    if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+      throw new Error('Request was rate-limited');
+    }
+
+    const payload = result as { success: boolean };
+    return payload;
+  } catch (error: any) {
+    throw error;
   }
 }
 

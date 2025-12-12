@@ -24,7 +24,11 @@ function formatTimestamp(timestamp: number): string {
   return `[${month} ${day}, ${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}]`;
 }
 
-export default function FinalizedRejectionsTab() {
+interface FinalizedRejectionsTabProps {
+  refreshTrigger?: number;
+}
+
+export default function FinalizedRejectionsTab({ refreshTrigger }: FinalizedRejectionsTabProps = {}) {
   const router = useRouter();
   const [rejections, setRejections] = useState<FinalizedRejection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +103,13 @@ export default function FinalizedRejectionsTab() {
 
   // Polling for real-time updates
   usePolling(loadRejections, 5000);
+
+  // Refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      loadRejections();
+    }
+  }, [refreshTrigger, loadRejections]);
 
   // Reset to page 1 when filters change
   useEffect(() => {

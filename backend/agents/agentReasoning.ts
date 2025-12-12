@@ -2,6 +2,7 @@ import { callLLM } from '../ai/llmClient';
 import { parseLLMTradeAction } from '../ai/parseLLMTradeAction';
 import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmAction';
 import { buildDecisionPrompt } from '../ai/prompts/buildDecisionPrompt';
+import { normalizeLLMResponse } from '../ai/normalizeLLMResponse';
 
 type AllowedAction = 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
 
@@ -10,7 +11,7 @@ export type AgentTrade = {
   amount: number;
   symbol: string;
   sector: string;
-  confidence?: number;
+  confidence: number; // REQUIRED: Confidence from LLM (0-100)
   reasoning?: string;
   stopLoss?: number;
   takeProfit?: number;
@@ -20,9 +21,9 @@ export type AgentTrade = {
 };
 
 type AgentReasoningParams = {
-  sector: { type?: string; symbol?: string; name?: string; allowedSymbols?: string[]; trendPercent?: number };
+  sector: { type?: string; symbol?: string; name?: string; allowedSymbols?: string[]; trendPercent?: number; riskScore?: number };
   sectorData: Record<string, unknown> | unknown;
-  agent: { purpose?: string };
+  agent: { purpose?: string; confidence?: number };
   availableBalance: number;
 };
 
@@ -88,13 +89,20 @@ export async function generateAgentTrade(params: AgentReasoningParams): Promise<
     throw new Error('LLMTradeAction.amount exceeds available balance.');
   }
 
+  // Normalize LLM response before checklist creation
+  const normalized = normalizeLLMResponse(trade, {
+    sectorRiskProfile: sector.riskScore,
+    lastConfidence: agent.confidence,
+    allowedSymbols,
+  });
+
   return {
-    action: normalizeActionToUpper(trade.side),
-    amount: trade.amount,
-    symbol: trade.symbol,
+    action: normalized.actionType,
+    amount: trade.amount, // Keep original amount calculation
+    symbol: normalized.symbol,
     sector: trade.sector || (sector.symbol ?? sector.name ?? 'UNKNOWN'),
-    confidence: trade.confidence,
-    reasoning: trade.reasoning,
+    confidence: normalized.confidence,
+    reasoning: normalized.reasoning,
     stopLoss: trade.stopLoss,
     takeProfit: trade.takeProfit,
     sizingBasis: trade.sizingBasis,

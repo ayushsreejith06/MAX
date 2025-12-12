@@ -2,6 +2,7 @@ const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage')
 const { updateSector } = require('../utils/sectorStorage');
 const { loadDiscussions } = require('../utils/discussionStorage');
 const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils');
+const { stabilizeConfidence } = require('../simulation/confidence');
 
 /**
  * SectorEngine - Handles sector-level operations including confidence updates
@@ -62,36 +63,73 @@ class SectorEngine {
 
       const confidenceList = [];
 
+      // STEP 1: Extract confidence from LLM (llmAction.confidence) or stored value
+      // STEP 2: Apply monotonic rule (stabilizeConfidence) to prevent decay below 65
       for (const agent of nonManagerAgents) {
-        const normalizedConfidence = extractConfidence(agent);
-        agent.confidence = normalizedConfidence;
-        confidenceMap.set(agent.id, normalizedConfidence);
+        // Get previous confidence for monotonic rule
+        const previousConfidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        
+        // Extract confidence from LLM (llmAction.confidence) or stored value
+        const extractedConfidence = extractConfidence(agent);
+        
+        // STEP 3: Apply monotonic rule - ensures confidence never drops below 65
+        const stabilizedConfidence = stabilizeConfidence(previousConfidence, extractedConfidence);
+        
+        // Update agent confidence
+        agent.confidence = stabilizedConfidence;
+        confidenceMap.set(agent.id, stabilizedConfidence);
+        
+        // Persist updated confidence to storage
+        try {
+          await updateAgent(agent.id, { confidence: stabilizedConfidence });
+        } catch (error) {
+          console.warn(`[SectorEngine] Failed to persist confidence for ${agent.id}:`, error);
+        }
+        
         const agentName = agent.name || agent.id;
-        confidenceList.push({ name: agentName, confidence: normalizedConfidence });
+        confidenceList.push({ name: agentName, confidence: stabilizedConfidence });
       }
 
       const nonManagerAverage = nonManagerAgents.length
-        ? nonManagerAgents.reduce((sum, agent) => sum + extractConfidence(agent), 0) / nonManagerAgents.length
+        ? nonManagerAgents.reduce((sum, agent) => sum + confidenceMap.get(agent.id), 0) / nonManagerAgents.length
         : null;
 
       for (const manager of managerAgents) {
+        // Get previous confidence for monotonic rule
+        const previousConfidence = typeof manager.confidence === 'number' ? manager.confidence : 0;
+        
+        // Derive manager confidence from average of non-manager agents or extract from LLM
         const derivedConfidence = nonManagerAverage !== null
           ? nonManagerAverage
           : extractConfidence(manager);
+        
         const normalizedConfidence = clampConfidence(derivedConfidence);
-        manager.confidence = normalizedConfidence;
-        confidenceMap.set(manager.id, normalizedConfidence);
+        
+        // STEP 3: Apply monotonic rule - ensures confidence never drops below 65
+        const stabilizedConfidence = stabilizeConfidence(previousConfidence, normalizedConfidence);
+        
+        // Update manager confidence
+        manager.confidence = stabilizedConfidence;
+        confidenceMap.set(manager.id, stabilizedConfidence);
+        
+        // Persist updated confidence to storage
+        try {
+          await updateAgent(manager.id, { confidence: stabilizedConfidence });
+        } catch (error) {
+          console.warn(`[SectorEngine] Failed to persist confidence for ${manager.id}:`, error);
+        }
+        
         const managerName = manager.name || manager.id;
-        confidenceList.push({ name: managerName, confidence: normalizedConfidence });
+        confidenceList.push({ name: managerName, confidence: stabilizedConfidence });
       }
 
       // DEBUG: Log list of confidence values
       if (confidenceList.length > 0) {
         const confidenceStr = confidenceList.map(c => `${c.name}: ${c.confidence.toFixed(2)}`).join(', ');
-        console.log(`[SectorEngine] Confidence values: [${confidenceStr}]`);
+        console.log(`[SectorEngine] Confidence values (after monotonic update): [${confidenceStr}]`);
       }
 
-      // Save updated agents to storage
+      // Save updated agents to storage (confidence already persisted per-agent above)
       await saveAgents(allAgents);
 
       // Update sector's agents array with updated confidence values
@@ -273,37 +311,18 @@ class SectorEngine {
         return false;
       }
 
-      // Check if there is any active discussion in this sector
-      const discussions = await loadDiscussions();
-      // Find discussions that are in progress (include legacy statuses for backward compatibility)
-      const activeDiscussion = discussions.find(d => 
-        d.sectorId === sector.id && 
-        (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
-      );
+      // Check if there are any non-closed discussions for this sector
+      // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
+      const { hasNonClosedDiscussions } = require('../utils/discussionStorage');
+      const hasActive = await hasNonClosedDiscussions(sector.id);
 
-      if (activeDiscussion) {
-        console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - Active discussion exists: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
+      if (hasActive) {
+        console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - Non-closed discussion exists for sector ${sector.id}`);
         return false;
       }
 
-      // Check if sector is in cooldown period
-      const lastDiscussionEndTick = this.discussionCooldowns.get(sector.id);
-      if (lastDiscussionEndTick !== undefined) {
-        // Get current tick from SystemOrchestrator if available, or use a simple counter
-        // For now, we'll use a timestamp-based approach
-        const currentTime = Date.now();
-        const cooldownDurationMs = this.cooldownTicks * 2000; // 2 seconds per tick
-        const timeSinceLastDiscussion = currentTime - lastDiscussionEndTick;
-        
-        if (timeSinceLastDiscussion < cooldownDurationMs) {
-          const remainingTicks = Math.ceil((cooldownDurationMs - timeSinceLastDiscussion) / 2000);
-          console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - Sector ${sector.id} is in cooldown (${remainingTicks} tick(s) remaining)`);
-          return false;
-        } else {
-          // Cooldown expired, remove from map
-          this.discussionCooldowns.delete(sector.id);
-        }
-      }
+      // Note: Cooldown logic removed - unlimited sequential discussions are allowed
+      // as long as all previous discussions are DECIDED or CLOSED
 
       // All checks passed - sector is ready for discussion
       const agentDetails = agents.map(agent => {

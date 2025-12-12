@@ -398,6 +398,79 @@ module.exports = async (fastify) => {
     }
   });
 
+  // GET /debug/discussions/:id/state - Get detailed state of a discussion
+  fastify.get('/discussions/:id/state', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { findDiscussionById } = require('../utils/discussionStorage');
+      const DiscussionRoom = require('../models/DiscussionRoom');
+      
+      const discussionData = await findDiscussionById(id);
+      if (!discussionData) {
+        return reply.status(404).send({ error: 'Discussion not found' });
+      }
+      
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
+      
+      return reply.send({
+        id: discussionRoom.id,
+        status: discussionRoom.status,
+        round: discussionRoom.round,
+        currentRound: discussionRoom.currentRound,
+        messagesCount: discussionRoom.messages.length,
+        messages: discussionRoom.messages.map(msg => ({
+          id: msg.id,
+          agentId: msg.agentId,
+          agentName: msg.agentName,
+          hasProposal: !!msg.proposal,
+          hasAnalysis: !!msg.analysis,
+          contentLength: msg.content?.length || 0,
+          proposal: msg.proposal
+        })),
+        agentIds: discussionRoom.agentIds,
+        checklistCount: discussionRoom.checklist?.length || 0
+      });
+    } catch (error) {
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // POST /debug/discussions/:id/trigger-rounds - Manually trigger rounds for debugging
+  fastify.post('/discussions/:id/trigger-rounds', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { numRounds } = request.body || {};
+      
+      const DiscussionEngine = require('../core/DiscussionEngine');
+      const discussionEngine = new DiscussionEngine();
+      
+      log(`POST /debug/discussions/${id}/trigger-rounds - Manually triggering rounds`);
+      
+      await discussionEngine.startRounds(id, numRounds || 3);
+      
+      const { findDiscussionById } = require('../utils/discussionStorage');
+      const discussionData = await findDiscussionById(id);
+      
+      return reply.send({
+        success: true,
+        message: 'Rounds triggered',
+        discussion: {
+          id: discussionData.id,
+          status: discussionData.status,
+          messagesCount: discussionData.messages?.length || 0,
+          round: discussionData.round
+        }
+      });
+    } catch (error) {
+      log(`Error triggering rounds: ${error.message}`);
+      return reply.status(500).send({ 
+        success: false,
+        error: error.message,
+        stack: error.stack 
+      });
+    }
+  });
+
   // GET /debug/execution/status - Get Phase 4 execution status
   // Returns: lastExecutedChecklistItem, lastPriceUpdate, lastManagerImpact, lastSectorPerformance, lastRewardDistribution
   fastify.get('/execution/status', async (request, reply) => {

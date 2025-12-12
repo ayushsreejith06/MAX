@@ -113,11 +113,16 @@ class SystemOrchestrator {
         updatedSector.readyForDiscussion = false;
         // Continue to save sector state and return early
       } else {
-        // 2. Normalize agent confidence values (LLM-provided or default 50)
-        // Using SectorEngine.performConfidenceUpdates for normalization
+        // STEP 2: Perform confidence updates with correct flow order:
+        // 1. Agent LLM reasoning (confidence extracted from llmAction.confidence if available)
+        // 2. Confidence extracted (via extractConfidence - prefers LLM, falls back to stored)
+        // 3. Confidence updated (monotonic rule via stabilizeConfidence - prevents decay below 65)
+        // 4. Discussion eligibility check (happens below, AFTER confidence update)
         updatedSector = await this.sectorEngine.performConfidenceUpdates(sector);
 
-        // 3. Check if sectorEngine.readyForDiscussion === true
+        // STEP 3: Check if sectorEngine.readyForDiscussion === true
+        // IMPORTANT: Discussion eligibility check happens AFTER confidence update
+        // This ensures we read agent.confidence AFTER the monotonic rule has been applied
         // If sector has only 1 agent (manager only) → skip discussion readiness
         if (agentCount === 1 && nonManagerCount === 0) {
           console.log(`[Limit-aware tick] Sector ${sectorId} has only 1 agent (manager), skipping discussion evaluation.`);
@@ -139,24 +144,28 @@ class SystemOrchestrator {
           // 3. ALL active worker agents (non-managers) must have confidence >= 65
           // 4. Sector balance must be > 0
           
-          // Step 1: Check if there's an active or in-progress discussion
-          const discussions = await loadDiscussions();
-          const activeDiscussion = discussions.find(d => 
-            d.sectorId === sectorId && 
-            (d.status === 'in_progress' || d.status === 'active') // Include legacy 'active' for backward compatibility
-          );
+          // Step 1: Check if there are any non-closed discussions for this sector
+          // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
+          const { hasNonClosedDiscussions } = require('../../../utils/discussionStorage');
+          const hasActive = await hasNonClosedDiscussions(sectorId);
 
-          if (activeDiscussion) {
-            console.log(`[DISCUSSION BLOCKED] Active discussion exists: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
+          if (hasActive) {
+            console.log(`[DISCUSSION BLOCKED] ✗ Non-closed discussion exists for sector ${sectorId} - cannot create new discussion`);
             discussionReady = false;
             updatedSector.readyForDiscussion = false;
-          } else if (this.discussionLock.get(sectorId)) {
+          } else {
+            console.log(`[DISCUSSION CHECK] ✓ No non-closed discussions for sector ${sectorId} - new discussion allowed`);
+          }
+          
+          if (!hasActive && this.discussionLock.get(sectorId)) {
             // Step 2: Check discussion lock
             console.log(`[DISCUSSION BLOCKED] Discussion lock is active for sector ${sectorId}`);
             discussionReady = false;
             updatedSector.readyForDiscussion = false;
           } else {
             // Step 3: Get all agents for the sector (manager + generals)
+            // GUARD: Reload agents from storage to prevent stale confidence values
+            // This ensures we read confidence AFTER it was updated in performConfidenceUpdates
             const allAgents = await loadAgents();
             const sectorAgents = allAgents.filter(agent => 
               agent && agent.id && agent.sectorId === sectorId
@@ -174,6 +183,9 @@ class SystemOrchestrator {
               discussionReady = false;
               updatedSector.readyForDiscussion = false;
             } else {
+              // STEP 4: Discussion eligibility check - reads confidence AFTER update
+              // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
+              // or agent.confidence (which was updated with monotonic rule in performConfidenceUpdates)
               const allAboveThreshold = workerAgents.every(agent => extractConfidence(agent) >= 65);
 
               if (!allAboveThreshold) {
@@ -219,7 +231,14 @@ class SystemOrchestrator {
       // IF discussionReady === true: managerEngine.startDiscussion()
       if (discussionReady) {
         console.log(`[SystemOrchestrator] Sector ${sectorId} ready for discussion, starting...`);
-        console.log(`[SystemOrchestrator] Discussion lock status before creation: ${this.discussionLock.get(sectorId) || 'unlocked'}`);
+        const lockStatus = this.discussionLock.get(sectorId);
+        console.log(`[SystemOrchestrator] Discussion lock status before creation: ${lockStatus || 'unlocked'}`);
+        
+        // Only proceed if lock is not active (or unlock if it's been stuck)
+        if (lockStatus === true) {
+          console.log(`[SystemOrchestrator] WARNING: Discussion lock is active for sector ${sectorId}, unlocking to allow creation...`);
+          this.discussionLock.set(sectorId, false);
+        }
         
         // Set discussion lock to prevent spam
         this.discussionLock.set(sectorId, true);

@@ -174,10 +174,41 @@ Rules:
     jsonMode: true
   });
 
+  // Extract JSON from response (handles markdown code fences and extra text)
+  function extractJsonObject(raw) {
+    if (typeof raw !== 'string') {
+      throw new Error('Response must be a string');
+    }
+
+    const trimmed = raw.trim();
+    // Try to extract JSON from markdown code fences
+    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = fencedMatch ? fencedMatch[1] : trimmed;
+
+    // Try direct parse first
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      /* fall through */
+    }
+
+    // Try to find JSON object boundaries
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error('No JSON object found');
+    }
+
+    const sliced = candidate.slice(start, end + 1);
+    return JSON.parse(sliced);
+  }
+
   let parsed;
   try {
-    parsed = JSON.parse(result);
+    parsed = extractJsonObject(result);
   } catch (error) {
+    console.error('[buildAgentIdentity] JSON extraction failed:', error);
+    console.error('[buildAgentIdentity] Raw LLM response:', result);
     throw new Error('LLM did not return valid JSON.');
   }
 

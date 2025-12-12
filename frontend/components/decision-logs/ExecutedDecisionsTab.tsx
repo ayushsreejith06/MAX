@@ -24,7 +24,11 @@ function formatTimestamp(timestamp: number): string {
   return `[${month} ${day}, ${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}]`;
 }
 
-export default function ExecutedDecisionsTab() {
+interface ExecutedDecisionsTabProps {
+  refreshTrigger?: number;
+}
+
+export default function ExecutedDecisionsTab({ refreshTrigger }: ExecutedDecisionsTabProps = {}) {
   const router = useRouter();
   const [logs, setLogs] = useState<ExecutionLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +103,13 @@ export default function ExecutedDecisionsTab() {
 
   // Polling for real-time updates
   usePolling(loadLogs, 5000);
+
+  // Refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      loadLogs();
+    }
+  }, [refreshTrigger, loadLogs]);
 
   // Reset to page 1 when filters change
   useEffect(() => {

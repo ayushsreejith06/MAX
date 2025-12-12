@@ -1,6 +1,6 @@
 const { getSectorById } = require('./sectorsController');
 const { updateSector } = require('../utils/sectorStorage');
-const { loadAgents, updateAgent } = require('../utils/agentStorage');
+const { loadAgents, updateAgent, saveAgents } = require('../utils/agentStorage');
 const { applyVolatility, calculatePrice, computeRiskScore } = require('../simulation/performance');
 const { getSimulationEngine } = require('../simulation/SimulationEngine');
 const { extractConfidence } = require('../utils/confidenceUtils');
@@ -77,15 +77,62 @@ async function executeSimulationTick(sectorId) {
     // Always update risk score (it's calculated from volatility and other factors, not price changes)
     sector.riskScore = riskScore;
 
-    // 6. Normalize confidence for every agent (no random generation)
+    // 6. Update confidence for agents based on market conditions and performance
+    // Calculate price change for confidence updates (reuse previousPrice from above)
+    const currentPrice = sector.currentPrice || sector.simulatedPrice || previousPrice;
+    const priceChangePercent = previousPrice > 0 ? ((currentPrice - previousPrice) / previousPrice) * 100 : 0;
+    
+    const { recalcConfidence } = require('../simulation/confidence');
+    
     const updatedAgents = [];
-    for (const agent of sectorAgents) {
-      const newConfidence = extractConfidence(agent);
-      agent.confidence = newConfidence;
-      updatedAgents.push(agent);
+    try {
+      const allAgents = await loadAgents();
+      
+      for (const agent of sectorAgents) {
+        // Recalculate confidence with market context
+        const newConfidence = recalcConfidence(agent, {
+          priceChangePercent: priceChangePercent,
+          volatilityChange: updatedVolatility - (sector.volatility || 0)
+        });
+        
+        // Only update if confidence actually changed
+        const currentConf = extractConfidence(agent);
+        if (Math.abs(newConfidence - currentConf) > 0.01) {
+          agent.confidence = newConfidence;
+          
+          // Update in the main agents array and persist
+          const agentIndex = allAgents.findIndex(a => a.id === agent.id);
+          if (agentIndex !== -1) {
+            allAgents[agentIndex].confidence = newConfidence;
+            try {
+              await updateAgent(agent.id, { confidence: newConfidence });
+            } catch (error) {
+              log(`Failed to persist confidence for agent ${agent.id}: ${error.message}`);
+            }
+          }
+          
+          updatedAgents.push(agent);
+          log(`Updated agent ${agent.name || agent.id} confidence: ${currentConf.toFixed(2)} → ${newConfidence.toFixed(2)}`);
+        }
+      }
+      
+      // Save all agents
+      await saveAgents(allAgents);
+      
+      if (updatedAgents.length > 0) {
+        log(`Updated confidence for ${updatedAgents.length} agents (${sectorAgents.length - updatedAgents.length} unchanged)`);
+      } else {
+        log(`Recalculated confidence for ${sectorAgents.length} agents (no changes)`);
+      }
+    } catch (error) {
+      log(`Error updating agent confidence: ${error.message}`);
+      // Fallback to just reading confidence
+      for (const agent of sectorAgents) {
+        agent.confidence = extractConfidence(agent);
+        updatedAgents.push(agent);
+      }
+      log(`Recalculated confidence for ${updatedAgents.length} agents (fallback mode)`);
     }
-
-    log(`Recalculated confidence for ${updatedAgents.length} agents`);
 
     // 7. Update performance object: totalPL, recentTrades (even if zero)
     // Get recent trades from simulation engine if available

@@ -64,7 +64,8 @@ function parseLLMTradeAction(rawText, options = {}) {
     return fallbackAction(options);
   }
 
-  const side = normalizeSide(json.side ?? json.action ?? json.tradeAction ?? json.actionType);
+  // Support both "action" (new schema) and "side" (legacy) for backward compatibility
+  const side = normalizeSide(json.action ?? json.side ?? json.tradeAction ?? json.actionType);
   const sizingBasis = normalizeSizingBasis(json.sizingBasis ?? json.sizing_basis ?? json.sizingbasis);
   const size = clampSize(
     typeof json.size === 'number'
@@ -99,10 +100,28 @@ function parseLLMTradeAction(rawText, options = {}) {
       ? json.reasoning.trim()
       : 'LLM did not provide reasoning';
 
-  const confidence = Math.min(
-    Math.max(parseNumber(json.confidence) ?? 50, 0),
-    100,
-  );
+  // CRITICAL: Confidence is REQUIRED - reject if missing or invalid
+  const rawConfidence = json.confidence;
+  if (rawConfidence === undefined || rawConfidence === null) {
+    console.error('[LLM_PARSE_ERROR] Missing required confidence field', { json });
+    throw new Error('LLM response is missing required confidence field. Confidence must be a number between 0-100.');
+  }
+  
+  const confidenceValue = parseNumber(rawConfidence);
+  if (confidenceValue === null) {
+    console.error('[LLM_PARSE_ERROR] Invalid confidence value (must be numeric)', { json, rawConfidence });
+    throw new Error('LLM response has invalid confidence value. Confidence must be a number between 0-100.');
+  }
+  
+  const confidence = Math.min(Math.max(confidenceValue, 0), 100);
+
+  // Extract new fields (allocation_percent, risk_notes) if present
+  const allocationPercent = parseNumber(json.allocation_percent ?? json.allocationPercent);
+  const riskNotes = typeof json.risk_notes === 'string' 
+    ? json.risk_notes.trim() 
+    : typeof json.riskNotes === 'string'
+      ? json.riskNotes.trim()
+      : undefined;
 
   return {
     sector,
@@ -115,6 +134,8 @@ function parseLLMTradeAction(rawText, options = {}) {
     takeProfit,
     reasoning,
     confidence,
+    allocationPercent: allocationPercent ?? undefined,
+    riskNotes: riskNotes,
   };
 }
 

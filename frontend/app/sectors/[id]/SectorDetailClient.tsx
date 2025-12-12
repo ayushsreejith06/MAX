@@ -12,6 +12,7 @@ import { usePolling } from '@/hooks/usePolling';
 import { useExecutionRefresh } from '@/hooks/useExecutionRefresh';
 import { useSectorDataPolling } from '@/hooks/useSectorDataPolling';
 import { useToast, ToastContainer } from '@/components/Toast';
+import { getStatusColor, statusColorMap20 } from '@/lib/statusColors';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
 const AgentRow = memo(function AgentRow({
@@ -138,14 +139,8 @@ const DiscussionItem = memo(function DiscussionItem({
   discussion: { id: string; title: string; status: string; updatedAt: string; agentIds?: string[] };
   onNavigate: () => void;
 }) {
-  const statusColors = {
-    in_progress: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
-    decided: 'bg-sage-green/20 text-sage-green border-sage-green/50',
-    accepted: 'bg-sage-green/20 text-sage-green border-sage-green/50', // Backward compatibility
-    rejected: 'bg-error-red/20 text-error-red border-error-red/50',
-    archived: 'bg-floral-white/10 text-floral-white/50 border-floral-white/30',
-  };
-  const statusColor = statusColors[discussion.status as keyof typeof statusColors] || statusColors.in_progress;
+  // Use centralized status color utility - DECIDED is green, IN PROGRESS is orange
+  const statusColor = getStatusColor(discussion.status, '20');
   
   const updatedDate = new Date(discussion.updatedAt);
   const now = new Date();
@@ -1156,14 +1151,7 @@ export default function SectorDetailClient() {
               return 'Just now';
             };
 
-            const statusColors = {
-              in_progress: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
-              accepted: 'bg-sage-green/20 text-sage-green border-sage-green/50',
-              rejected: 'bg-error-red/20 text-error-red border-error-red/50',
-              archived: 'bg-floral-white/10 text-floral-white/50 border-floral-white/30',
-              decided: 'bg-sage-green/20 text-sage-green border-sage-green/50',
-              finalized: 'bg-sage-green/20 text-sage-green border-sage-green/50',
-            };
+            // Use centralized status color utility - DECIDED is green, IN PROGRESS is orange
 
             return (
               <>
@@ -1184,7 +1172,8 @@ export default function SectorDetailClient() {
                           </thead>
                           <tbody>
                             {activeDiscussions.map((discussion) => {
-                              const statusColor = statusColors[discussion.status as keyof typeof statusColors] || statusColors.in_progress;
+                              // Use centralized status color utility - DECIDED is green, IN PROGRESS is orange
+                              const statusColor = getStatusColor(discussion.status, '20');
                               const messageCount = typeof discussion.messagesCount === 'number' 
                                 ? discussion.messagesCount 
                                 : (discussion.messages?.length || 0);

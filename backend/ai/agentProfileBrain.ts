@@ -124,7 +124,36 @@ export async function generateAgentProfileFromDescription(params: {
       jsonMode: true
     });
 
-    const parsed = JSON.parse(rawResponse);
+    // Extract JSON from response (handles markdown code fences and extra text)
+    function extractJsonObject(raw: string): any {
+      if (typeof raw !== 'string') {
+        throw new Error('Response must be a string');
+      }
+
+      const trimmed = raw.trim();
+      // Try to extract JSON from markdown code fences
+      const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const candidate = fencedMatch ? fencedMatch[1] : trimmed;
+
+      // Try direct parse first
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        /* fall through */
+      }
+
+      // Try to find JSON object boundaries
+      const start = candidate.indexOf('{');
+      const end = candidate.lastIndexOf('}');
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error('No JSON object found');
+      }
+
+      const sliced = candidate.slice(start, end + 1);
+      return JSON.parse(sliced);
+    }
+
+    const parsed = extractJsonObject(rawResponse);
     return validateProfile(parsed, fallback);
   } catch (error) {
     console.warn('generateAgentProfileFromDescription fallback:', error);

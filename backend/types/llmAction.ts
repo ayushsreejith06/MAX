@@ -12,7 +12,9 @@ export interface LLMTradeAction {
   stopLoss?: number | null;
   takeProfit?: number | null;
   reasoning: string;
-  confidence?: number;
+  confidence: number; // REQUIRED: Must be provided by LLM (0-100)
+  allocationPercent?: number; // Optional: Percentage of capital to allocate (0-100)
+  riskNotes?: string; // Optional: Risk assessment notes
 }
 
 export interface NormalizedLLMTradeAction extends LLMTradeAction {
@@ -25,9 +27,11 @@ export interface NormalizedLLMTradeAction extends LLMTradeAction {
   stopLoss: number | null;
   takeProfit: number | null;
   reasoning: string;
-  confidence: number;
+  confidence: number; // REQUIRED
   action: LLMTradeSideLower;
   amount: number;
+  allocationPercent?: number; // Optional: Percentage of capital to allocate (0-100)
+  riskNotes?: string; // Optional: Risk assessment notes
 }
 
 export type ValidateLLMTradeActionOptions = {
@@ -134,7 +138,8 @@ export function validateLLMTradeAction(
 
   const record = raw as Record<string, unknown>;
 
-  const { upper: side, lower: action } = normalizeSide(record.side ?? record.action);
+  // Support both "action" (new schema) and "side" (legacy) for backward compatibility
+  const { upper: side, lower: action } = normalizeSide(record.action ?? record.side);
   const sizingBasis = normalizeSizingBasis(record.sizingBasis ?? record.sizing_basis ?? record.sizingbasis);
   const hasRemainingCapital = typeof options?.remainingCapital === 'number' && options.remainingCapital > 0;
   const sizeRaw = ensureNumber(
@@ -151,7 +156,18 @@ export function validateLLMTradeAction(
       ? record.reasoning.trim()
       : 'LLM did not provide reasoning';
 
-  const confidence = Math.min(Math.max(ensureNumber(record.confidence, 50), 0), 100);
+  // CRITICAL: Confidence is REQUIRED - reject if missing or invalid
+  const rawConfidence = record.confidence;
+  if (rawConfidence === undefined || rawConfidence === null) {
+    throw new Error('LLMTradeAction is missing required confidence field. Confidence must be a number between 0-100.');
+  }
+  
+  const confidenceValue = ensureNumber(rawConfidence, NaN);
+  if (Number.isNaN(confidenceValue)) {
+    throw new Error('LLMTradeAction has invalid confidence value. Confidence must be a number between 0-100.');
+  }
+  
+  const confidence = Math.min(Math.max(confidenceValue, 0), 100);
 
   const fallbackSymbol = options?.fallbackSymbol || options?.fallbackSector || 'UNKNOWN';
   const symbol =
@@ -175,6 +191,14 @@ export function validateLLMTradeAction(
 
   const amount = resolveAmountFromSizing(size, sizingBasis, options?.remainingCapital, options?.currentPrice);
 
+  // Extract new fields (allocation_percent, risk_notes) if present
+  const allocationPercent = toNumberOrNull(record.allocation_percent ?? record.allocationPercent);
+  const riskNotes = typeof record.risk_notes === 'string' 
+    ? record.risk_notes.trim() 
+    : typeof record.riskNotes === 'string'
+      ? record.riskNotes.trim()
+      : undefined;
+
   return {
     side,
     action,
@@ -188,6 +212,8 @@ export function validateLLMTradeAction(
     takeProfit,
     reasoning,
     confidence,
+    allocationPercent: allocationPercent ?? undefined,
+    riskNotes: riskNotes,
   };
 }
 

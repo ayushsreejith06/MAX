@@ -5009,3 +5009,1218 @@
   "averageScore": 66.64
 }
 
+[2025-12-12T18:27:37.641Z] [managerEvaluateChecklist] Starting evaluation for discussion 4ffc530a-d0f6-4c64-96cf-889cc911a57a
+{
+  "discussionId": "4ffc530a-d0f6-4c64-96cf-889cc911a57a",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "efbeca46-6fe5-407d-9519-956632680d03",
+  "managerId": "4b72b28a-80d7-4d63-8d83-ece2f5d3356c"
+}
+
+[2025-12-12T18:27:37.652Z] [evaluateChecklistItem] Item checklist-4ffc530a-d0f6-4c64-96cf-889cc911a57a-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-4ffc530a-d0f6-4c64-96cf-889cc911a57a-0",
+  "rawItemContent": {
+    "id": "checklist-4ffc530a-d0f6-4c64-96cf-889cc911a57a-0",
+    "action": "buy",
+    "reason": "Recent price ($100) is near baseline, trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) indicates no profit or loss yet.",
+    "reasoning": "Recent price ($100) is near baseline, trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) indicates no profit or loss yet.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "TECH",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent price ($100) is near baseline, trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) indicates no profit or loss yet."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T18:27:37.655Z] [managerEvaluateChecklist] Evaluation summary for discussion 4ffc530a-d0f6-4c64-96cf-889cc911a57a
+{
+  "discussionId": "4ffc530a-d0f6-4c64-96cf-889cc911a57a",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-4ffc530a-d0f6-4c64-96cf-889cc911a57a-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T18:56:34.757Z] [managerEvaluateChecklist] Starting evaluation for discussion f02ee510-df5a-4fdd-aa70-1051b489a098
+{
+  "discussionId": "f02ee510-df5a-4fdd-aa70-1051b489a098",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T18:56:34.761Z] [evaluateChecklistItem] Item checklist-f02ee510-df5a-4fdd-aa70-1051b489a098-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f02ee510-df5a-4fdd-aa70-1051b489a098-0",
+  "rawItemContent": {
+    "id": "checklist-f02ee510-df5a-4fdd-aa70-1051b489a098-0",
+    "action": "buy",
+    "reason": "Recent price $100 is above baseline, trend % at 0 indicates no strong direction. Volatility is low (0.02), indicating stability. Recent PnLPercent not available but recent price is near baseline, suggesting potential for growth.",
+    "reasoning": "Recent price $100 is above baseline, trend % at 0 indicates no strong direction. Volatility is low (0.02), indicating stability. Recent PnLPercent not available but recent price is near baseline, suggesting potential for growth.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "TECH",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent price $100 is above baseline, trend % at 0 indicates no strong direction. Volatility is low (0.02), indicating stability. Recent PnLPercent not available but recent price is near baseline, suggesting potential for growth."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T18:56:34.762Z] [managerEvaluateChecklist] Evaluation summary for discussion f02ee510-df5a-4fdd-aa70-1051b489a098
+{
+  "discussionId": "f02ee510-df5a-4fdd-aa70-1051b489a098",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f02ee510-df5a-4fdd-aa70-1051b489a098-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T18:57:10.812Z] [managerEvaluateChecklist] Starting evaluation for discussion 11d897af-81f6-40df-a6bc-af715daa7c02
+{
+  "discussionId": "11d897af-81f6-40df-a6bc-af715daa7c02",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T18:57:10.836Z] [evaluateChecklistItem] Item checklist-11d897af-81f6-40df-a6bc-af715daa7c02-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-11d897af-81f6-40df-a6bc-af715daa7c02-0",
+  "rawItemContent": {
+    "id": "checklist-11d897af-81f6-40df-a6bc-af715daa7c02-0",
+    "action": "buy",
+    "reason": "Recent price $100 is above baseline, trend % at 0 indicates no strong direction. Volatility is low (0.02), suggesting stability.",
+    "reasoning": "Recent price $100 is above baseline, trend % at 0 indicates no strong direction. Volatility is low (0.02), suggesting stability.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "TECH",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent price $100 is above baseline, trend % at 0 indicates no strong direction. Volatility is low (0.02), suggesting stability."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T18:57:10.852Z] [managerEvaluateChecklist] Evaluation summary for discussion 11d897af-81f6-40df-a6bc-af715daa7c02
+{
+  "discussionId": "11d897af-81f6-40df-a6bc-af715daa7c02",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-11d897af-81f6-40df-a6bc-af715daa7c02-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T19:01:11.558Z] [managerEvaluateChecklist] Starting evaluation for discussion 0fdc89a2-99ff-4a5c-b475-8464e4542d6c
+{
+  "discussionId": "0fdc89a2-99ff-4a5c-b475-8464e4542d6c",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T19:01:11.584Z] [evaluateChecklistItem] Item checklist-0fdc89a2-99ff-4a5c-b475-8464e4542d6c-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-0fdc89a2-99ff-4a5c-b475-8464e4542d6c-0",
+  "rawItemContent": {
+    "id": "checklist-0fdc89a2-99ff-4a5c-b475-8464e4542d6c-0",
+    "action": "buy",
+    "reason": "Recent price ($100) is near baseline ($100), and trend (%) is 0%, indicating a potential buying opportunity. Volatility (0.02) is low, suggesting stability.",
+    "reasoning": "Recent price ($100) is near baseline ($100), and trend (%) is 0%, indicating a potential buying opportunity. Volatility (0.02) is low, suggesting stability.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "TECH",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent price ($100) is near baseline ($100), and trend (%) is 0%, indicating a potential buying opportunity. Volatility (0.02) is low, suggesting stability."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T19:01:11.602Z] [managerEvaluateChecklist] Evaluation summary for discussion 0fdc89a2-99ff-4a5c-b475-8464e4542d6c
+{
+  "discussionId": "0fdc89a2-99ff-4a5c-b475-8464e4542d6c",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-0fdc89a2-99ff-4a5c-b475-8464e4542d6c-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T19:01:41.048Z] [managerEvaluateChecklist] Starting evaluation for discussion f5c57387-c055-431f-b753-cd8c5c129a07
+{
+  "discussionId": "f5c57387-c055-431f-b753-cd8c5c129a07",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T19:01:41.074Z] [evaluateChecklistItem] Item checklist-f5c57387-c055-431f-b753-cd8c5c129a07-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f5c57387-c055-431f-b753-cd8c5c129a07-0",
+  "rawItemContent": {
+    "id": "checklist-f5c57387-c055-431f-b753-cd8c5c129a07-0",
+    "action": "buy",
+    "reason": "Positive trend (0%) and low volatility (0.02%), with recent price ($100) close to baseline price ($100), indicating potential upside.",
+    "reasoning": "Positive trend (0%) and low volatility (0.02%), with recent price ($100) close to baseline price ($100), indicating potential upside.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "TECH",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Positive trend (0%) and low volatility (0.02%), with recent price ($100) close to baseline price ($100), indicating potential upside."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T19:01:41.080Z] [managerEvaluateChecklist] Evaluation summary for discussion f5c57387-c055-431f-b753-cd8c5c129a07
+{
+  "discussionId": "f5c57387-c055-431f-b753-cd8c5c129a07",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f5c57387-c055-431f-b753-cd8c5c129a07-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T19:05:55.025Z] [managerEvaluateChecklist] Starting evaluation for discussion 83acd1c2-dff2-46da-a9b0-ac93b93bf71f
+{
+  "discussionId": "83acd1c2-dff2-46da-a9b0-ac93b93bf71f",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T19:05:55.041Z] [evaluateChecklistItem] Item checklist-83acd1c2-dff2-46da-a9b0-ac93b93bf71f-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-83acd1c2-dff2-46da-a9b0-ac93b93bf71f-0",
+  "rawItemContent": {
+    "id": "checklist-83acd1c2-dff2-46da-a9b0-ac93b93bf71f-0",
+    "action": "buy",
+    "reason": "Recent Price ($100) is above baseline price, trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) indicates no recent profit/loss. No strong indicators are present.",
+    "reasoning": "Recent Price ($100) is above baseline price, trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) indicates no recent profit/loss. No strong indicators are present.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVIDEA",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent Price ($100) is above baseline price, trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) indicates no recent profit/loss. No strong indicators are present."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T19:05:55.048Z] [managerEvaluateChecklist] Evaluation summary for discussion 83acd1c2-dff2-46da-a9b0-ac93b93bf71f
+{
+  "discussionId": "83acd1c2-dff2-46da-a9b0-ac93b93bf71f",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-83acd1c2-dff2-46da-a9b0-ac93b93bf71f-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T19:06:27.097Z] [managerEvaluateChecklist] Starting evaluation for discussion 44ea1a7a-01cd-4708-8a7d-02b65b58508b
+{
+  "discussionId": "44ea1a7a-01cd-4708-8a7d-02b65b58508b",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T19:06:27.110Z] [evaluateChecklistItem] Item checklist-44ea1a7a-01cd-4708-8a7d-02b65b58508b-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-44ea1a7a-01cd-4708-8a7d-02b65b58508b-0",
+  "rawItemContent": {
+    "id": "checklist-44ea1a7a-01cd-4708-8a7d-02b65b58508b-0",
+    "action": "buy",
+    "reason": "Recent price ($100) is above baseline ($100), trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) suggests no recent profit or loss.",
+    "reasoning": "Recent price ($100) is above baseline ($100), trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) suggests no recent profit or loss.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVIDEA",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent price ($100) is above baseline ($100), trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) suggests no recent profit or loss."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T19:06:27.130Z] [managerEvaluateChecklist] Evaluation summary for discussion 44ea1a7a-01cd-4708-8a7d-02b65b58508b
+{
+  "discussionId": "44ea1a7a-01cd-4708-8a7d-02b65b58508b",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-44ea1a7a-01cd-4708-8a7d-02b65b58508b-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T19:30:52.113Z] [managerEvaluateChecklist] Starting evaluation for discussion cd0a8951-c41c-4755-9890-16010c78746b
+{
+  "discussionId": "cd0a8951-c41c-4755-9890-16010c78746b",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T19:30:52.134Z] [evaluateChecklistItem] Item checklist-cd0a8951-c41c-4755-9890-16010c78746b-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-cd0a8951-c41c-4755-9890-16010c78746b-0",
+  "rawItemContent": {
+    "id": "checklist-cd0a8951-c41c-4755-9890-16010c78746b-0",
+    "action": "buy",
+    "reason": "Recent price ($100) is above baseline price ($100), trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) suggests no recent profit or loss. No indicators provided.",
+    "reasoning": "Recent price ($100) is above baseline price ($100), trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) suggests no recent profit or loss. No indicators provided.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVDA",
+      "allocationPercent": 100,
+      "confidence": 50,
+      "reasoning": "Recent price ($100) is above baseline price ($100), trend % (0%) is neutral, and volatility (0.02) is low. Recent PnLPercent (null) suggests no recent profit or loss. No indicators provided."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 50,
+  "computedRiskLevel": 21.1,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 42.19,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 1.2,
+    "riskLevel": 21.1,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 78.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T19:30:52.141Z] [managerEvaluateChecklist] Evaluation summary for discussion cd0a8951-c41c-4755-9890-16010c78746b
+{
+  "discussionId": "cd0a8951-c41c-4755-9890-16010c78746b",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-cd0a8951-c41c-4755-9890-16010c78746b-0",
+      "status": "REJECTED",
+      "score": 42.19,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 1.2,
+        "riskLevel": 21.1,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 42.2/100 below threshold 70 (Confidence: 50.0, Impact: 1.2, Risk: 21.1, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 42.19
+}
+
+[2025-12-12T21:03:37.967Z] [managerEvaluateChecklist] Starting evaluation for discussion 7aba62b8-118a-4fb3-abf6-78890916d9bc
+{
+  "discussionId": "7aba62b8-118a-4fb3-abf6-78890916d9bc",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:03:37.978Z] [evaluateChecklistItem] Item checklist-7aba62b8-118a-4fb3-abf6-78890916d9bc-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-7aba62b8-118a-4fb3-abf6-78890916d9bc-0",
+  "rawItemContent": {
+    "id": "checklist-7aba62b8-118a-4fb3-abf6-78890916d9bc-0",
+    "action": "buy",
+    "reason": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percentage is 0%, indicating a potential uptrend. Volatility is low at 0.02, suggesting stability. Recent PnL percent is null, but this can be calculated as the difference between recent price and baseline price.",
+    "reasoning": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percentage is 0%, indicating a potential uptrend. Volatility is low at 0.02, suggesting stability. Recent PnL percent is null, but this can be calculated as the difference between recent price and baseline price.",
+    "confidence": 80,
+    "workerConfidence": 80,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVDA",
+      "allocationPercent": 100,
+      "confidence": 80,
+      "reasoning": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percentage is 0%, indicating a potential uptrend. Volatility is low at 0.02, suggesting stability. Recent PnL percent is null, but this can be calculated as the difference between recent price and baseline price."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 80,
+  "computedRiskLevel": 15.1,
+  "alignmentWithSectorGoal": 66,
+  "finalDecisionScore": 55.24,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 80,
+    "expectedImpact": 1.2,
+    "riskLevel": 15.1,
+    "alignmentWithSectorGoal": 66,
+    "normalizedRiskScore": 84.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:03:37.981Z] [managerEvaluateChecklist] Evaluation summary for discussion 7aba62b8-118a-4fb3-abf6-78890916d9bc
+{
+  "discussionId": "7aba62b8-118a-4fb3-abf6-78890916d9bc",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-7aba62b8-118a-4fb3-abf6-78890916d9bc-0",
+      "status": "REJECTED",
+      "score": 55.24,
+      "scoreBreakdown": {
+        "workerConfidence": 80,
+        "expectedImpact": 1.2,
+        "riskLevel": 15.1,
+        "alignmentWithSectorGoal": 66
+      },
+      "managerReason": "Rejected: Score 55.2/100 below threshold 70 (Confidence: 80.0, Impact: 1.2, Risk: 15.1, Alignment: 66.0)"
+    }
+  ],
+  "averageScore": 55.24
+}
+
+[2025-12-12T21:04:20.823Z] [managerEvaluateChecklist] Starting evaluation for discussion ea9d08d1-bd2f-483e-8b98-93b53179b098
+{
+  "discussionId": "ea9d08d1-bd2f-483e-8b98-93b53179b098",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:04:20.836Z] [evaluateChecklistItem] Item checklist-ea9d08d1-bd2f-483e-8b98-93b53179b098-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-ea9d08d1-bd2f-483e-8b98-93b53179b098-0",
+  "rawItemContent": {
+    "id": "checklist-ea9d08d1-bd2f-483e-8b98-93b53179b098-0",
+    "action": "buy",
+    "reason": "NVIDIA's recent trend of increasing price and low volatility make it a promising investment opportunity.",
+    "reasoning": "NVIDIA's recent trend of increasing price and low volatility make it a promising investment opportunity.",
+    "confidence": 80,
+    "workerConfidence": 80,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVDA",
+      "allocationPercent": 100,
+      "confidence": 80,
+      "reasoning": "NVIDIA's recent trend of increasing price and low volatility make it a promising investment opportunity."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 80,
+  "computedRiskLevel": 15.1,
+  "alignmentWithSectorGoal": 66,
+  "finalDecisionScore": 55.24,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 80,
+    "expectedImpact": 1.2,
+    "riskLevel": 15.1,
+    "alignmentWithSectorGoal": 66,
+    "normalizedRiskScore": 84.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:04:20.840Z] [managerEvaluateChecklist] Evaluation summary for discussion ea9d08d1-bd2f-483e-8b98-93b53179b098
+{
+  "discussionId": "ea9d08d1-bd2f-483e-8b98-93b53179b098",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-ea9d08d1-bd2f-483e-8b98-93b53179b098-0",
+      "status": "REJECTED",
+      "score": 55.24,
+      "scoreBreakdown": {
+        "workerConfidence": 80,
+        "expectedImpact": 1.2,
+        "riskLevel": 15.1,
+        "alignmentWithSectorGoal": 66
+      },
+      "managerReason": "Rejected: Score 55.2/100 below threshold 70 (Confidence: 80.0, Impact: 1.2, Risk: 15.1, Alignment: 66.0)"
+    }
+  ],
+  "averageScore": 55.24
+}
+
+[2025-12-12T21:05:07.097Z] [managerEvaluateChecklist] Starting evaluation for discussion 0fb61b72-6af0-41f5-bf1d-95738bcfda31
+{
+  "discussionId": "0fb61b72-6af0-41f5-bf1d-95738bcfda31",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:05:07.107Z] [evaluateChecklistItem] Item checklist-0fb61b72-6af0-41f5-bf1d-95738bcfda31-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-0fb61b72-6af0-41f5-bf1d-95738bcfda31-0",
+  "rawItemContent": {
+    "id": "checklist-0fb61b72-6af0-41f5-bf1d-95738bcfda31-0",
+    "action": "buy",
+    "reason": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percentage is 0%, indicating a potential upward movement. Volatility is low at 0.02, suggesting stability in the market.",
+    "reasoning": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percentage is 0%, indicating a potential upward movement. Volatility is low at 0.02, suggesting stability in the market.",
+    "confidence": 80,
+    "workerConfidence": 80,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVIDIA",
+      "allocationPercent": 100,
+      "confidence": 80,
+      "reasoning": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percentage is 0%, indicating a potential upward movement. Volatility is low at 0.02, suggesting stability in the market."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 80,
+  "computedRiskLevel": 15.1,
+  "alignmentWithSectorGoal": 66,
+  "finalDecisionScore": 55.24,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 80,
+    "expectedImpact": 1.2,
+    "riskLevel": 15.1,
+    "alignmentWithSectorGoal": 66,
+    "normalizedRiskScore": 84.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:05:07.110Z] [managerEvaluateChecklist] Evaluation summary for discussion 0fb61b72-6af0-41f5-bf1d-95738bcfda31
+{
+  "discussionId": "0fb61b72-6af0-41f5-bf1d-95738bcfda31",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-0fb61b72-6af0-41f5-bf1d-95738bcfda31-0",
+      "status": "REJECTED",
+      "score": 55.24,
+      "scoreBreakdown": {
+        "workerConfidence": 80,
+        "expectedImpact": 1.2,
+        "riskLevel": 15.1,
+        "alignmentWithSectorGoal": 66
+      },
+      "managerReason": "Rejected: Score 55.2/100 below threshold 70 (Confidence: 80.0, Impact: 1.2, Risk: 15.1, Alignment: 66.0)"
+    }
+  ],
+  "averageScore": 55.24
+}
+
+[2025-12-12T21:05:51.964Z] [managerEvaluateChecklist] Starting evaluation for discussion 20e71434-6f6d-4659-bf69-fc6d19327957
+{
+  "discussionId": "20e71434-6f6d-4659-bf69-fc6d19327957",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:05:51.975Z] [evaluateChecklistItem] Item checklist-20e71434-6f6d-4659-bf69-fc6d19327957-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-20e71434-6f6d-4659-bf69-fc6d19327957-0",
+  "rawItemContent": {
+    "id": "checklist-20e71434-6f6d-4659-bf69-fc6d19327957-0",
+    "action": "buy",
+    "reason": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percent is 0%, indicating a potential uptrend. Volatility is low at 0.02, suggesting stability. Recent P/L is null, but the indicators suggest a bullish signal.",
+    "reasoning": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percent is 0%, indicating a potential uptrend. Volatility is low at 0.02, suggesting stability. Recent P/L is null, but the indicators suggest a bullish signal.",
+    "confidence": 80,
+    "workerConfidence": 80,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVIDIA",
+      "allocationPercent": 100,
+      "confidence": 80,
+      "reasoning": "NVIDIA stock is showing a strong trend with a recent price of $100 and a baseline price of $100. The trend percent is 0%, indicating a potential uptrend. Volatility is low at 0.02, suggesting stability. Recent P/L is null, but the indicators suggest a bullish signal."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 80,
+  "computedRiskLevel": 15.1,
+  "alignmentWithSectorGoal": 66,
+  "finalDecisionScore": 55.24,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 80,
+    "expectedImpact": 1.2,
+    "riskLevel": 15.1,
+    "alignmentWithSectorGoal": 66,
+    "normalizedRiskScore": 84.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:05:51.978Z] [managerEvaluateChecklist] Evaluation summary for discussion 20e71434-6f6d-4659-bf69-fc6d19327957
+{
+  "discussionId": "20e71434-6f6d-4659-bf69-fc6d19327957",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-20e71434-6f6d-4659-bf69-fc6d19327957-0",
+      "status": "REJECTED",
+      "score": 55.24,
+      "scoreBreakdown": {
+        "workerConfidence": 80,
+        "expectedImpact": 1.2,
+        "riskLevel": 15.1,
+        "alignmentWithSectorGoal": 66
+      },
+      "managerReason": "Rejected: Score 55.2/100 below threshold 70 (Confidence: 80.0, Impact: 1.2, Risk: 15.1, Alignment: 66.0)"
+    }
+  ],
+  "averageScore": 55.24
+}
+
+[2025-12-12T21:06:36.775Z] [managerEvaluateChecklist] Starting evaluation for discussion b9ec1728-bd95-4b4a-ac8d-03b9ad381064
+{
+  "discussionId": "b9ec1728-bd95-4b4a-ac8d-03b9ad381064",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:06:36.785Z] [evaluateChecklistItem] Item checklist-b9ec1728-bd95-4b4a-ac8d-03b9ad381064-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-b9ec1728-bd95-4b4a-ac8d-03b9ad381064-0",
+  "rawItemContent": {
+    "id": "checklist-b9ec1728-bd95-4b4a-ac8d-03b9ad381064-0",
+    "action": "hold",
+    "reason": "No clear trend or indication of a strong buy/sell signal in the provided real-time data.",
+    "reasoning": "No clear trend or indication of a strong buy/sell signal in the provided real-time data.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 5,
+    "amount": 5,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "HOLD",
+      "symbol": "NVDA",
+      "allocationPercent": 5,
+      "confidence": 50,
+      "reasoning": "No clear trend or indication of a strong buy/sell signal in the provided real-time data."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.05,
+  "computedConfidence": 50,
+  "computedRiskLevel": 10.815,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 43.902,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 0.05,
+    "riskLevel": 10.815,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 89.185,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:06:36.788Z] [managerEvaluateChecklist] Evaluation summary for discussion b9ec1728-bd95-4b4a-ac8d-03b9ad381064
+{
+  "discussionId": "b9ec1728-bd95-4b4a-ac8d-03b9ad381064",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-b9ec1728-bd95-4b4a-ac8d-03b9ad381064-0",
+      "status": "REJECTED",
+      "score": 43.902,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 0.05,
+        "riskLevel": 10.815,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 43.9/100 below threshold 70 (Confidence: 50.0, Impact: 0.1, Risk: 10.8, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 43.902
+}
+
+[2025-12-12T21:07:20.723Z] [managerEvaluateChecklist] Starting evaluation for discussion f568765b-46ee-4df4-bb14-db7aed6a904d
+{
+  "discussionId": "f568765b-46ee-4df4-bb14-db7aed6a904d",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:07:20.743Z] [evaluateChecklistItem] Item checklist-f568765b-46ee-4df4-bb14-db7aed6a904d-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f568765b-46ee-4df4-bb14-db7aed6a904d-0",
+  "rawItemContent": {
+    "id": "checklist-f568765b-46ee-4df4-bb14-db7aed6a904d-0",
+    "action": "buy",
+    "reason": "Positive trend and low volatility suggest potential for growth.",
+    "reasoning": "Positive trend and low volatility suggest potential for growth.",
+    "confidence": 70,
+    "workerConfidence": 70,
+    "allocationPercent": 100,
+    "amount": 100,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "BUY",
+      "symbol": "NVDA",
+      "allocationPercent": 100,
+      "confidence": 70,
+      "reasoning": "Positive trend and low volatility suggest potential for growth."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 1.2,
+  "computedConfidence": 70,
+  "computedRiskLevel": 17.1,
+  "alignmentWithSectorGoal": 63,
+  "finalDecisionScore": 50.89,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 70,
+    "expectedImpact": 1.2,
+    "riskLevel": 17.1,
+    "alignmentWithSectorGoal": 63,
+    "normalizedRiskScore": 82.9,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:07:20.748Z] [managerEvaluateChecklist] Evaluation summary for discussion f568765b-46ee-4df4-bb14-db7aed6a904d
+{
+  "discussionId": "f568765b-46ee-4df4-bb14-db7aed6a904d",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f568765b-46ee-4df4-bb14-db7aed6a904d-0",
+      "status": "REJECTED",
+      "score": 50.89,
+      "scoreBreakdown": {
+        "workerConfidence": 70,
+        "expectedImpact": 1.2,
+        "riskLevel": 17.1,
+        "alignmentWithSectorGoal": 63
+      },
+      "managerReason": "Rejected: Score 50.9/100 below threshold 70 (Confidence: 70.0, Impact: 1.2, Risk: 17.1, Alignment: 63.0)"
+    }
+  ],
+  "averageScore": 50.89
+}
+
+[2025-12-12T21:08:08.807Z] [managerEvaluateChecklist] Starting evaluation for discussion be0b3aa6-7070-4c17-95ba-e042c8210ca1
+{
+  "discussionId": "be0b3aa6-7070-4c17-95ba-e042c8210ca1",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-12T21:08:08.828Z] [evaluateChecklistItem] Item checklist-be0b3aa6-7070-4c17-95ba-e042c8210ca1-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-be0b3aa6-7070-4c17-95ba-e042c8210ca1-0",
+  "rawItemContent": {
+    "id": "checklist-be0b3aa6-7070-4c17-95ba-e042c8210ca1-0",
+    "action": "hold",
+    "reason": "No significant trend or indicator signals a strong buy or sell, and the recent price is near the baseline.",
+    "reasoning": "No significant trend or indicator signals a strong buy or sell, and the recent price is near the baseline.",
+    "confidence": 50,
+    "workerConfidence": 50,
+    "allocationPercent": 5,
+    "amount": 5,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": {
+      "action": "HOLD",
+      "symbol": "NVDA",
+      "allocationPercent": 5,
+      "confidence": 50,
+      "reasoning": "No significant trend or indicator signals a strong buy or sell, and the recent price is near the baseline."
+    },
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.05,
+  "computedConfidence": 50,
+  "computedRiskLevel": 10.815,
+  "alignmentWithSectorGoal": 57,
+  "finalDecisionScore": 43.902,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 50,
+    "expectedImpact": 0.05,
+    "riskLevel": 10.815,
+    "alignmentWithSectorGoal": 57,
+    "normalizedRiskScore": 89.185,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T21:08:08.830Z] [managerEvaluateChecklist] Evaluation summary for discussion be0b3aa6-7070-4c17-95ba-e042c8210ca1
+{
+  "discussionId": "be0b3aa6-7070-4c17-95ba-e042c8210ca1",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-be0b3aa6-7070-4c17-95ba-e042c8210ca1-0",
+      "status": "REJECTED",
+      "score": 43.902,
+      "scoreBreakdown": {
+        "workerConfidence": 50,
+        "expectedImpact": 0.05,
+        "riskLevel": 10.815,
+        "alignmentWithSectorGoal": 57
+      },
+      "managerReason": "Rejected: Score 43.9/100 below threshold 70 (Confidence: 50.0, Impact: 0.1, Risk: 10.8, Alignment: 57.0)"
+    }
+  ],
+  "averageScore": 43.902
+}
+

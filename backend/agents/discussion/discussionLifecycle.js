@@ -42,11 +42,16 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
 
     // STRICT THRESHOLD CHECK (unless bypassed for manual API calls)
     if (!skipThresholdCheck) {
+      // GUARD: Reload agents from storage to prevent stale confidence values
+      // This ensures we read confidence AFTER it was updated with monotonic rule
+      // Flow order: LLM reasoning → extract confidence → apply monotonic rule → discussion check
       const agents = await loadAgents();
       const allSectorAgents = agents.filter(a => a && a.id && a.sectorId === sectorId);
       
       if (allSectorAgents.length > 0) {
         // Check ALL agents (manager + generals) have confidence > 65
+        // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
+        // or agent.confidence (which was updated with monotonic rule)
         const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
         
         if (!allAboveThreshold) {
@@ -57,26 +62,36 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
       }
     }
 
-    // Check if there's already an open or in-progress discussion for this sector
-    const existingDiscussions = await loadDiscussions();
-    // Find discussions that are in progress (include legacy statuses for backward compatibility)
-    const openDiscussion = existingDiscussions.find(d => 
-      d.sectorId === sectorId && 
-      (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
-    );
-
-    if (openDiscussion) {
-      console.log(`[DiscussionLifecycle] Active discussion already exists for sector ${sectorId}: ${openDiscussion.id} (status: ${openDiscussion.status})`);
-      throw new Error(`Cannot start discussion: There is already an active discussion for this sector`);
+    // Check if there are any non-closed discussions for this sector
+    // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
+    const { hasNonClosedDiscussions } = require('../../utils/discussionStorage');
+    const hasActive = await hasNonClosedDiscussions(sectorId);
+    
+    if (hasActive) {
+      // Find the active discussion for error message
+      const existingDiscussions = await loadDiscussions();
+      const openDiscussion = existingDiscussions.find(d => 
+        d.sectorId === sectorId && 
+        !['DECIDED', 'decided', 'CLOSED', 'closed', 'finalized', 'archived', 'accepted', 'completed'].includes((d.status || '').toUpperCase())
+      );
+      
+      if (openDiscussion) {
+        console.log(`[DiscussionLifecycle] Non-closed discussion already exists for sector ${sectorId}: ${openDiscussion.id} (status: ${openDiscussion.status})`);
+        throw new Error(`Cannot start discussion: There is already a non-closed discussion for this sector`);
+      }
     }
 
     // Check sector balance > 0
     const { getSectorById } = require('../../utils/sectorStorage');
-    const sector = await getSectorById(sectorId);
+    let sector = await getSectorById(sectorId);
     
     if (!sector) {
       throw new Error(`Sector ${sectorId} not found`);
     }
+
+    // Validate and auto-fill market data before starting discussion
+    const { validateMarketDataForDiscussion } = require('../../utils/marketDataValidation');
+    sector = await validateMarketDataForDiscussion(sector);
 
     const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
     if (sectorBalance <= 0) {
@@ -444,13 +459,28 @@ async function produceDecision(discussionId) {
       .filter(s => s.action === finalAction)
       .sort((a, b) => (b.confidence * (1 + b.winRate)) - (a.confidence * (1 + a.winRate)))[0];
 
+    // Get current sector price to track decision outcome later
+    let priceAtDecision = null;
+    try {
+      const { loadSectors } = require('../../core/utils/sectorStorage');
+      const sectors = await loadSectors();
+      const sector = sectors.find(s => s.id === discussionRoom.sectorId);
+      if (sector) {
+        priceAtDecision = sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100;
+      }
+    } catch (error) {
+      console.warn(`[DiscussionLifecycle] Could not load sector price for decision tracking:`, error);
+    }
+
     const decision = {
       action: finalAction,
       confidence: finalConfidence,
       rationale: rationale,
       voteBreakdown: votingResult.votes,
       conflictScore: conflictResult.conflictScore,
-      selectedAgent: selectedAgentSignal?.agentId || null
+      selectedAgent: selectedAgentSignal?.agentId || null,
+      priceAtDecision: priceAtDecision,
+      timestamp: new Date().toISOString()
     };
 
     // Set decision on discussion room
@@ -618,49 +648,63 @@ function autoDiscussionLoop(intervalMs = 10000) {
             continue;
           }
 
-          // Check if there's already an open discussion
-          // Find discussions that are in progress (include legacy statuses for backward compatibility)
-          const openDiscussion = discussions.find(d => 
-            d.sectorId === sector.id && 
-            (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
-          );
+          // Check if there are any non-closed discussions for this sector
+          // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
+          const { hasNonClosedDiscussions } = require('../../utils/discussionStorage');
+          const hasActive = await hasNonClosedDiscussions(sector.id);
+          
+          if (hasActive) {
+            // Find the active discussion for processing
+            const openDiscussion = discussions.find(d => {
+              if (d.sectorId !== sector.id) return false;
+              const status = (d.status || '').toUpperCase();
+              const closedStatuses = ['DECIDED', 'CLOSED', 'FINALIZED', 'ARCHIVED', 'ACCEPTED', 'COMPLETED'];
+              return !closedStatuses.includes(status);
+            });
+            
+            if (openDiscussion) {
+              // Process existing discussion
+              const discussionRoom = DiscussionRoom.fromData(openDiscussion);
 
-          if (openDiscussion) {
-            // Process existing discussion
-            const discussionRoom = DiscussionRoom.fromData(openDiscussion);
-
-            // Normalize legacy statuses to 'in_progress'
-            if (discussionRoom.status === 'open' || discussionRoom.status === 'created' || discussionRoom.status === 'active') {
-              discussionRoom.status = 'in_progress';
-              discussionRoom.updatedAt = new Date().toISOString();
-              await saveDiscussion(discussionRoom);
-            }
-
-            // If discussion has no messages, collect arguments
-            if (discussionRoom.messages.length === 0) {
-              try {
-                await collectArguments(discussionRoom.id);
-              } catch (error) {
-                console.error(`[DiscussionLifecycle] Error collecting arguments for ${discussionRoom.id}:`, error.message);
-                // Continue processing other discussions even if one fails
+              // Normalize legacy statuses - ensure OPEN transitions to IN_PROGRESS when processing
+              const statusUpper = (discussionRoom.status || '').toUpperCase();
+              if (statusUpper === 'OPEN' || statusUpper === 'CREATED' || statusUpper === 'ACTIVE') {
+                // If it's OPEN and hasn't started rounds yet, keep it as OPEN
+                // If it has messages, it should be IN_PROGRESS
+                if (discussionRoom.messages && discussionRoom.messages.length > 0) {
+                  discussionRoom.status = 'IN_PROGRESS';
+                  discussionRoom.updatedAt = new Date().toISOString();
+                  await saveDiscussion(discussionRoom);
+                }
               }
-            }
 
-            // If discussion is in_progress and has messages but no decision, produce decision
-            if (discussionRoom.status === 'in_progress' && 
-                discussionRoom.messages.length > 0 && 
-                !discussionRoom.finalDecision) {
-              try {
-                await produceDecision(discussionRoom.id);
-              } catch (error) {
-                console.error(`[DiscussionLifecycle] Error producing decision for ${discussionRoom.id}:`, error.message);
-                // Continue processing other discussions even if one fails
+              // If discussion has no messages, collect arguments
+              if (discussionRoom.messages.length === 0) {
+                try {
+                  await collectArguments(discussionRoom.id);
+                } catch (error) {
+                  console.error(`[DiscussionLifecycle] Error collecting arguments for ${discussionRoom.id}:`, error.message);
+                  // Continue processing other discussions even if one fails
+                }
               }
-            }
 
-            // NOTE: Discussion closure is now controlled ONLY by the manager agent
-            // via ManagerEngine.closeDiscussion(). Automatic closure has been removed.
-            // The manager will evaluate checklist state and close when all items are resolved.
+              // If discussion is in_progress and has messages but no decision, produce decision
+              const statusUpper2 = (discussionRoom.status || '').toUpperCase();
+              if ((statusUpper2 === 'IN_PROGRESS' || statusUpper2 === 'OPEN') && 
+                  discussionRoom.messages.length > 0 && 
+                  !discussionRoom.finalDecision) {
+                try {
+                  await produceDecision(discussionRoom.id);
+                } catch (error) {
+                  console.error(`[DiscussionLifecycle] Error producing decision for ${discussionRoom.id}:`, error.message);
+                  // Continue processing other discussions even if one fails
+                }
+              }
+
+              // NOTE: Discussion closure is now controlled ONLY by the manager agent
+              // via ManagerEngine.closeDiscussion(). Automatic closure has been removed.
+              // The manager will evaluate checklist state and close when all items are resolved.
+            }
           } else {
             if (!isSimulationMode) {
               continue;
@@ -674,6 +718,9 @@ function autoDiscussionLoop(intervalMs = 10000) {
             // 5. No active/in-progress discussions
             
             // Get ALL agents for the sector (manager + generals)
+            // NOTE: Agents are loaded at the start of the loop (line 632)
+            // For the main tick flow, SystemOrchestrator ensures agents are reloaded
+            // after confidence updates to prevent stale values
             const allSectorAgents = agents.filter(a => a.sectorId === sector.id);
             
             if (allSectorAgents.length === 0) {
@@ -681,6 +728,8 @@ function autoDiscussionLoop(intervalMs = 10000) {
             }
             
             // Check ALL agents (manager + generals) have confidence > 65
+            // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
+            // or agent.confidence (which should be updated with monotonic rule)
             const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
             
             if (!allAboveThreshold) {
@@ -688,15 +737,13 @@ function autoDiscussionLoop(intervalMs = 10000) {
               continue;
             }
             
-            // Check for active/in-progress discussions
-            // Find discussions that are in progress (include legacy statuses for backward compatibility)
-            const activeDiscussion = discussions.find(d => 
-              d.sectorId === sector.id && 
-              (d.status === 'in_progress' || d.status === 'active' || d.status === 'open' || d.status === 'created')
-            );
+            // Check for non-closed discussions
+            // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
+            const { hasNonClosedDiscussions } = require('../../utils/discussionStorage');
+            const hasActive = await hasNonClosedDiscussions(sector.id);
             
-            if (activeDiscussion) {
-              // Skip - active discussion exists
+            if (hasActive) {
+              // Skip - non-closed discussion exists
               continue;
             }
             

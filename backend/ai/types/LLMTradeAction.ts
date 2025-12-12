@@ -12,6 +12,8 @@ export type LLMTradeAction = {
   stopLoss?: number | null;
   takeProfit?: number | null;
   reasoning: string;
-  confidence?: number;
+  confidence: number; // REQUIRED: Must be provided by LLM (0-100)
+  allocationPercent?: number; // Optional: Percentage of capital to allocate (0-100)
+  riskNotes?: string; // Optional: Risk assessment notes
 };
 

@@ -1,6 +1,82 @@
 const { v4: uuidv4 } = require('uuid');
 const SectorState = require('./SectorState');
 
+/**
+ * Infer stock symbols from sector name
+ * @param {string} sectorName - The name of the sector
+ * @returns {string[]} Array of stock symbols
+ */
+function inferSymbolsFromSectorName(sectorName) {
+  const name = (sectorName || '').toUpperCase().trim();
+  
+  // Map common sector names to representative stock symbols
+  const sectorSymbolMap = {
+    'TECH': ['NVDA', 'AAPL', 'MSFT'],
+    'TECHNOLOGY': ['NVDA', 'AAPL', 'MSFT'],
+    'FINANCE': ['JPM', 'BAC', 'GS'],
+    'FINANCIAL': ['JPM', 'BAC', 'GS'],
+    'HEALTHCARE': ['JNJ', 'UNH', 'PFE'],
+    'HEALTH': ['JNJ', 'UNH', 'PFE'],
+    'ENERGY': ['XOM', 'CVX', 'COP'],
+    'CONSUMER': ['AMZN', 'WMT', 'HD'],
+    'CONSUMER DISCRETIONARY': ['AMZN', 'WMT', 'HD'],
+    'INDUSTRIAL': ['BA', 'CAT', 'GE'],
+    'REAL ESTATE': ['AMT', 'PLD', 'EQIX'],
+    'REIT': ['AMT', 'PLD', 'EQIX'],
+    'UTILITIES': ['NEE', 'DUK', 'SO'],
+    'MATERIALS': ['LIN', 'APD', 'ECL'],
+    'COMMUNICATION': ['GOOGL', 'META', 'NFLX'],
+    'TELECOM': ['GOOGL', 'META', 'NFLX']
+  };
+  
+  // Check for exact match
+  if (sectorSymbolMap[name]) {
+    return sectorSymbolMap[name];
+  }
+  
+  // Check for partial matches
+  for (const [key, symbols] of Object.entries(sectorSymbolMap)) {
+    if (name.includes(key) || key.includes(name)) {
+      return symbols;
+    }
+  }
+  
+  // Default fallback symbols
+  return ['SPY', 'QQQ', 'DIA'];
+}
+
+/**
+ * Initialize marketContext with simulated defaults
+ * @param {string[]} symbols - Array of stock symbols
+ * @returns {Object} Initialized marketContext object
+ */
+function initializeMarketContext(symbols = []) {
+  const defaultSymbols = symbols.length > 0 ? symbols : ['SPY', 'QQQ', 'DIA'];
+  const baselinePrices = {};
+  const volatility = {};
+  const trendPercent = {};
+  
+  // Generate simulated defaults for each symbol
+  defaultSymbols.forEach(symbol => {
+    // Baseline prices between $50 and $500
+    baselinePrices[symbol] = Math.round((Math.random() * 450 + 50) * 100) / 100;
+    
+    // Volatility between 0.01 (1%) and 0.05 (5%)
+    volatility[symbol] = Math.round((Math.random() * 0.04 + 0.01) * 1000) / 1000;
+    
+    // Trend percent between -5% and +5%
+    trendPercent[symbol] = Math.round((Math.random() * 10 - 5) * 100) / 100;
+  });
+  
+  return {
+    symbols: defaultSymbols,
+    baselinePrices,
+    volatility,
+    trendPercent,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
 class Sector {
   constructor(data = {}) {
     this.id = data.id || uuidv4();
@@ -43,6 +119,28 @@ class Sector {
       const discussionState = new SectorState(data.discussion);
       this.discussion = discussionState.status === 'inactive' ? null : discussionState;
     }
+    
+    // Initialize marketContext
+    if (data.marketContext && typeof data.marketContext === 'object') {
+      // Use provided marketContext if it exists
+      this.marketContext = {
+        symbols: Array.isArray(data.marketContext.symbols) ? data.marketContext.symbols : [],
+        baselinePrices: data.marketContext.baselinePrices && typeof data.marketContext.baselinePrices === 'object' 
+          ? data.marketContext.baselinePrices 
+          : {},
+        volatility: data.marketContext.volatility && typeof data.marketContext.volatility === 'object'
+          ? data.marketContext.volatility
+          : {},
+        trendPercent: data.marketContext.trendPercent && typeof data.marketContext.trendPercent === 'object'
+          ? data.marketContext.trendPercent
+          : {},
+        lastUpdated: data.marketContext.lastUpdated || new Date().toISOString()
+      };
+    } else {
+      // Initialize with inferred symbols from sector name
+      const inferredSymbols = data.symbols || inferSymbolsFromSectorName(this.name);
+      this.marketContext = initializeMarketContext(inferredSymbols);
+    }
   }
 
   static fromData(data = {}) {
@@ -74,7 +172,10 @@ class Sector {
       description: data.description,
       createdAt: data.createdAt,
       // Handle discussion field - normalize old sectors without discussion
-      discussion: data.discussion !== undefined ? data.discussion : null
+      discussion: data.discussion !== undefined ? data.discussion : null,
+      // Handle marketContext - will be initialized if not present
+      marketContext: data.marketContext,
+      symbols: data.symbols // Allow symbols to be passed for inference
     });
   }
 
@@ -104,7 +205,9 @@ class Sector {
       description: this.description,
       createdAt: this.createdAt,
       // Discussion tracking state (null if inactive or not set)
-      discussion: this.discussion === null ? null : (this.discussion instanceof SectorState ? this.discussion.toJSON() : this.discussion)
+      discussion: this.discussion === null ? null : (this.discussion instanceof SectorState ? this.discussion.toJSON() : this.discussion),
+      // Market context
+      marketContext: this.marketContext || initializeMarketContext(inferSymbolsFromSectorName(this.name))
     };
   }
 }

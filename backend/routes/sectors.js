@@ -13,7 +13,7 @@ const ExecutionEngine = require('../core/ExecutionEngine');
 const MAX_SECTORS = 6;
 
 // Optimize sector response for list view - only return minimal fields needed by UI
-function optimizeSectorForList(sector) {
+async function optimizeSectorForList(sector) {
   // Calculate active agents count from agents array
   const agents = Array.isArray(sector.agents) ? sector.agents : [];
   const activeAgents = agents.filter(agent => agent && agent.status === 'active').length;
@@ -21,6 +21,17 @@ function optimizeSectorForList(sector) {
   // Calculate performance using ExecutionEngine
   const executionEngine = new ExecutionEngine();
   const performance = executionEngine.updateSectorPerformance(sector);
+  
+  // Count discussions for this sector from discussions.json
+  let discussionCount = 0;
+  try {
+    const allDiscussions = await loadDiscussions();
+    discussionCount = allDiscussions.filter(d => d.sectorId === sector.id).length;
+  } catch (error) {
+    console.warn(`[optimizeSectorForList] Failed to load discussions for sector ${sector.id}:`, error.message);
+    // Fallback to sector.discussions if available
+    discussionCount = Array.isArray(sector.discussions) ? sector.discussions.length : 0;
+  }
   
   // Return only essential fields for list view with consistent field names
   return {
@@ -48,9 +59,8 @@ function optimizeSectorForList(sector) {
       role: agent.role || 'agent',
       status: agent.status || 'idle'
     })),
-    // Return empty array for discussions in list view (detail endpoint has full data)
-    // Frontend will show 0, detail page will show actual discussions
-    discussions: [],
+    // Return discussion count and empty array (frontend uses length for count)
+    discussions: new Array(discussionCount).fill(null).map((_, i) => ({ id: `placeholder-${i}` })),
     createdAt: sector.createdAt || new Date().toISOString()
   };
 }
@@ -69,7 +79,8 @@ module.exports = async (fastify) => {
       // Normalize all sectors to ensure sectorSymbol is included
       const normalizedSectors = sortedSectors.map(sector => normalizeSectorRecord(sector));
       // Optimize response to only include minimal fields needed by UI
-      const optimizedSectors = normalizedSectors.map(sector => optimizeSectorForList(sector));
+      // Note: optimizeSectorForList is now async, so we need to await all promises
+      const optimizedSectors = await Promise.all(normalizedSectors.map(sector => optimizeSectorForList(sector)));
       return reply.status(200).send(optimizedSectors);
     } catch (error) {
       return reply.status(500).send({
@@ -192,13 +203,12 @@ module.exports = async (fastify) => {
         });
       }
 
-      // Calculate new balance and price (withdraw from both)
+      // Calculate new balance (withdrawals only affect balance, not price)
+      // Price is only updated by executed actions, not by deposits/withdrawals
       const newBalance = Math.max(0, currentBalance - withdrawAmount);
-      const newPrice = Math.max(0, currentPrice - withdrawAmount);
 
-      // Update sector with new balance and price
+      // Update sector with new balance only (price remains unchanged)
       const updatedSector = await updateSector(id, { 
-        currentPrice: newPrice,
         balance: newBalance 
       });
       if (!updatedSector) {
@@ -216,7 +226,6 @@ module.exports = async (fastify) => {
         console.error(`Error adding funds to user account: ${balanceError.message}`);
         // Rollback sector update if user account update fails
         await updateSector(id, { 
-          currentPrice: currentPrice,
           balance: currentBalance 
         });
         return reply.status(500).send({
@@ -381,7 +390,7 @@ module.exports = async (fastify) => {
         });
       }
 
-      const { name, sectorName, symbol, sectorSymbol, description, agents, performance } = request.body || {};
+      const { name, sectorName, symbol, sectorSymbol, description, agents, performance, symbols: providedSymbols, marketContext } = request.body || {};
 
       // Extract sectorName and sectorSymbol from either field name
       const finalSectorName = (sectorName || name || '').trim();
@@ -389,6 +398,7 @@ module.exports = async (fastify) => {
 
       // Create sector using the model (model handles both name/symbol and sectorName/sectorSymbol)
       // Explicitly set balance and currentPrice to 0 for new sectors (should never default to 100)
+      // marketContext will be automatically initialized if not provided
       const sector = new Sector({
         name: finalSectorName,
         symbol: finalSectorSymbol,
@@ -398,7 +408,9 @@ module.exports = async (fastify) => {
         agents: agents || [],
         performance: performance || {},
         balance: 0, // New sectors always start with 0 balance
-        currentPrice: 0 // New sectors start with 0 price (price is separate from balance)
+        currentPrice: 0, // New sectors start with 0 price (price is separate from balance)
+        symbols: providedSymbols, // If provided, will be used instead of inferring from name
+        marketContext: marketContext // If provided, will be used; otherwise auto-initialized
       });
 
       // Get normalized sector data (already includes both name/symbol and sectorName/sectorSymbol)

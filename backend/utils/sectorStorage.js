@@ -1,5 +1,6 @@
 const { readDataFile, writeDataFile, atomicUpdate } = require('./persistence');
 const { v4: uuidv4 } = require('uuid');
+const Sector = require('../models/Sector');
 
 const SECTORS_FILE = 'sectors.json';
 
@@ -81,27 +82,31 @@ async function createSector(data) {
     const sectorName = data.name || data.sectorName || '';
     const sectorSymbol = (data.sectorSymbol || data.symbol || '').trim();
     
-    const newSector = {
+    // Create a Sector instance to ensure marketContext is initialized
+    const sectorInstance = new Sector({
       id: sectorId,
-      // Primary standardized fields
       name: sectorName,
       symbol: sectorSymbol,
-      // Backward compatibility fields
       sectorName: sectorName,
       sectorSymbol: sectorSymbol,
       description: data.description || '',
       agents: data.agents || [],
       performance: data.performance || {},
-      balance: typeof data.balance === 'number' ? data.balance : 0, // Default balance to 0 for new sectors
-      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 0, // Default currentPrice to 0 for new sectors
+      balance: typeof data.balance === 'number' ? data.balance : 0,
+      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 0,
       change: typeof data.change === 'number' ? data.change : 0,
       changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
       volatility: typeof data.volatility === 'number' ? data.volatility : 0.02,
       riskScore: typeof data.riskScore === 'number' ? data.riskScore : 50,
       createdAt: data.createdAt || new Date().toISOString(),
-      // Discussion tracking state (null for new sectors)
-      discussion: data.discussion !== undefined ? data.discussion : null
-    };
+      discussion: data.discussion !== undefined ? data.discussion : null,
+      // Pass symbols if provided, otherwise will be inferred from sector name
+      symbols: data.symbols || data.marketContext?.symbols,
+      marketContext: data.marketContext
+    });
+    
+    // Convert to plain object for storage
+    const newSector = sectorInstance.toJSON();
     
     console.log(`[createSector] Adding sector to array. Current length: ${currentSectors.length}, New sector ID: ${newSector.id}`);
     currentSectors.push(newSector);

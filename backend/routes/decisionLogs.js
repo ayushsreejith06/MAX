@@ -2,7 +2,7 @@ const { loadDiscussions } = require('../utils/discussionStorage');
 const { getAllSectors, getSectorById } = require('../utils/sectorStorage');
 const { loadAgents } = require('../utils/agentStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
-const { readDataFile } = require('../utils/persistence');
+const { readDataFile, writeDataFile } = require('../utils/persistence');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -538,6 +538,29 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error fetching executed decision logs: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // DELETE /api/decision-logs/clear
+  // Clear all decision log entries from executionLogs.json
+  fastify.delete('/clear', async (request, reply) => {
+    try {
+      log('DELETE /api/decision-logs/clear - Clearing all decision logs');
+
+      // Clear execution logs file
+      await writeDataFile(EXECUTION_LOGS_FILE, []);
+
+      log('Cleared all decision logs');
+
+      return reply.status(200).send({
+        success: true
+      });
+    } catch (error) {
+      log(`Error clearing decision logs: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

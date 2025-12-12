@@ -64,7 +64,7 @@ const MessageItem = memo(function MessageItem({ message }: { message: Message })
         </span>
       </div>
       <div className="ml-4 pl-3 border-l-2 border-sage-green/30 text-floral-white">
-        {message.content}
+        {message.proposal?.reasoning || message.content}
       </div>
     </div>
   );
@@ -86,37 +86,94 @@ const RoundHeader = memo(function RoundHeader({ round }: { round: number }) {
 
 // Memoized checklist item component
 const ChecklistItemComponent = memo(function ChecklistItemComponent({ 
-  item, 
-  isDraft 
+  item 
 }: { 
   item: ChecklistItem; 
-  isDraft: boolean;
 }) {
   const theme = item.agentName ? getAgentTheme(item.agentName) : null;
+  const rationale = item.rationale || item.reasoning || item.reason || item.text || 'No rationale';
+  const isAccepted = item.approvalStatus === 'accepted';
   
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border border-ink-500 bg-ink-600/40">
-      {isDraft ? (
-        <Circle className="w-4 h-4 text-warning-amber mt-0.5 flex-shrink-0" />
-      ) : (
+      {isAccepted ? (
         <CheckCircle2 className="w-4 h-4 text-sage-green mt-0.5 flex-shrink-0" />
+      ) : (
+        <Circle className="w-4 h-4 text-warning-amber mt-0.5 flex-shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-floral-white text-sm">{item.text}</p>
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {/* Action Badge - REQUIRED */}
+          {item.action && (
+            <span
+              className={`px-2 py-1 rounded text-xs font-semibold uppercase ${
+                item.action === 'buy'
+                  ? 'bg-sage-green/20 text-sage-green border border-sage-green/40'
+                  : item.action === 'sell'
+                  ? 'bg-error-red/20 text-error-red border border-error-red/40'
+                  : item.action === 'hold'
+                  ? 'bg-warning-amber/20 text-warning-amber border border-warning-amber/40'
+                  : 'bg-shadow-grey/50 text-floral-white border border-floral-white/20'
+              }`}
+            >
+              {item.action.toUpperCase()}
+            </span>
+          )}
+          
+          {/* Amount - REQUIRED */}
+          {item.amount !== undefined && item.amount !== null && (
+            <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+              ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          )}
+          
+          {/* Confidence - REQUIRED */}
+          {item.confidence !== undefined && item.confidence !== null && (
+            <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+              {item.confidence.toFixed(1)}% confidence
+            </span>
+          )}
+          
+          {/* Manager Approval Status - REQUIRED */}
+          {item.approvalStatus && (
+            <span
+              className={`px-2 py-1 rounded text-xs font-semibold ${
+                item.approvalStatus === 'accepted'
+                  ? 'bg-sage-green/15 text-sage-green border border-sage-green/40'
+                  : item.approvalStatus === 'rejected'
+                  ? 'bg-error-red/15 text-error-red border border-error-red/40'
+                  : 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40'
+              }`}
+            >
+              {item.approvalStatus}
+            </span>
+          )}
+        </div>
+        
+        <p className="text-floral-white text-sm font-mono mb-2">{rationale}</p>
+        
         {(item.agentName || item.round) && (
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-floral-white/70 font-mono">
             {item.agentName && theme && (
               <span
-                className={`text-xs px-2 py-0.5 rounded border ${theme.text} ${theme.border} ${theme.bg}`}
+                className={`px-2 py-0.5 rounded border ${theme.text} ${theme.border} ${theme.bg}`}
               >
                 {item.agentName}
               </span>
             )}
             {item.round && (
-              <span className="text-xs text-floral-white/50 font-mono">
+              <span>
                 Round {item.round}
               </span>
             )}
+          </div>
+        )}
+        
+        {item.approvalReason && (
+          <div className="mt-2 pt-2 border-t border-ink-500">
+            <p className="text-xs text-floral-white/60 font-mono">
+              <span className="text-floral-white/50">Manager:</span> {item.approvalReason}
+            </p>
           </div>
         )}
       </div>
@@ -149,13 +206,13 @@ export default function DiscussionViewer({
     const agentCount = Math.max(discussion.agentIds?.length || 1, 1);
     const groups: MessageGroup[] = [];
     
-    // Create a map from checklistDraft to help identify rounds
-    const draftRoundMap = new Map<string, number>();
-    if (discussion.checklistDraft) {
-      discussion.checklistDraft.forEach((item) => {
+    // Create a map from checklistItems to help identify rounds
+    const checklistRoundMap = new Map<string, number>();
+    if (discussion.checklistItems) {
+      discussion.checklistItems.forEach((item) => {
         if (item.agentId && item.round) {
           // Store the round for this agent's message
-          draftRoundMap.set(item.agentId, item.round);
+          checklistRoundMap.set(item.agentId, item.round);
         }
       });
     }
@@ -167,10 +224,10 @@ export default function DiscussionViewer({
         // Determine round number: use checklistDraft info if available, otherwise infer from position
         let roundNumber = Math.floor(i / agentCount) + 1;
         
-        // Try to get round from checklistDraft for messages in this group
+        // Try to get round from checklistItems for messages in this group
         for (const msg of roundMessages) {
-          if (msg.agentId && draftRoundMap.has(msg.agentId)) {
-            roundNumber = draftRoundMap.get(msg.agentId)!;
+          if (msg.agentId && checklistRoundMap.has(msg.agentId)) {
+            roundNumber = checklistRoundMap.get(msg.agentId)!;
             break;
           }
         }
@@ -183,7 +240,7 @@ export default function DiscussionViewer({
     }
 
     return groups;
-  }, [discussion?.messages, discussion?.agentIds, discussion?.checklistDraft]);
+  }, [discussion?.messages, discussion?.agentIds, discussion?.checklistItems]);
 
   // Load discussion function
   const loadDiscussion = useCallback(async () => {
@@ -246,8 +303,9 @@ export default function DiscussionViewer({
                       discussion?.status === 'closed' || 
                       discussion?.status === 'archived';
   
-  const showChecklistDraft = isActive && discussion?.checklistDraft && discussion.checklistDraft.length > 0;
-  const showFinalizedChecklist = isCompleted && discussion?.checklist && discussion.checklist.length > 0;
+  // Read from checklistItems[] - single source of truth
+  const checklistItems = discussion?.checklistItems || [];
+  const showChecklist = checklistItems.length > 0;
 
   if (loading) {
     return (
@@ -358,39 +416,20 @@ export default function DiscussionViewer({
         </div>
       )}
 
-      {/* Checklist Draft (Active Discussions) */}
-      {showChecklistDraft && (
-        <div className="bg-ink-600/60 rounded-lg border border-ink-500 overflow-hidden">
-          <div className="bg-ink-600/80 px-4 py-3 border-b border-ink-500">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-warning-amber" />
-              <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
-                Checklist Draft ({discussion.checklistDraft?.length || 0})
-              </span>
-            </div>
-          </div>
-          <div className="p-4 space-y-2">
-            {discussion.checklistDraft?.map((item) => (
-              <ChecklistItemComponent key={item.id} item={item} isDraft={true} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Finalized Checklist (Completed Discussions) */}
-      {showFinalizedChecklist && (
+      {/* Checklist Items - unified display from checklistItems[] */}
+      {showChecklist && (
         <div className="bg-ink-600/60 rounded-lg border border-ink-500 overflow-hidden">
           <div className="bg-ink-600/80 px-4 py-3 border-b border-ink-500">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-sage-green" />
               <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
-                Finalized Checklist ({discussion.checklist?.length || 0})
+                Checklist Items ({checklistItems.length})
               </span>
             </div>
           </div>
           <div className="p-4 space-y-2">
-            {discussion.checklist?.map((item) => (
-              <ChecklistItemComponent key={item.id} item={item} isDraft={false} />
+            {checklistItems.map((item) => (
+              <ChecklistItemComponent key={item.id} item={item} />
             ))}
           </div>
         </div>

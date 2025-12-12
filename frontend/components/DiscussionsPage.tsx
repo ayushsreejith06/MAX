@@ -7,6 +7,7 @@ import { fetchDiscussions, fetchSectors, isRateLimitError, clearAllDiscussions, 
 import { useToast, ToastContainer } from '@/components/Toast';
 import RejectedItemsModal from '@/components/discussions/RejectedItemsModal';
 import { usePolling } from '@/hooks/usePolling';
+import { getStatusColor, getStatusLabel } from '@/lib/statusColors';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -275,21 +276,11 @@ export default function DiscussionsPage() {
   ];
 
   const getStatusMeta = (status: Discussion['status']) => {
-    // Normalize legacy statuses to 'decided' for display
-    const normalizedStatus = (status === 'finalized' || status === 'accepted' || status === 'completed') ? 'decided' : status;
+    // Use centralized status color utility - DECIDED is green, IN PROGRESS is orange
+    const label = getStatusLabel(status);
+    const className = getStatusColor(status);
     
-    switch (normalizedStatus) {
-      case 'in_progress':
-        return { label: 'In Progress', className: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40' };
-      case 'decided':
-        return { label: 'Decided', className: 'bg-sage-green/15 text-sage-green border border-sage-green/40' };
-      case 'closed':
-        return { label: 'Closed', className: 'bg-shadow-grey text-floral-white border border-floral-white/20' };
-      case 'archived':
-        return { label: 'Archived', className: 'bg-shadow-grey/50 text-floral-white/70 border border-floral-white/10' };
-      default:
-        return { label: status, className: 'bg-shadow-grey text-floral-white' };
-    }
+    return { label, className };
   };
 
   if (loading) {
