@@ -65,7 +65,7 @@
     "messagesCount": 6,
     "status": "decided",
     "createdAt": "2025-12-12T09:59:58.922Z",
-    "updatedAt": "2025-12-12T10:06:27.970Z",
+    "updatedAt": "2025-12-12T10:06:33.994Z",
     "round": 5,
     "currentRound": 1,
     "checklistDraft": [
@@ -406,7 +406,7 @@
     "messagesCount": 6,
     "status": "in_progress",
     "createdAt": "2025-12-12T10:00:06.767Z",
-    "updatedAt": "2025-12-12T10:06:28.035Z",
+    "updatedAt": "2025-12-12T10:06:34.024Z",
     "round": 5,
     "currentRound": 1,
     "checklistDraft": [
