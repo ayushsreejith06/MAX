@@ -2,10 +2,8 @@ const { getSectorById } = require('./sectorsController');
 const { updateSector } = require('../utils/sectorStorage');
 const { loadAgents, updateAgent } = require('../utils/agentStorage');
 const { applyVolatility, calculatePrice, computeRiskScore } = require('../simulation/performance');
-const ConfidenceEngine = require('../core/ConfidenceEngine');
 const { getSimulationEngine } = require('../simulation/SimulationEngine');
-
-const confidenceEngine = new ConfidenceEngine();
+const { extractConfidence } = require('../utils/confidenceUtils');
 
 function log(message) {
   const timestamp = new Date().toISOString();
@@ -79,10 +77,10 @@ async function executeSimulationTick(sectorId) {
     // Always update risk score (it's calculated from volatility and other factors, not price changes)
     sector.riskScore = riskScore;
 
-    // 6. Recalculate confidence for every agent
+    // 6. Normalize confidence for every agent (no random generation)
     const updatedAgents = [];
     for (const agent of sectorAgents) {
-      const newConfidence = confidenceEngine.updateAgentConfidence(agent, sector);
+      const newConfidence = extractConfidence(agent);
       agent.confidence = newConfidence;
       updatedAgents.push(agent);
     }

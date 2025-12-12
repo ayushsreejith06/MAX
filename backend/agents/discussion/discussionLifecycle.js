@@ -17,7 +17,7 @@ const { vote } = require('../../manager/voting');
 const { aggregateConfidenceForAction } = require('../../manager/confidence');
 const { detectConflict, resolveConflict } = require('../../manager/conflict');
 const ManagerAgent = require('../manager/ManagerAgent');
-const { updateAgentsConfidenceAfterConsensus } = require('../../simulation/confidence');
+const { extractConfidence } = require('../../utils/confidenceUtils');
 const DiscussionEngine = require('../../core/DiscussionEngine');
 
 /**
@@ -46,13 +46,10 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
       
       if (allSectorAgents.length > 0) {
         // Check ALL agents (manager + generals) have confidence > 65
-        const allAboveThreshold = allSectorAgents.every(agent => {
-          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-          return confidence > 65;
-        });
+        const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
         
         if (!allAboveThreshold) {
-          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`).join(', ');
+          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
           console.log(`[DiscussionLifecycle] Cannot start discussion - Not all agents meet threshold (> 65). Agents: ${agentDetails}`);
           throw new Error(`Cannot start discussion: Not all agents have confidence > 65. Current confidences: ${agentDetails}`);
         }
@@ -459,26 +456,8 @@ async function produceDecision(discussionId) {
     discussionRoom.setDecision(decision);
     await saveDiscussion(discussionRoom);
 
-    // Update agent confidence after consensus is reached
-    let updatedAgents = [];
-    try {
-      // Get sector data for price change context
-      const sectors = await loadSectors();
-      const sector = sectors.find(s => s.id === discussionRoom.sectorId);
-      const priceChangePercent = sector?.changePercent || 0;
-
-      updatedAgents = await updateAgentsConfidenceAfterConsensus(
-        discussionRoom.agentIds,
-        {
-          consensusReached: !conflictResult.needsReview || conflictResult.conflictScore < 0.7,
-          finalAction: finalAction,
-          finalConfidence: finalConfidence,
-          priceChangePercent: priceChangePercent
-        }
-      );
-    } catch (error) {
-      console.error(`[DiscussionLifecycle] Error updating agent confidence after consensus:`, error);
-    }
+    // Update agent confidence after consensus is reached (no automatic adjustments; rely on LLM inputs)
+    const updatedAgents = [];
 
     console.log(`[DiscussionLifecycle] Decision produced for discussion ${discussionId}: ${finalAction} (confidence: ${finalConfidence.toFixed(2)})`);
 
@@ -697,10 +676,7 @@ function autoDiscussionLoop(intervalMs = 10000) {
             }
             
             // Check ALL agents (manager + generals) have confidence > 65
-            const allAboveThreshold = allSectorAgents.every(agent => {
-              const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-              return confidence > 65;
-            });
+            const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
             
             if (!allAboveThreshold) {
               // Skip - not all agents meet threshold

@@ -3,6 +3,7 @@ const { saveDiscussion, findDiscussionById } = require('../utils/discussionStora
 const { updateSector, getSectorById } = require('../utils/sectorStorage');
 const { loadAgents, updateAgent } = require('../utils/agentStorage');
 const { generateWorkerProposal } = require('../ai/workerBrain');
+const { extractConfidence } = require('../utils/confidenceUtils');
 
 /**
  * DiscussionEngine - Manages discussion lifecycle and rounds
@@ -429,7 +430,16 @@ class DiscussionEngine {
         volatility: typeof sector?.volatility === 'number' ? sector.volatility : (sector?.riskScore || 0) / 100,
         trendDescriptor: typeof sector?.changePercent === 'number'
           ? `${sector.changePercent}% change`
-          : 'flat'
+          : 'flat',
+        trendPercent: typeof sector?.changePercent === 'number' ? sector.changePercent : undefined,
+        balance: typeof sector?.balance === 'number' ? sector.balance : undefined,
+        allowedSymbols: [
+          sector?.symbol,
+          sector?.sectorSymbol,
+          sector?.ticker,
+          sector?.name,
+          sector?.sectorName,
+        ].filter((sym) => typeof sym === 'string' && sym.trim() !== ''),
       };
 
       for (const agent of discussionAgents) {
@@ -819,7 +829,16 @@ class DiscussionEngine {
         volatility: typeof sector?.volatility === 'number' ? sector.volatility : (sector?.riskScore || 0) / 100,
         trendDescriptor: typeof sector?.changePercent === 'number'
           ? `${sector.changePercent}% change`
-          : 'flat'
+          : 'flat',
+        trendPercent: typeof sector?.changePercent === 'number' ? sector.changePercent : undefined,
+        balance: typeof sector?.balance === 'number' ? sector.balance : undefined,
+        allowedSymbols: [
+          sector?.symbol,
+          sector?.sectorSymbol,
+          sector?.ticker,
+          sector?.name,
+          sector?.sectorName,
+        ].filter((sym) => typeof sym === 'string' && sym.trim() !== ''),
       };
 
       for (const agent of agents) {
@@ -960,13 +979,10 @@ class DiscussionEngine {
     const allSectorAgents = allAgents.filter(a => a && a.id && a.sectorId === sectorId);
     
     if (allSectorAgents.length > 0) {
-      const allAboveThreshold = allSectorAgents.every(agent => {
-        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return confidence > 65;
-      });
+      const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
       
       if (!allAboveThreshold) {
-        const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`).join(', ');
+        const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
         throw new Error(`Cannot start discussion: Not all agents have confidence > 65. Current confidences: ${agentDetails}`);
       }
     }

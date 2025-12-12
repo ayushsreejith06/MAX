@@ -1,14 +1,13 @@
-const ConfidenceEngine = require('./ConfidenceEngine');
 const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage');
 const { updateSector } = require('../utils/sectorStorage');
 const { loadDiscussions } = require('../utils/discussionStorage');
+const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils');
 
 /**
  * SectorEngine - Handles sector-level operations including confidence updates
  */
 class SectorEngine {
   constructor() {
-    this.confidenceEngine = new ConfidenceEngine();
     // Track cooldown periods per sector (sectorId -> lastDiscussionEndTick)
     this.discussionCooldowns = new Map();
     // Cooldown duration in ticks (default: 2 ticks)
@@ -61,30 +60,29 @@ class SectorEngine {
         }
       }
 
-      // Update confidence for non-manager agents using ConfidenceEngine
       const confidenceList = [];
+
       for (const agent of nonManagerAgents) {
-        const newConfidence = this.confidenceEngine.updateAgentConfidence(agent, sector);
-        agent.confidence = newConfidence;
-        confidenceMap.set(agent.id, newConfidence);
+        const normalizedConfidence = extractConfidence(agent);
+        agent.confidence = normalizedConfidence;
+        confidenceMap.set(agent.id, normalizedConfidence);
         const agentName = agent.name || agent.id;
-        confidenceList.push({ name: agentName, confidence: newConfidence });
+        confidenceList.push({ name: agentName, confidence: normalizedConfidence });
       }
 
-      // Update manager confidence based on weighted aggregate of other agents
+      const nonManagerAverage = nonManagerAgents.length
+        ? nonManagerAgents.reduce((sum, agent) => sum + extractConfidence(agent), 0) / nonManagerAgents.length
+        : null;
+
       for (const manager of managerAgents) {
-        const newManagerConfidence = this.confidenceEngine.updateManagerConfidence(manager, allAgents);
-        manager.confidence = newManagerConfidence;
-        confidenceMap.set(manager.id, newManagerConfidence);
+        const derivedConfidence = nonManagerAverage !== null
+          ? nonManagerAverage
+          : extractConfidence(manager);
+        const normalizedConfidence = clampConfidence(derivedConfidence);
+        manager.confidence = normalizedConfidence;
+        confidenceMap.set(manager.id, normalizedConfidence);
         const managerName = manager.name || manager.id;
-        confidenceList.push({ name: managerName, confidence: newManagerConfidence });
-        
-        // Save manager confidence to storage
-        try {
-          await updateAgent(manager.id, { confidence: newManagerConfidence });
-        } catch (error) {
-          console.error(`[SectorEngine] Error saving manager confidence for ${manager.id}:`, error);
-        }
+        confidenceList.push({ name: managerName, confidence: normalizedConfidence });
       }
 
       // DEBUG: Log list of confidence values
@@ -195,21 +193,35 @@ class SectorEngine {
         return isManager;
       });
 
-      // Update each manager's confidence based on other agents
+      // Update each manager's confidence based on average of non-manager agents
+      const nonManagerAgents = agents.filter(agent => {
+        if (!agent || !agent.id) return false;
+        const isManager = agent.role === 'manager' || 
+                         (agent.role && agent.role.toLowerCase().includes('manager'));
+        return !isManager;
+      });
+
+      const nonManagerAverage = nonManagerAgents.length
+        ? nonManagerAgents.reduce((sum, agent) => sum + extractConfidence(agent), 0) / nonManagerAgents.length
+        : null;
+
       for (const manager of managerAgents) {
         // Find manager in allAgents to get latest data
         const managerInAllAgents = allAgents.find(a => a.id === manager.id);
+        const newManagerConfidence = clampConfidence(
+          nonManagerAverage !== null ? nonManagerAverage : extractConfidence(managerInAllAgents || manager)
+        );
+
         if (managerInAllAgents) {
-          const newManagerConfidence = this.confidenceEngine.updateManagerConfidence(managerInAllAgents, allAgents);
           managerInAllAgents.confidence = newManagerConfidence;
-          manager.confidence = newManagerConfidence;
-          
-          // Save manager confidence to storage
-          try {
-            await updateAgent(manager.id, { confidence: newManagerConfidence });
-          } catch (error) {
-            console.error(`[SectorEngine] Error saving manager confidence for ${manager.id}:`, error);
-          }
+        }
+        manager.confidence = newManagerConfidence;
+        
+        // Save manager confidence to storage
+        try {
+          await updateAgent(manager.id, { confidence: newManagerConfidence });
+        } catch (error) {
+          console.error(`[SectorEngine] Error saving manager confidence for ${manager.id}:`, error);
         }
       }
 
@@ -235,19 +247,16 @@ class SectorEngine {
       }
 
       // STRICT THRESHOLD: Check ALL agents (manager + generals) have confidence >= 65
-      const allAboveThreshold = agents.every(agent => {
-        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return confidence >= confidenceThreshold;
-      });
+      const allAboveThreshold = agents.every(agent => extractConfidence(agent) >= confidenceThreshold);
 
       if (!allAboveThreshold) {
         // DEBUG: Log which agents prevented the discussion from starting
         const agentsBelowThreshold = agents.filter(agent => {
-          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          const confidence = extractConfidence(agent);
           return confidence < confidenceThreshold;
         });
         const agentDetails = agentsBelowThreshold.map(agent => {
-          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+          const confidence = extractConfidence(agent);
           return `${agent.name || agent.id} (confidence: ${confidence.toFixed(2)})`;
         }).join(', ');
         console.log(`[SectorEngine] evaluateDiscussionReadiness: Discussion blocked - ${agentsBelowThreshold.length} agent(s) below threshold (${confidenceThreshold}): ${agentDetails}`);
@@ -255,10 +264,7 @@ class SectorEngine {
       }
 
       // Calculate manager confidence as average of ALL agents
-      const totalConfidence = agents.reduce((sum, agent) => {
-        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return sum + confidence;
-      }, 0);
+      const totalConfidence = agents.reduce((sum, agent) => sum + extractConfidence(agent), 0);
       const managerConfidence = totalConfidence / agents.length;
 
       // Check manager confidence >= 65
@@ -301,7 +307,7 @@ class SectorEngine {
 
       // All checks passed - sector is ready for discussion
       const agentDetails = agents.map(agent => {
-        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+        const confidence = extractConfidence(agent);
         return `${agent.name || agent.id} (confidence: ${confidence.toFixed(2)})`;
       }).join(', ');
       

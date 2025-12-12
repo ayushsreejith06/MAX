@@ -1,5 +1,5 @@
-const ConfidenceEngine = require('../../ConfidenceEngine');
 const { loadAgents, updateAgent } = require('../../../utils/agentStorage');
+const { extractConfidence, clampConfidence } = require('../../../utils/confidenceUtils');
 
 /**
  * SectorEngine - Manages sector-level operations including confidence updates
@@ -12,7 +12,6 @@ const { loadAgents, updateAgent } = require('../../../utils/agentStorage');
  */
 class SectorEngine {
   constructor(customRules = {}) {
-    this.confidenceEngine = new ConfidenceEngine(customRules);
   }
 
   /**
@@ -55,19 +54,15 @@ class SectorEngine {
         return [];
       }
 
-      // Update confidence for each agent
+      // Normalize confidence for each agent using LLM confidence when available
       const updatedAgents = [];
       for (const agent of agents) {
         try {
-          // Call ConfidenceEngine to update agent confidence
-          const newConfidence = this.confidenceEngine.updateAgentConfidence(agent, sector);
-
-          // Update confidence in agent object
-          agent.confidence = newConfidence;
-
+          const normalized = extractConfidence(agent);
+          agent.confidence = normalized;
           updatedAgents.push(agent);
         } catch (error) {
-          console.error(`[SectorEngine] Error updating confidence for agent ${agent.id}:`, error);
+          console.error(`[SectorEngine] Error updating confidence for agent ${agent?.id}:`, error);
           // Continue with other agents even if one fails
         }
       }
@@ -104,9 +99,7 @@ class SectorEngine {
 
         // Only update the confidence field
         return updateAgent(agent.id, {
-          confidence: typeof agent.confidence === 'number' 
-            ? Math.max(-100, Math.min(100, agent.confidence))
-            : 0
+          confidence: clampConfidence(agent.confidence)
         });
       });
 
@@ -143,12 +136,7 @@ class SectorEngine {
       }
 
       // Check if all agents have confidence >= 65
-      const allReady = agents.every(agent => {
-        const confidence = typeof agent.confidence === 'number' 
-          ? agent.confidence 
-          : 0;
-        return confidence >= 65;
-      });
+      const allReady = agents.every(agent => extractConfidence(agent) >= 65);
 
       return allReady;
     } catch (error) {

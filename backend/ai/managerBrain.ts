@@ -4,6 +4,9 @@ import {
   WorkerAgentProposal,
   validateManagerChecklistDecision,
 } from './agentSchemas';
+import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmAction';
+import { buildDecisionPrompt } from './prompts/buildDecisionPrompt';
+import { parseLLMTradeAction } from './parseLLMTradeAction';
 
 type EvaluateChecklistItemParams = {
   managerProfile: {
@@ -20,60 +23,54 @@ type EvaluateChecklistItemParams = {
     trendDescriptor: string;
     balance?: number;
     indicators?: Record<string, number | string>;
+    allowedSymbols?: string[];
+    trendPercent?: number;
   };
   workerProposal: WorkerAgentProposal;
 };
 
-const SYSTEM_PROMPT =
-  'You are MAX Trading LLM. You always output JSON. You must produce a single actionable trade relevant to the sector. Your response must NOT exceed 120 characters outside JSON.';
-
-function buildUserPrompt(params: EvaluateChecklistItemParams): string {
-  const { sectorState, managerProfile, workerProposal } = params;
-  const sectorData = {
-    sectorState,
-    managerProfile,
-    workerProposal,
-    indicators: sectorState.indicators ?? {},
-  };
-
-  return `Generate a trading action for sector=${sectorState.sectorType} using this data snapshot=${JSON.stringify(
-    sectorData
-  )} and agentGoal=${managerProfile.sectorGoal}.`;
+function parseTrendPercent(trendDescriptor?: string | number): number | undefined {
+  if (typeof trendDescriptor === 'number' && Number.isFinite(trendDescriptor)) {
+    return trendDescriptor;
+  }
+  if (typeof trendDescriptor === 'string') {
+    const match = trendDescriptor.match(/-?\d+(\.\d+)?/);
+    if (match) {
+      const parsed = Number(match[0]);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return undefined;
 }
 
-function validateTradeJson(raw: any, sectorState: EvaluateChecklistItemParams['sectorState']) {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error('LLM response must be a JSON object');
-  }
+function buildPrompts(params: EvaluateChecklistItemParams) {
+  const { sectorState, managerProfile, workerProposal } = params;
+  const trendPercent = typeof sectorState.trendPercent === 'number'
+    ? sectorState.trendPercent
+    : parseTrendPercent(sectorState.trendDescriptor);
 
-  const { action, amount, confidence, rationale } = raw as Record<string, any>;
-  const allowedActions = ['BUY', 'SELL', 'HOLD', 'REBALANCE'];
-
-  if (!allowedActions.includes(action)) {
-    throw new Error(`action must be one of ${allowedActions.join(', ')}`);
-  }
-
-  if (typeof amount !== 'number' || Number.isNaN(amount)) {
-    throw new Error('amount must be a number');
-  }
-
-  if (sectorState.balance !== undefined && amount > sectorState.balance) {
-    throw new Error('amount exceeds sector balance');
-  }
-
-  if (typeof confidence !== 'number' || Number.isNaN(confidence) || confidence < 0 || confidence > 100) {
-    throw new Error('confidence must be between 0 and 100');
-  }
-
-  if (typeof rationale !== 'string') {
-    throw new Error('rationale must be a string');
-  }
-
-  return { action, amount, confidence, rationale };
+  return buildDecisionPrompt({
+    sectorName: sectorState.sectorName,
+    agentSpecialization: managerProfile.sectorGoal,
+    allowedSymbols: Array.isArray(sectorState.allowedSymbols) ? sectorState.allowedSymbols : [],
+    remainingCapital: sectorState.balance,
+    realTimeData: {
+      recentPrice: sectorState.simulatedPrice,
+      baselinePrice: sectorState.baselinePrice,
+      trendPercent,
+      volatility: sectorState.volatility,
+      indicators: {
+        ...(sectorState.indicators ?? {}),
+        workerProposal,
+      },
+    },
+  });
 }
 
 function mapTradeToDecision(
-  trade: { action: WorkerAgentProposal['action']; amount: number; confidence: number; rationale: string },
+  trade: { action: WorkerAgentProposal['action']; amount: number; confidence: number; reasoning: string },
   sectorState: EvaluateChecklistItemParams['sectorState']
 ): ManagerChecklistDecision {
   const editedAllocationPercent =
@@ -85,7 +82,7 @@ function mapTradeToDecision(
     approve,
     editedAllocationPercent,
     confidence: trade.confidence,
-    reasoning: trade.rationale,
+    reasoning: trade.reasoning,
   });
 }
 
@@ -95,14 +92,33 @@ export async function evaluateChecklistItem(
   const { workerProposal } = params;
 
   try {
+    const { systemPrompt, userPrompt, allowedSymbols } = buildPrompts(params);
     const raw = await callLLM({
-      systemPrompt: SYSTEM_PROMPT,
-      userPrompt: buildUserPrompt(params),
+      systemPrompt,
+      userPrompt,
       jsonMode: true,
     });
 
-    const parsed = JSON.parse(raw);
-    const trade = validateTradeJson(parsed, params.sectorState);
+    const parsed = parseLLMTradeAction(raw);
+    const llmTrade = validateLLMTradeAction(parsed, {
+      allowedSymbols,
+      remainingCapital: params.sectorState.balance,
+    });
+
+    if (params.sectorState.balance !== undefined && llmTrade.amount > params.sectorState.balance) {
+      throw new Error('LLMTradeAction.amount exceeds sector balance.');
+    }
+
+    const confidence = llmTrade.confidence;
+    const boundedConfidence = Math.min(Math.max(confidence, 0), 100);
+
+    const trade = {
+      action: normalizeActionToUpper(llmTrade.action) as WorkerAgentProposal['action'],
+      amount: llmTrade.amount,
+      confidence: boundedConfidence,
+      reasoning: llmTrade.reasoning,
+    };
+
     return mapTradeToDecision(trade, params.sectorState);
   } catch (error) {
     console.error('[managerBrain] Invalid JSON or LLM error:', error);

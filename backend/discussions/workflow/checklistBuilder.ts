@@ -1,96 +1,99 @@
 import { callLLM } from '../../ai/llmClient';
+import { buildDecisionPrompt } from '../../ai/prompts/buildDecisionPrompt';
+import { parseLLMTradeAction } from '../../ai/parseLLMTradeAction';
+import { normalizeActionToUpper, validateLLMTradeAction } from '../../types/llmAction';
 
 type AllowedAction = 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
 
-export type ChecklistTrade = {
-  action: AllowedAction;
+export type ChecklistItem = {
+  agentId: string;
+  sectorId: string;
+  type: AllowedAction;
+  symbol: string;
   amount: number;
   confidence: number;
-  rationale: string;
+  reasoning: string;
+  metadata: {
+    stopLoss?: number;
+    takeProfit?: number;
+  };
 };
 
 type BuildChecklistTradeParams = {
-  sector: { type?: string };
-  sectorData: unknown;
-  agent: { purpose?: string };
+  sector: { id: string; type?: string; symbol?: string; name?: string; allowedSymbols?: string[]; trendPercent?: number };
+  sectorData: Record<string, unknown> | unknown;
+  agent: { id: string; purpose?: string };
   availableBalance: number;
 };
 
-function sanitizeAmount(rawAmount: any, availableBalance: number): number {
-  const parsed = typeof rawAmount === 'number' ? rawAmount : Number(rawAmount);
-  if (!Number.isFinite(parsed) || parsed < 0) {
+function clampAmount(amount: number, availableBalance: number): number {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('LLM trade amount invalid or missing.');
+  }
+  const maxBalance = Math.max(availableBalance, 0);
+  if (maxBalance === 0) {
     return 0;
   }
-  return Math.min(parsed, Math.max(availableBalance, 0));
+  const min = maxBalance * 0.01;
+  const max = maxBalance * 0.2;
+  return Math.min(Math.max(amount, min), Math.min(max, maxBalance));
 }
 
-function validateAction(rawAction: any): AllowedAction {
-  const action = typeof rawAction === 'string' ? rawAction.toUpperCase() : '';
-  if (action === 'BUY' || action === 'SELL' || action === 'HOLD' || action === 'REBALANCE') {
-    return action;
-  }
-  throw new Error('LLM trade action invalid or missing.');
-}
-
-function validateConfidence(rawConfidence: any): number {
-  const confidence = typeof rawConfidence === 'number' ? rawConfidence : Number(rawConfidence);
-  if (!Number.isFinite(confidence)) {
-    throw new Error('LLM trade confidence invalid or missing.');
-  }
-  // Clamp to a sensible range [0,1]
-  return Math.min(Math.max(confidence, 0), 1);
-}
-
-export async function buildChecklistTrade(params: BuildChecklistTradeParams): Promise<ChecklistTrade> {
+export async function buildChecklistTrade(params: BuildChecklistTradeParams): Promise<ChecklistItem> {
   const { sector, sectorData, agent, availableBalance } = params;
 
-  const llmResponse = await callLLM({
-    systemPrompt: `
-You are MAX Trading LLM. You output ONLY JSON.
-Produce one actionable trade relevant to the sector.
-Short, precise, no paragraphs.
-`,
-    userPrompt: `
-Sector type: ${sector.type}
-Sector data snapshot (indicators, prices, trend, volatility):
-${JSON.stringify(sectorData)}
+  const allowedSymbols = Array.isArray(sector.allowedSymbols)
+    ? sector.allowedSymbols
+    : [sector.symbol, sector.name].filter((sym): sym is string => typeof sym === 'string' && sym.trim() !== '');
 
-Agent purpose: "${agent.purpose}"
+  const snapshot = (sectorData && typeof sectorData === 'object') ? sectorData as Record<string, unknown> : {};
 
-Generate a JSON trade object:
-
-{
-  "action": "BUY" | "SELL" | "HOLD" | "REBALANCE",
-  "amount": number,
-  "confidence": number,
-  "rationale": "short explanation"
-}
-
-Rules:
-- Must be SECTOR-RELEVANT.
-- Amount <= available balance.
-- Confidence is based on sector data.
-- NO text outside JSON.
-`,
-    jsonMode: true
+  const { systemPrompt, userPrompt, allowedSymbols: normalizedSymbols } = buildDecisionPrompt({
+    sectorName: sector.name || sector.symbol || 'UNKNOWN',
+    agentSpecialization: agent.purpose || 'checklist reviewer',
+    allowedSymbols,
+    remainingCapital: availableBalance,
+    realTimeData: {
+      recentPrice: typeof (snapshot as any).currentPrice === 'number' ? (snapshot as any).currentPrice : undefined,
+      baselinePrice: typeof (snapshot as any).baselinePrice === 'number' ? (snapshot as any).baselinePrice : undefined,
+      trendPercent:
+        typeof sector.trendPercent === 'number'
+          ? sector.trendPercent
+          : (typeof (snapshot as any).changePercent === 'number' ? (snapshot as any).changePercent : undefined),
+      volatility: typeof (snapshot as any).volatility === 'number' ? (snapshot as any).volatility : undefined,
+      indicators: snapshot,
+    },
   });
 
-  const parsed = JSON.parse(llmResponse);
+  const llmResponseText = await callLLM({
+    systemPrompt,
+    userPrompt,
+    jsonMode: true,
+  });
 
-  const action = validateAction(parsed?.action);
-  const amount = sanitizeAmount(parsed?.amount, availableBalance);
-  const confidence = validateConfidence(parsed?.confidence);
-  const rationale = typeof parsed?.rationale === 'string' ? parsed.rationale.trim() : '';
+  const parsed = parseLLMTradeAction(llmResponseText);
+  const llmAction = validateLLMTradeAction(parsed, {
+    allowedSymbols: normalizedSymbols,
+    remainingCapital: availableBalance,
+  });
 
-  if (!rationale) {
-    throw new Error('LLM trade rationale missing.');
-  }
+  const type = normalizeActionToUpper(llmAction.action) as AllowedAction;
+  const amount = clampAmount(llmAction.amount, availableBalance);
+  const confidence = Math.min(Math.max(llmAction.confidence, 0), 100);
+  const reasoning = llmAction.reasoning.trim();
 
   return {
-    action,
+    agentId: agent.id,
+    sectorId: sector.id,
+    type,
+    symbol: llmAction.symbol,
     amount,
     confidence,
-    rationale
+    reasoning,
+    metadata: {
+      stopLoss: llmAction.stopLoss,
+      takeProfit: llmAction.takeProfit
+    }
   };
 }
 

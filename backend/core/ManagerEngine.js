@@ -8,6 +8,7 @@ const ExecutionEngine = require('./ExecutionEngine');
 const { saveRejectedItems } = require('../utils/rejectedItemsStorage');
 const { getAllSectors } = require('../utils/sectorStorage');
 const { managerAddToExecutionList, getManagerBySectorId } = require('../utils/executionListStorage');
+const { extractConfidence } = require('../utils/confidenceUtils');
 const { validateTrade, checkRiskAppetite, loadRules } = require('../simulation/rules');
 const fs = require('fs');
 const path = require('path');
@@ -770,16 +771,13 @@ class ManagerEngine {
       }
 
       // VALIDATION 1: Check ALL agents (manager + generals) have confidence > 65
-      const allAboveThreshold = agents.every(agent => {
-        const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        return confidence > 65;
-      });
+      const allAboveThreshold = agents.every(agent => extractConfidence(agent) > 65);
 
       if (!allAboveThreshold) {
         console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (> 65)`);
         console.log(`[DISCUSSION CHECK]`, {
           sectorId,
-          agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+          agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
           allAboveThreshold: false
         });
         return { started: false, discussionId: null };
@@ -819,7 +817,7 @@ class ManagerEngine {
       // All checks passed - log and start discussion
       console.log(`[DISCUSSION CHECK]`, {
         sectorId,
-        agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+        agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
         allAboveThreshold: true,
         sectorBalance: sectorBalance
       });
@@ -937,13 +935,10 @@ class ManagerEngine {
       const allSectorAgents = allAgents.filter(a => a && a.id && a.sectorId === sectorId);
       
       if (allSectorAgents.length > 0) {
-        const allAboveThreshold = allSectorAgents.every(agent => {
-          const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-          return confidence > 65;
-        });
+        const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
         
         if (!allAboveThreshold) {
-          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`).join(', ');
+          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
           console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: Not all agents have confidence > 65. Agents: ${agentDetails}`);
           return { created: false, discussion: null };
         }
@@ -1638,26 +1633,20 @@ class ManagerEngine {
     }
 
     // Check ALL agents (manager + generals) have confidence >= 65
-    const allAboveThreshold = agents.every(agent => {
-      const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-      return confidence >= 65;
-    });
+    const allAboveThreshold = agents.every(agent => extractConfidence(agent) >= 65);
 
     if (!allAboveThreshold) {
       console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (>= 65)`);
       console.log(`[DISCUSSION CHECK]`, {
         sectorId: sector.id,
-        agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+        agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
         allAboveThreshold: false
       });
       return null;
     }
 
     // Calculate manager confidence as average of ALL agents
-    const totalConfidence = agents.reduce((sum, agent) => {
-      const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-      return sum + confidence;
-    }, 0);
+    const totalConfidence = agents.reduce((sum, agent) => sum + extractConfidence(agent), 0);
     const managerConfidence = totalConfidence / agents.length;
 
     // Check manager confidence >= 65
@@ -1665,7 +1654,7 @@ class ManagerEngine {
       console.log(`[DISCUSSION BLOCKED] Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
       console.log(`[DISCUSSION CHECK]`, {
         sectorId: sector.id,
-        agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+        agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
         allAboveThreshold: true,
         managerConfidence: managerConfidence.toFixed(2)
       });
@@ -1699,7 +1688,7 @@ class ManagerEngine {
     // All checks passed - log and start discussion
     console.log(`[DISCUSSION CHECK]`, {
       sectorId: sector.id,
-      agentConfidences: agents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+    agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
       allAboveThreshold: true,
       managerConfidence: managerConfidence.toFixed(2)
     });
@@ -2031,7 +2020,16 @@ class ManagerEngine {
       volatility: typeof sector.volatility === 'number' ? sector.volatility : (sector.riskScore || 0) / 100,
       trendDescriptor: typeof sector.changePercent === 'number'
         ? `${sector.changePercent}% change`
-        : 'flat'
+        : 'flat',
+      trendPercent: typeof sector.changePercent === 'number' ? sector.changePercent : undefined,
+      balance: typeof sector.balance === 'number' ? sector.balance : undefined,
+      allowedSymbols: [
+        sector.symbol,
+        sector.sectorSymbol,
+        sector.ticker,
+        sector.name,
+        sector.sectorName,
+      ].filter((sym) => typeof sym === 'string' && sym.trim() !== ''),
     };
 
     const { evaluateChecklistItem } = require('../ai/managerBrain');

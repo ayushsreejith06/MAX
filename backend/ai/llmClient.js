@@ -1,12 +1,37 @@
+const fs = require('fs/promises');
+const path = require('path');
+
 const {
   LLM_BASE_URL: rawBaseUrl,
   LLM_MODEL_NAME,
   LLM_API_KEY,
-  USE_LLM
+  USE_LLM,
+  LLM_RESPONSE_FORMAT
 } = process.env;
 
 const isLlmEnabled = (USE_LLM || '').toLowerCase() === 'true';
+// Default to 'text' for compatibility with LM Studio/open-source stacks that
+// reject OpenAI's json_object/response_format payload.
+const responseFormat = (LLM_RESPONSE_FORMAT || 'text').toLowerCase();
 const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/$/, '') : '';
+
+const decisionSystemPromptPath = path.join(__dirname, 'prompts', 'tradeDecision.system.txt');
+let cachedDecisionSystemPrompt = null;
+
+async function loadDecisionSystemPrompt() {
+  if (cachedDecisionSystemPrompt) {
+    return cachedDecisionSystemPrompt;
+  }
+
+  try {
+    const prompt = await fs.readFile(decisionSystemPromptPath, 'utf-8');
+    cachedDecisionSystemPrompt = prompt;
+    return prompt;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to load trade decision system prompt: ${message}`);
+  }
+}
 
 function requireConfig() {
   if (!isLlmEnabled) {
@@ -35,14 +60,20 @@ function buildHeaders() {
 }
 
 async function callLLM(params) {
-  const { systemPrompt, userPrompt, maxTokens, jsonMode } = params;
+  const { systemPrompt, userPrompt, maxTokens, jsonMode, useDecisionSystemPrompt } = params;
 
   requireConfig();
+
+  const decisionSystemPrompt = useDecisionSystemPrompt ? await loadDecisionSystemPrompt() : null;
+  const finalSystemPrompt = decisionSystemPrompt ?? systemPrompt;
+  if (!finalSystemPrompt) {
+    throw new Error('System prompt is required');
+  }
 
   const payload = {
     model: LLM_MODEL_NAME,
     messages: [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: finalSystemPrompt },
       { role: 'user', content: userPrompt }
     ],
     temperature: 0.3
@@ -52,8 +83,12 @@ async function callLLM(params) {
     payload.max_tokens = maxTokens;
   }
 
-  if (jsonMode) {
-    payload.response_format = { type: 'json_object' };
+  if (jsonMode && responseFormat !== 'none' && responseFormat !== 'off') {
+    if (responseFormat === 'text') {
+      payload.response_format = { type: 'text' };
+    } else {
+      payload.response_format = { type: 'json_object' };
+    }
   }
 
   const url = `${baseUrl}/chat/completions`;

@@ -1,12 +1,12 @@
 /**
- * Confidence Engine - Recalculates agent confidence based on market conditions
+ * Confidence normalization - derives agent confidence without random adjustments
  * 
  * Confidence range: -100 to +100
  * Adjustments are small (±1 to ±5 per tick) to prevent sudden jumps
  */
 
 const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage');
-const ConfidenceEngine = require('../core/ConfidenceEngine');
+const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils');
 
 /**
  * Recalculate agent confidence based on context
@@ -19,86 +19,8 @@ const ConfidenceEngine = require('../core/ConfidenceEngine');
  *   - sectorData: Object with sector information (optional)
  * @returns {number} Updated confidence value (-100 to +100)
  */
-function recalcConfidence(agent, context = {}) {
-  if (!agent) {
-    return 0; // Default neutral confidence
-  }
-
-  // Get current confidence, defaulting to 0 if not set
-  const currentConfidence = typeof agent.confidence === 'number' 
-    ? Math.max(-100, Math.min(100, agent.confidence))
-    : 0;
-
-  // Calculate confidence adjustment based on various factors
-  let adjustment = 0;
-
-  // 1. Price trend direction influence
-  if (typeof context.priceChangePercent === 'number') {
-    // Positive price change increases confidence, negative decreases it
-    // Scale: 1% change = ±1 confidence point (capped at ±3)
-    const priceAdjustment = Math.max(-3, Math.min(3, context.priceChangePercent));
-    adjustment += priceAdjustment;
-  }
-
-  // 2. Volatility changes influence
-  if (typeof context.volatilityChange === 'number') {
-    // Increased volatility reduces confidence (uncertainty)
-    // Scale: 0.01 (1%) volatility increase = -1 confidence point (capped at ±2)
-    const volatilityAdjustment = Math.max(-2, Math.min(2, -context.volatilityChange * 100));
-    adjustment += volatilityAdjustment;
-  }
-
-  // 3. Previous performance influence
-  const performance = context.previousPerformance || agent.performance || {};
-  
-  if (typeof performance.winRate === 'number') {
-    // Win rate above 0.5 increases confidence, below decreases it
-    // Scale: 0.1 win rate change = ±1 confidence point (capped at ±2)
-    const winRateAdjustment = Math.max(-2, Math.min(2, (performance.winRate - 0.5) * 2));
-    adjustment += winRateAdjustment;
-  }
-
-  if (typeof performance.pnl === 'number') {
-    // Positive PnL increases confidence, negative decreases it
-    // Scale: $1000 PnL = ±1 confidence point (capped at ±2)
-    const pnlAdjustment = Math.max(-2, Math.min(2, performance.pnl / 1000));
-    adjustment += pnlAdjustment;
-  }
-
-  // 4. Agent role influence
-  const role = (agent.role || '').toLowerCase();
-  
-  // Research agents are more sensitive to price trends
-  if (role.includes('research')) {
-    if (typeof context.priceChangePercent === 'number') {
-      const researchAdjustment = Math.max(-2, Math.min(2, context.priceChangePercent * 0.5));
-      adjustment += researchAdjustment;
-    }
-  }
-  
-  // Analyst agents are more sensitive to volatility
-  if (role.includes('analyst')) {
-    if (typeof context.volatilityChange === 'number') {
-      const analystAdjustment = Math.max(-2, Math.min(2, -context.volatilityChange * 150));
-      adjustment += analystAdjustment;
-    }
-  }
-  
-  // Manager agents are more conservative, smaller adjustments
-  if (role.includes('manager')) {
-    adjustment *= 0.7; // Reduce adjustment by 30% for managers
-  }
-
-  // Ensure adjustment is within ±1 to ±5 range per tick
-  adjustment = Math.max(-5, Math.min(5, adjustment));
-
-  // Calculate new confidence
-  let newConfidence = currentConfidence + adjustment;
-
-  // Clamp to valid range [-100, 100]
-  newConfidence = Math.max(-100, Math.min(100, newConfidence));
-
-  return newConfidence;
+function recalcConfidence(agent) {
+  return extractConfidence(agent);
 }
 
 /**
@@ -131,16 +53,10 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
     }
     
     const updatedAgents = [];
-    const confidenceEngine = new ConfidenceEngine();
     
-    // Update confidence for non-manager agents based on market conditions
+    // Normalize confidence for non-manager agents using LLM output when available
     for (const agent of nonManagerAgents) {
-      const newConfidence = recalcConfidence(agent, {
-        priceChangePercent: tickContext.priceChangePercent,
-        volatilityChange: tickContext.volatilityChange,
-        previousPerformance: agent.performance,
-        sectorData: tickContext.sectorData
-      });
+      const newConfidence = recalcConfidence(agent);
       
       // Update agent confidence
       agent.confidence = newConfidence;
@@ -153,23 +69,30 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
       }
     }
     
-    // Update manager confidence based on weighted aggregate of other agents
+    // Update manager confidence as the average of non-manager confidences when present
+    const averageConfidence = nonManagerAgents.length
+      ? nonManagerAgents.reduce((sum, agent) => sum + extractConfidence(agent), 0) / nonManagerAgents.length
+      : null;
+
     for (const manager of managerAgents) {
-      const newManagerConfidence = confidenceEngine.updateManagerConfidence(manager, agents);
-      manager.confidence = newManagerConfidence;
+      const newManagerConfidence = averageConfidence !== null
+        ? averageConfidence
+        : recalcConfidence(manager);
+      const normalizedManagerConfidence = clampConfidence(newManagerConfidence);
+      manager.confidence = normalizedManagerConfidence;
       
       // Find and update in main agents array
       const agentIndex = agents.findIndex(a => a.id === manager.id);
       if (agentIndex !== -1) {
-        agents[agentIndex].confidence = newManagerConfidence;
+        agents[agentIndex].confidence = normalizedManagerConfidence;
         updatedAgents.push(agents[agentIndex]);
       }
       
       // Save manager confidence to storage
       try {
-        await updateAgent(manager.id, { confidence: newManagerConfidence });
+        await updateAgent(manager.id, { confidence: normalizedManagerConfidence });
       } catch (error) {
-        console.error(`[ConfidenceEngine] Error saving manager confidence for ${manager.id}:`, error);
+        console.error(`[Confidence] Error saving manager confidence for ${manager.id}:`, error);
       }
     }
     
@@ -178,7 +101,7 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
     
     return updatedAgents;
   } catch (error) {
-    console.error(`[ConfidenceEngine] Error updating agents confidence for sector ${sectorId}:`, error);
+    console.error(`[Confidence] Error updating agents confidence for sector ${sectorId}:`, error);
     return [];
   }
 }
@@ -204,22 +127,8 @@ async function updateAgentsConfidenceAfterConsensus(agentIds = [], consensusCont
       
       const agent = agents[agentIndex];
       
-      // Context for consensus-based confidence update
-      const context = {
-        priceChangePercent: consensusContext.priceChangePercent || 0,
-        previousPerformance: agent.performance
-      };
-      
-      // Calculate base confidence from market factors
-      let newConfidence = recalcConfidence(agent, context);
-      
-      // If consensus was reached, agents gain confidence
-      if (consensusContext.consensusReached) {
-        // Small positive adjustment for successful consensus
-        // Scale: finalConfidence 0-1 maps to +1 to +3 confidence points
-        const consensusAdjustment = Math.min(3, Math.max(1, (consensusContext.finalConfidence || 0) * 3));
-        newConfidence = Math.max(-100, Math.min(100, newConfidence + consensusAdjustment));
-      }
+      // Normalize confidence without artificial adjustments
+      const newConfidence = recalcConfidence(agent);
       
       // Update agent confidence
       agent.confidence = newConfidence;
@@ -233,7 +142,7 @@ async function updateAgentsConfidenceAfterConsensus(agentIds = [], consensusCont
     
     return updatedAgents;
   } catch (error) {
-    console.error(`[ConfidenceEngine] Error updating agents confidence after consensus:`, error);
+    console.error(`[Confidence] Error updating agents confidence after consensus:`, error);
     return [];
   }
 }

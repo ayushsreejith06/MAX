@@ -1,7 +1,6 @@
 const SectorEngine = require('../../SectorEngine');
 const ManagerEngine = require('../../ManagerEngine');
 const DiscussionEngine = require('../../DiscussionEngine');
-const ConfidenceEngine = require('../../ConfidenceEngine');
 const ExecutionEngine = require('../../ExecutionEngine');
 const { getSectorById, updateSector } = require('../../../utils/sectorStorage');
 const { getAllSectors } = require('../../../utils/sectorStorage');
@@ -10,6 +9,7 @@ const { loadDiscussions, findDiscussionById, saveDiscussion } = require('../../.
 const DiscussionRoom = require('../../../models/DiscussionRoom');
 const { getSystemMode } = require('../../SystemMode');
 const { executeSimulationTick } = require('../../../controllers/simulationController');
+const { extractConfidence } = require('../../../utils/confidenceUtils');
 
 // Maximum number of rounds for a discussion
 const MAX_ROUNDS = 5;
@@ -25,7 +25,6 @@ class SystemOrchestrator {
     this.sectorEngine = new SectorEngine();
     this.managerEngine = new ManagerEngine();
     this.discussionEngine = new DiscussionEngine();
-    this.confidenceEngine = new ConfidenceEngine();
     this.executionEngine = new ExecutionEngine();
     this.tickCounter = 0;
     this.tickInterval = null;
@@ -111,8 +110,8 @@ class SystemOrchestrator {
         updatedSector.readyForDiscussion = false;
         // Continue to save sector state and return early
       } else {
-        // 2. Run ConfidenceEngine.tickConfidenceUpdates()
-        // Using SectorEngine.performConfidenceUpdates which internally uses ConfidenceEngine
+        // 2. Normalize agent confidence values (LLM-provided or default 50)
+        // Using SectorEngine.performConfidenceUpdates for normalization
         updatedSector = await this.sectorEngine.performConfidenceUpdates(sector);
 
         // 3. Check if sectorEngine.readyForDiscussion === true
@@ -162,15 +161,12 @@ class SystemOrchestrator {
               updatedSector.readyForDiscussion = false;
             } else {
               // Check ALL agents (manager + generals) have confidence >= 65
-              const allAboveThreshold = sectorAgents.every(agent => {
-                const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-                return confidence >= 65;
-              });
+              const allAboveThreshold = sectorAgents.every(agent => extractConfidence(agent) >= 65);
 
               if (!allAboveThreshold) {
                 // DEBUG: Log which agents are below threshold
                 const agentConfidences = sectorAgents.map(agent => {
-                  const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+                  const confidence = extractConfidence(agent);
                   const meetsThreshold = confidence >= 65 ? '✓' : '✗';
                   return `${agent.name || agent.id}: ${confidence.toFixed(2)} ${meetsThreshold}`;
                 }).join(', ');
@@ -186,23 +182,23 @@ class SystemOrchestrator {
                 updatedSector.readyForDiscussion = false;
               } else {
                 // Step 4: Calculate manager confidence as average of ALL agents
-                const totalConfidence = sectorAgents.reduce((sum, agent) => {
-                  const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-                  return sum + confidence;
-                }, 0);
+                const totalConfidence = sectorAgents.reduce(
+                  (sum, agent) => sum + extractConfidence(agent),
+                  0
+                );
                 const managerConfidence = totalConfidence / sectorAgents.length;
 
                 // Check manager confidence >= 65
                 if (managerConfidence < 65) {
                   const agentConfidences = sectorAgents.map(agent => {
-                    const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+                    const confidence = extractConfidence(agent);
                     return `${agent.name || agent.id}: ${confidence.toFixed(2)}`;
                   }).join(', ');
                   
                   console.log(`[DISCUSSION BLOCKED] Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
                   console.log(`[DISCUSSION CHECK]`, {
                     sectorId,
-                    agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+                    agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
                     allAboveThreshold: true,
                     managerConfidence: managerConfidence.toFixed(2)
                   });
@@ -212,13 +208,13 @@ class SystemOrchestrator {
                 } else {
                   // All checks passed - ready for discussion
                   const agentConfidences = sectorAgents.map(agent => {
-                    const confidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
+                    const confidence = extractConfidence(agent);
                     return `${agent.name || agent.id}: ${confidence.toFixed(2)}`;
                   }).join(', ');
                   
                   console.log(`[DISCUSSION CHECK]`, {
                     sectorId,
-                    agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+                    agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
                     allAboveThreshold: true,
                     managerConfidence: managerConfidence.toFixed(2)
                   });

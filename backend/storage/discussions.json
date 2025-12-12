@@ -1,99 +1,454 @@
 [
   {
-    "id": "3b720469-d4d0-405b-99e3-64802e7c1494",
+    "id": "49050ff1-2b63-4a68-9eb5-648eee534997",
     "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
     "title": "Discussion for technology",
     "agentIds": [
-      "TECH_GENERAL"
+      "TECH_NVIDIA_ANALYST"
     ],
     "messages": [
       {
-        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-0",
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
-        "role": "general",
-        "timestamp": "2025-12-12T09:00:09.141Z",
-        "createdAt": "2025-12-12T09:00:09.141Z"
+        "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-0",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T09:59:58.985Z",
+        "createdAt": "2025-12-12T09:59:58.985Z"
       },
       {
-        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-1",
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
-        "role": "general",
-        "timestamp": "2025-12-12T09:00:09.674Z",
-        "createdAt": "2025-12-12T09:00:09.674Z"
+        "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-1",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T09:59:59.513Z",
+        "createdAt": "2025-12-12T09:59:59.513Z"
       },
       {
-        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-2",
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
-        "role": "general",
-        "timestamp": "2025-12-12T09:00:10.208Z",
-        "createdAt": "2025-12-12T09:00:10.208Z"
+        "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-2",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:00.034Z",
+        "createdAt": "2025-12-12T10:00:00.034Z"
       },
       {
-        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-3",
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
-        "role": "general",
-        "timestamp": "2025-12-12T09:00:10.304Z",
-        "createdAt": "2025-12-12T09:00:10.304Z"
+        "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-3",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:00.136Z",
+        "createdAt": "2025-12-12T10:00:00.136Z"
       },
       {
-        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-4",
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
-        "role": "general",
-        "timestamp": "2025-12-12T09:00:10.830Z",
-        "createdAt": "2025-12-12T09:00:10.830Z"
+        "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-4",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:00.665Z",
+        "createdAt": "2025-12-12T10:00:00.665Z"
       },
       {
-        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-5",
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
-        "role": "general",
-        "timestamp": "2025-12-12T09:00:11.354Z",
-        "createdAt": "2025-12-12T09:00:11.354Z"
+        "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-5",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:01.206Z",
+        "createdAt": "2025-12-12T10:00:01.206Z"
       }
     ],
     "messagesCount": 6,
-    "status": "in_progress",
-    "createdAt": "2025-12-12T09:00:09.024Z",
-    "updatedAt": "2025-12-12T09:11:19.942Z",
+    "status": "decided",
+    "createdAt": "2025-12-12T09:59:58.922Z",
+    "updatedAt": "2025-12-12T10:06:23.953Z",
     "round": 5,
     "currentRound": 1,
     "checklistDraft": [
       {
-        "id": "draft-final-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+        "id": "draft-final-49050ff1-2b63-4a68-9eb5-648eee534997-0",
         "action": "buy",
-        "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
-        "confidence": 100,
-        "workerConfidence": 100,
-        "amount": 1000,
-        "workerProposal": null,
+        "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+        "confidence": 85,
+        "workerConfidence": 85,
+        "allocationPercent": 16,
+        "amount": 16,
+        "workerProposal": {
+          "action": "BUY",
+          "symbol": "TECH",
+          "allocationPercent": 16,
+          "confidence": 85,
+          "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02)."
+        },
         "status": "pending",
-        "createdAt": "2025-12-12T09:00:11.387Z"
+        "createdAt": "2025-12-12T10:00:02.537Z"
       }
     ],
     "checklist": [
       {
-        "id": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+        "id": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
         "action": "buy",
-        "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
-        "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+        "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02). (Revised based on feedback)",
+        "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
         "confidence": 1,
-        "workerConfidence": 100,
-        "amount": 1000,
+        "workerConfidence": 85,
+        "allocationPercent": 16,
+        "amount": 16,
         "round": 4,
-        "agentId": "TECH_GENERAL",
-        "agentName": "i need you to keep track of stock related to nvidea",
-        "workerProposal": null,
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "workerProposal": {
+          "action": "BUY",
+          "symbol": "TECH",
+          "allocationPercent": 16,
+          "confidence": 85,
+          "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02)."
+        },
+        "status": "APPROVED",
+        "managerReason": "Rejected: Score 57.2/100 below threshold 70 (Confidence: 85.0, Impact: 0.2, Risk: 13.8, Alignment: 67.5)",
+        "requiresRevision": false,
+        "revisionCount": 1,
+        "previousVersions": [
+          {
+            "action": "buy",
+            "amount": 16,
+            "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+            "confidence": 85,
+            "timestamp": "2025-12-12T10:00:02.639Z"
+          }
+        ],
+        "revisedAt": "2025-12-12T10:00:02.639Z"
+      }
+    ],
+    "finalizedChecklist": [
+      {
+        "id": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02). (Revised based on feedback)",
+        "confidence": 1,
+        "round": 4,
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "approved": true,
+        "approvedAt": "2025-12-12T10:00:02.707Z"
+      }
+    ],
+    "needsRefinement": [],
+    "roundHistory": [
+      {
+        "round": 1,
+        "checklist": [
+          {
+            "id": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+            "action": "buy",
+            "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02). (Revised based on feedback)",
+            "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+            "confidence": 1,
+            "workerConfidence": 85,
+            "allocationPercent": 16,
+            "amount": 16,
+            "round": 4,
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "workerProposal": {
+              "action": "BUY",
+              "symbol": "TECH",
+              "allocationPercent": 16,
+              "confidence": 85,
+              "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02)."
+            },
+            "status": "APPROVED",
+            "managerReason": "Rejected: Score 57.2/100 below threshold 70 (Confidence: 85.0, Impact: 0.2, Risk: 13.8, Alignment: 67.5)",
+            "requiresRevision": false,
+            "revisionCount": 1,
+            "previousVersions": [
+              {
+                "action": "buy",
+                "amount": 16,
+                "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+                "confidence": 85,
+                "timestamp": "2025-12-12T10:00:02.639Z"
+              }
+            ],
+            "revisedAt": "2025-12-12T10:00:02.639Z"
+          }
+        ],
+        "finalizedChecklist": [
+          {
+            "id": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+            "action": "buy",
+            "amount": 16,
+            "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02). (Revised based on feedback)",
+            "confidence": 1,
+            "round": 4,
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "approved": true,
+            "approvedAt": "2025-12-12T10:00:02.707Z"
+          }
+        ],
+        "managerDecisions": [
+          {
+            "item": {
+              "id": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+              "action": "buy",
+              "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02). (Revised based on feedback)",
+              "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+              "confidence": 1,
+              "workerConfidence": 85,
+              "allocationPercent": 16,
+              "amount": 16,
+              "round": 4,
+              "agentId": "TECH_NVIDIA_ANALYST",
+              "agentName": "TECH_NVIDIA_ANALYST",
+              "workerProposal": {
+                "action": "BUY",
+                "symbol": "TECH",
+                "allocationPercent": 16,
+                "confidence": 85,
+                "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02)."
+              },
+              "status": "APPROVED",
+              "managerReason": "Rejected: Score 57.2/100 below threshold 70 (Confidence: 85.0, Impact: 0.2, Risk: 13.8, Alignment: 67.5)",
+              "requiresRevision": false,
+              "revisionCount": 1,
+              "previousVersions": [
+                {
+                  "action": "buy",
+                  "amount": 16,
+                  "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+                  "confidence": 85,
+                  "timestamp": "2025-12-12T10:00:02.639Z"
+                }
+              ],
+              "revisedAt": "2025-12-12T10:00:02.639Z"
+            },
+            "approved": true,
+            "reason": "Auto-approved: confidence (81.50) exceeds threshold (65)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-0",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+            "role": "tech_nvidia_analyst",
+            "timestamp": "2025-12-12T09:59:58.985Z",
+            "createdAt": "2025-12-12T09:59:58.985Z"
+          },
+          {
+            "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-1",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+            "role": "tech_nvidia_analyst",
+            "timestamp": "2025-12-12T09:59:59.513Z",
+            "createdAt": "2025-12-12T09:59:59.513Z"
+          },
+          {
+            "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-2",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+            "role": "tech_nvidia_analyst",
+            "timestamp": "2025-12-12T10:00:00.034Z",
+            "createdAt": "2025-12-12T10:00:00.034Z"
+          },
+          {
+            "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-3",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+            "role": "tech_nvidia_analyst",
+            "timestamp": "2025-12-12T10:00:00.136Z",
+            "createdAt": "2025-12-12T10:00:00.136Z"
+          },
+          {
+            "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-4",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+            "role": "tech_nvidia_analyst",
+            "timestamp": "2025-12-12T10:00:00.665Z",
+            "createdAt": "2025-12-12T10:00:00.665Z"
+          },
+          {
+            "id": "49050ff1-2b63-4a68-9eb5-648eee534997-msg-5",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+            "role": "tech_nvidia_analyst",
+            "timestamp": "2025-12-12T10:00:01.206Z",
+            "createdAt": "2025-12-12T10:00:01.206Z"
+          }
+        ],
+        "timestamp": "2025-12-12T10:00:02.800Z"
+      }
+    ],
+    "finalDecision": null,
+    "rationale": null,
+    "confidence": null,
+    "selectedAgent": null,
+    "voteBreakdown": null,
+    "conflictScore": null,
+    "decidedAt": null,
+    "managerDecisions": [
+      {
+        "item": {
+          "id": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+          "action": "buy",
+          "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02). (Revised based on feedback)",
+          "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+          "confidence": 1,
+          "workerConfidence": 85,
+          "allocationPercent": 16,
+          "amount": 16,
+          "round": 4,
+          "agentId": "TECH_NVIDIA_ANALYST",
+          "agentName": "TECH_NVIDIA_ANALYST",
+          "workerProposal": {
+            "action": "BUY",
+            "symbol": "TECH",
+            "allocationPercent": 16,
+            "confidence": 85,
+            "reasoning": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02)."
+          },
+          "status": "APPROVED",
+          "managerReason": "Rejected: Score 57.2/100 below threshold 70 (Confidence: 85.0, Impact: 0.2, Risk: 13.8, Alignment: 67.5)",
+          "requiresRevision": false,
+          "revisionCount": 1,
+          "previousVersions": [
+            {
+              "action": "buy",
+              "amount": 16,
+              "reason": "Recent price at $100 with trend percent of 0% indicates undervaluation, and volatility is low (0.02).",
+              "confidence": 85,
+              "timestamp": "2025-12-12T10:00:02.639Z"
+            }
+          ],
+          "revisedAt": "2025-12-12T10:00:02.639Z"
+        },
+        "approved": true,
+        "reason": "Auto-approved: confidence (81.50) exceeds threshold (65)"
+      }
+    ],
+    "discussionClosedAt": "2025-12-12T10:00:02.800Z"
+  },
+  {
+    "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "title": "Discussion for technology",
+    "agentIds": [
+      "TECH_NVIDIA_ANALYST"
+    ],
+    "messages": [
+      {
+        "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70-msg-0",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:06.842Z",
+        "createdAt": "2025-12-12T10:00:06.842Z"
+      },
+      {
+        "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70-msg-1",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:07.372Z",
+        "createdAt": "2025-12-12T10:00:07.372Z"
+      },
+      {
+        "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70-msg-2",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:07.895Z",
+        "createdAt": "2025-12-12T10:00:07.895Z"
+      },
+      {
+        "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70-msg-3",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:07.986Z",
+        "createdAt": "2025-12-12T10:00:07.986Z"
+      },
+      {
+        "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70-msg-4",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:08.516Z",
+        "createdAt": "2025-12-12T10:00:08.516Z"
+      },
+      {
+        "id": "d71630f6-5746-4dd6-836b-c9c3b7759a70-msg-5",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0",
+        "role": "tech_nvidia_analyst",
+        "timestamp": "2025-12-12T10:00:09.029Z",
+        "createdAt": "2025-12-12T10:00:09.029Z"
+      }
+    ],
+    "messagesCount": 6,
+    "status": "in_progress",
+    "createdAt": "2025-12-12T10:00:06.767Z",
+    "updatedAt": "2025-12-12T10:06:23.982Z",
+    "round": 5,
+    "currentRound": 1,
+    "checklistDraft": [
+      {
+        "id": "draft-final-d71630f6-5746-4dd6-836b-c9c3b7759a70-0",
+        "action": "buy",
+        "reasoning": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral.",
+        "confidence": 85,
+        "workerConfidence": 85,
+        "allocationPercent": 20,
+        "amount": 17,
+        "workerProposal": {
+          "action": "BUY",
+          "symbol": "TECH",
+          "allocationPercent": 20,
+          "confidence": 85,
+          "reasoning": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral."
+        },
+        "status": "pending",
+        "createdAt": "2025-12-12T10:00:10.300Z"
+      }
+    ],
+    "checklist": [
+      {
+        "id": "checklist-d71630f6-5746-4dd6-836b-c9c3b7759a70-0",
+        "action": "buy",
+        "reason": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral. (Revised based on feedback)",
+        "reasoning": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral.",
+        "confidence": 1,
+        "workerConfidence": 85,
+        "allocationPercent": 20,
+        "amount": 17,
+        "round": 4,
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "workerProposal": {
+          "action": "BUY",
+          "symbol": "TECH",
+          "allocationPercent": 20,
+          "confidence": 85,
+          "reasoning": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral."
+        },
         "status": "REVISE_REQUIRED",
         "managerReason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement.",
         "requiresRevision": true,
@@ -101,20 +456,20 @@
         "previousVersions": [
           {
             "action": "buy",
-            "amount": 1000,
-            "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
-            "confidence": 100,
-            "timestamp": "2025-12-12T09:00:11.429Z"
+            "amount": 17,
+            "reason": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral.",
+            "confidence": 85,
+            "timestamp": "2025-12-12T10:00:10.432Z"
           },
           {
             "action": "buy",
-            "amount": 1000,
-            "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+            "amount": 17,
+            "reason": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral. (Revised based on feedback)",
             "confidence": 1,
-            "timestamp": "2025-12-12T09:00:11.449Z"
+            "timestamp": "2025-12-12T10:00:10.704Z"
           }
         ],
-        "revisedAt": "2025-12-12T09:00:11.429Z"
+        "revisedAt": "2025-12-12T10:00:10.432Z"
       }
     ],
     "finalizedChecklist": [],
@@ -123,28 +478,35 @@
     "finalDecision": "HOLD",
     "rationale": "Majority vote: 1 agents voted HOLD",
     "confidence": 0.3,
-    "selectedAgent": "TECH_GENERAL",
+    "selectedAgent": "TECH_NVIDIA_ANALYST",
     "voteBreakdown": {
       "BUY": 0,
       "SELL": 0,
       "HOLD": 1
     },
     "conflictScore": null,
-    "decidedAt": "2025-12-12T09:00:10.918Z",
+    "decidedAt": "2025-12-12T10:00:08.089Z",
     "managerDecisions": [
       {
         "item": {
-          "id": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+          "id": "checklist-d71630f6-5746-4dd6-836b-c9c3b7759a70-0",
           "action": "buy",
-          "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
-          "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+          "reason": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral. (Revised based on feedback)",
+          "reasoning": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral.",
           "confidence": 1,
-          "workerConfidence": 100,
-          "amount": 1000,
+          "workerConfidence": 85,
+          "allocationPercent": 20,
+          "amount": 17,
           "round": 4,
-          "agentId": "TECH_GENERAL",
-          "agentName": "i need you to keep track of stock related to nvidea",
-          "workerProposal": null,
+          "agentId": "TECH_NVIDIA_ANALYST",
+          "agentName": "TECH_NVIDIA_ANALYST",
+          "workerProposal": {
+            "action": "BUY",
+            "symbol": "TECH",
+            "allocationPercent": 20,
+            "confidence": 85,
+            "reasoning": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral."
+          },
           "status": "REVISE_REQUIRED",
           "managerReason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement.",
           "requiresRevision": true,
@@ -152,20 +514,20 @@
           "previousVersions": [
             {
               "action": "buy",
-              "amount": 1000,
-              "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
-              "confidence": 100,
-              "timestamp": "2025-12-12T09:00:11.429Z"
+              "amount": 17,
+              "reason": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral.",
+              "confidence": 85,
+              "timestamp": "2025-12-12T10:00:10.432Z"
             },
             {
               "action": "buy",
-              "amount": 1000,
-              "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+              "amount": 17,
+              "reason": "Recent price is near baseline with slight trend downward, indicating potential buying opportunity. Volatility is low, and indicators are neutral. (Revised based on feedback)",
               "confidence": 1,
-              "timestamp": "2025-12-12T09:00:11.449Z"
+              "timestamp": "2025-12-12T10:00:10.704Z"
             }
           ],
-          "revisedAt": "2025-12-12T09:00:11.429Z"
+          "revisedAt": "2025-12-12T10:00:10.432Z"
         },
         "approved": false,
         "reason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement."

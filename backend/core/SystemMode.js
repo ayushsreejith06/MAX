@@ -4,7 +4,7 @@
  * 
  * Modes:
  * - "simulation": All engines operate normally (price simulation enabled)
- * - "realtime": ConfidenceEngine runs, but SectorEngine & ExecutionEngine stop modifying prices
+ * - "realtime": Confidence normalization runs, but SectorEngine & ExecutionEngine stop modifying prices
  */
 
 class SystemMode {
