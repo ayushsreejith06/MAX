@@ -2701,3 +2701,77 @@
   "averageScore": 66.64
 }
 
+[2025-12-12T09:00:11.403Z] [managerEvaluateChecklist] Starting evaluation for discussion 3b720469-d4d0-405b-99e3-64802e7c1494
+{
+  "discussionId": "3b720469-d4d0-405b-99e3-64802e7c1494",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T09:00:11.410Z] [evaluateChecklistItem] Item checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+  "rawItemContent": {
+    "id": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+    "action": "buy",
+    "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_GENERAL",
+    "agentName": "i need you to keep track of stock related to nvidea",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T09:00:11.411Z] [managerEvaluateChecklist] Evaluation summary for discussion 3b720469-d4d0-405b-99e3-64802e7c1494
+{
+  "discussionId": "3b720469-d4d0-405b-99e3-64802e7c1494",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+

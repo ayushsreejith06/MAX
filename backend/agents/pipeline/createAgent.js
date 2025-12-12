@@ -3,43 +3,8 @@ const { loadAgents, saveAgents, updateAgent } = require('../../utils/agentStorag
 const { loadSectors } = require('../../utils/storage');
 const { getSectorById: getSectorByIdStorage, updateSector } = require('../../utils/sectorStorage');
 const { MAX_AGENTS_PER_SECTOR, MAX_TOTAL_AGENTS } = require('../../config/agentLimits');
-const { generateAgentProfileFromDescription, AgentProfileEnums } = require('../../ai/agentProfileBrain');
-
-// Role inference tuned to the new profile enums
-function inferRole(promptText) {
-  if (!promptText || typeof promptText !== 'string') {
-    return 'general';
-  }
-  
-  const lowerPrompt = promptText.toLowerCase().trim();
-  
-  const roleKeywords = {
-    macro: ['macro', 'inflation', 'fed', 'rates', 'gdp', 'economy', 'cpi', 'employment'],
-    risk: ['risk', 'drawdown', 'hedge', 'hedging', 'limit', 'exposure', 'stop loss'],
-    sentiment: ['sentiment', 'social', 'twitter', 'reddit', 'news', 'buzz', 'headline'],
-    technical: ['technical', 'chart', 'price action', 'rsi', 'macd', 'indicator', 'moving average', 'momentum', 'support', 'resistance']
-  };
-
-  if (roleKeywords.macro.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'macro';
-  }
-  
-  if (roleKeywords.risk.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'risk';
-  }
-  
-  if (roleKeywords.sentiment.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'sentiment';
-  }
-  
-  if (roleKeywords.technical.some(keyword => lowerPrompt.includes(keyword))) {
-    return 'technical';
-  }
-
-  return 'general'; // default role
-}
-
-const STATUS_POOL = ['idle', 'active', 'processing'];
+const { generateAgentProfileFromDescription } = require('../../ai/agentProfileBrain');
+const { callLLM } = require('../../ai/llmClient');
 
 function getDefaultPersonality(role) {
   const templates = {
@@ -176,84 +141,54 @@ function getDefaultPreferences(role) {
   return templates[role] || templates.general;
 }
 
-function generateAgentId(role, sectorSymbol, existingAgents) {
-  const symbol = (sectorSymbol || 'UNAS').toUpperCase();
-  const roleUpper = role.toUpperCase();
-  
-  // Base ID format: SECTOR_ROLE
-  const baseId = `${symbol}_${roleUpper}`;
-  
-  // Count existing agents with same base pattern (check both id and name)
-  const matchingAgents = existingAgents.filter(agent => {
-    const agentId = String(agent.id || '');
-    const agentName = String(agent.name || '');
-    // Check if ID or name starts with the base pattern
-    return agentId.startsWith(baseId) || agentName.startsWith(baseId);
-  });
-  
-  // Extract numbers from existing IDs to find the next available number
-  const numbers = matchingAgents
-    .map(agent => {
-      const agentId = String(agent.id || agent.name || '');
-      const match = agentId.match(new RegExp(`^${baseId}(\\d+)$`));
-      return match ? parseInt(match[1], 10) : null;
-    })
-    .filter(num => num !== null)
-    .sort((a, b) => b - a); // Sort descending
-  
-  // If no numbered agents exist, check if base ID exists
-  if (numbers.length === 0) {
-    const baseExists = matchingAgents.some(agent => {
-      const agentId = String(agent.id || agent.name || '');
-      return agentId === baseId;
-    });
-    if (!baseExists) {
-      return baseId;
-    }
-    return `${baseId}1`;
+async function buildAgentIdentity(userDescription, sectorName) {
+  const description = typeof userDescription === 'string' ? userDescription.trim() : '';
+  const sector = typeof sectorName === 'string' ? sectorName.trim() : '';
+
+  if (!description) {
+    throw new Error('Agent description is required to build identity.');
   }
-  
-  // Return next number
-  return `${baseId}${numbers[0] + 1}`;
+
+  const result = await callLLM({
+    systemPrompt: `
+You are MAX System LLM. You classify agents.
+ALWAYS output JSON. Never output text outside JSON.
+`,
+    userPrompt: `
+Given this description: "${description}",
+sector: "${sector}".
+
+Return a compact agent definition:
+
+{
+  "id": "TECH_ANALYST",
+  "purpose": "Analyze Nvidia stock trends and generate buy/sell signals."
 }
 
-function generateAgentName(role, sectorSymbol, existingAgents) {
-  const symbol = (sectorSymbol || 'UNAS').toUpperCase();
-  const roleUpper = role.toUpperCase();
-  
-  // Use the same logic as generateAgentId to ensure consistency
-  const baseName = `${symbol}_${roleUpper}`;
-  
-  // Count existing agents with same base pattern
-  const matchingAgents = existingAgents.filter(agent => {
-    const agentName = String(agent.name || '');
-    return agentName.startsWith(baseName);
+Rules:
+- "id" MUST be 1-3 words, UPPERCASE, NO SPACES, underscores allowed.
+- "purpose" MUST be one short sentence.
+- Never repeat user text. Rewrite intelligently.
+- Never exceed 200 characters.
+`,
+    jsonMode: true
   });
-  
-  // Extract numbers from existing names
-  const numbers = matchingAgents
-    .map(agent => {
-      const agentName = String(agent.name || '');
-      const match = agentName.match(new RegExp(`^${baseName}(\\d+)$`));
-      return match ? parseInt(match[1], 10) : null;
-    })
-    .filter(num => num !== null)
-    .sort((a, b) => b - a);
-  
-  // If no numbered agents exist, check if base name exists
-  if (numbers.length === 0) {
-    const baseExists = matchingAgents.some(agent => {
-      const agentName = String(agent.name || '');
-      return agentName === baseName;
-    });
-    if (!baseExists) {
-      return baseName;
-    }
-    return `${baseName}1`;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(result);
+  } catch (error) {
+    throw new Error('LLM did not return valid JSON.');
   }
-  
-  // Return next number
-  return `${baseName}${numbers[0] + 1}`;
+
+  const id = typeof parsed?.id === 'string' ? parsed.id.trim() : '';
+  const purpose = typeof parsed?.purpose === 'string' ? parsed.purpose.trim() : '';
+
+  if (!id || !purpose) {
+    throw new Error('LLM response missing required id or purpose.');
+  }
+
+  return { id, purpose };
 }
 
 async function resolveSectorMetadata(sectorId) {
@@ -288,27 +223,21 @@ async function resolveSectorMetadata(sectorId) {
 
 async function createAgent(promptText = '', sectorId = null, roleOverride = null) {
   const sectorMeta = await resolveSectorMetadata(sectorId);
-  const userProvidedName = typeof promptText === 'string' && promptText.trim().length > 0
-    ? promptText.trim()
-    : 'New Agent';
+  const normalizedDescription = typeof promptText === 'string' ? promptText.trim() : '';
+
+  const { id: llmId, purpose } = await buildAgentIdentity(normalizedDescription, sectorMeta.sectorName);
 
   const profile = await generateAgentProfileFromDescription({
     sectorName: sectorMeta.sectorName,
     userDescription: promptText,
-    userProvidedName
+    userProvidedName: llmId
   });
 
-  // Use provided role or profile role, then fall back to inference
-  let role = roleOverride && typeof roleOverride === 'string' && roleOverride.trim() 
-    ? roleOverride.trim().toLowerCase() 
-    : profile.role || inferRole(promptText);
+  let role =
+    roleOverride && typeof roleOverride === 'string' && roleOverride.trim()
+      ? roleOverride.trim().toLowerCase()
+      : llmId.toLowerCase();
 
-  // Normalize role against allowed enums
-  if (!AgentProfileEnums.ROLE_OPTIONS.includes(role) && role !== 'manager') {
-    role = inferRole(promptText);
-  }
-  
-  // Validate role
   if (!role || typeof role !== 'string' || role.trim().length === 0) {
     throw new Error('Invalid role: role must be a non-empty string');
   }
@@ -357,17 +286,17 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
   }
   
   // Generate unique ID and name using existing agents
-  const agentId = generateAgentId(role, sectorMeta.sectorSymbol, allAgents);
-  const agentName = profile.displayName || generateAgentName(role, sectorMeta.sectorSymbol, allAgents);
+  const agentId = llmId;
+  const agentName = llmId;
 
   // Initialize memory array with initial reasoning log
   const initialMemory = [{
     timestamp: Date.now(),
     type: 'creation',
-    reasoning: `Agent created with role: ${role}. Prompt: "${promptText}"`,
+    reasoning: `Agent created via LLM identity ${llmId}.`,
     data: {
       role,
-      prompt: promptText,
+      purpose,
       personality,
       preferences
     }
@@ -381,7 +310,7 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
     role,
     style: profile.style,
     riskTolerance: profile.riskTolerance,
-    shortBio: profile.shortBio,
+    shortBio: purpose || profile.shortBio,
     initialConfidence: profile.initialConfidence,
     prompt: promptText,
     sectorId: sectorMeta.sectorId,
@@ -402,15 +331,17 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
     createdAt: new Date().toISOString() // Required: creation timestamp
   });
 
+  agent.purpose = purpose;
+
   // Validate agent was created successfully
   if (!agent || typeof agent.toJSON !== 'function') {
     throw new Error('Failed to create agent: Agent constructor returned invalid object');
   }
 
-  const agentData = agent.toJSON();
+  const agentData = { ...agent.toJSON(), purpose };
 
   // Validate all required fields are present
-  const requiredFields = ['id', 'name', 'role', 'sectorId', 'confidence', 'morale', 'status', 'createdAt'];
+  const requiredFields = ['id', 'name', 'role', 'sectorId', 'confidence', 'morale', 'status', 'createdAt', 'purpose'];
   const missingFields = requiredFields.filter(field => agentData[field] === undefined || agentData[field] === null);
   
   if (missingFields.length > 0) {
@@ -542,7 +473,6 @@ async function createAgent(promptText = '', sectorId = null, roleOverride = null
 
 module.exports = {
   createAgent,
-  inferRole,
   getDefaultPersonality,
   getDefaultPreferences
 };

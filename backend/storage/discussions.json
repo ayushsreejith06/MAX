@@ -1,1 +1,176 @@
-[]
+[
+  {
+    "id": "3b720469-d4d0-405b-99e3-64802e7c1494",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "title": "Discussion for technology",
+    "agentIds": [
+      "TECH_GENERAL"
+    ],
+    "messages": [
+      {
+        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-0",
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-12T09:00:09.141Z",
+        "createdAt": "2025-12-12T09:00:09.141Z"
+      },
+      {
+        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-1",
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-12T09:00:09.674Z",
+        "createdAt": "2025-12-12T09:00:09.674Z"
+      },
+      {
+        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-2",
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-12T09:00:10.208Z",
+        "createdAt": "2025-12-12T09:00:10.208Z"
+      },
+      {
+        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-3",
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-12T09:00:10.304Z",
+        "createdAt": "2025-12-12T09:00:10.304Z"
+      },
+      {
+        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-4",
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-12T09:00:10.830Z",
+        "createdAt": "2025-12-12T09:00:10.830Z"
+      },
+      {
+        "id": "3b720469-d4d0-405b-99e3-64802e7c1494-msg-5",
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "content": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0",
+        "role": "general",
+        "timestamp": "2025-12-12T09:00:11.354Z",
+        "createdAt": "2025-12-12T09:00:11.354Z"
+      }
+    ],
+    "messagesCount": 6,
+    "status": "in_progress",
+    "createdAt": "2025-12-12T09:00:09.024Z",
+    "updatedAt": "2025-12-12T09:09:47.614Z",
+    "round": 5,
+    "currentRound": 1,
+    "checklistDraft": [
+      {
+        "id": "draft-final-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+        "action": "buy",
+        "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+        "confidence": 100,
+        "workerConfidence": 100,
+        "amount": 1000,
+        "workerProposal": null,
+        "status": "pending",
+        "createdAt": "2025-12-12T09:00:11.387Z"
+      }
+    ],
+    "checklist": [
+      {
+        "id": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+        "action": "buy",
+        "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+        "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+        "confidence": 1,
+        "workerConfidence": 100,
+        "amount": 1000,
+        "round": 4,
+        "agentId": "TECH_GENERAL",
+        "agentName": "i need you to keep track of stock related to nvidea",
+        "workerProposal": null,
+        "status": "REVISE_REQUIRED",
+        "managerReason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement.",
+        "requiresRevision": true,
+        "revisionCount": 1,
+        "previousVersions": [
+          {
+            "action": "buy",
+            "amount": 1000,
+            "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+            "confidence": 100,
+            "timestamp": "2025-12-12T09:00:11.429Z"
+          },
+          {
+            "action": "buy",
+            "amount": 1000,
+            "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+            "confidence": 1,
+            "timestamp": "2025-12-12T09:00:11.449Z"
+          }
+        ],
+        "revisedAt": "2025-12-12T09:00:11.429Z"
+      }
+    ],
+    "finalizedChecklist": [],
+    "needsRefinement": [],
+    "roundHistory": [],
+    "finalDecision": "HOLD",
+    "rationale": "Majority vote: 1 agents voted HOLD",
+    "confidence": 0.3,
+    "selectedAgent": "TECH_GENERAL",
+    "voteBreakdown": {
+      "BUY": 0,
+      "SELL": 0,
+      "HOLD": 1
+    },
+    "conflictScore": null,
+    "decidedAt": "2025-12-12T09:00:10.918Z",
+    "managerDecisions": [
+      {
+        "item": {
+          "id": "checklist-3b720469-d4d0-405b-99e3-64802e7c1494-0",
+          "action": "buy",
+          "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+          "reasoning": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+          "confidence": 1,
+          "workerConfidence": 100,
+          "amount": 1000,
+          "round": 4,
+          "agentId": "TECH_GENERAL",
+          "agentName": "i need you to keep track of stock related to nvidea",
+          "workerProposal": null,
+          "status": "REVISE_REQUIRED",
+          "managerReason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement.",
+          "requiresRevision": true,
+          "revisionCount": 1,
+          "previousVersions": [
+            {
+              "action": "buy",
+              "amount": 1000,
+              "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0]",
+              "confidence": 100,
+              "timestamp": "2025-12-12T09:00:11.429Z"
+            },
+            {
+              "action": "buy",
+              "amount": 1000,
+              "reason": "Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0 | Agent i need you to keep track of stock related to nvidea: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+              "confidence": 1,
+              "timestamp": "2025-12-12T09:00:11.449Z"
+            }
+          ],
+          "revisedAt": "2025-12-12T09:00:11.429Z"
+        },
+        "approved": false,
+        "reason": "Auto-rejected: confidence (0.30) below threshold (65). Needs refinement."
+      }
+    ],
+    "discussionClosedAt": null
+  }
+]
