@@ -19,6 +19,7 @@ const { detectConflict, resolveConflict } = require('../../manager/conflict');
 const ManagerAgent = require('../manager/ManagerAgent');
 const { extractConfidence } = require('../../utils/confidenceUtils');
 const DiscussionEngine = require('../../core/DiscussionEngine');
+const { getSystemMode } = require('../../core/SystemMode');
 
 /**
  * Start a discussion for a sector
@@ -600,6 +601,7 @@ function autoDiscussionLoop(intervalMs = 10000) {
     isRunning = true;
 
     try {
+      const isSimulationMode = getSystemMode().isSimulationMode();
       const sectors = await loadSectors();
       const agents = await loadAgents();
       const discussions = await loadDiscussions();
@@ -660,6 +662,9 @@ function autoDiscussionLoop(intervalMs = 10000) {
             // via ManagerEngine.closeDiscussion(). Automatic closure has been removed.
             // The manager will evaluate checklist state and close when all items are resolved.
           } else {
+            if (!isSimulationMode) {
+              continue;
+            }
             // STRICT THRESHOLD: Check if we should create a new discussion
             // Create a discussion ONLY if:
             // 1. ALL agents (manager + generals) have confidence > 65
@@ -695,18 +700,6 @@ function autoDiscussionLoop(intervalMs = 10000) {
               continue;
             }
             
-            // Check for recent discussions (within last minute)
-            const recentDiscussions = discussions.filter(d => 
-              d.sectorId === sector.id && 
-              d.createdAt && 
-              (Date.now() - new Date(d.createdAt).getTime()) < 60000 // Within last minute
-            );
-            
-            if (recentDiscussions.length > 0) {
-              // Skip - recent discussion exists
-              continue;
-            }
-            
             // Check sector balance
             const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
             
@@ -714,11 +707,16 @@ function autoDiscussionLoop(intervalMs = 10000) {
               // All strict checks passed - create a new discussion
               const sectorName = sector.sectorName || sector.name || sector.id;
               console.log(`[DiscussionLifecycle] Auto-creating discussion for sector ${sectorName} - All agents meet threshold (> 65), balance: ${sectorBalance}`);
-              await createDiscussionRoomForSector(
+              const newDiscussion = await createDiscussionRoomForSector(
                 sector.id, 
                 `Deploy available capital (Balance: ${sectorBalance})`
               );
-              console.log(`[DiscussionLifecycle] Auto-created discussion for sector ${sectorName} (ID: ${sector.id}) - Balance: ${sectorBalance}`);
+              console.log(`[DiscussionLifecycle] AUTO_DISCUSSION_OPEN`, {
+                event: 'AUTO_DISCUSSION_OPEN',
+                sectorId: sector.id,
+                discussionId: newDiscussion?.id,
+                reason: 'all_agents_confident_balance_positive'
+              });
             }
           }
         } catch (error) {

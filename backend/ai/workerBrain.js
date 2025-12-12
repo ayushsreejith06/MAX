@@ -29,6 +29,7 @@ function buildPrompts(params) {
   return buildDecisionPrompt({
     sectorName: sectorState.sectorName,
     agentSpecialization: purpose ?? agentProfile.roleDescription,
+    agentBrief: purpose ?? agentProfile.roleDescription,
     allowedSymbols: Array.isArray(sectorState.allowedSymbols) ? sectorState.allowedSymbols : [],
     remainingCapital: sectorState.balance,
     realTimeData: {
@@ -68,10 +69,19 @@ async function generateWorkerProposal(params) {
       jsonMode: true
     });
 
-    const parsed = parseLLMTradeAction(rawResponse);
+    const priceContext = params.sectorState.simulatedPrice ?? params.sectorState.baselinePrice;
+    const parsed = parseLLMTradeAction(rawResponse, {
+      fallbackSector: params.sectorState.sectorName,
+      fallbackSymbol: allowedSymbols[0],
+      remainingCapital: params.sectorState.balance,
+      currentPrice: priceContext,
+    });
     const llmTrade = validateLLMTradeAction(parsed, {
       allowedSymbols,
       remainingCapital: params.sectorState.balance,
+      fallbackSector: params.sectorState.sectorName,
+      fallbackSymbol: allowedSymbols[0],
+      currentPrice: priceContext,
     });
 
     if (params.sectorState.balance !== undefined && llmTrade.amount > params.sectorState.balance) {
@@ -82,7 +92,7 @@ async function generateWorkerProposal(params) {
     const boundedConfidence = Math.min(Math.max(confidence, 0), 100);
 
     const trade = {
-      action: normalizeActionToUpper(llmTrade.action),
+      action: normalizeActionToUpper(llmTrade.side),
       amount: llmTrade.amount,
       confidence: boundedConfidence,
       reasoning: llmTrade.reasoning,

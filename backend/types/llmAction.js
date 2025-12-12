@@ -1,18 +1,76 @@
-const ALLOWED_LLM_ACTIONS = ['buy', 'sell', 'hold', 'rebalance'];
+const ALLOWED_LLM_SIDES = ['BUY', 'SELL', 'HOLD', 'REBALANCE'];
+const ALLOWED_LLM_SIDES_LOWER = ['buy', 'sell', 'hold', 'rebalance'];
+const ALLOWED_LLM_SIZING_BASES = ['fixed_units', 'fixed_dollars', 'percent_of_capital'];
 
-function ensureNumber(value, label) {
+function ensureNumber(value, fallback) {
   if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
-    throw new Error(`${label} must be a finite number.`);
+    return fallback;
   }
+  return value;
+}
+
+function toNumberOrNull(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) return null;
   return value;
 }
 
 function normalizeAllowedSymbols(symbols, fallback) {
   const normalized = [...(symbols || []), fallback]
-    .map(sym => (typeof sym === 'string' ? sym.trim().toUpperCase() : ''))
+    .map((sym) => (typeof sym === 'string' ? sym.trim().toUpperCase() : ''))
     .filter(Boolean);
 
   return Array.from(new Set(normalized.length > 0 ? normalized : [fallback]));
+}
+
+function normalizeSide(raw) {
+  const value = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+  if (ALLOWED_LLM_SIDES.includes(value)) {
+    return { upper: value, lower: value.toLowerCase() };
+  }
+  return { upper: 'HOLD', lower: 'hold' };
+}
+
+function normalizeSizingBasis(raw) {
+  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (ALLOWED_LLM_SIZING_BASES.includes(value)) {
+    return value;
+  }
+  return 'percent_of_capital';
+}
+
+function clampSize(size, remainingCapital) {
+  const max = remainingCapital && remainingCapital > 0 ? remainingCapital * 2 : 1_000_000;
+  if (size <= 0) return 0;
+  return Math.min(size, max);
+}
+
+function clampPercentSize(size) {
+  if (size <= 0) return 0;
+  if (size > 100) return 100;
+  return size;
+}
+
+function resolveAmountFromSizing(size, sizingBasis, remainingCapital, currentPrice) {
+  if (size <= 0) return 0;
+  if (sizingBasis === 'percent_of_capital') {
+    if (remainingCapital && remainingCapital > 0) {
+      return (remainingCapital * clampPercentSize(size)) / 100;
+    }
+    return size;
+  }
+
+  if (sizingBasis === 'fixed_dollars') {
+    const boundedSize = clampSize(size, remainingCapital);
+    return remainingCapital ? Math.min(boundedSize, remainingCapital) : boundedSize;
+  }
+
+  if (currentPrice && currentPrice > 0) {
+    const unitsCost = size * currentPrice;
+    return remainingCapital ? Math.min(unitsCost, remainingCapital) : unitsCost;
+  }
+
+  return clampSize(size, remainingCapital);
 }
 
 function validateLLMTradeAction(raw, options) {
@@ -20,73 +78,74 @@ function validateLLMTradeAction(raw, options) {
     throw new Error('LLMTradeAction must be a JSON object.');
   }
 
-  const actionRaw = typeof raw.action === 'string' ? raw.action.trim().toLowerCase() : '';
-  if (!ALLOWED_LLM_ACTIONS.includes(actionRaw)) {
-    throw new Error(`LLMTradeAction.action must be one of: ${ALLOWED_LLM_ACTIONS.join(', ')}.`);
-  }
+  const { upper: side, lower: action } = normalizeSide(raw.side ?? raw.action);
+  const sizingBasis = normalizeSizingBasis(raw.sizingBasis ?? raw.sizing_basis ?? raw.sizingbasis);
+  const hasRemainingCapital = typeof options?.remainingCapital === 'number' && options.remainingCapital > 0;
+  const sizeRaw = ensureNumber(
+    raw.size ?? raw.amount ?? raw.quantity,
+    hasRemainingCapital ? options.remainingCapital * 0.01 : 0,
+  );
+  const size =
+    sizingBasis === 'percent_of_capital'
+      ? clampPercentSize(sizeRaw)
+      : clampSize(sizeRaw, options?.remainingCapital);
 
-  const amount = ensureNumber(raw.amount, 'LLMTradeAction.amount');
-  if (amount <= 0) {
-    throw new Error('LLMTradeAction.amount must be greater than 0.');
-  }
+  const reasoning =
+    typeof raw.reasoning === 'string' && raw.reasoning.trim().length > 0
+      ? raw.reasoning.trim()
+      : 'LLM did not provide reasoning';
 
-  if (typeof raw.symbol !== 'string' || raw.symbol.trim() === '') {
-    throw new Error('LLMTradeAction.symbol is required and must be a non-empty string.');
-  }
-  const symbol = raw.symbol.trim().toUpperCase();
+  const confidence = Math.min(Math.max(ensureNumber(raw.confidence, 50), 0), 100);
+
+  const fallbackSymbol = options?.fallbackSymbol || options?.fallbackSector || 'UNKNOWN';
+  const symbol =
+    typeof raw.symbol === 'string' && raw.symbol.trim() !== ''
+      ? raw.symbol.trim().toUpperCase()
+      : fallbackSymbol.toUpperCase();
 
   const sector =
     typeof raw.sector === 'string' && raw.sector.trim() !== ''
       ? raw.sector.trim()
-      : undefined;
-
-  const stopLoss = raw.stopLoss === undefined ? undefined : ensureNumber(raw.stopLoss, 'LLMTradeAction.stopLoss');
-  const takeProfit =
-    raw.takeProfit === undefined ? undefined : ensureNumber(raw.takeProfit, 'LLMTradeAction.takeProfit');
-  const confidenceRaw =
-    raw.confidence === undefined ? undefined : ensureNumber(raw.confidence, 'LLMTradeAction.confidence');
-  const confidence = Math.min(Math.max(confidenceRaw ?? 50, 0), 100);
-
-  if (typeof raw.reasoning !== 'string' || raw.reasoning.trim() === '') {
-    throw new Error('LLMTradeAction.reasoning must be a non-empty string.');
-  }
-  const reasoning = raw.reasoning.trim();
-
-  const remainingCapital =
-    typeof options?.remainingCapital === 'number' && options.remainingCapital > 0
-      ? options.remainingCapital
-      : undefined;
+      : options?.fallbackSector || symbol;
 
   const allowedSymbols = normalizeAllowedSymbols(options?.allowedSymbols ?? [], symbol);
   if (!allowedSymbols.includes(symbol)) {
     throw new Error(`LLMTradeAction.symbol must be one of: ${allowedSymbols.join(', ')}.`);
   }
 
-  let boundedAmount = amount;
-  if (remainingCapital) {
-    const min = remainingCapital * 0.01;
-    const max = remainingCapital * 0.2;
-    boundedAmount = Math.min(Math.max(amount, min), Math.min(max, remainingCapital));
-  }
+  const stopLoss = toNumberOrNull(raw.stopLoss ?? raw.stop_loss);
+  const takeProfit = toNumberOrNull(raw.takeProfit ?? raw.take_profit);
+  const entryPrice = toNumberOrNull(raw.entryPrice ?? raw.entry_price ?? raw.price);
+
+  const amount = resolveAmountFromSizing(size, sizingBasis, options?.remainingCapital, options?.currentPrice);
 
   return {
-    action: actionRaw,
-    amount: boundedAmount,
+    side,
+    action,
+    sizingBasis,
+    size,
+    amount,
     symbol,
     sector,
+    entryPrice,
     stopLoss,
     takeProfit,
-    confidence,
     reasoning,
+    confidence,
   };
 }
 
 function normalizeActionToUpper(action) {
-  return action.toUpperCase();
+  const normalized = typeof action === 'string' ? action.trim().toUpperCase() : '';
+  if (ALLOWED_LLM_SIDES.includes(normalized)) {
+    return normalized;
+  }
+  return 'HOLD';
 }
 
 module.exports = {
-  ALLOWED_LLM_ACTIONS,
+  ALLOWED_LLM_SIDES,
+  ALLOWED_LLM_SIZING_BASES,
   validateLLMTradeAction,
   normalizeActionToUpper,
 };

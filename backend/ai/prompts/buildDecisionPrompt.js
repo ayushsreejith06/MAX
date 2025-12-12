@@ -8,7 +8,7 @@ function normalizeAllowedSymbols(symbols, sectorName) {
 }
 
 function normalizeRealTimeData(data, sectorName) {
-  const { recentPrice, baselinePrice, trendPercent, volatility, indicators } = data || {};
+  const { recentPrice, baselinePrice, trendPercent, volatility, indicators, recentPnLPercent } = data || {};
 
   return {
     sectorName,
@@ -16,6 +16,7 @@ function normalizeRealTimeData(data, sectorName) {
     baselinePrice: typeof baselinePrice === 'number' ? baselinePrice : null,
     trendPercent: typeof trendPercent === 'number' ? trendPercent : null,
     volatility: typeof volatility === 'number' ? volatility : null,
+    recentPnLPercent: typeof recentPnLPercent === 'number' ? recentPnLPercent : null,
     indicators: indicators ?? {}
   };
 }
@@ -23,6 +24,7 @@ function normalizeRealTimeData(data, sectorName) {
 function buildDecisionPrompt(params) {
   const sectorName = params.sectorName || 'UNKNOWN';
   const specialization = params.agentSpecialization || 'generalist';
+  const agentBrief = params.agentBrief || specialization;
   const allowedSymbols = normalizeAllowedSymbols(params.allowedSymbols, sectorName);
   const remainingCapital =
     typeof params.remainingCapital === 'number' && params.remainingCapital > 0
@@ -31,39 +33,46 @@ function buildDecisionPrompt(params) {
   const realTimeData = normalizeRealTimeData(params.realTimeData, sectorName);
 
   const systemPrompt = [
-    'You are MAX Trading LLM.',
-    'You MUST output JSON according to LLMTradeAction.',
-    'Choose ONLY from allowedSymbols.',
-    'Choose realistic amount (1–20% of remaining capital).',
-    'Include reasoning.',
-    'Output strictly JSON with no extra text.'
+    `You are a trading agent for the ${sectorName} sector.`,
+    'You see contextual data: sector, allowedSymbols, simulated price, baseline, trend %, volatility, recent P/L, and indicators.',
+    `The agent brief is: "${agentBrief}".`,
+    'Think about risks, available capital, and whether to BUY, SELL, HOLD, or REBALANCE.',
+    'Pick a sizingBasis (fixed_units | fixed_dollars | percent_of_capital) and a numeric size that matches the basis and capital.',
+    'Optionally include entryPrice, stopLoss, and takeProfit (numbers) or null.',
+    'Output ONLY one JSON object, no markdown or extra prose, matching LLMTradeAction.',
   ].join(' ');
 
-  const amountRule = remainingCapital
-    ? `Amount should be between ${Number((remainingCapital * 0.01).toFixed(2))} and ${Number(
+  const sizingRule = remainingCapital
+    ? `When using percent_of_capital, keep size between ${Number((remainingCapital * 0.01).toFixed(2))}% and 20%. For fixed_dollars stay within $${Number(
         (remainingCapital * 0.2).toFixed(2)
-      )} (1–20% of remaining capital)`
-    : 'Amount should represent 1–20% of remaining capital; if capital is unknown, pick a conservative value';
+      )}.`
+    : 'When capital is unknown, pick conservative sizing (<=10% if using percent_of_capital).';
 
   const userPrompt = [
     `sectorName: ${sectorName}`,
     `agentSpecialization: ${specialization}`,
+    `agentBrief: ${agentBrief}`,
     `allowedSymbols: ${JSON.stringify(allowedSymbols)}`,
     `remainingCapital: ${remainingCapital ?? 'unknown (assume conservative sizing)'}`,
     `realTimeData: ${JSON.stringify(realTimeData)}`,
     'Respond with one JSON object following LLMTradeAction:',
     '{',
-    '  "action": "BUY" | "SELL" | "HOLD" | "REBALANCE",',
+    '  "sector": "<sector name or symbol>",',
     '  "symbol": "<one of allowedSymbols>",',
-    '  "amount": number,',
-    '  "confidence": number (0-100),',
-    '  "reasoning": "concise justification based on the data"',
+    '  "side": "BUY" | "SELL" | "HOLD" | "REBALANCE",',
+    '  "sizingBasis": "fixed_units" | "fixed_dollars" | "percent_of_capital",',
+    '  "size": number,',
+    '  "entryPrice": number | null,',
+    '  "stopLoss": number | null,',
+    '  "takeProfit": number | null,',
+    '  "reasoning": "short explanation"',
     '}',
     'Rules:',
     '- Select symbol from allowedSymbols.',
-    `- ${amountRule}.`,
-    '- Base reasoning on realTimeData trends, volatility, and indicators.',
-    '- No prose outside the JSON object.'
+    '- Choose side based on risk and trend; HOLD if nothing stands out.',
+    `- ${sizingRule}`,
+    '- Base reasoning on realTimeData (price, baseline, trend %, volatility, P/L, indicators).',
+    '- Output pure JSON only (jsonMode=true).'
   ].join('\n');
 
   return { systemPrompt, userPrompt, allowedSymbols };

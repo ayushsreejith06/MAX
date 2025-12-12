@@ -1,1385 +1,5 @@
 [
   {
-    "id": "b8fb1d47-f33c-4255-96a1-7d1d1c83d573",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "dea3bd43-65a1-4fa1-b905-cf82e99e6209",
-    "timestamp": 1765248050835,
-    "results": [
-      {
-        "itemId": "checklist-dea3bd43-65a1-4fa1-b905-cf82e99e6209-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "ae69d024-596b-4004-b014-85c8fdc9558d",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "d7d50f66-4b43-446d-888c-23565ee23732",
-    "timestamp": 1765248090523,
-    "results": [
-      {
-        "itemId": "checklist-d7d50f66-4b43-446d-888c-23565ee23732-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "287463f3-6e85-4252-8a27-3c31d7115ee5",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "6d400f74-ab5f-4b97-8984-4a57069ecc14",
-    "timestamp": 1765248092211,
-    "results": [
-      {
-        "itemId": "checklist-6d400f74-ab5f-4b97-8984-4a57069ecc14-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "212cd395-4843-484e-ac84-694c1e868c18",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "ac9a52bb-2e83-411d-9cc7-e99b6a86494b",
-    "timestamp": 1765248131577,
-    "results": [
-      {
-        "itemId": "checklist-ac9a52bb-2e83-411d-9cc7-e99b6a86494b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "5f6e0f9d-8a7c-43c5-8143-53d420a57359",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "423bc71f-bf32-477e-a384-364040a913ea",
-    "timestamp": 1765248137242,
-    "results": [
-      {
-        "itemId": "checklist-423bc71f-bf32-477e-a384-364040a913ea-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "47e30734-bccc-4930-83f8-c136d9eb65b5",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "b956fd08-169e-447d-98d5-44dfed6c15ab",
-    "timestamp": 1765248272403,
-    "results": [
-      {
-        "itemId": "checklist-b956fd08-169e-447d-98d5-44dfed6c15ab-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "867beb9e-1b1c-4a8a-af48-6ea683534e96",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "e2409585-c6b9-43df-832c-c6f24280582b",
-    "timestamp": 1765248278409,
-    "results": [
-      {
-        "itemId": "checklist-e2409585-c6b9-43df-832c-c6f24280582b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "484ff56d-d077-489d-965f-f53dbe52f023",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "b4e77497-69cb-435b-ac13-08822e24c62d",
-    "timestamp": 1765248294368,
-    "results": [
-      {
-        "itemId": "checklist-b4e77497-69cb-435b-ac13-08822e24c62d-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "8bf4798f-a7ed-4d14-a1bd-42012268f850",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "50a13ba0-6228-4fa9-a6d3-4103a73497b2",
-    "timestamp": 1765248302311,
-    "results": [
-      {
-        "itemId": "checklist-50a13ba0-6228-4fa9-a6d3-4103a73497b2-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "b65393dd-f829-45dd-b1c9-31ce9ee9fe02",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "507bac93-d0bf-45a5-ba01-887b2f6ed679",
-    "timestamp": 1765248310238,
-    "results": [
-      {
-        "itemId": "checklist-507bac93-d0bf-45a5-ba01-887b2f6ed679-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "638239c4-4021-4021-ac0f-6b8deea69566",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "a4c89dc0-b889-4d52-95f6-a99173b1ad97",
-    "timestamp": 1765248318392,
-    "results": [
-      {
-        "itemId": "checklist-a4c89dc0-b889-4d52-95f6-a99173b1ad97-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "f21eb638-d503-4493-b9e3-0cd351c2ec19",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "74d3ceae-4f1c-4a31-bbae-c84cdca599e4",
-    "timestamp": 1765248326099,
-    "results": [
-      {
-        "itemId": "checklist-74d3ceae-4f1c-4a31-bbae-c84cdca599e4-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "935497f8-2f20-4648-9647-f01de392a9c4",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "a4189d80-8abf-4d99-aaec-2b0072e88cf3",
-    "timestamp": 1765248332342,
-    "results": [
-      {
-        "itemId": "checklist-a4189d80-8abf-4d99-aaec-2b0072e88cf3-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "ecad036a-6a9c-4dc1-9ee1-10572201cb30",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "e1302eee-ceb0-4dce-b638-7be32dbb468d",
-    "timestamp": 1765248340351,
-    "results": [
-      {
-        "itemId": "checklist-e1302eee-ceb0-4dce-b638-7be32dbb468d-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "27fbc175-fe97-4fc4-b416-cc420a75d25c",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "f94921ad-4c50-4510-92dd-04cee6783c57",
-    "timestamp": 1765248420443,
-    "results": [
-      {
-        "itemId": "checklist-f94921ad-4c50-4510-92dd-04cee6783c57-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "77f878a9-8f41-41ad-bf51-d8d16c60c4c4",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "0ee74f67-7137-4eb1-b01f-ad13ed565851",
-    "timestamp": 1765248430267,
-    "results": [
-      {
-        "itemId": "checklist-0ee74f67-7137-4eb1-b01f-ad13ed565851-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "133f6a78-a605-4667-9ea2-10b88fc402c6",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "bba5a737-c8a5-4512-938b-03d3aa04c646",
-    "timestamp": 1765248438319,
-    "results": [
-      {
-        "itemId": "checklist-bba5a737-c8a5-4512-938b-03d3aa04c646-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "7fc44b37-659e-4b74-8362-3ec4b3dd542b",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "6f706f9c-55b0-454e-b4cf-41be5a21265d",
-    "timestamp": 1765248446700,
-    "results": [
-      {
-        "itemId": "checklist-6f706f9c-55b0-454e-b4cf-41be5a21265d-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "1ec0f803-285a-433c-97f2-7d1e0fc563a2",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "55c198b2-5b98-459a-ac8c-7b8b0e3ed8e8",
-    "timestamp": 1765248454649,
-    "results": [
-      {
-        "itemId": "checklist-55c198b2-5b98-459a-ac8c-7b8b0e3ed8e8-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "86d37d06-aa0f-4643-96a8-7b0a5a542e81",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "85c8ffb9-29e5-43f9-8e4e-7520b940380f",
-    "timestamp": 1765248460243,
-    "results": [
-      {
-        "itemId": "checklist-85c8ffb9-29e5-43f9-8e4e-7520b940380f-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "dafdca2c-7a94-4484-929e-9d2966aa65ed",
-    "sectorId": "097a2dbf-415b-46aa-852c-b66c2be3464c",
-    "checklistId": "14c95f5c-86ff-4124-8d7c-d62b0f8847e9",
-    "timestamp": 1765248468649,
-    "results": [
-      {
-        "itemId": "checklist-14c95f5c-86ff-4124-8d7c-d62b0f8847e9-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "72bbd5da-d0d2-47cd-a900-ad915535a972",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "6ebefdce-acdf-4f52-97d8-4261b6b6aa97",
-    "timestamp": 1765248911657,
-    "results": [
-      {
-        "itemId": "checklist-6ebefdce-acdf-4f52-97d8-4261b6b6aa97-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "7e15ae92-b2b7-42d7-a8d5-d716d1263953",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "fd49f122-5799-4bc2-a098-71d7c2546435",
-    "timestamp": 1765248919802,
-    "results": [
-      {
-        "itemId": "checklist-fd49f122-5799-4bc2-a098-71d7c2546435-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "683ee8cd-8b6b-44b4-bea4-58a34c62a8e0",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "52219df0-05ee-4576-96ac-eb0c9e572352",
-    "timestamp": 1765248945832,
-    "results": [
-      {
-        "itemId": "checklist-52219df0-05ee-4576-96ac-eb0c9e572352-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "82ead660-25f8-435a-bc18-751abc920021",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "de084238-cbb3-40d4-8b1b-71c1b1aa47dd",
-    "timestamp": 1765248953817,
-    "results": [
-      {
-        "itemId": "checklist-de084238-cbb3-40d4-8b1b-71c1b1aa47dd-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "d2e84ed8-d61c-4c14-af7d-50c73fbd718c",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "b74561b9-2208-4db7-bb26-a9ef36511214",
-    "timestamp": 1765248961945,
-    "results": [
-      {
-        "itemId": "checklist-b74561b9-2208-4db7-bb26-a9ef36511214-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "ccc72919-4596-4d2e-b1fe-c33b3a8132fa",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "11338751-6351-4652-a310-be87b168483b",
-    "timestamp": 1765248969816,
-    "results": [
-      {
-        "itemId": "checklist-11338751-6351-4652-a310-be87b168483b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "293241f0-c747-40de-b245-cc316b14d76e",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "e4348353-cb60-4e81-b540-a516977085c7",
-    "timestamp": 1765248977858,
-    "results": [
-      {
-        "itemId": "checklist-e4348353-cb60-4e81-b540-a516977085c7-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "b30e9204-6cc5-44a5-a85d-308c52eef5b6",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "fbea6ede-c28f-46f2-b787-d2f96807dff7",
-    "timestamp": 1765248986133,
-    "results": [
-      {
-        "itemId": "checklist-fbea6ede-c28f-46f2-b787-d2f96807dff7-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "559dad0b-5e49-413a-94db-9cc84c71f080",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "76f0a921-bcac-4098-b596-1251a712c0e1",
-    "timestamp": 1765248994000,
-    "results": [
-      {
-        "itemId": "checklist-76f0a921-bcac-4098-b596-1251a712c0e1-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "d5d4e140-3b52-4566-a5bf-f294726a0d4a",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "df0f9f21-3014-4cef-a0ed-d4456e0721c0",
-    "timestamp": 1765249000012,
-    "results": [
-      {
-        "itemId": "checklist-df0f9f21-3014-4cef-a0ed-d4456e0721c0-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "abca97b2-b3c9-4c15-b9f6-28b052cc9386",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "c805b260-e83c-4e90-8624-190e8f1f24a6",
-    "timestamp": 1765249008082,
-    "results": [
-      {
-        "itemId": "checklist-c805b260-e83c-4e90-8624-190e8f1f24a6-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "1c73a87f-b4d6-47ea-a891-348e8029a75f",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "962403b2-64fd-4fa7-933f-abe25a111a3d",
-    "timestamp": 1765249015908,
-    "results": [
-      {
-        "itemId": "checklist-962403b2-64fd-4fa7-933f-abe25a111a3d-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "8f636f23-a052-49ec-a5a5-c69a34b0dca9",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "d29ea81e-8f6a-40e2-8c3e-ebeac2e7ea1c",
-    "timestamp": 1765249023922,
-    "results": [
-      {
-        "itemId": "checklist-d29ea81e-8f6a-40e2-8c3e-ebeac2e7ea1c-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "9b9ad5b4-57c6-4670-9cb1-61012e86cd4a",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "4b3daa92-0c13-4dcb-9717-df39fc25d271",
-    "timestamp": 1765249031946,
-    "results": [
-      {
-        "itemId": "checklist-4b3daa92-0c13-4dcb-9717-df39fc25d271-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "b97bb323-d306-4f1c-ad4e-8aa389165387",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "2cbbcbba-d617-484f-a8f7-1a6dc43fd86b",
-    "timestamp": 1765249039950,
-    "results": [
-      {
-        "itemId": "checklist-2cbbcbba-d617-484f-a8f7-1a6dc43fd86b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "9fdedcda-ca59-4edb-a6fd-42fd2c1a5068",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "01cfe46a-aecb-4a54-a8ef-a8c2c74da830",
-    "timestamp": 1765249047966,
-    "results": [
-      {
-        "itemId": "checklist-01cfe46a-aecb-4a54-a8ef-a8c2c74da830-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "3223071a-7679-4b4f-81bd-31c86b3b59fe",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "b6b2068d-5b7d-4a5b-ab14-3f8168141b63",
-    "timestamp": 1765249055974,
-    "results": [
-      {
-        "itemId": "checklist-b6b2068d-5b7d-4a5b-ab14-3f8168141b63-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "a1648a34-f8b8-40e1-8397-5e252f7593d9",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "df655abe-c77d-4cf8-bc73-c6f8683742f4",
-    "timestamp": 1765249067314,
-    "results": [
-      {
-        "itemId": "checklist-df655abe-c77d-4cf8-bc73-c6f8683742f4-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "35f29024-a525-4321-8ed3-cef61d1487e5",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "48dd6a4a-f3f9-4b49-9b30-e5cc3cbbd290",
-    "timestamp": 1765249075459,
-    "results": [
-      {
-        "itemId": "checklist-48dd6a4a-f3f9-4b49-9b30-e5cc3cbbd290-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "511efa31-b0de-4f6e-9e0e-fe8f027ba799",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "8d7319d4-63a4-4a3f-8704-44b0852856dc",
-    "timestamp": 1765249083336,
-    "results": [
-      {
-        "itemId": "checklist-8d7319d4-63a4-4a3f-8704-44b0852856dc-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "3c6cd853-2d1e-49b2-b782-fc2b3e045cab",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "2f665883-e1cd-4c5e-ba6a-74459c87b829",
-    "timestamp": 1765249125812,
-    "results": [
-      {
-        "itemId": "checklist-2f665883-e1cd-4c5e-ba6a-74459c87b829-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "bec99e32-69f1-4ced-9d06-813490b110e9",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "092db6ee-4d5c-4da4-ac93-0091f326d199",
-    "timestamp": 1765249171159,
-    "results": [
-      {
-        "itemId": "checklist-092db6ee-4d5c-4da4-ac93-0091f326d199-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "643fd74d-615d-4f99-8632-0b3234e7f696",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "27474d85-0a03-4703-99fd-093ae64faefd",
-    "timestamp": 1765249178159,
-    "results": [
-      {
-        "itemId": "checklist-27474d85-0a03-4703-99fd-093ae64faefd-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "be0688ce-41e8-4d4b-afa8-e9161f56427f",
-    "sectorId": "df02ff67-8b09-4cec-9055-af9edd3a7270",
-    "checklistId": "c7a938e6-2ec4-49c3-aa56-288d03d64249",
-    "timestamp": 1765249186179,
-    "results": [
-      {
-        "itemId": "checklist-c7a938e6-2ec4-49c3-aa56-288d03d64249-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "208ece79-30e5-404c-87d4-45fa136b822f",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "bc50c5b8-f4f6-422b-b4be-b209378a7d6b",
-    "timestamp": 1765249891886,
-    "results": [
-      {
-        "itemId": "checklist-bc50c5b8-f4f6-422b-b4be-b209378a7d6b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "7e88ae79-3038-498b-bb10-d473a0d94822",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "f09ef93d-d32d-4501-95f6-aa1059c2c87d",
-    "timestamp": 1765249899878,
-    "results": [
-      {
-        "itemId": "checklist-f09ef93d-d32d-4501-95f6-aa1059c2c87d-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "3da9d695-3c19-4ba2-86a3-2a8af4a7c307",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "961c942f-af28-478a-a9d3-5f13e0f3e02b",
-    "timestamp": 1765249908115,
-    "results": [
-      {
-        "itemId": "checklist-961c942f-af28-478a-a9d3-5f13e0f3e02b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "e19bc677-7c1c-4a7a-bc68-9f480113b15a",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "4a4be15a-82e2-420b-ab0c-c5915b51e8f2",
-    "timestamp": 1765249914275,
-    "results": [
-      {
-        "itemId": "checklist-4a4be15a-82e2-420b-ab0c-c5915b51e8f2-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "33a701ce-5d69-495c-8c02-7b5d98ba3e7a",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "315a0555-4cb4-469a-929a-a2a21b3b13a6",
-    "timestamp": 1765249922184,
-    "results": [
-      {
-        "itemId": "checklist-315a0555-4cb4-469a-929a-a2a21b3b13a6-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "42d54d66-487e-4c32-8d8b-bab568009fd8",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "325efc34-c5d7-4d3f-9162-dfd384f46d9d",
-    "timestamp": 1765249930167,
-    "results": [
-      {
-        "itemId": "checklist-325efc34-c5d7-4d3f-9162-dfd384f46d9d-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "5eaf634f-316e-485c-a8ce-71fced1c4b0e",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "f60eb01a-ba5f-4d1f-922c-0ae36d53cead",
-    "timestamp": 1765249938205,
-    "results": [
-      {
-        "itemId": "checklist-f60eb01a-ba5f-4d1f-922c-0ae36d53cead-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "8cf6d190-792d-4ac9-9f16-20e21de0b47f",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "cb496ecf-4a66-4f56-a5e2-4f5a74715b48",
-    "timestamp": 1765249946217,
-    "results": [
-      {
-        "itemId": "checklist-cb496ecf-4a66-4f56-a5e2-4f5a74715b48-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "bac8477c-bebb-4d3a-bd6e-f4105deb1546",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "244a2136-7431-4f1c-8f12-9eca978f54b8",
-    "timestamp": 1765249954442,
-    "results": [
-      {
-        "itemId": "checklist-244a2136-7431-4f1c-8f12-9eca978f54b8-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "4bd2132c-210c-45ba-ac0f-832695c85d70",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "19113b49-02f1-4165-bb7e-829bb512808b",
-    "timestamp": 1765249960268,
-    "results": [
-      {
-        "itemId": "checklist-19113b49-02f1-4165-bb7e-829bb512808b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "3c827ed5-84c3-4f46-b630-a66bfce98635",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "dfff738f-55f1-4ad3-a280-7c8fc557a9da",
-    "timestamp": 1765249968288,
-    "results": [
-      {
-        "itemId": "checklist-dfff738f-55f1-4ad3-a280-7c8fc557a9da-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "81ba86eb-7f1a-4e74-aae3-303f3e124e26",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "20dbd771-f7e5-4f29-bf86-8566900a8417",
-    "timestamp": 1765249976303,
-    "results": [
-      {
-        "itemId": "checklist-20dbd771-f7e5-4f29-bf86-8566900a8417-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "1fcb4860-9c97-4b6f-b204-c95fa692718c",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "e0812d36-b47d-4dc0-af1b-db994795fcb5",
-    "timestamp": 1765249984312,
-    "results": [
-      {
-        "itemId": "checklist-e0812d36-b47d-4dc0-af1b-db994795fcb5-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "cbf66289-7797-421e-a41d-4fb6a5c1c98c",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "3f811d59-8303-40cf-af04-fb25b8028291",
-    "timestamp": 1765249994165,
-    "results": [
-      {
-        "itemId": "checklist-3f811d59-8303-40cf-af04-fb25b8028291-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "93b590de-b2c8-43a3-9186-7cadef0e6445",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "cc4d2c36-29c1-4176-86dc-a81e92ddc44b",
-    "timestamp": 1765249996017,
-    "results": [
-      {
-        "itemId": "checklist-cc4d2c36-29c1-4176-86dc-a81e92ddc44b-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "8a5d821e-d2ef-466d-b93c-bc527af9511c",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "702e8916-6d08-46f3-91a3-4cd4b9b20e3c",
-    "timestamp": 1765250001486,
-    "results": [
-      {
-        "itemId": "checklist-702e8916-6d08-46f3-91a3-4cd4b9b20e3c-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "b8f646bb-5450-4f54-96ff-df5d725beb42",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "31aa4d7c-e14a-4892-8f97-6d262c5bc696",
-    "timestamp": 1765250009516,
-    "results": [
-      {
-        "itemId": "checklist-31aa4d7c-e14a-4892-8f97-6d262c5bc696-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "7817a99f-38a3-4041-922b-652d2cdc612e",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "8380f930-7c8d-4ba7-8be8-176d0acf0822",
-    "timestamp": 1765250015660,
-    "results": [
-      {
-        "itemId": "checklist-8380f930-7c8d-4ba7-8be8-176d0acf0822-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "56cf3818-a708-41b4-85a0-0213f8ddc49a",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "f965779b-fe78-4734-b6f2-26060c93d633",
-    "timestamp": 1765250027666,
-    "results": [
-      {
-        "itemId": "checklist-f965779b-fe78-4734-b6f2-26060c93d633-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "c03f7a7a-3f83-4c58-94cf-47318f9214b8",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "fad9468e-9f68-4c7c-ac41-dfb9584085f0",
-    "timestamp": 1765250028905,
-    "results": [
-      {
-        "itemId": "checklist-fad9468e-9f68-4c7c-ac41-dfb9584085f0-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "2a1afdea-71e0-4bba-9ced-37ac3225273b",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "20e762a8-1f9b-4bc7-aca4-9fa19bf7c2a2",
-    "timestamp": 1765250036945,
-    "results": [
-      {
-        "itemId": "checklist-20e762a8-1f9b-4bc7-aca4-9fa19bf7c2a2-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "66fda129-50fd-4fdb-afa8-c9e9aa22cebd",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "39ed1f46-4401-4852-8920-c6f099249a45",
-    "timestamp": 1765250044814,
-    "results": [
-      {
-        "itemId": "checklist-39ed1f46-4401-4852-8920-c6f099249a45-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "47854410-600a-4bdf-9753-6ba125dd0ca2",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "a3d312ce-c941-4a38-9795-defb62f8acba",
-    "timestamp": 1765250052842,
-    "results": [
-      {
-        "itemId": "checklist-a3d312ce-c941-4a38-9795-defb62f8acba-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "4ca69f31-34d7-46ec-9398-322acd17fa9d",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "10669723-e5c8-4117-9fd8-e18246dda5ff",
-    "timestamp": 1765250067931,
-    "results": [
-      {
-        "itemId": "checklist-10669723-e5c8-4117-9fd8-e18246dda5ff-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "cbf2374c-83a4-4011-b090-b22abcc711fa",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "b5677d23-60e0-4807-adcd-7dd3f5cb6d11",
-    "timestamp": 1765250069451,
-    "results": [
-      {
-        "itemId": "checklist-b5677d23-60e0-4807-adcd-7dd3f5cb6d11-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "993bb698-fc7b-4bfc-a81c-cc0c34707970",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "47c27429-927d-442d-bf76-8269700b05b1",
-    "timestamp": 1765250077820,
-    "results": [
-      {
-        "itemId": "checklist-47c27429-927d-442d-bf76-8269700b05b1-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "c8e4e5c9-7304-4c25-bce6-3a83dbee4cab",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "c240ffe1-6a32-4189-bdba-cb4d26ee5cef",
-    "timestamp": 1765250088827,
-    "results": [
-      {
-        "itemId": "checklist-c240ffe1-6a32-4189-bdba-cb4d26ee5cef-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "0d5e1387-cec3-4b06-aed5-276bc3dd9c52",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "aa2430be-8191-4c68-b806-354a7241cd74",
-    "timestamp": 1765250090521,
-    "results": [
-      {
-        "itemId": "checklist-aa2430be-8191-4c68-b806-354a7241cd74-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "31f5ce87-bffc-451a-bce2-7c143c5734e9",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "caa84515-048c-4b31-bc60-7e40f34851ae",
-    "timestamp": 1765250128872,
-    "results": [
-      {
-        "itemId": "checklist-caa84515-048c-4b31-bc60-7e40f34851ae-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "e02247cc-9697-4283-9f6a-17764c1426f7",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "fe8d3174-17a8-4c6c-aea9-793bc7df8dcf",
-    "timestamp": 1765250139494,
-    "results": [
-      {
-        "itemId": "checklist-fe8d3174-17a8-4c6c-aea9-793bc7df8dcf-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "1bac5444-97c7-4aa7-80a6-eb03231aca17",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "8c3c6924-0c0b-49ba-950c-746d60fb428e",
-    "timestamp": 1765250220942,
-    "results": [
-      {
-        "itemId": "checklist-8c3c6924-0c0b-49ba-950c-746d60fb428e-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "5d5c82e6-90b7-47c5-97ee-22feca0b0fad",
-    "sectorId": "4441f65f-5647-401a-8ac5-90848baf547b",
-    "checklistId": "d5e71817-5d1d-4b0a-ab4a-be273f8abe1c",
-    "timestamp": 1765250228654,
-    "results": [
-      {
-        "itemId": "checklist-d5e71817-5d1d-4b0a-ab4a-be273f8abe1c-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "abd45c00-9902-49f6-88e1-bb795aa94740",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527017194,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "0569ebcf-7352-44d0-90f6-3ba8b0f854d5",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527021559,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "85104edf-f39e-4923-ad08-ae6b1f333f01",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527023214,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "281f0afc-b5a1-4120-b652-819cb5a44d87",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527025235,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "9232f629-643a-4df2-b600-c786967a56a9",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527029548,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "e410d608-94b7-4ae0-a6cf-96133bba1e30",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527031252,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "2a164fd3-2bdb-4e48-9768-cd1683525f8e",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527033292,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "a59d6d9a-f011-4b74-b34e-48592bc783b5",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527037595,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "ddbf5b3a-e8f8-4d67-8c65-ec663795fa8b",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527039254,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "e73be487-7e22-401d-ac39-11567fab0fad",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527041241,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "5987abd0-d454-41a7-9b4c-86b22c291676",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527043255,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "c71b4880-7665-4e39-a33f-a206af4e9882",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527045252,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "5e554881-32b6-4203-996c-7346846dbbe7",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527047279,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "7aa9c049-6732-4315-b08e-025212ce58df",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527049281,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
-    "id": "bf466ed7-7854-47aa-8fb6-619fc3b6ffcd",
-    "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
-    "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
-    "timestamp": 1765527051282,
-    "results": [
-      {
-        "itemId": "checklist-da62628a-672e-4d14-80f9-a2255706c118-0",
-        "action": "buy",
-        "amount": 1000,
-        "success": false,
-        "reason": "Insufficient capital"
-      }
-    ]
-  },
-  {
     "id": "3c63f799-f56f-4b88-b3d6-48202741f3c9",
     "sectorId": "51801a09-4688-473f-9798-780a8ca49cc1",
     "checklistId": "da62628a-672e-4d14-80f9-a2255706c118",
@@ -14831,6 +13451,1571 @@
         "amount": 16,
         "success": false,
         "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "c6d97e09-7de6-4248-a17b-100853e4c9c0",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534375944,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "71132eb3-1ebe-4a07-8ef9-d6ced401ea91",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534377365,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "0a8f1fec-0c7c-4a28-bb46-f258457ca79c",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534379868,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "850729d1-2c63-400a-b065-b18f54bd03f6",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534381521,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "f1c275b1-348f-4cc0-b436-2ddf4fb0efc2",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534383376,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "231b915f-e4d5-4ec2-9eb8-4c02d514638d",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534385556,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "a2792bfa-09fc-4cf6-af1e-bb4cc95d2886",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534387616,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "4d1057c3-1fc0-4e79-bebc-7a68222df8d8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534389518,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "df14bfea-cd7b-4d8c-a995-159d2122cab8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534391577,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "dc4bebfe-af3a-49da-9d7d-333ad2857a97",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534393628,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "0fe2b825-1559-4546-820e-4dd78d2fb53a",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534395517,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "6c84af01-b643-4ed3-b708-95a195b3dc8e",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534397483,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "0327d8c6-1442-4d7f-87d1-4697a010dc3c",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534399603,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "78d2267b-b00f-4f3b-8c91-8e7d216a738d",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534401515,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "5bef940e-a270-4556-9960-c100b790a960",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534403559,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "dc56ab7a-80a6-47dc-8610-e4e648acb089",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534405658,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "14e57d00-2f17-42f9-9978-8dd0a4a0a2d6",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534407565,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "8fc1f165-8566-4b46-8293-5ec341dc0220",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534409549,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "b08f5978-0db4-4072-a75a-969b7b46e90d",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534411666,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "70a6c4bd-0575-437d-ac5e-85b19f69288e",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534413580,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "b34de77a-e512-4526-9830-bbd61c68290d",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534415566,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "8dee5720-fc06-46fd-8748-bf29bd1f3840",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534417599,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "e0ee44fc-4a7c-49d4-a796-2820be706f51",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534419618,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "04b1e855-f0ae-461b-8cdc-182f4895e250",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534421661,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "f9e9d516-c847-459a-b2cc-dc866495bbaa",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534423722,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "19612094-97af-434e-82cb-4d5391f69b77",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534426259,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "22384a5a-fe99-457e-9f9e-3cba940d25b5",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534427562,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "a8a9f49f-8758-4b00-8ea1-46d9bb7f0b03",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534429729,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "7a48eea4-680e-4154-8e0f-c8a17db8d17c",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534431601,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "7cf9526b-d59e-4e33-8128-4fd816b7ebda",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534433618,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "a0a06d53-88cf-4a44-9b6f-62689508d9db",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534435705,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "124c493b-b06e-4db0-879f-3d0a264c2f7e",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534437604,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "2c69cae7-972e-4c5c-bb16-728f5b8d76d5",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534439892,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "1125be88-873c-4b46-a316-596be6a41605",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534441709,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "4247e0bd-cecd-4bd7-b4ee-80497dc8b3b8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534443597,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "b7a0a67a-80be-42e9-8fa2-bead57fab373",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534445656,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "05ade42a-892f-4056-961a-2d32c5215851",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534447722,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "cd0c1d07-bda3-41e6-8549-5b3b65704773",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534449626,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "3b216d8c-e604-4886-8077-c45a67f7acf9",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534451607,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "eb928a70-c582-498e-95b3-29a1676bd751",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534453772,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "208bf159-09ae-4096-83e5-b4f9c74d6cce",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534455640,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "41c62737-6a27-4ce2-8464-c4a4968dd81d",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534457659,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "975688b4-6d45-41f6-b295-fb1ebba8d5d5",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534459852,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "3fe264c7-6abc-44ba-9caf-de32e975e32e",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534461673,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "d011d8bb-b9d3-49a0-8184-e526c3f5fdca",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534463706,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "19617ed9-fe1d-44c6-af10-71bb18b21c23",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534465826,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "55a8257b-9e92-4a69-9e7c-32009cbe938a",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534467730,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "96136152-2324-4404-9c3d-ada433655df7",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534469701,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "84a385b8-596c-463e-a90e-942342b41355",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534471918,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "0cfc64ff-2f14-4780-aea3-c769e93764ec",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534473656,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "6e450860-475c-4c36-8745-2c00f0516877",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534475700,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "e3d80507-ae1f-49cd-9509-fee499c2c10f",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534477774,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "ab2e2167-9539-4393-b1a8-82398560d07c",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534479727,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "9eec213c-87d2-4abf-810e-47cb8677d954",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534481713,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "c30cd160-a709-40ac-8cf0-96027e809dc6",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534483740,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "5976c190-40f5-4cf8-90ae-4d931cabe2b8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534485745,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "27aedc53-f0cd-40af-a059-a83e5ca71124",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534487702,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "df3406d9-eb38-4aed-9cb5-e85bbff4b8f7",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534489862,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "920eac7e-3cf7-4aa4-8eef-85c9f7071d3e",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534491754,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "aee62d7f-1b7a-4b29-b869-71c6a44a58c9",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534493787,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "bfba858f-08f1-4472-8865-6c257b0c839f",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534495784,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "2fdaeb78-23dc-42f0-9807-64edb6a99ed1",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534497855,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "1888e083-f71f-4603-8ff0-d9d0a36c748a",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534500114,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "d9e7a9e8-986c-4fd9-8b2f-03134c9590e5",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534501933,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "251b8012-14f1-4dc2-9890-008a9b824902",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534503773,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "eed99a0c-a03d-4787-a975-4ef8dc17aa03",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534505834,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "c59803ec-8c3e-4909-9e6b-a44763f33a1f",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534507809,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "eb0e9029-3ef9-4e6b-b6aa-5060e4e62879",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534509839,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "0983fbf0-377c-4ba7-8b72-2b77b7b8483d",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534511961,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "bd106e52-5a76-4fd0-b2e2-48977f1311c8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534513910,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "d05c39e5-49f7-46c6-8f9d-c8aef714a034",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534515795,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "96866ef9-57ef-4520-bdcc-0a960bef1191",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534517854,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "d7c4a34f-6779-4618-91c5-ec6045bb7333",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534519986,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "ec8adac0-42be-47ae-b5ab-2cfed9e906cc",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534521761,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "82b7bf33-d71e-4183-859a-5b5410cdf0b4",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534523769,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "b324ea30-9940-4330-abbd-664b9492fda4",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534525774,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "c3baadf6-a7a1-47e8-8c58-6f24f72d625b",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534527789,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "5c1f6744-0541-44e3-a29e-60ce2dd782d8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534529983,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "73d12631-b246-4491-8531-4b888a1622d8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534531807,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "4405692d-7c4e-4aad-b60b-30018ae29da2",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534534053,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "8452b0e3-458b-4fd4-a93f-549b6d246139",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534535929,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "5b15f7da-6f22-40be-aebc-e24ee18571e7",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534537907,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "46460dad-6f49-4639-83ff-c80e8f251234",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534540008,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "7f41861c-cd2b-469b-9f8b-e0cef1b702c2",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534542011,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "ccffbc15-a0fd-422a-8366-26923216d335",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534544091,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "d4c6fa0f-5ff3-4c1c-9ba1-dad3e3d64508",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534545904,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "5f52ee90-471f-4eda-88db-787f76e8a505",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534546675,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "2e059ba1-e5e0-4714-9310-f2bc481ddaaa",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534548003,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "0eceecfe-0380-4bb1-9333-789d2ad28d6a",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534550330,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "8ff3f07c-6a3a-40b3-b297-dc1404ce89ea",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534551937,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "70764593-7c25-4827-82ce-c31458dbb5a8",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534553978,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "7e5d3a67-7ff8-4f67-8972-889279c83475",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534556159,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "52e2a766-64a7-4ea4-9b9e-3ff5e43934b2",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534558241,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "b019ce38-b9ef-453e-9df6-c97484298b52",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534559979,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "1d702ea3-883b-4049-839f-ff53e4f919ad",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534562099,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "7b9d447c-a8a5-4d06-a0d4-582989b60209",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534564034,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "dc34b4f0-05f9-495c-b849-7d68b5e9837c",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534565978,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "5822e81e-94f2-4904-914d-1912b74025c5",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534568090,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "2b3fc160-b9e0-4731-a123-c7cc3b108f05",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765534570016,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "decision-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-checklist-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-0-1765534716744",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d",
+    "timestamp": 1765534716744,
+    "results": [
+      {
+        "itemId": "checklist-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-0",
+        "action": "BUY",
+        "actionType": "BUY",
+        "amount": 1000,
+        "allocation": 1000,
+        "symbol": "TECH",
+        "success": true,
+        "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+        "impact": null,
+        "managerImpact": null
+      }
+    ]
+  },
+  {
+    "id": "decision-f69c90cd-95b0-481d-adf8-cc1043fbe68b-checklist-f69c90cd-95b0-481d-adf8-cc1043fbe68b-0-1765534722706",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "f69c90cd-95b0-481d-adf8-cc1043fbe68b",
+    "timestamp": 1765534722706,
+    "results": [
+      {
+        "itemId": "checklist-f69c90cd-95b0-481d-adf8-cc1043fbe68b-0",
+        "action": "BUY",
+        "actionType": "BUY",
+        "amount": 1000,
+        "allocation": 1000,
+        "symbol": "TECH",
+        "success": true,
+        "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+        "impact": null,
+        "managerImpact": null
+      }
+    ]
+  },
+  {
+    "id": "decision-43964185-022f-4a80-9e81-dc903d332c7c-checklist-43964185-022f-4a80-9e81-dc903d332c7c-0-1765534730550",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "43964185-022f-4a80-9e81-dc903d332c7c",
+    "timestamp": 1765534730550,
+    "results": [
+      {
+        "itemId": "checklist-43964185-022f-4a80-9e81-dc903d332c7c-0",
+        "action": "BUY",
+        "actionType": "BUY",
+        "amount": 1000,
+        "allocation": 1000,
+        "symbol": "TECH",
+        "success": true,
+        "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+        "impact": null,
+        "managerImpact": null
+      }
+    ]
+  },
+  {
+    "id": "decision-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-checklist-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-0-1765534738642",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "958215fa-ec4a-45ca-b776-8fbbbfe3b2c7",
+    "timestamp": 1765534738642,
+    "results": [
+      {
+        "itemId": "checklist-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-0",
+        "action": "BUY",
+        "actionType": "BUY",
+        "amount": 1000,
+        "allocation": 1000,
+        "symbol": "TECH",
+        "success": true,
+        "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0] (Revised based on feedback)",
+        "impact": null,
+        "managerImpact": null
       }
     ]
   }

@@ -1,27 +1,61 @@
-export type LLMTradeActionType = 'buy' | 'sell' | 'hold' | 'rebalance';
+export type LLMTradeSide = 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
+export type LLMTradeSideLower = 'buy' | 'sell' | 'hold' | 'rebalance';
+export type LLMTradeSizingBasis = 'fixed_units' | 'fixed_dollars' | 'percent_of_capital';
 
 export interface LLMTradeAction {
-  action: LLMTradeActionType;
-  amount: number;
+  sector: string;
   symbol: string;
-  sector?: string;
-  confidence: number;
+  side: LLMTradeSide | LLMTradeSideLower;
+  sizingBasis: LLMTradeSizingBasis;
+  size: number;
+  entryPrice?: number | null;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
   reasoning: string;
-  stopLoss?: number;
-  takeProfit?: number;
+  confidence?: number;
+}
+
+export interface NormalizedLLMTradeAction extends LLMTradeAction {
+  side: LLMTradeSide;
+  sizingBasis: LLMTradeSizingBasis;
+  size: number;
+  symbol: string;
+  sector: string;
+  entryPrice: number | null;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  reasoning: string;
+  confidence: number;
+  action: LLMTradeSideLower;
+  amount: number;
 }
 
 export type ValidateLLMTradeActionOptions = {
   allowedSymbols?: string[];
   remainingCapital?: number;
+  fallbackSector?: string;
+  fallbackSymbol?: string;
+  currentPrice?: number;
 };
 
-export const ALLOWED_LLM_ACTIONS: ReadonlyArray<LLMTradeActionType> = ['buy', 'sell', 'hold', 'rebalance'] as const;
+export const ALLOWED_LLM_SIDES: ReadonlyArray<LLMTradeSide> = ['BUY', 'SELL', 'HOLD', 'REBALANCE'] as const;
+const ALLOWED_LLM_SIDES_LOWER: ReadonlyArray<LLMTradeSideLower> = ['buy', 'sell', 'hold', 'rebalance'] as const;
+export const ALLOWED_LLM_SIZING_BASES: ReadonlyArray<LLMTradeSizingBasis> = [
+  'fixed_units',
+  'fixed_dollars',
+  'percent_of_capital',
+] as const;
 
-function ensureNumber(value: unknown, label: string): number {
+function ensureNumber(value: unknown, fallback: number): number {
   if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
-    throw new Error(`${label} must be a finite number.`);
+    return fallback;
   }
+  return value;
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) return null;
   return value;
 }
 
@@ -33,80 +67,135 @@ function normalizeAllowedSymbols(symbols: string[], fallback: string): string[] 
   return Array.from(new Set(normalized.length > 0 ? normalized : [fallback]));
 }
 
+function normalizeSide(raw: unknown): { upper: LLMTradeSide; lower: LLMTradeSideLower } {
+  const value = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+  if (ALLOWED_LLM_SIDES.includes(value as LLMTradeSide)) {
+    return { upper: value as LLMTradeSide, lower: value.toLowerCase() as LLMTradeSideLower };
+  }
+
+  return { upper: 'HOLD', lower: 'hold' };
+}
+
+function normalizeSizingBasis(raw: unknown): LLMTradeSizingBasis {
+  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (ALLOWED_LLM_SIZING_BASES.includes(value as LLMTradeSizingBasis)) {
+    return value as LLMTradeSizingBasis;
+  }
+  return 'percent_of_capital';
+}
+
+function clampSize(size: number, remainingCapital?: number): number {
+  const max = remainingCapital && remainingCapital > 0 ? remainingCapital * 2 : 1_000_000;
+  if (size <= 0) return 0;
+  return Math.min(size, max);
+}
+
+function clampPercentSize(size: number): number {
+  if (size <= 0) return 0;
+  if (size > 100) return 100;
+  return size;
+}
+
+function resolveAmountFromSizing(
+  size: number,
+  sizingBasis: LLMTradeSizingBasis,
+  remainingCapital?: number,
+  currentPrice?: number,
+): number {
+  if (size <= 0) return 0;
+  if (sizingBasis === 'percent_of_capital') {
+    if (remainingCapital && remainingCapital > 0) {
+      return (remainingCapital * clampPercentSize(size)) / 100;
+    }
+    return size; // fall back to treating percent as raw size when capital is unknown
+  }
+
+  if (sizingBasis === 'fixed_dollars') {
+    const boundedSize = clampSize(size, remainingCapital);
+    return remainingCapital ? Math.min(boundedSize, remainingCapital) : boundedSize;
+  }
+
+  // fixed_units
+  if (currentPrice && currentPrice > 0) {
+    const unitsCost = size * currentPrice;
+    return remainingCapital ? Math.min(unitsCost, remainingCapital) : unitsCost;
+  }
+
+  return clampSize(size, remainingCapital);
+}
+
 export function validateLLMTradeAction(
   raw: unknown,
-  options?: ValidateLLMTradeActionOptions
-): LLMTradeAction {
+  options?: ValidateLLMTradeActionOptions,
+): NormalizedLLMTradeAction {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('LLMTradeAction must be a JSON object.');
   }
 
   const record = raw as Record<string, unknown>;
 
-  const actionRaw = typeof record.action === 'string' ? record.action.trim().toLowerCase() : '';
-  if (!ALLOWED_LLM_ACTIONS.includes(actionRaw as LLMTradeActionType)) {
-    throw new Error(`LLMTradeAction.action must be one of: ${ALLOWED_LLM_ACTIONS.join(', ')}.`);
-  }
-  const action = actionRaw as LLMTradeActionType;
+  const { upper: side, lower: action } = normalizeSide(record.side ?? record.action);
+  const sizingBasis = normalizeSizingBasis(record.sizingBasis ?? record.sizing_basis ?? record.sizingbasis);
+  const hasRemainingCapital = typeof options?.remainingCapital === 'number' && options.remainingCapital > 0;
+  const sizeRaw = ensureNumber(
+    record.size ?? record.amount ?? record.quantity,
+    hasRemainingCapital ? options!.remainingCapital! * 0.01 : 0,
+  );
+  const size =
+    sizingBasis === 'percent_of_capital'
+      ? clampPercentSize(sizeRaw)
+      : clampSize(sizeRaw, options?.remainingCapital);
 
-  const amount = ensureNumber(record.amount, 'LLMTradeAction.amount');
-  if (amount <= 0) {
-    throw new Error('LLMTradeAction.amount must be greater than 0.');
-  }
+  const reasoning =
+    typeof record.reasoning === 'string' && record.reasoning.trim().length > 0
+      ? record.reasoning.trim()
+      : 'LLM did not provide reasoning';
 
-  if (typeof record.symbol !== 'string' || record.symbol.trim() === '') {
-    throw new Error('LLMTradeAction.symbol is required and must be a non-empty string.');
-  }
-  const symbol = record.symbol.trim().toUpperCase();
+  const confidence = Math.min(Math.max(ensureNumber(record.confidence, 50), 0), 100);
+
+  const fallbackSymbol = options?.fallbackSymbol || options?.fallbackSector || 'UNKNOWN';
+  const symbol =
+    typeof record.symbol === 'string' && record.symbol.trim() !== ''
+      ? record.symbol.trim().toUpperCase()
+      : fallbackSymbol.toUpperCase();
 
   const sector =
     typeof record.sector === 'string' && record.sector.trim() !== ''
       ? record.sector.trim()
-      : undefined;
-
-  const stopLoss =
-    record.stopLoss === undefined ? undefined : ensureNumber(record.stopLoss, 'LLMTradeAction.stopLoss');
-  const takeProfit =
-    record.takeProfit === undefined ? undefined : ensureNumber(record.takeProfit, 'LLMTradeAction.takeProfit');
-  const confidenceRaw =
-    record.confidence === undefined ? undefined : ensureNumber(record.confidence, 'LLMTradeAction.confidence');
-  const confidence = Math.min(Math.max(confidenceRaw ?? 50, 0), 100);
-
-  if (typeof record.reasoning !== 'string' || record.reasoning.trim() === '') {
-    throw new Error('LLMTradeAction.reasoning must be a non-empty string.');
-  }
-  const reasoning = record.reasoning.trim();
-
-  const remainingCapital =
-    typeof options?.remainingCapital === 'number' && options.remainingCapital > 0
-      ? options.remainingCapital
-      : undefined;
+      : options?.fallbackSector || symbol;
 
   const allowedSymbols = normalizeAllowedSymbols(options?.allowedSymbols ?? [], symbol);
   if (!allowedSymbols.includes(symbol)) {
     throw new Error(`LLMTradeAction.symbol must be one of: ${allowedSymbols.join(', ')}.`);
   }
 
-  let boundedAmount = amount;
-  if (remainingCapital) {
-    const min = remainingCapital * 0.01;
-    const max = remainingCapital * 0.2;
-    boundedAmount = Math.min(Math.max(amount, min), Math.min(max, remainingCapital));
-  }
+  const stopLoss = toNumberOrNull(record.stopLoss ?? record.stop_loss);
+  const takeProfit = toNumberOrNull(record.takeProfit ?? record.take_profit);
+  const entryPrice = toNumberOrNull(record.entryPrice ?? record.entry_price ?? record.price);
+
+  const amount = resolveAmountFromSizing(size, sizingBasis, options?.remainingCapital, options?.currentPrice);
 
   return {
+    side,
     action,
-    amount: boundedAmount,
+    sizingBasis,
+    size,
+    amount,
     symbol,
     sector,
+    entryPrice,
     stopLoss,
     takeProfit,
+    reasoning,
     confidence,
-    reasoning
   };
 }
 
-export function normalizeActionToUpper(action: LLMTradeActionType): 'BUY' | 'SELL' | 'HOLD' {
-  return action.toUpperCase() as 'BUY' | 'SELL' | 'HOLD';
+export function normalizeActionToUpper(action: LLMTradeSide | LLMTradeSideLower): LLMTradeSide {
+  const normalized = typeof action === 'string' ? action.trim().toUpperCase() : '';
+  if (ALLOWED_LLM_SIDES.includes(normalized as LLMTradeSide)) {
+    return normalized as LLMTradeSide;
+  }
+  return 'HOLD';
 }
 

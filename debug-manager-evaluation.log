@@ -4047,3 +4047,965 @@
   "averageScore": 57.166
 }
 
+[2025-12-12T10:16:28.656Z] [managerEvaluateChecklist] Starting evaluation for discussion 7e3c67f3-5869-4209-95c6-08a2f3a7192c
+{
+  "discussionId": "7e3c67f3-5869-4209-95c6-08a2f3a7192c",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:16:28.685Z] [evaluateChecklistItem] Item checklist-7e3c67f3-5869-4209-95c6-08a2f3a7192c-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-7e3c67f3-5869-4209-95c6-08a2f3a7192c-0",
+  "rawItemContent": {
+    "id": "checklist-7e3c67f3-5869-4209-95c6-08a2f3a7192c-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:16:28.697Z] [managerEvaluateChecklist] Evaluation summary for discussion 7e3c67f3-5869-4209-95c6-08a2f3a7192c
+{
+  "discussionId": "7e3c67f3-5869-4209-95c6-08a2f3a7192c",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-7e3c67f3-5869-4209-95c6-08a2f3a7192c-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:16:36.699Z] [managerEvaluateChecklist] Starting evaluation for discussion 51539016-1e94-4d4d-8b0a-d02ff5e37ed7
+{
+  "discussionId": "51539016-1e94-4d4d-8b0a-d02ff5e37ed7",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:16:36.711Z] [evaluateChecklistItem] Item checklist-51539016-1e94-4d4d-8b0a-d02ff5e37ed7-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-51539016-1e94-4d4d-8b0a-d02ff5e37ed7-0",
+  "rawItemContent": {
+    "id": "checklist-51539016-1e94-4d4d-8b0a-d02ff5e37ed7-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:16:36.725Z] [managerEvaluateChecklist] Evaluation summary for discussion 51539016-1e94-4d4d-8b0a-d02ff5e37ed7
+{
+  "discussionId": "51539016-1e94-4d4d-8b0a-d02ff5e37ed7",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-51539016-1e94-4d4d-8b0a-d02ff5e37ed7-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:16:44.556Z] [managerEvaluateChecklist] Starting evaluation for discussion 30f0380c-791d-4493-befe-e3b622917ee2
+{
+  "discussionId": "30f0380c-791d-4493-befe-e3b622917ee2",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:16:44.591Z] [evaluateChecklistItem] Item checklist-30f0380c-791d-4493-befe-e3b622917ee2-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-30f0380c-791d-4493-befe-e3b622917ee2-0",
+  "rawItemContent": {
+    "id": "checklist-30f0380c-791d-4493-befe-e3b622917ee2-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:16:44.599Z] [managerEvaluateChecklist] Evaluation summary for discussion 30f0380c-791d-4493-befe-e3b622917ee2
+{
+  "discussionId": "30f0380c-791d-4493-befe-e3b622917ee2",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-30f0380c-791d-4493-befe-e3b622917ee2-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:16:52.975Z] [managerEvaluateChecklist] Starting evaluation for discussion 48b88481-ede1-4ab0-9982-205c1cfbffb7
+{
+  "discussionId": "48b88481-ede1-4ab0-9982-205c1cfbffb7",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:16:53.026Z] [evaluateChecklistItem] Item checklist-48b88481-ede1-4ab0-9982-205c1cfbffb7-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-48b88481-ede1-4ab0-9982-205c1cfbffb7-0",
+  "rawItemContent": {
+    "id": "checklist-48b88481-ede1-4ab0-9982-205c1cfbffb7-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:16:53.033Z] [managerEvaluateChecklist] Evaluation summary for discussion 48b88481-ede1-4ab0-9982-205c1cfbffb7
+{
+  "discussionId": "48b88481-ede1-4ab0-9982-205c1cfbffb7",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-48b88481-ede1-4ab0-9982-205c1cfbffb7-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:17:01.339Z] [managerEvaluateChecklist] Starting evaluation for discussion a582d887-cd3a-4fdc-894f-7181a393d88c
+{
+  "discussionId": "a582d887-cd3a-4fdc-894f-7181a393d88c",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:17:01.369Z] [evaluateChecklistItem] Item checklist-a582d887-cd3a-4fdc-894f-7181a393d88c-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-a582d887-cd3a-4fdc-894f-7181a393d88c-0",
+  "rawItemContent": {
+    "id": "checklist-a582d887-cd3a-4fdc-894f-7181a393d88c-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:17:01.383Z] [managerEvaluateChecklist] Evaluation summary for discussion a582d887-cd3a-4fdc-894f-7181a393d88c
+{
+  "discussionId": "a582d887-cd3a-4fdc-894f-7181a393d88c",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-a582d887-cd3a-4fdc-894f-7181a393d88c-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:17:08.706Z] [managerEvaluateChecklist] Starting evaluation for discussion d48373b2-16a2-45a2-a2b0-233dcc8297f4
+{
+  "discussionId": "d48373b2-16a2-45a2-a2b0-233dcc8297f4",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:17:08.733Z] [evaluateChecklistItem] Item checklist-d48373b2-16a2-45a2-a2b0-233dcc8297f4-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-d48373b2-16a2-45a2-a2b0-233dcc8297f4-0",
+  "rawItemContent": {
+    "id": "checklist-d48373b2-16a2-45a2-a2b0-233dcc8297f4-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:17:08.740Z] [managerEvaluateChecklist] Evaluation summary for discussion d48373b2-16a2-45a2-a2b0-233dcc8297f4
+{
+  "discussionId": "d48373b2-16a2-45a2-a2b0-233dcc8297f4",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-d48373b2-16a2-45a2-a2b0-233dcc8297f4-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:17:16.850Z] [managerEvaluateChecklist] Starting evaluation for discussion 7c41e500-36d1-453e-87d3-7c6ee0300cb5
+{
+  "discussionId": "7c41e500-36d1-453e-87d3-7c6ee0300cb5",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:17:16.877Z] [evaluateChecklistItem] Item checklist-7c41e500-36d1-453e-87d3-7c6ee0300cb5-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-7c41e500-36d1-453e-87d3-7c6ee0300cb5-0",
+  "rawItemContent": {
+    "id": "checklist-7c41e500-36d1-453e-87d3-7c6ee0300cb5-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:17:16.880Z] [managerEvaluateChecklist] Evaluation summary for discussion 7c41e500-36d1-453e-87d3-7c6ee0300cb5
+{
+  "discussionId": "7c41e500-36d1-453e-87d3-7c6ee0300cb5",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-7c41e500-36d1-453e-87d3-7c6ee0300cb5-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:17:24.829Z] [managerEvaluateChecklist] Starting evaluation for discussion f1948a5a-fff5-4e91-9114-776ae12f7be0
+{
+  "discussionId": "f1948a5a-fff5-4e91-9114-776ae12f7be0",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:17:24.849Z] [evaluateChecklistItem] Item checklist-f1948a5a-fff5-4e91-9114-776ae12f7be0-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f1948a5a-fff5-4e91-9114-776ae12f7be0-0",
+  "rawItemContent": {
+    "id": "checklist-f1948a5a-fff5-4e91-9114-776ae12f7be0-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:17:24.862Z] [managerEvaluateChecklist] Evaluation summary for discussion f1948a5a-fff5-4e91-9114-776ae12f7be0
+{
+  "discussionId": "f1948a5a-fff5-4e91-9114-776ae12f7be0",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f1948a5a-fff5-4e91-9114-776ae12f7be0-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:18:36.483Z] [managerEvaluateChecklist] Starting evaluation for discussion 61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d
+{
+  "discussionId": "61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:18:36.497Z] [evaluateChecklistItem] Item checklist-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-0",
+  "rawItemContent": {
+    "id": "checklist-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:18:36.501Z] [managerEvaluateChecklist] Evaluation summary for discussion 61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d
+{
+  "discussionId": "61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-61dd0dbc-7b7f-4c51-826c-6512ee0b5f2d-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:18:42.422Z] [managerEvaluateChecklist] Starting evaluation for discussion f69c90cd-95b0-481d-adf8-cc1043fbe68b
+{
+  "discussionId": "f69c90cd-95b0-481d-adf8-cc1043fbe68b",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:18:42.443Z] [evaluateChecklistItem] Item checklist-f69c90cd-95b0-481d-adf8-cc1043fbe68b-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-f69c90cd-95b0-481d-adf8-cc1043fbe68b-0",
+  "rawItemContent": {
+    "id": "checklist-f69c90cd-95b0-481d-adf8-cc1043fbe68b-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:18:42.464Z] [managerEvaluateChecklist] Evaluation summary for discussion f69c90cd-95b0-481d-adf8-cc1043fbe68b
+{
+  "discussionId": "f69c90cd-95b0-481d-adf8-cc1043fbe68b",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-f69c90cd-95b0-481d-adf8-cc1043fbe68b-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:18:50.226Z] [managerEvaluateChecklist] Starting evaluation for discussion 43964185-022f-4a80-9e81-dc903d332c7c
+{
+  "discussionId": "43964185-022f-4a80-9e81-dc903d332c7c",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:18:50.254Z] [evaluateChecklistItem] Item checklist-43964185-022f-4a80-9e81-dc903d332c7c-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-43964185-022f-4a80-9e81-dc903d332c7c-0",
+  "rawItemContent": {
+    "id": "checklist-43964185-022f-4a80-9e81-dc903d332c7c-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:18:50.260Z] [managerEvaluateChecklist] Evaluation summary for discussion 43964185-022f-4a80-9e81-dc903d332c7c
+{
+  "discussionId": "43964185-022f-4a80-9e81-dc903d332c7c",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-43964185-022f-4a80-9e81-dc903d332c7c-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:18:58.309Z] [managerEvaluateChecklist] Starting evaluation for discussion 958215fa-ec4a-45ca-b776-8fbbbfe3b2c7
+{
+  "discussionId": "958215fa-ec4a-45ca-b776-8fbbbfe3b2c7",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:18:58.330Z] [evaluateChecklistItem] Item checklist-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-0",
+  "rawItemContent": {
+    "id": "checklist-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:18:58.342Z] [managerEvaluateChecklist] Evaluation summary for discussion 958215fa-ec4a-45ca-b776-8fbbbfe3b2c7
+{
+  "discussionId": "958215fa-ec4a-45ca-b776-8fbbbfe3b2c7",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-958215fa-ec4a-45ca-b776-8fbbbfe3b2c7-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+
+[2025-12-12T10:19:07.969Z] [managerEvaluateChecklist] Starting evaluation for discussion 91ed04fa-ed6e-4902-8ee5-16867e4c1afb
+{
+  "discussionId": "91ed04fa-ed6e-4902-8ee5-16867e4c1afb",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+  "managerId": "57d9fc00-0ae9-4ced-88a5-b03f762bb859"
+}
+
+[2025-12-12T10:19:07.984Z] [evaluateChecklistItem] Item checklist-91ed04fa-ed6e-4902-8ee5-16867e4c1afb-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-91ed04fa-ed6e-4902-8ee5-16867e4c1afb-0",
+  "rawItemContent": {
+    "id": "checklist-91ed04fa-ed6e-4902-8ee5-16867e4c1afb-0",
+    "action": "buy",
+    "reason": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "reasoning": "Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 [Refined from earlier rounds: Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0 | Agent TECH_NVIDIA_ANALYST: Proposed action for technology is buy because of confidence 100.0]",
+    "confidence": 100,
+    "workerConfidence": 100,
+    "amount": 1000,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 12,
+  "computedConfidence": 100,
+  "computedRiskLevel": 13.8,
+  "alignmentWithSectorGoal": 72,
+  "finalDecisionScore": 66.64,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 100,
+    "expectedImpact": 12,
+    "riskLevel": 13.8,
+    "alignmentWithSectorGoal": 72,
+    "normalizedRiskScore": 86.2,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-12T10:19:07.994Z] [managerEvaluateChecklist] Evaluation summary for discussion 91ed04fa-ed6e-4902-8ee5-16867e4c1afb
+{
+  "discussionId": "91ed04fa-ed6e-4902-8ee5-16867e4c1afb",
+  "totalItemsEvaluated": 1,
+  "approvedCount": 0,
+  "rejectedCount": 1,
+  "approvalThreshold": 70,
+  "evaluationResults": [
+    {
+      "itemId": "checklist-91ed04fa-ed6e-4902-8ee5-16867e4c1afb-0",
+      "status": "REJECTED",
+      "score": 66.64,
+      "scoreBreakdown": {
+        "workerConfidence": 100,
+        "expectedImpact": 12,
+        "riskLevel": 13.8,
+        "alignmentWithSectorGoal": 72
+      },
+      "managerReason": "Rejected: Score 66.6/100 below threshold 70 (Confidence: 100.0, Impact: 12.0, Risk: 13.8, Alignment: 72.0)"
+    }
+  ],
+  "averageScore": 66.64
+}
+

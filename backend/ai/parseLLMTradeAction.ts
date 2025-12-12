@@ -1,111 +1,157 @@
-import { LLMTradeAction } from './types/LLMTradeAction';
+import { LLMTradeAction, LLMTradeSide, LLMTradeSizingBasis } from './types/LLMTradeAction';
 
-type RawLLMAction = {
-  action?: unknown;
-  amount?: unknown;
-  symbol?: unknown;
-  sector?: unknown;
-  stopLoss?: unknown;
-  takeProfit?: unknown;
-  confidence?: unknown;
-  reasoning?: unknown;
+export type ParseLLMTradeActionOptions = {
+  fallbackSector?: string;
+  fallbackSymbol?: string;
+  remainingCapital?: number;
+  currentPrice?: number;
 };
 
-const REQUIRED_FIELDS: Array<keyof RawLLMAction> = [
-  'action',
-  'amount',
-  'symbol',
-  'confidence',
-  'reasoning',
-  'stopLoss',
-  'takeProfit'
+const ALLOWED_SIDES: ReadonlyArray<LLMTradeSide> = ['BUY', 'SELL', 'HOLD', 'REBALANCE'];
+const ALLOWED_SIZING_BASES: ReadonlyArray<LLMTradeSizingBasis> = [
+  'fixed_units',
+  'fixed_dollars',
+  'percent_of_capital',
 ];
 
-export function parseLLMTradeAction(rawText: string): LLMTradeAction {
+function fallbackAction(options?: ParseLLMTradeActionOptions): LLMTradeAction & { confidence: number } {
+  const sector = options?.fallbackSector || options?.fallbackSymbol || 'UNKNOWN';
+  const symbol = options?.fallbackSymbol || sector || 'UNKNOWN';
+  return {
+    sector,
+    symbol,
+    side: 'HOLD',
+    sizingBasis: 'percent_of_capital',
+    size: 0,
+    entryPrice: null,
+    stopLoss: null,
+    takeProfit: null,
+    reasoning: 'LLM output could not be parsed; defaulting to HOLD.',
+    confidence: 50,
+  };
+}
+
+function normalizeSide(raw: unknown): LLMTradeSide {
+  const value = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+  return ALLOWED_SIDES.includes(value as LLMTradeSide) ? (value as LLMTradeSide) : 'HOLD';
+}
+
+function normalizeSizingBasis(raw: unknown): LLMTradeSizingBasis {
+  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return ALLOWED_SIZING_BASES.includes(value as LLMTradeSizingBasis)
+    ? (value as LLMTradeSizingBasis)
+    : 'percent_of_capital';
+}
+
+function parseNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
+}
+
+function clampSize(size: number, sizingBasis: LLMTradeSizingBasis, remainingCapital?: number): number {
+  if (!Number.isFinite(size) || size < 0) return 0;
+
+  if (sizingBasis === 'percent_of_capital') {
+    if (size > 100) return 100;
+    return size;
+  }
+
+  const max = remainingCapital && remainingCapital > 0 ? remainingCapital * 2 : 1_000_000;
+  return Math.min(size, max);
+}
+
+export function parseLLMTradeAction(
+  rawText: string,
+  options?: ParseLLMTradeActionOptions,
+): (LLMTradeAction & { confidence: number }) {
+  if (typeof rawText !== 'string' || rawText.trim() === '') {
+    console.error('[LLM_PARSE_ERROR] Empty response from LLM');
+    return fallbackAction(options);
+  }
+
   const cleaned = rawText
     .replace(/```json/gi, '')
     .replace(/```/g, '')
     .trim();
 
-  let json: RawLLMAction;
+  let json: Record<string, unknown>;
   try {
     json = JSON.parse(cleaned);
   } catch (error) {
-    console.error('[parseLLMTradeAction] Failed to parse LLM JSON', { rawText, error });
-    throw new Error('Invalid LLM trade action: missing required fields');
+    console.error('[LLM_PARSE_ERROR] Failed to parse LLM JSON', { rawText, error });
+    return fallbackAction(options);
   }
 
-  const missingFields = REQUIRED_FIELDS.filter((field) => json[field] === undefined || json[field] === null);
-  if (missingFields.length > 0) {
-    console.error('[parseLLMTradeAction] Missing required fields from LLM response', {
-      rawText,
-      missingFields
-    });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const side = normalizeSide(json.side ?? json.action ?? json.tradeAction ?? json.actionType);
+  const sizingBasis = normalizeSizingBasis(json.sizingBasis ?? json.sizing_basis ?? json.sizingbasis);
 
-  const actionValue = typeof json.action === 'string' ? json.action.trim().toLowerCase() : '';
-  const allowedActions: Array<LLMTradeAction['action']> = ['buy', 'sell', 'hold'];
-  if (!allowedActions.includes(actionValue as LLMTradeAction['action'])) {
-    console.error('[parseLLMTradeAction] Invalid action received from LLM', { rawText, action: json.action });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const size = clampSize(
+    typeof json.size === 'number'
+      ? json.size
+      : typeof (json as any).amount === 'number'
+        ? (json as any).amount
+        : typeof (json as any).quantity === 'number'
+          ? (json as any).quantity
+          : 0,
+    sizingBasis,
+    options?.remainingCapital,
+  );
 
-  const amountValue = json.amount;
-  if (typeof amountValue !== 'number' || Number.isNaN(amountValue) || !Number.isFinite(amountValue)) {
-    console.error('[parseLLMTradeAction] Invalid amount received from LLM', { rawText, amount: json.amount });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const symbol =
+    typeof json.symbol === 'string' && json.symbol.trim() !== ''
+      ? json.symbol.trim().toUpperCase()
+      : (options?.fallbackSymbol || options?.fallbackSector || 'UNKNOWN').toUpperCase();
 
-  const confidenceValue = json.confidence;
-  if (
-    typeof confidenceValue !== 'number' ||
-    Number.isNaN(confidenceValue) ||
-    !Number.isFinite(confidenceValue)
-  ) {
-    console.error('[parseLLMTradeAction] Invalid confidence received from LLM', {
-      rawText,
-      confidence: json.confidence
-    });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const sector =
+    typeof json.sector === 'string' && json.sector.trim() !== ''
+      ? json.sector.trim()
+      : options?.fallbackSector || symbol;
 
-  if (typeof json.symbol !== 'string' || json.symbol.trim() === '') {
-    console.error('[parseLLMTradeAction] Invalid symbol received from LLM', { rawText, symbol: json.symbol });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const entryPrice =
+    parseNumber((json as any).entryPrice ?? (json as any).entry_price ?? (json as any).price) ??
+    (options?.currentPrice ?? null);
+  const stopLoss = parseNumber((json as any).stopLoss ?? (json as any).stop_loss);
+  const takeProfit = parseNumber((json as any).takeProfit ?? (json as any).take_profit);
 
-  if (typeof json.reasoning !== 'string' || json.reasoning.trim() === '') {
-    console.error('[parseLLMTradeAction] Invalid reasoning received from LLM', { rawText, reasoning: json.reasoning });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const reasoning =
+    typeof json.reasoning === 'string' && json.reasoning.trim().length > 0
+      ? json.reasoning.trim()
+      : 'LLM did not provide reasoning';
 
-  if (typeof json.stopLoss !== 'number' || Number.isNaN(json.stopLoss) || !Number.isFinite(json.stopLoss)) {
-    console.error('[parseLLMTradeAction] Invalid stopLoss received from LLM', { rawText, stopLoss: json.stopLoss });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
-
-  if (
-    typeof json.takeProfit !== 'number' ||
-    Number.isNaN(json.takeProfit) ||
-    !Number.isFinite(json.takeProfit)
-  ) {
-    console.error('[parseLLMTradeAction] Invalid takeProfit received from LLM', {
-      rawText,
-      takeProfit: json.takeProfit
-    });
-    throw new Error('Invalid LLM trade action: missing required fields');
-  }
+  const confidence = Math.min(
+    Math.max(parseNumber((json as any).confidence) ?? 50, 0),
+    100,
+  );
 
   return {
-    action: actionValue as LLMTradeAction['action'],
-    amount: amountValue,
-    symbol: json.symbol.trim(),
-    sector: typeof json.sector === 'string' ? json.sector.trim() : undefined,
-    stopLoss: json.stopLoss,
-    takeProfit: json.takeProfit,
-    confidence: confidenceValue,
-    reasoning: json.reasoning.trim()
+    sector,
+    symbol,
+    side,
+    sizingBasis,
+    size,
+    entryPrice,
+    stopLoss,
+    takeProfit,
+    reasoning,
+    confidence,
   };
+}
+
+export function demoParseLLMTradeAction() {
+  const sample = JSON.stringify({
+    sector: 'TECH',
+    symbol: 'NVDA',
+    side: 'BUY',
+    sizingBasis: 'percent_of_capital',
+    size: 10,
+    entryPrice: 100,
+    stopLoss: 95,
+    takeProfit: 115,
+    reasoning: 'Momentum with controlled risk.',
+  });
+
+  return parseLLMTradeAction(sample, { fallbackSector: 'TECH', fallbackSymbol: 'NVDA', remainingCapital: 10000 });
 }
 

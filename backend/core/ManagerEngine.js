@@ -12,6 +12,9 @@ const { extractConfidence } = require('../utils/confidenceUtils');
 const { validateTrade, checkRiskAppetite, loadRules } = require('../simulation/rules');
 const fs = require('fs');
 const path = require('path');
+const { readDataFile, writeDataFile } = require('../utils/persistence');
+
+const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
 /**
  * ManagerEngine - Handles manager-level decisions including discussion creation
@@ -1514,6 +1517,26 @@ class ManagerEngine {
                 allocation,
                 generatedFromDiscussion: discussionRoom.id
               });
+
+              await this._appendDecisionLogEntry({
+                id: `decision-${discussionRoom.id}-${item.id || actionType}-${Date.now()}`,
+                sectorId: discussionRoom.sectorId,
+                checklistId: discussionRoom.id,
+                timestamp: Date.now(),
+                managerId: manager.id,
+                results: [{
+                  itemId: item.id || `${discussionRoom.id}-${actionType}`,
+                  action: actionType,
+                  actionType,
+                  amount: allocation,
+                  allocation,
+                  symbol,
+                  success: true,
+                  reason: item.managerReason || item.reason || null,
+                  impact: null,
+                  managerImpact: null
+                }]
+              });
             } catch (error) {
               console.error(`[ManagerEngine] Error adding item ${item.id} to execution list:`, error);
               // Continue with other items even if one fails
@@ -1824,6 +1847,26 @@ class ManagerEngine {
                 symbol,
                 allocation,
                 generatedFromDiscussion: discussionId
+              });
+
+              await this._appendDecisionLogEntry({
+                id: `decision-${discussionId}-${item.id || actionType}-${Date.now()}`,
+                sectorId: sector.id,
+                checklistId: discussionId,
+                timestamp: Date.now(),
+                managerId: manager.id,
+                results: [{
+                  itemId: item.id || `${discussionId}-${actionType}`,
+                  action: actionType,
+                  actionType,
+                  amount: allocation,
+                  allocation,
+                  symbol,
+                  success: true,
+                  reason: item.managerReason || item.reason || null,
+                  impact: null,
+                  managerImpact: null
+                }]
               });
             } catch (error) {
               console.error(`[ManagerEngine] Error adding item ${item.id} to execution list:`, error);
@@ -2140,6 +2183,26 @@ class ManagerEngine {
             allocation,
             generatedFromDiscussion: discussionId
           });
+
+          await this._appendDecisionLogEntry({
+            id: `decision-${discussionId}-${item.id || actionType}-${Date.now()}`,
+            sectorId: sector.id,
+            checklistId: discussionId,
+            timestamp: Date.now(),
+            managerId: manager.id,
+            results: [{
+              itemId: item.id || `${discussionId}-${actionType}`,
+              action: actionType,
+              actionType,
+              amount: allocation,
+              allocation,
+              symbol,
+              success: true,
+              reason: item.managerReasoning || item.managerFeedback || null,
+              impact: null,
+              managerImpact: null
+            }]
+          });
         } catch (error) {
           console.error(`[ManagerEngine] Error adding approved item ${item.id} to execution list:`, error);
         }
@@ -2233,12 +2296,17 @@ class ManagerEngine {
       ? discussion 
       : DiscussionRoom.fromData(discussion);
 
-    // Get all checklist items
     const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
-    
-    // If no items, cannot close (discussion should have items to close)
-    if (allItems.length === 0) {
-      return false;
+    const draftItems = Array.isArray(discussionRoom.checklistDraft) ? discussionRoom.checklistDraft : [];
+
+    const openDrafts = draftItems.filter(item => {
+      const status = (item.status || '').toUpperCase();
+      return status === '' || status === 'PENDING' || status === 'REVISE_REQUIRED' || status === 'RESUBMITTED';
+    });
+
+    // If there are no checklist items AND no pending drafts, treat as closable (no more proposals)
+    if (allItems.length === 0 && openDrafts.length === 0) {
+      return true;
     }
 
     // Check for items with statuses that prevent closure
@@ -2325,6 +2393,13 @@ class ManagerEngine {
         throw new Error(errorMsg);
       }
 
+      const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
+      const draftItems = Array.isArray(discussionRoom.checklistDraft) ? discussionRoom.checklistDraft : [];
+      const hasResolvedWithoutItems = allItems.length === 0 && draftItems.filter(item => {
+        const status = (item.status || '').toUpperCase();
+        return status === '' || status === 'PENDING' || status === 'REVISE_REQUIRED' || status === 'RESUBMITTED';
+      }).length === 0;
+
       // All validations passed - close the discussion
       const roundCount = discussionRoom.currentRound || discussionRoom.round || 1;
       
@@ -2354,7 +2429,16 @@ class ManagerEngine {
       // Save updated discussion
       await saveDiscussion(discussionRoom);
 
-      console.log(`[ManagerEngine] Discussion ${discussionId} closed successfully after ${roundCount} rounds. Status set to 'decided'.`);
+      const closureReason = hasResolvedWithoutItems
+        ? 'no_more_proposals'
+        : 'all_items_resolved';
+
+      console.log(`[ManagerEngine] Discussion ${discussionId} closed successfully after ${roundCount} rounds. Status set to 'decided'.`, {
+        event: 'DISCUSSION_CLOSED',
+        sectorId: discussionRoom.sectorId,
+        discussionId,
+        reason: closureReason
+      });
       
       return discussionRoom;
     } catch (error) {
@@ -2431,6 +2515,35 @@ class ManagerEngine {
     updatedSector.checklistItems = checklistItems;
 
     return updatedSector;
+  }
+
+  /**
+   * Append decision data to executionLogs.json so decision-logs endpoint can surface
+   * manager approvals before execution occurs.
+   * @private
+   */
+  async _appendDecisionLogEntry(logEntry) {
+    try {
+      let logs = [];
+      try {
+        const data = await readDataFile(EXECUTION_LOGS_FILE);
+        logs = Array.isArray(data) ? data : [];
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+
+      logs.push(logEntry);
+
+      if (logs.length > 1000) {
+        logs = logs.slice(-1000);
+      }
+
+      await writeDataFile(EXECUTION_LOGS_FILE, logs);
+    } catch (error) {
+      console.error(`[ManagerEngine] Failed to append decision log entry: ${error.message}`);
+    }
   }
 }
 

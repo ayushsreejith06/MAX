@@ -1,11 +1,17 @@
-export interface LLMTradeAction {
-  action: 'buy' | 'sell' | 'hold' | 'rebalance';
-  amount: number;
+export type LLMTradeSide = 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
+
+export type LLMTradeSizingBasis = 'fixed_units' | 'fixed_dollars' | 'percent_of_capital';
+
+export type LLMTradeAction = {
+  sector: string;
   symbol: string;
-  sector?: string;
-  stopLoss?: number;
-  takeProfit?: number;
-  confidence: number;
+  side: LLMTradeSide;
+  sizingBasis: LLMTradeSizingBasis;
+  size: number;
+  entryPrice?: number | null;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
   reasoning: string;
-}
+  confidence?: number;
+};
 

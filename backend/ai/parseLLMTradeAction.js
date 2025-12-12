@@ -1,4 +1,56 @@
-function parseLLMTradeAction(rawText) {
+const ALLOWED_SIDES = ['BUY', 'SELL', 'HOLD', 'REBALANCE'];
+const ALLOWED_SIZING_BASES = ['fixed_units', 'fixed_dollars', 'percent_of_capital'];
+
+function fallbackAction(options) {
+  const sector = options?.fallbackSector || options?.fallbackSymbol || 'UNKNOWN';
+  const symbol = options?.fallbackSymbol || sector || 'UNKNOWN';
+  return {
+    sector,
+    symbol,
+    side: 'HOLD',
+    sizingBasis: 'percent_of_capital',
+    size: 0,
+    entryPrice: null,
+    stopLoss: null,
+    takeProfit: null,
+    reasoning: 'LLM output could not be parsed; defaulting to HOLD.',
+    confidence: 50,
+  };
+}
+
+function normalizeSide(raw) {
+  const value = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+  return ALLOWED_SIDES.includes(value) ? value : 'HOLD';
+}
+
+function normalizeSizingBasis(raw) {
+  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return ALLOWED_SIZING_BASES.includes(value) ? value : 'percent_of_capital';
+}
+
+function parseNumber(value) {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
+}
+
+function clampSize(size, sizingBasis, remainingCapital) {
+  if (!Number.isFinite(size) || size < 0) return 0;
+  if (sizingBasis === 'percent_of_capital') {
+    if (size > 100) return 100;
+    return size;
+  }
+  const max = remainingCapital && remainingCapital > 0 ? remainingCapital * 2 : 1_000_000;
+  return Math.min(size, max);
+}
+
+function parseLLMTradeAction(rawText, options = {}) {
+  if (typeof rawText !== 'string' || rawText.trim() === '') {
+    console.error('[LLM_PARSE_ERROR] Empty response from LLM');
+    return fallbackAction(options);
+  }
+
   const cleaned = rawText
     .replace(/```json/gi, '')
     .replace(/```/g, '')
@@ -8,50 +60,83 @@ function parseLLMTradeAction(rawText) {
   try {
     json = JSON.parse(cleaned);
   } catch (err) {
-    throw new Error('LLM returned invalid JSON: ' + err);
+    console.error('[LLM_PARSE_ERROR] Failed to parse LLM JSON', { rawText, err });
+    return fallbackAction(options);
   }
 
-  const action =
-    json.action ||
-    json.tradeAction ||
-    json.actionType ||
-    json.trade_action;
-
-  if (!action) {
-    throw new Error('LLM response missing action');
-  }
-
-  const normalizedAction = (action.action || action.actionType || action).toLowerCase();
-
-  const llmAction = {
-    action: normalizedAction,
-    amount: action.amount || json.amount || 0,
-    symbol: action.symbol || json.symbol || action.stockSymbol || '',
-    sector: action.sector || json.sector || '',
-    stopLoss: action.stopLoss,
-    takeProfit: action.takeProfit,
-    reasoning: (json.reasoning || action.reasoning || 'LLM did not provide reasoning').toString(),
-    confidence: Number(json.confidence ?? action.confidence ?? 50)
-  };
-
-  if (!llmAction.symbol) {
-    throw new Error('LLM action missing symbol');
-  }
-
-  if (!llmAction.amount || llmAction.amount <= 0) {
-    llmAction.amount = 1;
-  }
-
-  llmAction.confidence = Math.min(
-    Math.max(Number.isFinite(llmAction.confidence) ? llmAction.confidence : 50, 0),
-    100
+  const side = normalizeSide(json.side ?? json.action ?? json.tradeAction ?? json.actionType);
+  const sizingBasis = normalizeSizingBasis(json.sizingBasis ?? json.sizing_basis ?? json.sizingbasis);
+  const size = clampSize(
+    typeof json.size === 'number'
+      ? json.size
+      : typeof json.amount === 'number'
+        ? json.amount
+        : typeof json.quantity === 'number'
+          ? json.quantity
+          : 0,
+    sizingBasis,
+    options.remainingCapital,
   );
 
-  return llmAction;
+  const symbol =
+    typeof json.symbol === 'string' && json.symbol.trim() !== ''
+      ? json.symbol.trim().toUpperCase()
+      : (options.fallbackSymbol || options.fallbackSector || 'UNKNOWN').toUpperCase();
+
+  const sector =
+    typeof json.sector === 'string' && json.sector.trim() !== ''
+      ? json.sector.trim()
+      : options.fallbackSector || symbol;
+
+  const entryPrice =
+    parseNumber(json.entryPrice ?? json.entry_price ?? json.price) ??
+    (options.currentPrice ?? null);
+  const stopLoss = parseNumber(json.stopLoss ?? json.stop_loss);
+  const takeProfit = parseNumber(json.takeProfit ?? json.take_profit);
+
+  const reasoning =
+    typeof json.reasoning === 'string' && json.reasoning.trim().length > 0
+      ? json.reasoning.trim()
+      : 'LLM did not provide reasoning';
+
+  const confidence = Math.min(
+    Math.max(parseNumber(json.confidence) ?? 50, 0),
+    100,
+  );
+
+  return {
+    sector,
+    symbol,
+    side,
+    sizingBasis,
+    size,
+    entryPrice,
+    stopLoss,
+    takeProfit,
+    reasoning,
+    confidence,
+  };
+}
+
+function demoParseLLMTradeAction() {
+  const sample = JSON.stringify({
+    sector: 'TECH',
+    symbol: 'NVDA',
+    side: 'BUY',
+    sizingBasis: 'percent_of_capital',
+    size: 10,
+    entryPrice: 100,
+    stopLoss: 95,
+    takeProfit: 115,
+    reasoning: 'Momentum with controlled risk.',
+  });
+
+  return parseLLMTradeAction(sample, { fallbackSector: 'TECH', fallbackSymbol: 'NVDA', remainingCapital: 10000 });
 }
 
 module.exports = {
   parseLLMTradeAction,
+  demoParseLLMTradeAction,
 };
 
 

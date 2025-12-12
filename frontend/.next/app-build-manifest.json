@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/sectors/[id]/page": [
+    "/discussions/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/sectors/[id]/page.js"
+      "static/chunks/app/discussions/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -11,30 +11,30 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/discussions/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/discussions/page.js"
-    ],
-    "/agents/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/agents/page.js"
+      "static/chunks/app/page.js"
     ],
     "/sectors/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/sectors/page.js"
     ],
-    "/discussions/[id]/page": [
+    "/sectors/[id]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/discussions/[id]/page.js"
+      "static/chunks/app/sectors/[id]/page.js"
     ],
     "/decision-logs/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/decision-logs/page.js"
+    ],
+    "/discussions/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/discussions/[id]/page.js"
     ]
   }
 }

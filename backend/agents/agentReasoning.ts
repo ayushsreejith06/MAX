@@ -1,4 +1,5 @@
 import { callLLM } from '../ai/llmClient';
+import { parseLLMTradeAction } from '../ai/parseLLMTradeAction';
 import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmAction';
 import { buildDecisionPrompt } from '../ai/prompts/buildDecisionPrompt';
 
@@ -13,6 +14,9 @@ export type AgentTrade = {
   reasoning?: string;
   stopLoss?: number;
   takeProfit?: number;
+  sizingBasis?: 'fixed_units' | 'fixed_dollars' | 'percent_of_capital';
+  size?: number;
+  entryPrice?: number | null;
 };
 
 type AgentReasoningParams = {
@@ -33,6 +37,7 @@ function buildPrompts(params: AgentReasoningParams) {
   return buildDecisionPrompt({
     sectorName: sector.symbol || sector.name || 'UNKNOWN',
     agentSpecialization: agent.purpose || 'trader',
+    agentBrief: agent.purpose,
     allowedSymbols,
     remainingCapital: availableBalance,
     realTimeData: {
@@ -51,6 +56,12 @@ function buildPrompts(params: AgentReasoningParams) {
 export async function generateAgentTrade(params: AgentReasoningParams): Promise<AgentTrade> {
   const { sector, sectorData, agent, availableBalance } = params;
 
+  const snapshot = (sectorData && typeof sectorData === 'object') ? sectorData as Record<string, unknown> : {};
+  const currentPrice =
+    typeof (snapshot as any).currentPrice === 'number'
+      ? (snapshot as any).currentPrice
+      : (typeof (snapshot as any).baselinePrice === 'number' ? (snapshot as any).baselinePrice : undefined);
+
   const { systemPrompt, userPrompt, allowedSymbols } = buildPrompts(params);
   const llmResponse = await callLLM({
     systemPrompt,
@@ -59,10 +70,18 @@ export async function generateAgentTrade(params: AgentReasoningParams): Promise<
     useDecisionSystemPrompt: true
   });
 
-  const parsed = JSON.parse(llmResponse);
+  const parsed = parseLLMTradeAction(llmResponse, {
+    fallbackSector: sector.symbol || sector.name,
+    fallbackSymbol: allowedSymbols[0],
+    remainingCapital: availableBalance,
+    currentPrice,
+  });
   const trade = validateLLMTradeAction(parsed, {
     allowedSymbols,
     remainingCapital: availableBalance,
+    fallbackSector: sector.symbol || sector.name,
+    fallbackSymbol: allowedSymbols[0],
+    currentPrice,
   });
 
   if (trade.amount > availableBalance) {
@@ -70,14 +89,17 @@ export async function generateAgentTrade(params: AgentReasoningParams): Promise<
   }
 
   return {
-    action: normalizeActionToUpper(trade.action),
+    action: normalizeActionToUpper(trade.side),
     amount: trade.amount,
     symbol: trade.symbol,
     sector: trade.sector || (sector.symbol ?? sector.name ?? 'UNKNOWN'),
     confidence: trade.confidence,
     reasoning: trade.reasoning,
     stopLoss: trade.stopLoss,
-    takeProfit: trade.takeProfit
+    takeProfit: trade.takeProfit,
+    sizingBasis: trade.sizingBasis,
+    size: trade.size,
+    entryPrice: trade.entryPrice,
   };
 }
 

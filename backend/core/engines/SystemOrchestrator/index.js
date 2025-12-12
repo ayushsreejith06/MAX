@@ -87,6 +87,9 @@ class SystemOrchestrator {
       this.tickCounter++;
       const tickNumber = this.tickCounter;
 
+      const systemMode = getSystemMode();
+      const isSimulationMode = systemMode?.isSimulationMode ? systemMode.isSimulationMode() : false;
+
       // DEBUG: Start tick log
       console.log(`\n=== TICK # ${tickNumber} ===`);
 
@@ -125,12 +128,16 @@ class SystemOrchestrator {
           console.log(`[Limit-aware tick] Sector ${sectorId} has insufficient non-manager agents (${nonManagerCount}), skipping discussion evaluation.`);
           discussionReady = false;
           updatedSector.readyForDiscussion = false;
+        } else if (!isSimulationMode) {
+          console.log(`[SystemOrchestrator] Discussion creation paused: system not in simulation mode.`);
+          discussionReady = false;
+          updatedSector.readyForDiscussion = false;
         } else {
           // STRICT discussion trigger logic:
           // 1. Check for active/in-progress discussions (block if any exist)
           // 2. Check discussion lock (prevent spam)
-          // 3. ALL agents (manager + generals) must have confidence >= 65
-          // 4. Manager confidence = average(confidence of all agents) AND >= 65
+          // 3. ALL active worker agents (non-managers) must have confidence >= 65
+          // 4. Sector balance must be > 0
           
           // Step 1: Check if there's an active or in-progress discussion
           const discussions = await loadDiscussions();
@@ -154,72 +161,52 @@ class SystemOrchestrator {
             const sectorAgents = allAgents.filter(agent => 
               agent && agent.id && agent.sectorId === sectorId
             );
+            const workerAgents = sectorAgents.filter(agent => {
+              if (!agent) return false;
+              const role = (agent.role || '').toLowerCase();
+              const isManager = role === 'manager' || role.includes('manager');
+              const isActive = agent.status !== 'inactive';
+              return !isManager && isActive;
+            });
 
-            if (sectorAgents.length === 0) {
-              console.log(`[DISCUSSION BLOCKED] No agents found in sector ${sectorId}`);
+            if (workerAgents.length === 0) {
+              console.log(`[DISCUSSION BLOCKED] No active worker agents found in sector ${sectorId}`);
               discussionReady = false;
               updatedSector.readyForDiscussion = false;
             } else {
-              // Check ALL agents (manager + generals) have confidence >= 65
-              const allAboveThreshold = sectorAgents.every(agent => extractConfidence(agent) >= 65);
+              const allAboveThreshold = workerAgents.every(agent => extractConfidence(agent) >= 65);
 
               if (!allAboveThreshold) {
-                // DEBUG: Log which agents are below threshold
-                const agentConfidences = sectorAgents.map(agent => {
+                const agentConfidences = workerAgents.map(agent => {
                   const confidence = extractConfidence(agent);
                   const meetsThreshold = confidence >= 65 ? '✓' : '✗';
                   return `${agent.name || agent.id}: ${confidence.toFixed(2)} ${meetsThreshold}`;
                 }).join(', ');
-                
-                console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (>= 65)`);
+
+                console.log(`[DISCUSSION BLOCKED] Not all active workers meet threshold (>= 65)`);
                 console.log(`[DISCUSSION CHECK]`, {
                   sectorId,
-                  agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
+                  agentConfidences: workerAgents.map(a => `${a.name || a.id}: ${a.confidence || 0}`),
                   allAboveThreshold: false
                 });
-                
+
                 discussionReady = false;
                 updatedSector.readyForDiscussion = false;
               } else {
-                // Step 4: Calculate manager confidence as average of ALL agents
-                const totalConfidence = sectorAgents.reduce(
-                  (sum, agent) => sum + extractConfidence(agent),
-                  0
-                );
-                const managerConfidence = totalConfidence / sectorAgents.length;
-
-                // Check manager confidence >= 65
-                if (managerConfidence < 65) {
-                  const agentConfidences = sectorAgents.map(agent => {
-                    const confidence = extractConfidence(agent);
-                    return `${agent.name || agent.id}: ${confidence.toFixed(2)}`;
-                  }).join(', ');
-                  
-                  console.log(`[DISCUSSION BLOCKED] Manager confidence (${managerConfidence.toFixed(2)}) < 65`);
-                  console.log(`[DISCUSSION CHECK]`, {
-                    sectorId,
-                    agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
-                    allAboveThreshold: true,
-                    managerConfidence: managerConfidence.toFixed(2)
-                  });
-                  
+                const sectorBalance = typeof updatedSector.balance === 'number' ? updatedSector.balance : 0;
+                if (sectorBalance <= 0) {
+                  console.log(`[DISCUSSION BLOCKED] Sector balance (${sectorBalance}) must be greater than 0`);
                   discussionReady = false;
                   updatedSector.readyForDiscussion = false;
                 } else {
-                  // All checks passed - ready for discussion
-                  const agentConfidences = sectorAgents.map(agent => {
-                    const confidence = extractConfidence(agent);
-                    return `${agent.name || agent.id}: ${confidence.toFixed(2)}`;
-                  }).join(', ');
-                  
                   console.log(`[DISCUSSION CHECK]`, {
                     sectorId,
-                    agentConfidences: sectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
+                    agentConfidences: workerAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
                     allAboveThreshold: true,
-                    managerConfidence: managerConfidence.toFixed(2)
+                    managerConfidence: null
                   });
-                  console.log(`[SystemOrchestrator] ✓ Discussion READY for sector ${sectorId} - All agents meet threshold`);
-                  
+                  console.log(`[SystemOrchestrator] ✓ Discussion READY for sector ${sectorId} - All active workers meet threshold and balance > 0`);
+
                   discussionReady = true;
                   updatedSector.readyForDiscussion = true;
                 }
@@ -250,6 +237,12 @@ class SystemOrchestrator {
           if (startResult.created && startResult.discussion) {
             const newDiscussion = startResult.discussion;
             console.log(`[SystemOrchestrator] ✓ Started discussion: ID = ${newDiscussion.id}`);
+            console.log(`[SystemOrchestrator] AUTO_DISCUSSION_OPEN`, {
+              event: 'AUTO_DISCUSSION_OPEN',
+              sectorId: sectorId,
+              discussionId: newDiscussion.id,
+              reason: 'all_workers_confident_and_balance_positive'
+            });
             
             // Unlock after discussion is created
             this.discussionLock.set(sectorId, false);
@@ -439,6 +432,16 @@ class SystemOrchestrator {
             console.log(`[SystemOrchestrator] Found in-progress discussion ${discussionRoom.id} that can be closed, auto-closing...`);
             await this.managerEngine.closeDiscussion(discussionRoom.id);
           }
+        } else if (discussionRoom.status === 'in_progress' &&
+            (!Array.isArray(discussionRoom.checklistDraft) || discussionRoom.checklistDraft.length === 0) &&
+            (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0)) {
+          console.log(`[SystemOrchestrator] In-progress discussion ${discussionRoom.id} has no pending items or drafts, closing...`, {
+            event: 'DISCUSSION_CLOSED',
+            sectorId: sectorId,
+            discussionId: discussionRoom.id,
+            reason: 'no_more_proposals'
+          });
+          await this.managerEngine.closeDiscussion(discussionRoom.id);
         }
       }
 

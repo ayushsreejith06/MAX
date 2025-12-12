@@ -29,6 +29,7 @@ function buildPrompts(params) {
   return buildDecisionPrompt({
     sectorName: sectorState.sectorName,
     agentSpecialization: managerProfile.sectorGoal,
+    agentBrief: managerProfile.sectorGoal,
     allowedSymbols: Array.isArray(sectorState.allowedSymbols) ? sectorState.allowedSymbols : [],
     remainingCapital: sectorState.balance,
     realTimeData: {
@@ -74,10 +75,19 @@ async function evaluateChecklistItem(params) {
       jsonMode: true,
     });
 
-    const parsed = parseLLMTradeAction(raw);
+    const priceContext = params.sectorState.simulatedPrice ?? params.sectorState.baselinePrice;
+    const parsed = parseLLMTradeAction(raw, {
+      fallbackSector: params.sectorState.sectorName,
+      fallbackSymbol: allowedSymbols[0],
+      remainingCapital: params.sectorState.balance,
+      currentPrice: priceContext,
+    });
     const llmTrade = validateLLMTradeAction(parsed, {
       allowedSymbols,
       remainingCapital: params.sectorState.balance,
+      fallbackSector: params.sectorState.sectorName,
+      fallbackSymbol: allowedSymbols[0],
+      currentPrice: priceContext,
     });
 
     if (params.sectorState.balance !== undefined && llmTrade.amount > params.sectorState.balance) {
@@ -88,7 +98,7 @@ async function evaluateChecklistItem(params) {
     const boundedConfidence = Math.min(Math.max(confidence, 0), 100);
 
     const trade = {
-      action: normalizeActionToUpper(llmTrade.action),
+      action: normalizeActionToUpper(llmTrade.side),
       amount: llmTrade.amount,
       confidence: boundedConfidence,
       reasoning: llmTrade.reasoning,
