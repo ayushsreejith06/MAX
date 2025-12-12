@@ -4,6 +4,8 @@
  */
 
 const { updateSector } = require('../utils/sectorStorage');
+const { calculateCurrentDrift } = require('../simulation/executionDrift');
+const { storePriceTick } = require('../utils/priceHistoryStorage');
 
 interface Sector {
   id: string;
@@ -213,7 +215,20 @@ class SimulationEngine {
       // Generate random noise: random in [-range, +range]
       const randomNoise = (Math.random() * 2 - 1) * domainProfile.randomNoiseRange;
 
-      // Step 4: If a checklist was recently executed, apply execution-based managerImpact
+      // Step 4: Get execution drift from BUY executions
+      // This provides temporary positive drift when BUY executes, decaying over 10-30 minutes
+      const executionDrift = calculateCurrentDrift(sector.id, now);
+      
+      // Convert annualized drift to per-tick impact
+      // The drift is annualized (e.g., 0.5 = 50% annual return)
+      // For simulation ticks that happen roughly every second, we need to convert to per-second
+      // Scale the annual drift appropriately for per-second ticks
+      const secondsPerYear = 365.25 * 24 * 60 * 60;
+      const executionDriftPerSecond = executionDrift / secondsPerYear;
+      // Scale by domain profile and apply as a small percentage change
+      const executionImpact = executionDriftPerSecond * domainProfile.managerImpactMultiplier * 100; // Scale up for visibility
+      
+      // Step 4b: If a checklist was recently executed, apply execution-based managerImpact
       let managerImpact = 0;
       const RECENT_EXECUTION_WINDOW = 5000; // 5 seconds
       
@@ -257,6 +272,7 @@ class SimulationEngine {
         randomNoise +
         appliedTrend +
         managerImpact +
+        executionImpact + // Add execution drift effect
         meanReversion +
         momentumBurst +
         cycleComponent;
@@ -313,6 +329,19 @@ class SimulationEngine {
       };
 
       await updateSector(sector.id, updates);
+
+      // Store price tick for history
+      try {
+        await storePriceTick(sector.id, {
+          price: newSimulatedPrice,
+          timestamp: now,
+          volume: sector.volume || 0,
+          change: priceChange,
+          changePercent: priceChangePercent
+        });
+      } catch (tickError) {
+        console.warn(`[SimulationEngine] Failed to store price tick for sector ${sector.id}:`, tickError.message);
+      }
     } catch (error) {
       console.error(`[SimulationEngine] Error in tick for sector ${sector.id}:`, error);
       // Don't throw - allow other sectors to continue ticking

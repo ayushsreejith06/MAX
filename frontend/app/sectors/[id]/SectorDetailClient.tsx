@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
+import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, AlertCircle, DollarSign, Plus, Trash2, Settings, ArrowDown } from 'lucide-react';
 import LineChart from '@/components/LineChart';
@@ -201,6 +201,8 @@ export default function SectorDetailClient() {
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
+  const [chartTimeWindow, setChartTimeWindow] = useState<number | 'all'>(6); // Default 6 hours
+  const [isLoadingChart, setIsLoadingChart] = useState(false);
   const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
   const isLoadingRef = useRef(false); // Prevent concurrent loads
   const lastAgentConfidencesRef = useRef<Map<string, number>>(new Map()); // Cache for comparison
@@ -692,6 +694,59 @@ export default function SectorDetailClient() {
     year: 'numeric' 
   }) : 'N/A';
 
+  // Calculate growth metrics since sector creation
+  const getInitialPrice = (): number => {
+    // Priority 1: Use initialPrice if available
+    if (sector?.initialPrice && sector.initialPrice > 0) {
+      return sector.initialPrice;
+    }
+    // Priority 2: Use first candle data point's price if available
+    if (sector?.candleData && sector.candleData.length > 0) {
+      const firstCandle = sector.candleData[0];
+      if (firstCandle && typeof firstCandle.close === 'number' && firstCandle.close > 0) {
+        return firstCandle.close;
+      }
+    }
+    // Priority 3: Use currentPrice if > 0 (fallback for new sectors)
+    if (sector?.currentPrice && sector.currentPrice > 0) {
+      return sector.currentPrice;
+    }
+    // Priority 4: Default to 100
+    return 100;
+  };
+
+  const initialPrice = sector ? getInitialPrice() : 100;
+  const currentPrice = sector?.currentPrice || 0;
+  const priceChange = currentPrice - initialPrice;
+  const percentChange = initialPrice > 0 ? (priceChange / initialPrice) * 100 : 0;
+  
+  // Determine color based on growth
+  const growthColor = priceChange > 0 ? 'text-sage-green' : priceChange < 0 ? 'text-error-red' : 'text-floral-white/70';
+  
+  // Determine color based on growth
+  const growthColor = priceChange > 0 ? 'text-sage-green' : priceChange < 0 ? 'text-error-red' : 'text-floral-white/70';
+
+  // Filter candleData based on selected time window
+  // Since we don't have exact timestamps, we estimate based on data point frequency
+  // Assuming data points are added roughly every 1-2 minutes during active simulation
+  const filteredCandleData = useMemo(() => {
+    if (!sector?.candleData || sector.candleData.length === 0) {
+      return [];
+    }
+
+    if (chartTimeWindow === 'all') {
+      return sector.candleData;
+    }
+
+    // Estimate data points per hour (assuming ~30-60 points per hour during active simulation)
+    // For safety, we'll use a conservative estimate of 30 points per hour
+    const pointsPerHour = 30;
+    const pointsToShow = chartTimeWindow * pointsPerHour;
+    
+    // Take the last N points
+    return sector.candleData.slice(-Math.max(pointsToShow, 10)); // At least 10 points
+  }, [sector?.candleData, chartTimeWindow]);
+
   // Show loading state only if we don't have a sector loaded yet
   if (loading && !sector) {
     return (
@@ -959,17 +1014,68 @@ export default function SectorDetailClient() {
 
         {/* Chart - Always show, even if no data */}
         <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey mb-8">
-          <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase tracking-wider">PRICE CHART - LAST 24 HOURS</h2>
-          {sector?.candleData && sector.candleData.length > 0 ? (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-floral-white font-mono uppercase tracking-wider">
+              PRICE CHART
+            </h2>
+            <div className="flex items-center gap-6">
+              {/* Growth Metrics */}
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <div className="text-xs text-floral-white/60 font-mono uppercase tracking-wider mb-1">TOTAL GROWTH</div>
+                  <div className={`text-lg font-bold font-mono tabular-nums ${growthColor}`}>
+                    {priceChange >= 0 ? '+' : ''}{formatPrice(priceChange)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-floral-white/60 font-mono uppercase tracking-wider mb-1">PERCENT CHANGE</div>
+                  <div className={`text-lg font-bold font-mono tabular-nums ${growthColor}`}>
+                    {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+              {/* Time Window Controls */}
+              <div className="flex items-center gap-2">
+                {[1, 6, 12, 24, 'all'].map((window) => (
+                  <button
+                    key={window}
+                    onClick={() => {
+                      setIsLoadingChart(true);
+                      setChartTimeWindow(window);
+                      // Simulate loading state briefly for smooth UX
+                      setTimeout(() => setIsLoadingChart(false), 200);
+                    }}
+                    disabled={isLoadingChart}
+                    className={`px-3 py-1.5 rounded text-xs font-mono font-semibold uppercase tracking-wider transition-all ${
+                      chartTimeWindow === window
+                        ? 'bg-sage-green text-pure-black shadow-[0_0_10px_rgba(127,176,105,0.4)]'
+                        : 'border border-ink-500/50 text-floral-white/70 hover:border-sage-green/50 hover:text-floral-white disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
+                  >
+                    {window === 'all' ? 'All' : `${window}h`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {isLoadingChart ? (
+            <div className="h-64 flex items-center justify-center text-floral-white/60 font-mono">
+              Loading chart data...
+            </div>
+          ) : filteredCandleData && filteredCandleData.length > 0 ? (
             <LineChart 
-              key={sector.id} 
-              data={sector.candleData} 
+              key={`${sector.id}-${chartTimeWindow}`}
+              data={filteredCandleData} 
               sectorName={sector?.name || 'N/A'}
               sectorSymbol={sector?.symbol || 'N/A'}
+              initialWindowHours={typeof chartTimeWindow === 'number' ? chartTimeWindow : 24}
             />
           ) : (
             <div className="h-64 flex items-center justify-center text-floral-white/60 font-mono">
-              No chart data available
+              {sector?.candleData && sector.candleData.length > 0
+                ? 'No data available for selected time window'
+                : 'No chart data available. Start the simulation to see price history.'}
             </div>
           )}
         </div>

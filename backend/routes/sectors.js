@@ -8,6 +8,7 @@ const { addFunds } = require('../utils/userAccount');
 const { v4: uuidv4 } = require('uuid');
 const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
 const ExecutionEngine = require('../core/ExecutionEngine');
+const { storePriceTick } = require('../utils/priceHistoryStorage');
 
 // Maximum number of sectors allowed
 const MAX_SECTORS = 6;
@@ -135,6 +136,21 @@ module.exports = async (fastify) => {
           success: false,
           error: 'Failed to update sector'
         });
+      }
+
+      // Store price tick for history (deposit changes the price)
+      try {
+        const priceChange = newPrice - currentPrice;
+        const priceChangePercent = currentPrice > 0 ? (priceChange / currentPrice) * 100 : 0;
+        await storePriceTick(id, {
+          price: newPrice,
+          timestamp: Date.now(),
+          volume: sector.volume || 0,
+          change: priceChange,
+          changePercent: priceChangePercent
+        });
+      } catch (tickError) {
+        console.warn(`[sectors] Failed to store price tick for deposit on sector ${id}:`, tickError.message);
       }
 
       // Normalize the updated sector before sending
@@ -397,7 +413,7 @@ module.exports = async (fastify) => {
       const finalSectorSymbol = (sectorSymbol || symbol || '').trim();
 
       // Create sector using the model (model handles both name/symbol and sectorName/sectorSymbol)
-      // Explicitly set balance and currentPrice to 0 for new sectors (should never default to 100)
+      // Price starts at 100 on sector creation (per price simulation requirements)
       // marketContext will be automatically initialized if not provided
       const sector = new Sector({
         name: finalSectorName,
@@ -408,7 +424,7 @@ module.exports = async (fastify) => {
         agents: agents || [],
         performance: performance || {},
         balance: 0, // New sectors always start with 0 balance
-        currentPrice: 0, // New sectors start with 0 price (price is separate from balance)
+        currentPrice: 100, // Price starts at 100 on sector creation (per price simulation requirements)
         symbols: providedSymbols, // If provided, will be used instead of inferring from name
         marketContext: marketContext // If provided, will be used; otherwise auto-initialized
       });
@@ -508,6 +524,25 @@ module.exports = async (fastify) => {
         throw new Error(`Failed to verify sector creation: sector ${normalizedSector.id} not found in storage`);
       }
       
+      // Start price simulation for the new sector
+      try {
+        const { getSectorPriceSimulator } = require('../simulation/SectorPriceSimulator');
+        const priceSimulator = getSectorPriceSimulator();
+        priceSimulator.start(normalizedSector.id);
+        
+        // Initialize price history with the starting price
+        const PriceHistory = require('../models/PriceHistory');
+        const initialPriceHistory = new PriceHistory({
+          sectorId: normalizedSector.id,
+          price: 100,
+          timestamp: Date.now()
+        });
+        await initialPriceHistory.save();
+      } catch (simError) {
+        console.warn(`[POST /sectors] Warning: Failed to start price simulation for sector ${normalizedSector.id}:`, simError.message);
+        // Don't fail the request if simulator fails to start
+      }
+
       console.log(`[POST /sectors] Successfully created and verified sector with ID: ${normalizedSector.id}`);
       return reply.status(201).send(normalizedSector);
     } catch (error) {
@@ -624,6 +659,17 @@ module.exports = async (fastify) => {
           console.warn(`Warning: Failed to withdraw balance:`, balanceError.message);
           // Continue with deletion even if balance withdrawal fails
         }
+      }
+
+      // Stop price simulation for this sector
+      try {
+        const { getSectorPriceSimulator } = require('../simulation/SectorPriceSimulator');
+        const priceSimulator = getSectorPriceSimulator();
+        priceSimulator.stop(id);
+        console.log(`Stopped price simulation for sector ${id}`);
+      } catch (simError) {
+        console.warn(`Warning: Failed to stop price simulation for sector ${id}:`, simError.message);
+        // Don't fail the deletion if simulator stop fails
       }
 
       // Delete the sector

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock, Settings, Trash2 } from 'lucide-react';
 import type { Discussion, Message } from '@/lib/types';
@@ -35,6 +35,34 @@ function formatTimestamp(timestamp: string): string {
   const displayHours = hours % 12 || 12;
   return `[${month} ${day}, ${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}]`;
 }
+
+// Memoized message item component to prevent unnecessary re-renders
+const MessageItem = memo(function MessageItem({ message, index, totalMessages }: { message: Message; index: number; totalMessages: number }) {
+  const theme = useMemo(() => getAgentTheme(message.agentName), [message.agentName]);
+  const formattedTimestamp = useMemo(() => formatTimestamp(message.timestamp), [message.timestamp]);
+  const formattedContent = useMemo(() => formatMessageContent(message.content), [message.content]);
+  
+  return (
+    <div className="mb-4 last:mb-0">
+      <div className="flex items-start gap-2 mb-1">
+        <span className="text-sage-green font-mono text-xs">
+          {formattedTimestamp}
+        </span>
+        <span
+          className={`font-semibold px-2 py-0.5 rounded-full border text-xs tracking-wide ${theme.text} ${theme.border} ${theme.bg}`}
+        >
+          {message.agentName}:
+        </span>
+      </div>
+      <div className="ml-4 pl-3 border-l-2 border-sage-green/30 text-floral-white">
+        {formattedContent}
+      </div>
+      {index < totalMessages - 1 && (
+        <div className="mt-3 border-t border-floral-white/10"></div>
+      )}
+    </div>
+  );
+});
 
 export default function DiscussionDetailClient() {
   const params = useParams();
@@ -85,8 +113,34 @@ export default function DiscussionDetailClient() {
     return false;
   }, []);
 
-  // Helper function to check if messages data changed
+  // Helper function to check if messages data changed (optimized to avoid unnecessary JSON.stringify)
   const hasMessagesChanged = useCallback((newMessages: Message[]): boolean => {
+    // Quick length check first
+    if (newMessages.length !== currentMessagesRef.current.length) {
+      previousMessagesRef.current = JSON.stringify(newMessages.map(m => ({
+        id: m.id,
+        content: m.content,
+        timestamp: m.timestamp,
+        agentName: m.agentName,
+      })));
+      return true;
+    }
+    
+    // If lengths match, check if any message IDs or content changed
+    const currentIds = currentMessagesRef.current.map(m => m.id).join(',');
+    const newIds = newMessages.map(m => m.id).join(',');
+    
+    if (currentIds !== newIds) {
+      previousMessagesRef.current = JSON.stringify(newMessages.map(m => ({
+        id: m.id,
+        content: m.content,
+        timestamp: m.timestamp,
+        agentName: m.agentName,
+      })));
+      return true;
+    }
+    
+    // Deep check only if IDs match but content might have changed
     const messagesKey = JSON.stringify(newMessages.map(m => ({
       id: m.id,
       content: m.content,
@@ -232,14 +286,19 @@ export default function DiscussionDetailClient() {
     }
   }, [discussionId, hasMessagesChanged]);
 
-  // Update refs when state changes
+  // Update refs when state changes (use refs to avoid triggering re-renders)
   useEffect(() => {
-    currentDiscussionRef.current = discussion;
+    if (discussion) {
+      currentDiscussionRef.current = discussion;
+    }
   }, [discussion]);
 
   useEffect(() => {
     currentMessagesRef.current = messages;
   }, [messages]);
+  
+  // Memoize message count to prevent unnecessary re-renders
+  const messageCount = useMemo(() => messages.length, [messages.length]);
 
   // Initial load with loading state
   useEffect(() => {
@@ -247,49 +306,61 @@ export default function DiscussionDetailClient() {
     void loadMessages(true);
   }, [discussionId]); // Only reload when discussionId changes
 
-  // Auto-start rounds if discussion is OPEN and has no messages
+  // Auto-start rounds if discussion is CREATED and has no messages
   useEffect(() => {
-    if (discussion && discussion.status === 'OPEN' && discussion.messages.length === 0) {
+    const status = (discussion?.status || '').toUpperCase();
+    if (discussion && (status === 'CREATED' || status === 'OPEN') && discussion.messages.length === 0) {
       // Automatically trigger rounds - this will happen in the background
       // The polling will pick up the messages once they're generated
-      console.log('[DiscussionDetail] Discussion is OPEN with no messages - rounds should start automatically on backend');
+      console.log('[DiscussionDetail] Discussion is CREATED/OPEN with no messages - rounds should start automatically on backend');
     }
   }, [discussion]);
 
   // Polling callbacks for auto-refresh (without loading state)
   const pollDiscussion = useCallback(async () => {
-    // Poll if discussion is in progress or OPEN (to detect when it becomes decided or when messages appear)
-    const status = currentDiscussionRef.current?.status;
-    if (status === 'in_progress' || status === 'OPEN' || status === 'open') {
+    // Poll if discussion is in progress or CREATED (to detect when it becomes decided or when messages appear)
+    // Render strictly from persisted status - no inference
+    const status = (currentDiscussionRef.current?.status || '').toUpperCase();
+    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN') {
       await loadDiscussion(false);
     }
   }, [loadDiscussion]);
 
   const pollMessages = useCallback(async () => {
-    // Poll if discussion is in progress or OPEN (messages are still being added)
-    const status = currentDiscussionRef.current?.status;
-    if (status === 'in_progress' || status === 'OPEN' || status === 'open') {
+    // Poll if discussion is in progress or CREATED (messages are still being added)
+    // Render strictly from persisted status - no inference
+    const status = (currentDiscussionRef.current?.status || '').toUpperCase();
+    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN') {
       await loadMessages(false);
     }
   }, [loadMessages]);
 
-  // Use centralized polling utility with 1500ms interval for live updates
+  // Use centralized polling utility with adaptive interval for live updates
+  // Poll more frequently when discussion is active, less when it's decided/closed
+  const pollInterval = useMemo(() => {
+    const status = (discussion?.status || '').toUpperCase();
+    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN') {
+      return 2000; // Poll every 2 seconds when active (slightly increased from 1.5s to reduce load)
+    }
+    return 5000; // Poll every 5 seconds when decided/closed (less frequent)
+  }, [discussion?.status]);
+
   usePolling({
     callback: pollDiscussion,
-    interval: 1500,
+    interval: pollInterval,
     enabled: !!discussionId && discussionId !== 'placeholder',
     pauseWhenHidden: true,
     immediate: false, // Don't call immediately since we already loaded above
-    allowLowerInterval: true, // Allow 1500ms interval
+    allowLowerInterval: true,
   });
 
   usePolling({
     callback: pollMessages,
-    interval: 1500,
+    interval: pollInterval,
     enabled: !!discussionId && discussionId !== 'placeholder',
     pauseWhenHidden: true,
     immediate: false, // Don't call immediately since we already loaded above
-    allowLowerInterval: true, // Allow 1500ms interval
+    allowLowerInterval: true,
   });
 
   const handleRefresh = async () => {
@@ -382,19 +453,16 @@ export default function DiscussionDetailClient() {
 
   const getStatusMeta = (status: Discussion['status']) => {
     // Use centralized status color utility - DECIDED is green, IN PROGRESS is orange
+    // Render strictly from persisted status - no inference from messages/checklist
     const label = getStatusLabel(status);
     const className = getStatusColor(status);
     
-    // Determine icon based on normalized status
-    const statusLower = (status || '').toLowerCase();
+    // Determine icon based on persisted status only
+    const statusUpper = (status || '').toUpperCase();
     let icon = MessageSquare;
-    if (statusLower === 'in_progress' || statusLower === 'open' || statusLower === 'active' || statusLower === 'created' || 
-        statusLower === 'OPEN' || statusLower === 'ACTIVE' || statusLower === 'CREATED') {
+    if (statusUpper === 'CREATED' || statusUpper === 'OPEN' || statusUpper === 'IN_PROGRESS') {
       icon = Clock;
-    } else if (statusLower === 'decided' || statusLower === 'closed' || statusLower === 'finalized' || 
-               statusLower === 'accepted' || statusLower === 'completed' ||
-               statusLower === 'DECIDED' || statusLower === 'CLOSED' || statusLower === 'FINALIZED' || 
-               statusLower === 'ACCEPTED' || statusLower === 'COMPLETED') {
+    } else if (statusUpper === 'DECIDED' || statusUpper === 'CLOSED') {
       icon = CheckCircle;
     }
     
@@ -518,7 +586,7 @@ export default function DiscussionDetailClient() {
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-sage-green" />
                 <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
-                  Messages ({messages.length})
+                  Messages ({messageCount})
                 </span>
               </div>
             </div>
@@ -530,34 +598,19 @@ export default function DiscussionDetailClient() {
             ) : messages.length === 0 ? (
               <p className="text-floral-white/50 text-center py-8">No messages yet</p>
             ) : (
-              messages.map((message, index) => {
-                const theme = getAgentTheme(message.agentName);
-                return (
-                  <div key={message.id || index} className="mb-4 last:mb-0">
-                    <div className="flex items-start gap-2 mb-1">
-                      <span className="text-sage-green font-mono text-xs">
-                        {formatTimestamp(message.timestamp)}
-                      </span>
-                      <span
-                        className={`font-semibold px-2 py-0.5 rounded-full border text-xs tracking-wide ${theme.text} ${theme.border} ${theme.bg}`}
-                      >
-                        {message.agentName}:
-                      </span>
-                    </div>
-                    <div className="ml-4 pl-3 border-l-2 border-sage-green/30 text-floral-white">
-                      {formatMessageContent(message.content)}
-                    </div>
-                    {index < messages.length - 1 && (
-                      <div className="mt-3 border-t border-floral-white/10"></div>
-                    )}
-                  </div>
-                );
-              })
+              messages.map((message, index) => (
+                <MessageItem
+                  key={message.id || `msg-${index}`}
+                  message={message}
+                  index={index}
+                  totalMessages={messages.length}
+                />
+              ))
             )}
           </div>
 
-          {/* Add Message (only if in progress) */}
-          {discussion.status === 'in_progress' && (
+          {/* Add Message (only if in progress) - render strictly from persisted status */}
+          {((discussion.status || '').toUpperCase() === 'IN_PROGRESS' || (discussion.status || '').toUpperCase() === 'CREATED') && (
             <div className="p-4 border-t border-ink-500 bg-ink-600/40">
               <div className="flex gap-2">
                 <input

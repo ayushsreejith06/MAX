@@ -269,9 +269,16 @@ module.exports = async (fastify) => {
     const timestamp = logEntry.timestamp || Date.now();
     
     // Extract discussion ID from checklistId
-    const discussionId = logEntry.checklistId 
-      ? extractDiscussionId(logEntry.checklistId)
-      : null;
+    // checklistId can be either:
+    // 1. Direct discussion ID (from ExecutionEngine.executeChecklist)
+    // 2. Format: checklist-{discussionId}-{index} (from checklist item IDs)
+    let discussionId = null;
+    if (logEntry.checklistId) {
+      // Try to extract from format first
+      const extracted = extractDiscussionId(logEntry.checklistId);
+      // If extraction failed, assume it's already a discussion ID
+      discussionId = extracted || logEntry.checklistId;
+    }
     
     // Get action type from result
     const actionType = (result.actionType || result.action || '').toUpperCase();
@@ -391,9 +398,12 @@ module.exports = async (fastify) => {
           }
 
           // Extract discussion ID from checklistId for filtering
-          const resultDiscussionId = logEntry.checklistId 
-            ? extractDiscussionId(logEntry.checklistId)
-            : null;
+          // checklistId can be either direct discussion ID or format: checklist-{discussionId}-{index}
+          let resultDiscussionId = null;
+          if (logEntry.checklistId) {
+            const extracted = extractDiscussionId(logEntry.checklistId);
+            resultDiscussionId = extracted || logEntry.checklistId;
+          }
 
           // Filter by discussion ID
           if (discussionId && resultDiscussionId !== discussionId) {

@@ -9,7 +9,7 @@ class DiscussionRoom {
     this.agentIds = agentIds;
     this.messages = [];
     this.messagesCount = 0;
-    this.status = 'OPEN'; // Discussion status: 'OPEN' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
+    this.status = 'CREATED'; // Discussion status: 'CREATED' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     // Discussion lifecycle fields
@@ -51,12 +51,13 @@ class DiscussionRoom {
       discussionRoom.messagesCount = Array.isArray(data.messages) ? data.messages.length : 0;
     }
     // Map old status values to new ones for backward compatibility
-    // State transitions: OPEN → IN_PROGRESS → DECIDED → CLOSED
+    // State transitions: CREATED → IN_PROGRESS → DECIDED → CLOSED
     const statusMap = {
-      'created': 'OPEN',
+      'created': 'CREATED',
+      'CREATED': 'CREATED',
       'debating': 'IN_PROGRESS',
-      'open': 'OPEN',
-      'OPEN': 'OPEN',
+      'open': 'CREATED',
+      'OPEN': 'CREATED',
       'active': 'IN_PROGRESS',
       'in_progress': 'IN_PROGRESS',
       'IN_PROGRESS': 'IN_PROGRESS',
@@ -69,7 +70,7 @@ class DiscussionRoom {
       'accepted': 'CLOSED',
       'completed': 'CLOSED'
     };
-    discussionRoom.status = statusMap[data.status] || data.status || 'OPEN';
+    discussionRoom.status = statusMap[data.status] || data.status || 'CREATED';
     discussionRoom.createdAt = data.createdAt;
     discussionRoom.updatedAt = data.updatedAt;
     // Discussion lifecycle fields
@@ -149,6 +150,17 @@ class DiscussionRoom {
   }
 
   setDecision(decision) {
+    // VALIDATION: Cannot mark as DECIDED without checklist items
+    // A discussion must have checklist items to be considered DECIDED
+    const hasChecklistItems = Array.isArray(this.checklist) && this.checklist.length > 0;
+    const hasChecklistDraft = Array.isArray(this.checklistDraft) && this.checklistDraft.length > 0;
+    
+    if (!hasChecklistItems && !hasChecklistDraft) {
+      const error = `Cannot mark discussion as DECIDED: Discussion ${this.id} has no checklist items. A discussion must have checklist items before it can be marked as DECIDED.`;
+      console.error(`[DiscussionRoom.setDecision] ${error}`);
+      throw new Error(error);
+    }
+    
     this.finalDecision = decision.action || decision.finalDecision;
     this.rationale = decision.rationale || decision.reason;
     this.confidence = decision.confidence;
@@ -157,7 +169,7 @@ class DiscussionRoom {
     this.conflictScore = decision.conflictScore || null;
     this.decidedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
-    this.status = 'DECIDED'; // Discussion status: 'OPEN' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
+    this.status = 'DECIDED'; // Discussion status: 'CREATED' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
   }
 
   /**
@@ -205,7 +217,12 @@ class DiscussionRoom {
       return false;
     }
     return this.checklist.some(item => {
-      const itemRound = typeof item.round === 'number' ? item.round : (this.currentRound || this.round || 1);
+      // CRITICAL: Only match items with explicit round field that matches
+      // Do NOT use fallback logic - this causes false matches across discussions/rounds
+      if (typeof item.round !== 'number') {
+        return false; // Item has no round set - don't match (shouldn't happen, but be safe)
+      }
+      const itemRound = item.round;
       const itemAgentId = item.sourceAgentId || item.agentId;
       return itemAgentId === agentId && itemRound === round;
     });

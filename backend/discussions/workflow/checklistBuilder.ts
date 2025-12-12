@@ -18,6 +18,7 @@ export type ChecklistAction = {
 export type ChecklistItem = {
   id: string;
   sourceAgentId: string;
+  discussionId?: string; // Discussion ID this item belongs to
   actionType: 'BUY' | 'SELL' | 'HOLD';
   symbol: string;
   amount: number; // Legacy field - kept for backward compatibility

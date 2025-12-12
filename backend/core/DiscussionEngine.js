@@ -7,6 +7,7 @@ const { extractConfidence } = require('../utils/confidenceUtils');
 const { isLlmEnabled } = require('../ai/llmClient');
 const { updateConfidencePhase4 } = require('../simulation/confidence');
 const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
+const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
 
 /**
  * DiscussionEngine - Manages discussion lifecycle and rounds
@@ -35,13 +36,17 @@ class DiscussionEngine {
     const discussionRoom = new DiscussionRoom(sector.id, title, agentIds);
     
     // Initialize discussion-specific fields
-    // Discussion status: 'OPEN' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
-    discussionRoom.status = 'OPEN';
+    // Discussion status: 'CREATED' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
+    // Status is set to CREATED by default in DiscussionRoom constructor
     discussionRoom.round = 1;
     discussionRoom.currentRound = 1;
     discussionRoom.checklistDraft = [];
     discussionRoom.checklist = [];
     discussionRoom.roundHistory = [];
+    // CRITICAL: Reset checklist creation attempts for new discussion
+    // This ensures each new discussion starts with a clean slate
+    discussionRoom.checklistCreationAttempts = {};
+    discussionRoom.lastChecklistItemTimestamp = null;
 
     // Save discussion
     await saveDiscussion(discussionRoom);
@@ -62,7 +67,7 @@ class DiscussionEngine {
     console.log(`[DiscussionEngine] Starting rounds for discussion ${discussionRoom.id}`);
     setImmediate(async () => {
       try {
-        await this.startRounds(discussionRoom.id, 3);
+        await this.startRounds(discussionRoom.id, 2); // Reduced to 2 rounds for faster lifecycle
         console.log(`[DiscussionEngine] Successfully completed rounds for discussion ${discussionRoom.id}`);
         
         // Verify that messages were actually created
@@ -72,10 +77,7 @@ class DiscussionEngine {
           if (messages.length === 0) {
             console.error(`[DiscussionEngine] WARNING: Discussion ${discussionRoom.id} was created but has no messages after rounds completed. This should not happen.`);
             // Mark discussion as failed or delete it
-            const failedDiscussion = DiscussionRoom.fromData(updatedDiscussionData);
-            failedDiscussion.status = 'CLOSED';
-            failedDiscussion.updatedAt = new Date().toISOString();
-            await saveDiscussion(failedDiscussion);
+            await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'No messages after rounds completed');
             console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to no messages`);
           }
         }
@@ -85,14 +87,8 @@ class DiscussionEngine {
         
         // If rounds fail, mark the discussion as CLOSED to prevent empty discussions
         try {
-          const failedDiscussionData = await findDiscussionById(discussionRoom.id);
-          if (failedDiscussionData) {
-            const failedDiscussion = DiscussionRoom.fromData(failedDiscussionData);
-            failedDiscussion.status = 'CLOSED';
-            failedDiscussion.updatedAt = new Date().toISOString();
-            await saveDiscussion(failedDiscussion);
-            console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to round failure`);
-          }
+          await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Round failure');
+          console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to round failure`);
         } catch (saveError) {
           console.error(`[DiscussionEngine] Failed to mark discussion as CLOSED:`, saveError);
         }
@@ -186,7 +182,12 @@ class DiscussionEngine {
       
       // Check if agent already has a checklist item for this round (prevent duplicates)
       if (discussionRoom.hasChecklistItemForRound(agent.id, currentRound)) {
-        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) already has a checklist item for this round, skipping duplicate creation`);
+        // Log detailed info for debugging
+        const existingItems = (discussionRoom.checklist || []).filter(item => {
+          const itemAgentId = item.sourceAgentId || item.agentId;
+          return itemAgentId === agent.id;
+        });
+        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) already has a checklist item for this round, skipping duplicate creation. Existing items for this agent:`, existingItems.map(item => ({ id: item.id, round: item.round, actionType: item.actionType })));
         continue;
       }
 
@@ -205,7 +206,7 @@ class DiscussionEngine {
         // Checklist items MUST ONLY be created from structured proposal objects, never from message text
         if (!messageData || typeof messageData !== 'object' || !messageData.proposal) {
           console.warn(`[DiscussionEngine] Round ${currentRound}: Message data missing proposal object for agent ${agent.id} (${agent.name || 'Unknown'}). Skipping checklist item creation.`);
-          // Note: We don't create a fallback here because the proposal should always exist
+          // Note: We don't create a fallback here because the proposal should always exist for LLM-generated messages
           // If it doesn't, that's a data integrity issue that should be fixed upstream
           continue;
         }
@@ -213,9 +214,10 @@ class DiscussionEngine {
         const proposal = messageData.proposal;
         
         // Create checklist item from structured proposal object
-        // createChecklistFromLLM will create a fallback item if parsing fails
+        // createChecklistFromLLM will ALWAYS return a valid item (even if parsing fails, it creates a REJECTED fallback)
+        // This ensures checklist items are always created when proposals exist, even if unparseable
         const checklistItem = await createChecklistFromLLM({
-          proposal: proposal, // REQUIRED: Structured proposal object
+          proposal: proposal, // REQUIRED: Structured proposal object (may be invalid/null - fallback will handle it)
           discussionId: discussionRoom.id,
           agentId: agent.id,
           agentName: agent.name || undefined,
@@ -235,8 +237,11 @@ class DiscussionEngine {
         });
 
         // Checklist item is always created (even if fallback is used)
-        // Ensure round is set on the checklist item
-        checklistItem.round = currentRound;
+        // CRITICAL: Ensure round is ALWAYS set on the checklist item
+        // This is required for hasChecklistItemForRound to work correctly
+        if (typeof checklistItem.round !== 'number') {
+          checklistItem.round = currentRound;
+        }
         discussionRoom.checklist.push(checklistItem);
         discussionRoom.updateLastChecklistItemTimestamp();
         console.log(`[DiscussionEngine] Round ${currentRound}: Created checklist item from agent ${agent.id} (${agent.name || 'Unknown'}): ${checklistItem.actionType} ${checklistItem.symbol}`);
@@ -279,8 +284,6 @@ class DiscussionEngine {
       // Check if all items are terminal and discussion can close
       if (managerEngine.canDiscussionClose(discussionRoom)) {
         console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} can close after round ${currentRound}. All items are terminal.`);
-        discussionRoom.status = 'decided';
-        discussionRoom.updatedAt = new Date().toISOString();
         
         // Save final round snapshot
         if (!Array.isArray(discussionRoom.roundHistory)) {
@@ -297,8 +300,10 @@ class DiscussionEngine {
         };
         
         discussionRoom.roundHistory.push(finalRoundSnapshot);
-        discussionRoom.discussionClosedAt = new Date().toISOString();
         await saveDiscussion(discussionRoom);
+        
+        // Transition to DECIDED status
+        await transitionStatus(discussionRoom.id, STATUS.DECIDED, `All items terminal after round ${currentRound}`);
         
         console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} auto-closed and marked as 'decided' after round ${currentRound}.`);
         return updatedSector;
@@ -378,13 +383,12 @@ class DiscussionEngine {
       createdAt: new Date().toISOString()
     }));
 
-    // Set final checklist and mark as decided
+    // Set final checklist
     discussionRoom.checklist = checklist;
-    discussionRoom.status = 'decided';
-    discussionRoom.updatedAt = new Date().toISOString();
-
-    // Save finalized discussion
     await saveDiscussion(discussionRoom);
+
+    // Transition to DECIDED status
+    await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Discussion finalized');
 
     // Update sector
     const updatedSector = await updateSector(sector.id, {
@@ -400,10 +404,10 @@ class DiscussionEngine {
   /**
    * Start rounds for a discussion (automatically generates N rounds)
    * @param {string} discussionId - Discussion ID
-   * @param {number} numRounds - Number of rounds to run (default: 3)
+   * @param {number} numRounds - Number of rounds to run (default: 2, reduced from 3 for faster lifecycle)
    * @returns {Promise<void>}
    */
-  async startRounds(discussionId, numRounds = 3) {
+  async startRounds(discussionId, numRounds = 2) {
     if (!discussionId) {
       throw new Error('discussionId is required');
     }
@@ -433,12 +437,11 @@ class DiscussionEngine {
       }
     }
     
-    // Transition status from OPEN to IN_PROGRESS when rounds start (if no messages yet)
-    if ((discussionRoom.status === 'OPEN' || discussionRoom.status === 'open') && existingMessages.length === 0) {
-      discussionRoom.status = 'IN_PROGRESS';
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
-      console.log(`[DiscussionEngine] Transitioned discussion ${discussionId} from OPEN to IN_PROGRESS`);
+    // Transition status from CREATED to IN_PROGRESS when rounds start (if no messages yet)
+    const currentStatus = (discussionRoom.status || '').toUpperCase();
+    if ((currentStatus === 'CREATED' || currentStatus === 'OPEN') && existingMessages.length === 0) {
+      await transitionStatus(discussionId, STATUS.IN_PROGRESS, 'Rounds started');
+      console.log(`[DiscussionEngine] Transitioned discussion ${discussionId} to IN_PROGRESS`);
     }
     
     // Load sector to get sector name
@@ -460,7 +463,7 @@ class DiscussionEngine {
       throw new Error(errorMsg);
     }
 
-    // Run N rounds with 500ms delay between rounds
+    // Run N rounds with 200ms delay between rounds (reduced from 500ms for faster lifecycle)
     // Start from current round if resuming, otherwise start from 1
     const startRound = existingMessages.length > 0 && currentRound > 1 ? currentRound : 1;
     for (let round = startRound; round <= numRounds; round++) {
@@ -547,9 +550,9 @@ class DiscussionEngine {
       await saveDiscussion(currentDiscussionRoom);
       console.log(`[DiscussionEngine] Discussion ${discussionId} saved successfully`);
 
-      // Wait 500ms before next round (except after the last round)
+      // Wait 200ms before next round (except after the last round) - reduced for faster lifecycle
       if (round < numRounds) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
 
@@ -947,12 +950,11 @@ class DiscussionEngine {
       createdAt: new Date().toISOString()
     }));
 
-    // Mark discussion as ready for manager review
-    discussionRoom.status = 'in_progress';
-    discussionRoom.updatedAt = new Date().toISOString();
-
     // Save discussion with checklist
     await saveDiscussion(discussionRoom);
+
+    // Transition to IN_PROGRESS if not already
+    await transitionStatus(discussionId, STATUS.IN_PROGRESS, 'Checklist finalized, ready for manager review');
 
     console.log(`[DiscussionEngine] Finalized checklist for discussion ${discussionId}: ${refinedItems.length} items across ${roundCount} rounds`);
 
@@ -996,8 +998,8 @@ class DiscussionEngine {
 
     let discussionRoom = DiscussionRoom.fromData(discussionData);
 
-    // Run 3 rounds
-    for (let round = 1; round <= 3; round++) {
+    // Run 2 rounds (reduced from 3 for faster lifecycle)
+    for (let round = 1; round <= 2; round++) {
       // Reload discussion to get latest state
       discussionData = await findDiscussionById(discussionId);
       discussionRoom = DiscussionRoom.fromData(discussionData);
@@ -1159,12 +1161,11 @@ class DiscussionEngine {
       workerProposal: item.workerProposal || null
     }));
 
-    // Mark discussion as ready for manager review
-    discussionRoom.status = 'in_progress';
-    discussionRoom.updatedAt = new Date().toISOString();
-
     // Save finalized discussion
     await saveDiscussion(discussionRoom);
+
+    // Transition to IN_PROGRESS if not already
+    await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Checklist finalized, ready for manager review');
 
     // Update sector
     const sectorUpdates = { discussions: discussions };
@@ -1212,22 +1213,14 @@ class DiscussionEngine {
     const { validateMarketDataForDiscussion } = require('../utils/marketDataValidation');
     sector = await validateMarketDataForDiscussion(sector);
 
-    // VALIDATION 1: Check if there are any non-closed discussions for this sector
-    // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
-    const { hasNonClosedDiscussions } = require('../utils/discussionStorage');
-    const hasActive = await hasNonClosedDiscussions(sectorId);
+    // VALIDATION 1: SERIAL EXECUTION LOCK - Check for existing active discussion (IN_PROGRESS or OPEN)
+    // Only ONE active discussion per sector at a time
+    // New discussion allowed ONLY after previous is CLOSED or DECIDED
+    const { hasActiveDiscussion } = require('../utils/discussionStorage');
+    const { hasActive, activeDiscussion } = await hasActiveDiscussion(sectorId);
     
-    if (hasActive) {
-      // Find the active discussion for error message
-      const existingDiscussions = await loadDiscussions();
-      const activeDiscussion = existingDiscussions.find(d => 
-        d.sectorId === sectorId && 
-        !['DECIDED', 'decided', 'CLOSED', 'closed', 'finalized', 'archived', 'accepted', 'completed'].includes((d.status || '').toUpperCase())
-      );
-      
-      if (activeDiscussion) {
-        throw new Error(`Cannot start discussion: There is already a non-closed discussion for this sector (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status})`);
-      }
+    if (hasActive && activeDiscussion) {
+      throw new Error(`Cannot start discussion: There is already an active discussion for this sector (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Only one active discussion per sector is allowed.`);
     }
 
     // VALIDATION 2: Check sector balance > 0
@@ -1676,10 +1669,18 @@ _clampConfidence(value) {
           };
 
           // Create analysis text from the structured data for display (user-friendly, no error messages)
+          // Include confidence reasoning in the message
+          const confidenceReasoning = structuredProposal.confidence >= 50 
+            ? `High confidence (${structuredProposal.confidence}%) - strong conviction in ${structuredProposal.action} recommendation.`
+            : structuredProposal.confidence >= 25
+            ? `Moderate confidence (${structuredProposal.confidence}%) - ${structuredProposal.action} with some uncertainty.`
+            : `Low confidence (${structuredProposal.confidence}%) - ${structuredProposal.action} due to limited conviction.`;
+          
           analysisText = [
             `${agentName} recommends: ${structuredProposal.action}`,
             `Allocation: ${structuredProposal.allocationPercent}%`,
             `Confidence: ${structuredProposal.confidence}%`,
+            `Confidence Reasoning: ${confidenceReasoning}`,
             '',
             `Reasoning: ${structuredProposal.reasoning}`,
             structuredProposal.riskNotes ? `\nRisk Notes: ${structuredProposal.riskNotes}` : ''
@@ -1708,6 +1709,7 @@ _clampConfidence(value) {
             `${agentName} recommends: HOLD`,
             `Allocation: 0%`,
             `Confidence: 1%`,
+            `Confidence Reasoning: Low confidence (1%) - HOLD due to insufficient market signals.`,
             '',
             `Reasoning: ${structuredProposal.reasoning}`
           ].join('\n').trim();
@@ -1731,6 +1733,7 @@ _clampConfidence(value) {
             `${agentName} recommends: HOLD`,
             `Allocation: 0%`,
             `Confidence: 1%`,
+            `Confidence Reasoning: Low confidence (1%) - HOLD due to insufficient market signals.`,
             '',
             `Reasoning: ${fallbackReasoning}`
           ].join('\n').trim(),

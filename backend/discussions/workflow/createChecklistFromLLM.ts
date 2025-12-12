@@ -110,6 +110,7 @@ export async function createChecklistFromLLM(
     const checklistItemPayload: Partial<ChecklistItem> = {
       id,
       sourceAgentId: agentId,
+      discussionId: discussionId, // Include discussionId as required field
       actionType: extractedAction.action,
       symbol: normalizedSymbols[0], // Use first allowed symbol
       amount,
@@ -145,7 +146,7 @@ export async function createChecklistFromLLM(
 /**
  * Creates a fallback checklist item when parsing fails.
  * This ensures a checklist item is ALWAYS created, even if the LLM output is malformed.
- * Returns HOLD, 0%, confidence 1 to ensure the discussion lifecycle continues.
+ * Returns HOLD, 0%, confidence 1, marked as REJECTED with reason "Unparseable LLM output".
  */
 function createFallbackChecklistItem(
   discussionId: string,
@@ -158,14 +159,15 @@ function createFallbackChecklistItem(
   const fallbackPayload: Partial<ChecklistItem> = {
     id,
     sourceAgentId: agentId,
+    discussionId: discussionId, // Include discussionId as required field
     actionType: 'HOLD',
     symbol,
     amount: 0,
     allocationPercent: 0,
     confidence: 1,
-    reasoning: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
-    rationale: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
-    status: 'PENDING',
+    reasoning: 'Unparseable LLM output',
+    rationale: 'Unparseable LLM output',
+    status: 'REJECTED',
   };
 
   // Try to validate, but if it fails, return a minimal valid item
@@ -181,14 +183,15 @@ function createFallbackChecklistItem(
     return {
       id,
       sourceAgentId: agentId,
+      discussionId: discussionId, // Include discussionId as required field
       actionType: 'HOLD',
       symbol: symbol || 'UNKNOWN',
       amount: 0,
       allocationPercent: 0,
       confidence: 1,
-      reasoning: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
-      rationale: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
-      status: 'PENDING',
+      reasoning: 'Unparseable LLM output',
+      rationale: 'Unparseable LLM output',
+      status: 'REJECTED',
     };
   }
 }

@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { findDiscussionById } = require('../utils/discussionStorage');
 const { updateAgent } = require('../utils/agentStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
+const { storePriceTick } = require('../utils/priceHistoryStorage');
 const { getManagerById, getExecutionList, removeExecutionItem } = require('../utils/executionListStorage');
 const { calculateNewPrice, mapActionToImpact } = require('../simulation/priceModel');
 
@@ -151,68 +152,136 @@ class ExecutionEngine {
 
       let executionSucceeded = false;
       let executedAction = null;
+      const executionPrice = sectorState.currentPrice; // Capture price at execution time
 
       try {
         switch (action) {
           case 'buy':
-            if (amount > 0 && sectorState.balance >= amount) {
-              sectorState.balance -= amount; // Update balance (single source of truth)
-              sectorState.position += amount;
-              sectorState.holdings.position = sectorState.position;
+            // FAILSAFE: Reject execution if funds < allocation or amount <= 0
+            if (amount <= 0) {
               tradeResults.push({
                 itemId: item.id || null,
                 action: 'buy',
+                actionType: 'BUY',
                 amount: amount,
-                success: true,
-                reason: 'Buy executed successfully'
-              });
-              executionSucceeded = true;
-              executedAction = 'BUY';
-              // Update agent rewards for successful execution
-              try {
-                await this.updateAgentRewards(allAgents, item, checklistId);
-              } catch (rewardError) {
-                console.warn(`[ExecutionEngine] Failed to update rewards for item ${item.id}: ${rewardError.message}`);
-              }
-            } else {
-              tradeResults.push({
-                itemId: item.id || null,
-                action: 'buy',
-                amount: amount,
+                allocation: amount,
+                price: executionPrice,
                 success: false,
-                reason: amount <= 0 ? 'Invalid amount' : 'Insufficient balance'
+                reason: 'Invalid amount: must be greater than 0'
               });
+              break;
+            }
+
+            // FAILSAFE: Reject execution if insufficient balance (never allow negative balance)
+            if (sectorState.balance < amount) {
+              tradeResults.push({
+                itemId: item.id || null,
+                action: 'buy',
+                actionType: 'BUY',
+                amount: amount,
+                allocation: amount,
+                price: executionPrice,
+                success: false,
+                reason: `Insufficient balance: ${sectorState.balance.toFixed(2)} < ${amount.toFixed(2)}`
+              });
+              break;
+            }
+
+            // Execute BUY: Deduct allocation from sector cash balance
+            sectorState.balance -= amount; // Update balance (single source of truth)
+            sectorState.position += amount;
+            sectorState.holdings.position = sectorState.position;
+
+            // Update allocation state: investedCapital += allocation, availableCapital -= allocation
+            if (!sectorState.performance) {
+              sectorState.performance = {};
+            }
+            sectorState.performance.investedCapital = (sectorState.performance.investedCapital || 0) + amount;
+            sectorState.performance.availableCapital = sectorState.balance; // Available capital = remaining balance
+
+            // Record execution with all required fields: timestamp, sectorId, amount, price
+            tradeResults.push({
+              itemId: item.id || null,
+              action: 'buy',
+              actionType: 'BUY',
+              amount: amount,
+              allocation: amount,
+              price: executionPrice,
+              timestamp: timestamp,
+              sectorId: sectorId,
+              success: true,
+              reason: 'Buy executed successfully'
+            });
+            executionSucceeded = true;
+            executedAction = 'BUY';
+            // Update agent rewards for successful execution
+            try {
+              await this.updateAgentRewards(allAgents, item, checklistId);
+            } catch (rewardError) {
+              console.warn(`[ExecutionEngine] Failed to update rewards for item ${item.id}: ${rewardError.message}`);
             }
             break;
 
           case 'sell':
-            if (amount > 0 && sectorState.position >= amount) {
-              sectorState.balance += amount; // Update balance (single source of truth)
-              sectorState.position -= amount;
-              sectorState.holdings.position = sectorState.position;
+            // FAILSAFE: Reject execution if insufficient position
+            if (amount <= 0) {
               tradeResults.push({
                 itemId: item.id || null,
                 action: 'sell',
+                actionType: 'SELL',
                 amount: amount,
-                success: true,
-                reason: 'Sell executed successfully'
-              });
-              executionSucceeded = true;
-              executedAction = 'SELL';
-              // Update agent rewards for successful execution
-              try {
-                await this.updateAgentRewards(allAgents, item, checklistId);
-              } catch (rewardError) {
-                console.warn(`[ExecutionEngine] Failed to update rewards for item ${item.id}: ${rewardError.message}`);
-              }
-            } else {
-              tradeResults.push({
-                itemId: item.id || null,
-                action: 'sell',
-                amount: amount,
+                allocation: amount,
+                price: executionPrice,
                 success: false,
-                reason: amount <= 0 ? 'Invalid amount' : 'Insufficient position'
+                reason: 'Invalid amount: must be greater than 0'
               });
+              break;
+            }
+
+            if (sectorState.position < amount) {
+              tradeResults.push({
+                itemId: item.id || null,
+                action: 'sell',
+                actionType: 'SELL',
+                amount: amount,
+                allocation: amount,
+                price: executionPrice,
+                success: false,
+                reason: `Insufficient position: ${sectorState.position.toFixed(2)} < ${amount.toFixed(2)}`
+              });
+              break;
+            }
+
+            sectorState.balance += amount; // Update balance (single source of truth)
+            sectorState.position -= amount;
+            sectorState.holdings.position = sectorState.position;
+
+            // Update allocation state: investedCapital -= amount, availableCapital += amount
+            if (!sectorState.performance) {
+              sectorState.performance = {};
+            }
+            sectorState.performance.investedCapital = Math.max(0, (sectorState.performance.investedCapital || 0) - amount);
+            sectorState.performance.availableCapital = sectorState.balance; // Available capital = remaining balance
+
+            tradeResults.push({
+              itemId: item.id || null,
+              action: 'sell',
+              actionType: 'SELL',
+              amount: amount,
+              allocation: amount,
+              price: executionPrice,
+              timestamp: timestamp,
+              sectorId: sectorId,
+              success: true,
+              reason: 'Sell executed successfully'
+            });
+            executionSucceeded = true;
+            executedAction = 'SELL';
+            // Update agent rewards for successful execution
+            try {
+              await this.updateAgentRewards(allAgents, item, checklistId);
+            } catch (rewardError) {
+              console.warn(`[ExecutionEngine] Failed to update rewards for item ${item.id}: ${rewardError.message}`);
             }
             break;
 
@@ -366,6 +435,10 @@ class ExecutionEngine {
     const pnl = currentTotalValue - previousTotalValue;
     const pnlPercent = previousTotalValue > 0 ? (pnl / previousTotalValue) * 100 : 0;
 
+    // Ensure investedCapital and availableCapital are tracked
+    const investedCapital = sectorState.performance?.investedCapital || currentPosition;
+    const availableCapital = sectorState.balance;
+
     sectorState.performance = {
       ...sectorState.performance,
       totalPL: (sectorState.performance.totalPL || 0) + pnl,
@@ -373,6 +446,8 @@ class ExecutionEngine {
       pnlPercent: pnlPercent,
       position: currentPosition,
       capital: sectorState.balance, // Keep for backward compatibility in performance tracking
+      investedCapital: investedCapital, // Track invested capital
+      availableCapital: availableCapital, // Track available capital
       totalValue: currentTotalValue,
       lastUpdated: timestamp
     };
@@ -391,8 +466,16 @@ class ExecutionEngine {
     const priceChangePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
 
     // Ensure the latest balance/positions snapshot is persisted alongside the final price
+    // FAILSAFE: Never allow negative balance
+    const finalBalance = Math.max(0, sectorState.balance);
+    if (sectorState.balance !== finalBalance) {
+      console.warn(`[ExecutionEngine] Corrected negative balance for sector ${sectorId}: ${sectorState.balance} -> ${finalBalance}`);
+      sectorState.balance = finalBalance;
+      sectorState.performance.availableCapital = finalBalance;
+    }
+
     const updates = {
-      balance: sectorState.balance,
+      balance: finalBalance,
       holdings: sectorState.holdings,
       position: sectorState.position,
       positions: sectorState.position,
@@ -408,16 +491,55 @@ class ExecutionEngine {
 
     await updateSector(sectorId, updates);
 
-    // Append execution log entry
+    // Append execution log entry with execution records
+    // Every execution produces: execution record, timestamp, sectorId, amount, price at execution time
+    const executedTrades = tradeResults.filter(r => r.success && (r.action === 'buy' || r.action === 'sell'));
+    const executionRecords = executedTrades.map(trade => ({
+      id: uuidv4(),
+      timestamp: trade.timestamp || timestamp,
+      sectorId: trade.sectorId || sectorId,
+      amount: trade.amount,
+      allocation: trade.allocation || trade.amount,
+      price: trade.price,
+      action: trade.actionType || trade.action,
+      itemId: trade.itemId
+    }));
+
     const logEntry = {
       id: uuidv4(),
       sectorId: sectorId,
       checklistId: checklistId || null,
       timestamp: timestamp,
-      results: tradeResults
+      results: tradeResults,
+      executionRecords: executionRecords // Include execution records with price
     };
 
     await this._appendExecutionLog(logEntry);
+
+    // Create individual ExecutionLog entries for each executed action (for price simulator drift calculation)
+    const ExecutionLog = require('../models/ExecutionLog');
+    for (const result of tradeResults) {
+      if (result.success && result.action) {
+        const action = (result.action || result.actionType || '').toUpperCase();
+        // Only log BUY and HOLD actions for drift calculation
+        if (action === 'BUY' || action === 'HOLD') {
+          try {
+            // Calculate impact: BUY = positive impact, HOLD = neutral (0)
+            const impact = action === 'BUY' ? (result.amount || 0) : 0;
+            const executionLog = new ExecutionLog({
+              sectorId: sectorId,
+              action: action,
+              impact: impact,
+              timestamp: timestamp
+            });
+            await executionLog.save();
+          } catch (logError) {
+            console.warn(`[ExecutionEngine] Failed to create ExecutionLog for ${action}:`, logError.message);
+            // Don't throw - logging failure shouldn't break execution
+          }
+        }
+      }
+    }
 
     // Return success payload
     return {
@@ -584,6 +706,19 @@ class ExecutionEngine {
 
     await updateSector(sector.id, updates);
 
+    // Store price tick for history
+    try {
+      await storePriceTick(sector.id, {
+        price: newPrice,
+        timestamp: Date.now(),
+        volume: sector.volume || 0,
+        change: newPrice - previousPrice,
+        changePercent: previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0
+      });
+    } catch (tickError) {
+      console.warn(`[ExecutionEngine] Failed to store price tick for sector ${sector.id}:`, tickError.message);
+    }
+
     // Keep sector reference aligned for subsequent actions within the same execution
     sector.currentPrice = newPrice;
     sector.balance = sectorState.balance;
@@ -624,6 +759,19 @@ class ExecutionEngine {
     };
 
     await updateSector(sector.id, updates);
+
+    // Store price tick for history
+    try {
+      await storePriceTick(sector.id, {
+        price: newPrice,
+        timestamp: Date.now(),
+        volume: sector.volume || 0,
+        change: priceChange,
+        changePercent: changePercent
+      });
+    } catch (tickError) {
+      console.warn(`[ExecutionEngine] Failed to store price tick for sector ${sector.id}:`, tickError.message);
+    }
 
     return newPrice;
   }
@@ -947,15 +1095,19 @@ class ExecutionEngine {
             result = { success: false, reason: `Unknown action: ${actionType}` };
         }
 
-        // Store result
+        // Store result with execution details (timestamp, sectorId, amount, price)
         executionResults.push({
           itemId: item.id,
           actionType: actionType,
           symbol: symbol,
           allocation: allocation,
+          amount: allocation,
           success: result.success,
           reason: result.reason || 'Executed successfully',
-          managerImpact: result.managerImpact || 0
+          managerImpact: result.managerImpact || 0,
+          price: result.price || sectorState.currentPrice || 0,
+          timestamp: timestamp,
+          sectorId: sectorId
         });
 
         // Remove item from execution list after successful execution
@@ -963,6 +1115,17 @@ class ExecutionEngine {
           await this.applyPriceUpdateForAction(sector, sectorState, actionType);
           await removeExecutionItem(managerId, item.id);
           console.log(`[ExecutionEngine] Executed ${actionType} on ${symbol} for manager ${managerId}.`);
+          
+          // Register BUY execution for price drift effect
+          if (actionType === 'BUY') {
+            try {
+              const { registerBuyExecution } = require('../simulation/executionDrift');
+              const confidence = typeof item.confidence === 'number' ? item.confidence : 0.5;
+              registerBuyExecution(sectorId, timestamp, confidence);
+            } catch (error) {
+              console.warn(`[ExecutionEngine] Failed to register BUY execution for drift: ${error.message}`);
+            }
+          }
         } else {
           console.warn(`[ExecutionEngine] Failed to execute ${actionType} on ${symbol} for manager ${managerId}: ${result.reason}`);
         }
@@ -987,6 +1150,10 @@ class ExecutionEngine {
     const pnl = currentTotalValue - previousTotalValue;
     const pnlPercent = previousTotalValue > 0 ? (pnl / previousTotalValue) * 100 : 0;
 
+    // Ensure investedCapital and availableCapital are tracked
+    const investedCapital = sectorState.performance?.investedCapital || sectorState.position;
+    const availableCapital = sectorState.balance;
+
     sectorState.performance = {
       ...sectorState.performance,
       totalPL: (sectorState.performance.totalPL || 0) + pnl,
@@ -994,6 +1161,8 @@ class ExecutionEngine {
       pnlPercent: pnlPercent,
       position: sectorState.position,
       capital: sectorState.balance, // Keep for backward compatibility in performance tracking
+      investedCapital: investedCapital, // Track invested capital
+      availableCapital: availableCapital, // Track available capital
       totalValue: currentTotalValue,
       lastUpdated: timestamp
     };
@@ -1025,14 +1194,28 @@ class ExecutionEngine {
 
     await updateSector(sectorId, updates);
 
-    // Generate execution log
+    // Generate execution log with execution records
+    // Every execution produces: execution record, timestamp, sectorId, amount, price at execution time
+    const executedTrades = executionResults.filter(r => r.success && (r.actionType === 'BUY' || r.actionType === 'SELL'));
+    const executionRecords = executedTrades.map(trade => ({
+      id: uuidv4(),
+      timestamp: trade.timestamp || timestamp,
+      sectorId: trade.sectorId || sectorId,
+      amount: trade.amount || trade.allocation,
+      allocation: trade.allocation,
+      price: trade.price,
+      action: trade.actionType,
+      itemId: trade.itemId
+    }));
+
     const logEntry = {
       id: uuidv4(),
       sectorId: sectorId,
       managerId: managerId,
       timestamp: timestamp,
       executionType: 'execution_list',
-      results: executionResults
+      results: executionResults,
+      executionRecords: executionRecords // Include execution records with price
     };
 
     await this._appendExecutionLog(logEntry);
@@ -1090,19 +1273,38 @@ class ExecutionEngine {
    * @param {Object} sectorState - Current sector state
    * @param {number} amount - Amount to sell
    * @param {string} symbol - Symbol/ticker
-   * @returns {Promise<Object>} Result with success, reason, and managerImpact
+   * @returns {Promise<Object>} Result with success, reason, managerImpact, price, and execution details
    */
   async applySell(sectorState, amount, symbol) {
+    // FAILSAFE: Reject execution if amount <= 0
     if (amount <= 0) {
-      return { success: false, reason: 'Invalid amount: must be positive' };
+      return { 
+        success: false, 
+        reason: 'Invalid amount: must be positive',
+        price: sectorState.currentPrice || 0
+      };
     }
 
+    // FAILSAFE: Reject execution if insufficient position
     if (sectorState.position < amount) {
-      return { success: false, reason: 'Insufficient position' };
+      return { 
+        success: false, 
+        reason: `Insufficient position: ${sectorState.position.toFixed(2)} < ${amount.toFixed(2)}`,
+        price: sectorState.currentPrice || 0
+      };
     }
+
+    const executionPrice = sectorState.currentPrice || 0;
 
     sectorState.balance += amount; // Update balance (single source of truth)
     sectorState.position -= amount;
+
+    // Update allocation state: investedCapital -= amount, availableCapital += amount
+    if (!sectorState.performance) {
+      sectorState.performance = {};
+    }
+    sectorState.performance.investedCapital = Math.max(0, (sectorState.performance.investedCapital || 0) - amount);
+    sectorState.performance.availableCapital = sectorState.balance; // Available capital = remaining balance
 
     // Calculate manager impact: negative impact for sell orders
     const currentExposure = sectorState.position + amount; // Use position before sell
@@ -1111,7 +1313,10 @@ class ExecutionEngine {
     return {
       success: true,
       reason: 'Sell executed successfully',
-      managerImpact: managerImpact
+      managerImpact: managerImpact,
+      price: executionPrice,
+      amount: amount,
+      allocation: amount
     };
   }
 

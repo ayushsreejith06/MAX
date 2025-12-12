@@ -11,6 +11,8 @@ const { loadSectors } = require('../utils/storage');
 const { updateSector } = require('../utils/sectorStorage');
 const { updateAgentsConfidenceForSector } = require('./confidence');
 const { calculateNewPrice, mapActionToImpact } = require('./priceModel');
+const { calculateCurrentDrift } = require('./executionDrift');
+const { storePriceTick } = require('../utils/priceHistoryStorage');
 
 class SimulationEngine {
   constructor() {
@@ -110,7 +112,17 @@ class SimulationEngine {
     const managerImpactForTick = managerDecisions.length > 0
       ? mapActionToImpact(managerDecisions[managerDecisions.length - 1].action)
       : 0;
-    const newPrice = calculateNewPrice(oldPrice, { managerImpact: managerImpactForTick, trendFactor });
+    
+    // Get execution drift from BUY executions (temporary positive drift effect)
+    const executionDrift = calculateCurrentDrift(sectorId);
+    // Convert annualized drift to per-tick impact (assuming daily ticks)
+    // Annual drift of 0.5 means 0.5/252 per day, which is roughly 0.002 per day
+    const executionDriftImpact = executionDrift / 252; // Convert annual to daily
+    
+    // Add execution drift to trend factor to influence price
+    const adjustedTrendFactor = trendFactor + executionDriftImpact;
+    
+    const newPrice = calculateNewPrice(oldPrice, { managerImpact: managerImpactForTick, trendFactor: adjustedTrendFactor });
     priceSimulator.setPrice(newPrice);
 
     // Step 1.5: Calculate price change for confidence updates
@@ -271,6 +283,19 @@ class SimulationEngine {
 
       // Use updateSector for atomic update
       await updateSector(sectorId, updates);
+
+      // Store price tick for history
+      try {
+        await storePriceTick(sectorId, {
+          price: tickResult.newPrice,
+          timestamp: Date.now(),
+          volume: updates.volume || sector.volume || 0,
+          change: tickResult.priceChange || 0,
+          changePercent: tickResult.priceChangePercent || 0
+        });
+      } catch (tickError) {
+        console.warn(`[SimulationEngine] Failed to store price tick for sector ${sectorId}:`, tickError.message);
+      }
     } catch (error) {
       console.error(`Failed to update sector data for ${sectorId}:`, error);
     }

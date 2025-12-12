@@ -185,7 +185,7 @@ class SystemOrchestrator {
             } else {
               // STEP 4: Discussion eligibility check - reads confidence AFTER update
               // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
-              // or agent.confidence (which was updated with monotonic rule in performConfidenceUpdates)
+              // or agent.confidence (which is now LLM-derived)
               const allAboveThreshold = workerAgents.every(agent => extractConfidence(agent) >= 65);
 
               if (!allAboveThreshold) {
@@ -329,9 +329,9 @@ class SystemOrchestrator {
             
             // After execution: mark as decided but keep checklist items for historical reference
             // Don't clear checklist or finalizedChecklist - users should see what was proposed and finalized
-            discussionRoom.status = 'decided';
-            discussionRoom.updatedAt = new Date().toISOString();
             await saveDiscussion(discussionRoom);
+            const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
+            await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Checklist executed');
             
             // Allow new discussions later (by clearing the discussion from active state)
             // The discussion is now executed, so it won't block new discussions
@@ -372,11 +372,11 @@ class SystemOrchestrator {
         const discussionRoom = DiscussionRoom.fromData(activeDiscussion);
         
         // Handle legacy 'active' status discussions - transition them to 'in_progress'
-        if (discussionRoom.status === 'active') {
+        const currentStatus = (discussionRoom.status || '').toUpperCase();
+        if (currentStatus === 'ACTIVE') {
           console.log(`[SystemOrchestrator] Found legacy active discussion ${discussionRoom.id}, transitioning to in_progress...`);
-          discussionRoom.status = 'in_progress';
-          discussionRoom.updatedAt = new Date().toISOString();
-          await saveDiscussion(discussionRoom);
+          const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
+          await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Legacy active status transitioned');
           
           // If discussion has checklistDraft, finalize and handle it
           if (Array.isArray(discussionRoom.checklistDraft) && discussionRoom.checklistDraft.length > 0) {
@@ -405,11 +405,9 @@ class SystemOrchestrator {
             
             if (ageMs > 60000) { // Older than 1 minute
               console.log(`[SystemOrchestrator] Active discussion ${discussionRoom.id} is stale (${Math.round(ageMs / 1000)}s old) with no checklist, marking as decided...`);
-              // Discussions can only be 'in_progress' or 'decided'
-              discussionRoom.status = 'decided';
-              discussionRoom.updatedAt = new Date().toISOString();
-              await saveDiscussion(discussionRoom);
               // Mark discussion as ended to allow new discussions
+              const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
+              await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion with no checklist');
               this.sectorEngine.markDiscussionEnded(sectorId);
             } else {
               // Try to start rounds if discussion has no messages

@@ -187,14 +187,31 @@ export async function evaluateChecklistItem(
 
 /**
  * Creates a fallback manager decision when LLM parsing fails.
- * Returns a conservative HOLD decision to ensure the discussion lifecycle continues.
+ * Defaults to APPROVAL unless there's a clear reason to reject (e.g., hard constraints).
+ * Only reject if there's a good reason - otherwise approve to allow the proposal through.
  */
 function createFallbackDecision(params: EvaluateChecklistItemParams): ManagerChecklistDecision {
+  const { workerProposal } = params;
+  
+  // Default to approval unless there's a clear reason to reject
+  // If the worker proposal is reasonable (has action, reasoning, confidence), approve it
+  const hasValidProposal = workerProposal && 
+    workerProposal.action && 
+    workerProposal.reasoning && 
+    workerProposal.confidence !== undefined;
+  
+  // Only reject if proposal is clearly invalid
+  const shouldReject = !hasValidProposal || 
+    (workerProposal.confidence !== undefined && workerProposal.confidence < 1) ||
+    (workerProposal.action && ['HOLD', 'hold'].includes(workerProposal.action) && (!workerProposal.allocationPercent || workerProposal.allocationPercent === 0));
+  
   return validateManagerChecklistDecision({
-    approve: false, // Don't approve on parse failure
-    editedAllocationPercent: 0,
-    confidence: 1, // Minimum confidence
-    reasoning: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
+    approve: !shouldReject, // Approve by default unless proposal is clearly invalid
+    editedAllocationPercent: workerProposal?.allocationPercent || 0,
+    confidence: workerProposal?.confidence || 50, // Use worker's confidence if available
+    reasoning: shouldReject 
+      ? 'LLM evaluation failed and proposal appears invalid; rejecting.'
+      : 'LLM evaluation failed but proposal appears valid; approving based on worker confidence.',
   });
 }
 

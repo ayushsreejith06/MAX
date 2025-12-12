@@ -14,6 +14,7 @@ const { getSimulationEngine } = require('../simulation/SimulationEngine');
 const { registry } = require('../utils/contract');
 const { readDataFile, writeDataFile } = require('../utils/persistence');
 const { v4: uuidv4 } = require('uuid');
+const { registerBuyExecution } = require('../simulation/executionDrift');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -193,7 +194,13 @@ class ExecutionAgent {
         }
       }
 
-      // Step 8: Log successful execution
+      // Step 8: Register BUY execution for price drift effect
+      if (decision.action && decision.action.toUpperCase() === 'BUY' && executionResult.success) {
+        const confidence = typeof decision.confidence === 'number' ? decision.confidence : 0.5;
+        registerBuyExecution(this.sectorId, timestamp, confidence);
+      }
+
+      // Step 9: Log successful execution
       const result = {
         success: true,
         status: 'EXECUTED',

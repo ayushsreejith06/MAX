@@ -1,7 +1,7 @@
-const { loadDiscussions } = require('../utils/discussionStorage');
-const { saveDiscussion } = require('../utils/discussionStorage');
+const { loadDiscussions, findDiscussionById, saveDiscussion } = require('../utils/discussionStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
 const ManagerEngine = require('./ManagerEngine');
+const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
 
 /**
  * DiscussionWatchdog - Monitors discussions and forces resolution if they stall
@@ -102,19 +102,76 @@ class DiscussionWatchdog {
     const checklistItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
     const hasChecklistItems = checklistItems.length > 0;
 
+    // FAILSAFE: Check for stuck checklist items and force-resolve them
+    const managerEngine = new ManagerEngine();
+    let hasStuckItems = false;
+    const now = Date.now();
+    const ITEM_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const REVISE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    
+    for (const item of checklistItems) {
+      const status = (item.status || '').toUpperCase();
+      const itemCreatedAt = item.createdAt ? new Date(item.createdAt).getTime() : now;
+      const itemUpdatedAt = item.updatedAt ? new Date(item.updatedAt).getTime() : itemCreatedAt;
+      const revisionRequiredAt = item.revisionRequiredAt ? new Date(item.revisionRequiredAt).getTime() : null;
+      const timeSinceUpdate = now - itemUpdatedAt;
+      const timeSinceCreation = now - itemCreatedAt;
+      const timeSinceRevisionRequired = revisionRequiredAt ? now - revisionRequiredAt : 0;
+      
+      // Check for stuck PENDING items
+      if ((!item.status || status === 'PENDING') && timeSinceCreation > ITEM_TIMEOUT_MS) {
+        console.warn(`[DiscussionWatchdog] FAILSAFE: Found stuck PENDING item ${item.id} in discussion ${discussionId} (stuck for ${Math.round(timeSinceCreation / 1000)}s)`);
+        hasStuckItems = true;
+        item.status = 'REJECTED';
+        item.managerReason = `Auto-rejected by watchdog: Item remained PENDING for too long (${Math.round(timeSinceCreation / 1000)}s)`;
+        item.evaluatedAt = new Date().toISOString();
+        item.updatedAt = item.evaluatedAt;
+      }
+      
+      // Check for stuck REVISE_REQUIRED items
+      if (status === 'REVISE_REQUIRED' && timeSinceRevisionRequired > REVISE_TIMEOUT_MS) {
+        console.warn(`[DiscussionWatchdog] FAILSAFE: Found stuck REVISE_REQUIRED item ${item.id} in discussion ${discussionId} (stuck for ${Math.round(timeSinceRevisionRequired / 1000)}s)`);
+        hasStuckItems = true;
+        item.status = 'REJECTED';
+        item.requiresRevision = false;
+        item.managerReason = (item.managerReason || '') + ` Auto-rejected by watchdog: No revision received within timeout (${Math.round(timeSinceRevisionRequired / 1000)}s)`;
+        item.evaluatedAt = new Date().toISOString();
+        item.updatedAt = item.evaluatedAt;
+      }
+    }
+    
+    // If we found stuck items, save the discussion and try to close it
+    if (hasStuckItems) {
+      console.log(`[DiscussionWatchdog] Force-resolved stuck items in discussion ${discussionId}, attempting to close...`);
+      discussionRoom.checklist = checklistItems;
+      discussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(discussionRoom);
+      
+      // Reload and check if discussion can now close
+      const updatedData = await findDiscussionById(discussionId);
+      if (updatedData) {
+        const updatedRoom = DiscussionRoom.fromData(updatedData);
+        if (managerEngine.canDiscussionClose(updatedRoom)) {
+          console.log(`[DiscussionWatchdog] Discussion ${discussionId} can now close after resolving stuck items`);
+          await managerEngine.closeDiscussion(discussionId);
+          return;
+        }
+      }
+    }
+
     // Get last checklist item timestamp
     const lastChecklistItemTimestamp = discussionRoom.lastChecklistItemTimestamp;
-    const now = new Date();
+    const nowDate = new Date();
     
     // Calculate time since last checklist item (or discussion creation if no items)
     let secondsSinceLastItem = 0;
     if (lastChecklistItemTimestamp) {
       const lastItemTime = new Date(lastChecklistItemTimestamp);
-      secondsSinceLastItem = Math.floor((now - lastItemTime) / 1000);
+      secondsSinceLastItem = Math.floor((nowDate - lastItemTime) / 1000);
     } else {
       // No checklist items yet - use discussion creation time
       const createdAt = new Date(discussionRoom.createdAt || discussionRoom.updatedAt);
-      secondsSinceLastItem = Math.floor((now - createdAt) / 1000);
+      secondsSinceLastItem = Math.floor((nowDate - createdAt) / 1000);
     }
 
     // Check if discussion is stalled
@@ -168,7 +225,8 @@ class DiscussionWatchdog {
         : `watchdog_force_close_stalled_${secondsStalled}s_no_checklist_items`;
 
       discussionRoom.closeReason = closeReason;
-      discussionRoom.status = 'CLOSED';
+      const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
+      await transitionStatus(discussionId, STATUS.CLOSED, 'Discussion stalled and closed by watchdog');
       discussionRoom.discussionClosedAt = new Date().toISOString();
       discussionRoom.updatedAt = new Date().toISOString();
 

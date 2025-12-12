@@ -1,6 +1,6 @@
 [
   {
-    "id": "d766a78a-dbf6-4eeb-b476-61ca8212ca88",
+    "id": "b894fc32-9b44-4293-bfd6-7c4663b7191c",
     "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
     "title": "Discussion for tech",
     "agentIds": [
@@ -8,13 +8,13 @@
     ],
     "messages": [
       {
-        "id": "d766a78a-dbf6-4eeb-b476-61ca8212ca88-msg-0",
+        "id": "b894fc32-9b44-4293-bfd6-7c4663b7191c-msg-0",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T22:57:58.114Z",
-        "createdAt": "2025-12-12T22:57:58.115Z",
+        "timestamp": "2025-12-12T23:24:55.679Z",
+        "createdAt": "2025-12-12T23:24:55.679Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -22,19 +22,19 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       }
     ],
     "messagesCount": 1,
     "status": "DECIDED",
-    "createdAt": "2025-12-12T22:57:47.786Z",
-    "updatedAt": "2025-12-12T22:58:01.823Z",
+    "createdAt": "2025-12-12T23:24:34.073Z",
+    "updatedAt": "2025-12-12T23:26:20.974Z",
     "round": 1,
     "currentRound": 1,
     "checklistDraft": [],
     "checklist": [
       {
-        "id": "checklist-d766a78a-dbf6-4eeb-b476-61ca8212ca88-TECH_NVIDIA_ANALYST-1765580280704-6e5ba6a4",
+        "id": "checklist-b894fc32-9b44-4293-bfd6-7c4663b7191c-TECH_NVIDIA_ANALYST-1765581905565-9962b425",
         "sourceAgentId": "TECH_NVIDIA_ANALYST",
         "actionType": "HOLD",
         "symbol": "TECH",
@@ -44,169 +44,6 @@
         "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "status": "PENDING"
-      }
-    ],
-    "finalizedChecklist": [],
-    "needsRefinement": [],
-    "roundHistory": [],
-    "finalDecision": "HOLD",
-    "rationale": "Majority vote: 1 agents voted HOLD",
-    "confidence": 0.4,
-    "selectedAgent": "TECH_NVIDIA_ANALYST",
-    "voteBreakdown": {
-      "BUY": 0,
-      "SELL": 0,
-      "HOLD": 1
-    },
-    "conflictScore": null,
-    "decidedAt": "2025-12-12T22:58:01.823Z",
-    "managerDecisions": [],
-    "discussionClosedAt": null,
-    "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": null,
-    "closeReason": null,
-    "checklistMigrated": true
-  },
-  {
-    "id": "2c44e662-1539-4e03-b2e7-98cae31505d0",
-    "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-    "title": "Discussion for tech",
-    "agentIds": [
-      "TECH_NVIDIA_ANALYST"
-    ],
-    "messages": [
-      {
-        "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-0",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T22:58:12.932Z",
-        "createdAt": "2025-12-12T22:58:12.933Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      },
-      {
-        "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-1",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T22:58:30.822Z",
-        "createdAt": "2025-12-12T22:58:30.823Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      },
-      {
-        "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-2",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T22:58:48.826Z",
-        "createdAt": "2025-12-12T22:58:48.826Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      },
-      {
-        "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-3",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T22:59:23.330Z",
-        "createdAt": "2025-12-12T22:59:23.331Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      },
-      {
-        "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-4",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T22:59:56.760Z",
-        "createdAt": "2025-12-12T22:59:56.760Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      }
-    ],
-    "messagesCount": 5,
-    "status": "CLOSED",
-    "createdAt": "2025-12-12T22:58:03.016Z",
-    "updatedAt": "2025-12-12T23:00:30.897Z",
-    "round": 5,
-    "currentRound": 1,
-    "checklistDraft": [
-      {
-        "id": "draft-final-2c44e662-1539-4e03-b2e7-98cae31505d0-0",
-        "action": "hold",
-        "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-        "confidence": 1,
-        "workerConfidence": 1,
-        "amount": 0,
-        "workerProposal": null,
-        "status": "pending",
-        "createdAt": "2025-12-12T22:59:56.830Z"
-      }
-    ],
-    "checklist": [
-      {
-        "id": "checklist-2c44e662-1539-4e03-b2e7-98cae31505d0-0",
-        "action": "hold",
-        "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.] (Revised based on feedback)",
-        "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-        "confidence": 1,
-        "workerConfidence": 1,
-        "amount": 0,
-        "round": 4,
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "workerProposal": null,
-        "status": "RESUBMITTED",
-        "managerReason": "Rejected: Score 22.6/100 below threshold 70 (Confidence: 1.0, Impact: 0.0, Risk: 20.6, Alignment: 42.3)",
-        "requiresRevision": false,
-        "revisionCount": 1,
-        "previousVersions": [
-          {
-            "action": "hold",
-            "amount": 0,
-            "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-            "confidence": 1,
-            "timestamp": "2025-12-12T22:59:56.861Z"
-          }
-        ],
-        "revisedAt": "2025-12-12T22:59:56.861Z"
       }
     ],
     "finalizedChecklist": [],
@@ -216,44 +53,29 @@
         "round": 1,
         "checklist": [
           {
-            "id": "checklist-2c44e662-1539-4e03-b2e7-98cae31505d0-0",
-            "action": "hold",
-            "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.] (Revised based on feedback)",
-            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-            "confidence": 1,
-            "workerConfidence": 1,
+            "id": "checklist-b894fc32-9b44-4293-bfd6-7c4663b7191c-TECH_NVIDIA_ANALYST-1765581905565-9962b425",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
             "amount": 0,
-            "round": 4,
-            "agentId": "TECH_NVIDIA_ANALYST",
-            "agentName": "TECH_NVIDIA_ANALYST",
-            "workerProposal": null,
-            "status": "RESUBMITTED",
-            "managerReason": "Rejected: Score 22.6/100 below threshold 70 (Confidence: 1.0, Impact: 0.0, Risk: 20.6, Alignment: 42.3)",
-            "requiresRevision": false,
-            "revisionCount": 1,
-            "previousVersions": [
-              {
-                "action": "hold",
-                "amount": 0,
-                "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-                "confidence": 1,
-                "timestamp": "2025-12-12T22:59:56.861Z"
-              }
-            ],
-            "revisedAt": "2025-12-12T22:59:56.861Z"
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
           }
         ],
         "finalizedChecklist": [],
         "managerDecisions": [],
         "messages": [
           {
-            "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-0",
+            "id": "b894fc32-9b44-4293-bfd6-7c4663b7191c-msg-0",
             "agentId": "TECH_NVIDIA_ANALYST",
             "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
             "role": "agent",
-            "timestamp": "2025-12-12T22:58:12.932Z",
-            "createdAt": "2025-12-12T22:58:12.933Z",
+            "timestamp": "2025-12-12T23:24:55.679Z",
+            "createdAt": "2025-12-12T23:24:55.679Z",
             "proposal": {
               "action": "HOLD",
               "symbol": "TECH",
@@ -261,80 +83,94 @@
               "confidence": 1,
               "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
             },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-          },
-          {
-            "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-1",
-            "agentId": "TECH_NVIDIA_ANALYST",
-            "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-            "role": "agent",
-            "timestamp": "2025-12-12T22:58:30.822Z",
-            "createdAt": "2025-12-12T22:58:30.823Z",
-            "proposal": {
-              "action": "HOLD",
-              "symbol": "TECH",
-              "allocationPercent": 0,
-              "confidence": 1,
-              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-            },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-          },
-          {
-            "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-2",
-            "agentId": "TECH_NVIDIA_ANALYST",
-            "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-            "role": "agent",
-            "timestamp": "2025-12-12T22:58:48.826Z",
-            "createdAt": "2025-12-12T22:58:48.826Z",
-            "proposal": {
-              "action": "HOLD",
-              "symbol": "TECH",
-              "allocationPercent": 0,
-              "confidence": 1,
-              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-            },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-          },
-          {
-            "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-3",
-            "agentId": "TECH_NVIDIA_ANALYST",
-            "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-            "role": "agent",
-            "timestamp": "2025-12-12T22:59:23.330Z",
-            "createdAt": "2025-12-12T22:59:23.331Z",
-            "proposal": {
-              "action": "HOLD",
-              "symbol": "TECH",
-              "allocationPercent": 0,
-              "confidence": 1,
-              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-            },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-          },
-          {
-            "id": "2c44e662-1539-4e03-b2e7-98cae31505d0-msg-4",
-            "agentId": "TECH_NVIDIA_ANALYST",
-            "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-            "role": "agent",
-            "timestamp": "2025-12-12T22:59:56.760Z",
-            "createdAt": "2025-12-12T22:59:56.760Z",
-            "proposal": {
-              "action": "HOLD",
-              "symbol": "TECH",
-              "allocationPercent": 0,
-              "confidence": 1,
-              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-            },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
           }
         ],
-        "timestamp": "2025-12-12T23:00:30.897Z",
+        "timestamp": "2025-12-12T23:25:35.627Z",
         "closedBy": "watchdog",
-        "closeReason": "watchdog_force_close_stalled_34s_no_new_items"
+        "closeReason": "watchdog_force_close_stalled_61s_no_new_items"
+      },
+      {
+        "round": 1,
+        "checklist": [
+          {
+            "id": "checklist-b894fc32-9b44-4293-bfd6-7c4663b7191c-TECH_NVIDIA_ANALYST-1765581905565-9962b425",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
+            "amount": 0,
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
+          }
+        ],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [
+          {
+            "id": "b894fc32-9b44-4293-bfd6-7c4663b7191c-msg-0",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "role": "agent",
+            "timestamp": "2025-12-12T23:24:55.679Z",
+            "createdAt": "2025-12-12T23:24:55.679Z",
+            "proposal": {
+              "action": "HOLD",
+              "symbol": "TECH",
+              "allocationPercent": 0,
+              "confidence": 1,
+              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            },
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+          }
+        ],
+        "timestamp": "2025-12-12T23:25:45.195Z",
+        "closedBy": "watchdog",
+        "closeReason": "watchdog_force_close_stalled_71s_no_new_items"
+      },
+      {
+        "round": 1,
+        "checklist": [
+          {
+            "id": "checklist-b894fc32-9b44-4293-bfd6-7c4663b7191c-TECH_NVIDIA_ANALYST-1765581905565-9962b425",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
+            "amount": 0,
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
+          }
+        ],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [
+          {
+            "id": "b894fc32-9b44-4293-bfd6-7c4663b7191c-msg-0",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "role": "agent",
+            "timestamp": "2025-12-12T23:24:55.679Z",
+            "createdAt": "2025-12-12T23:24:55.679Z",
+            "proposal": {
+              "action": "HOLD",
+              "symbol": "TECH",
+              "allocationPercent": 0,
+              "confidence": 1,
+              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            },
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+          }
+        ],
+        "timestamp": "2025-12-12T23:26:20.528Z",
+        "closedBy": "watchdog",
+        "closeReason": "watchdog_force_close_stalled_106s_no_new_items"
       }
     ],
     "finalDecision": "HOLD",
@@ -347,16 +183,16 @@
       "HOLD": 1
     },
     "conflictScore": null,
-    "decidedAt": "2025-12-12T22:58:30.939Z",
+    "decidedAt": "2025-12-12T23:26:20.974Z",
     "managerDecisions": [],
-    "discussionClosedAt": "2025-12-12T23:00:30.897Z",
+    "discussionClosedAt": "2025-12-12T23:26:20.528Z",
     "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": "2025-12-12T22:59:56.830Z",
-    "closeReason": "watchdog_force_close_stalled_34s_no_new_items",
+    "lastChecklistItemTimestamp": null,
+    "closeReason": "watchdog_force_close_stalled_106s_no_new_items",
     "checklistMigrated": true
   },
   {
-    "id": "ae7399c1-2fbb-46db-af46-7f502d376744",
+    "id": "993d988b-9e14-4578-9e1b-8ce571b7dedc",
     "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
     "title": "Discussion for tech",
     "agentIds": [
@@ -364,13 +200,13 @@
     ],
     "messages": [
       {
-        "id": "ae7399c1-2fbb-46db-af46-7f502d376744-msg-0",
+        "id": "993d988b-9e14-4578-9e1b-8ce571b7dedc-msg-0",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T22:59:05.084Z",
-        "createdAt": "2025-12-12T22:59:05.084Z",
+        "timestamp": "2025-12-12T23:26:33.325Z",
+        "createdAt": "2025-12-12T23:26:33.325Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -378,16 +214,16 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       },
       {
-        "id": "ae7399c1-2fbb-46db-af46-7f502d376744-msg-1",
+        "id": "993d988b-9e14-4578-9e1b-8ce571b7dedc-msg-1",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T22:59:35.433Z",
-        "createdAt": "2025-12-12T22:59:35.434Z",
+        "timestamp": "2025-12-12T23:26:58.940Z",
+        "createdAt": "2025-12-12T23:26:58.941Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -395,16 +231,16 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       },
       {
-        "id": "ae7399c1-2fbb-46db-af46-7f502d376744-msg-2",
+        "id": "993d988b-9e14-4578-9e1b-8ce571b7dedc-msg-2",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T23:00:14.351Z",
-        "createdAt": "2025-12-12T23:00:14.352Z",
+        "timestamp": "2025-12-12T23:27:17.228Z",
+        "createdAt": "2025-12-12T23:27:17.228Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -412,16 +248,16 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       },
       {
-        "id": "ae7399c1-2fbb-46db-af46-7f502d376744-msg-3",
+        "id": "993d988b-9e14-4578-9e1b-8ce571b7dedc-msg-3",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T23:00:43.307Z",
-        "createdAt": "2025-12-12T23:00:43.307Z",
+        "timestamp": "2025-12-12T23:27:27.802Z",
+        "createdAt": "2025-12-12T23:27:27.802Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -429,16 +265,16 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       },
       {
-        "id": "ae7399c1-2fbb-46db-af46-7f502d376744-msg-4",
+        "id": "993d988b-9e14-4578-9e1b-8ce571b7dedc-msg-4",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T23:01:04.884Z",
-        "createdAt": "2025-12-12T23:01:04.885Z",
+        "timestamp": "2025-12-12T23:27:37.271Z",
+        "createdAt": "2025-12-12T23:27:37.271Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -446,18 +282,18 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       }
     ],
     "messagesCount": 5,
     "status": "DECIDED",
-    "createdAt": "2025-12-12T22:58:43.648Z",
-    "updatedAt": "2025-12-12T23:01:15.956Z",
+    "createdAt": "2025-12-12T23:26:22.563Z",
+    "updatedAt": "2025-12-12T23:27:50.498Z",
     "round": 5,
     "currentRound": 1,
     "checklistDraft": [
       {
-        "id": "draft-final-ae7399c1-2fbb-46db-af46-7f502d376744-0",
+        "id": "draft-final-993d988b-9e14-4578-9e1b-8ce571b7dedc-0",
         "action": "hold",
         "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
         "confidence": 1,
@@ -465,12 +301,12 @@
         "amount": 0,
         "workerProposal": null,
         "status": "pending",
-        "createdAt": "2025-12-12T23:01:05.052Z"
+        "createdAt": "2025-12-12T23:27:37.338Z"
       }
     ],
     "checklist": [
       {
-        "id": "checklist-ae7399c1-2fbb-46db-af46-7f502d376744-0",
+        "id": "checklist-993d988b-9e14-4578-9e1b-8ce571b7dedc-0",
         "action": "hold",
         "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.] (Revised based on feedback)",
         "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
@@ -483,18 +319,22 @@
         "workerProposal": null,
         "status": "RESUBMITTED",
         "managerReason": "Rejected: Score 22.6/100 below threshold 70 (Confidence: 1.0, Impact: 0.0, Risk: 20.6, Alignment: 42.3)",
+        "evaluatedAt": "2025-12-12T23:27:37.358Z",
+        "createdAt": "2025-12-12T23:27:37.358Z",
+        "updatedAt": "2025-12-12T23:27:37.358Z",
         "requiresRevision": false,
         "revisionCount": 1,
+        "revisionRequiredAt": "2025-12-12T23:27:37.358Z",
         "previousVersions": [
           {
             "action": "hold",
             "amount": 0,
             "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
             "confidence": 1,
-            "timestamp": "2025-12-12T23:01:05.125Z"
+            "timestamp": "2025-12-12T23:27:37.372Z"
           }
         ],
-        "revisedAt": "2025-12-12T23:01:05.125Z"
+        "revisedAt": "2025-12-12T23:27:37.372Z"
       }
     ],
     "finalizedChecklist": [],
@@ -510,145 +350,16 @@
       "HOLD": 1
     },
     "conflictScore": null,
-    "decidedAt": "2025-12-12T23:01:15.956Z",
+    "decidedAt": "2025-12-12T23:27:50.498Z",
     "managerDecisions": [],
     "discussionClosedAt": null,
     "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": "2025-12-12T23:01:05.052Z",
+    "lastChecklistItemTimestamp": "2025-12-12T23:27:37.338Z",
     "closeReason": null,
     "checklistMigrated": true
   },
   {
-    "id": "770ae76a-3887-4810-8c42-4507e859bd1d",
-    "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-    "title": "Discussion: tech - Deploy available capital (Balance: 100)",
-    "agentIds": [
-      "TECH_NVIDIA_ANALYST"
-    ],
-    "messages": [
-      {
-        "id": "770ae76a-3887-4810-8c42-4507e859bd1d-msg-0",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T23:00:05.670Z",
-        "createdAt": "2025-12-12T23:00:05.670Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      },
-      {
-        "id": "770ae76a-3887-4810-8c42-4507e859bd1d-msg-1",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T23:00:32.500Z",
-        "createdAt": "2025-12-12T23:00:32.500Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      },
-      {
-        "id": "770ae76a-3887-4810-8c42-4507e859bd1d-msg-2",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T23:00:54.614Z",
-        "createdAt": "2025-12-12T23:00:54.614Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      }
-    ],
-    "messagesCount": 3,
-    "status": "DECIDED",
-    "createdAt": "2025-12-12T22:59:30.932Z",
-    "updatedAt": "2025-12-12T23:01:02.113Z",
-    "round": 3,
-    "currentRound": 1,
-    "checklistDraft": [
-      {
-        "id": "draft-final-770ae76a-3887-4810-8c42-4507e859bd1d-0",
-        "action": "hold",
-        "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-        "confidence": 1,
-        "workerConfidence": 1,
-        "amount": 0,
-        "workerProposal": null,
-        "status": "pending",
-        "createdAt": "2025-12-12T23:00:54.671Z"
-      }
-    ],
-    "checklist": [
-      {
-        "id": "checklist-770ae76a-3887-4810-8c42-4507e859bd1d-0",
-        "action": "hold",
-        "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.] (Revised based on feedback)",
-        "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-        "confidence": 1,
-        "workerConfidence": 1,
-        "amount": 0,
-        "round": 2,
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "workerProposal": null,
-        "status": "RESUBMITTED",
-        "managerReason": "Rejected: Score 22.6/100 below threshold 70 (Confidence: 1.0, Impact: 0.0, Risk: 20.6, Alignment: 42.3)",
-        "requiresRevision": false,
-        "revisionCount": 1,
-        "previousVersions": [
-          {
-            "action": "hold",
-            "amount": 0,
-            "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
-            "confidence": 1,
-            "timestamp": "2025-12-12T23:00:54.756Z"
-          }
-        ],
-        "revisedAt": "2025-12-12T23:00:54.756Z"
-      }
-    ],
-    "finalizedChecklist": [],
-    "needsRefinement": [],
-    "roundHistory": [],
-    "finalDecision": "HOLD",
-    "rationale": "Majority vote: 1 agents voted HOLD",
-    "confidence": 0.4,
-    "selectedAgent": "TECH_NVIDIA_ANALYST",
-    "voteBreakdown": {
-      "BUY": 0,
-      "SELL": 0,
-      "HOLD": 1
-    },
-    "conflictScore": null,
-    "decidedAt": "2025-12-12T23:01:02.113Z",
-    "managerDecisions": [],
-    "discussionClosedAt": null,
-    "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": "2025-12-12T23:00:54.670Z",
-    "closeReason": null,
-    "checklistMigrated": true
-  },
-  {
-    "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1",
+    "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59",
     "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
     "title": "Discussion for tech",
     "agentIds": [
@@ -656,13 +367,13 @@
     ],
     "messages": [
       {
-        "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1-msg-0",
+        "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-0",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T23:01:16.320Z",
-        "createdAt": "2025-12-12T23:01:16.320Z",
+        "timestamp": "2025-12-12T23:27:59.720Z",
+        "createdAt": "2025-12-12T23:27:59.720Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -670,16 +381,16 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       },
       {
-        "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1-msg-1",
+        "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-1",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T23:01:58.768Z",
-        "createdAt": "2025-12-12T23:01:58.768Z",
+        "timestamp": "2025-12-12T23:28:18.300Z",
+        "createdAt": "2025-12-12T23:28:18.300Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -687,16 +398,16 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       },
       {
-        "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1-msg-2",
+        "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-2",
         "agentId": "TECH_NVIDIA_ANALYST",
         "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
         "role": "agent",
-        "timestamp": "2025-12-12T23:02:48.442Z",
-        "createdAt": "2025-12-12T23:02:48.442Z",
+        "timestamp": "2025-12-12T23:28:39.055Z",
+        "createdAt": "2025-12-12T23:28:39.056Z",
         "proposal": {
           "action": "HOLD",
           "symbol": "TECH",
@@ -704,19 +415,36 @@
           "confidence": 1,
           "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
         },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+      },
+      {
+        "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-3",
+        "agentId": "TECH_NVIDIA_ANALYST",
+        "agentName": "TECH_NVIDIA_ANALYST",
+        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "role": "agent",
+        "timestamp": "2025-12-12T23:28:49.269Z",
+        "createdAt": "2025-12-12T23:28:49.269Z",
+        "proposal": {
+          "action": "HOLD",
+          "symbol": "TECH",
+          "allocationPercent": 0,
+          "confidence": 1,
+          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+        },
+        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
       }
     ],
-    "messagesCount": 3,
-    "status": "CLOSED",
-    "createdAt": "2025-12-12T23:00:51.510Z",
-    "updatedAt": "2025-12-12T23:03:04.605Z",
-    "round": 3,
+    "messagesCount": 4,
+    "status": "DECIDED",
+    "createdAt": "2025-12-12T23:27:50.640Z",
+    "updatedAt": "2025-12-12T23:29:02.526Z",
+    "round": 4,
     "currentRound": 1,
     "checklistDraft": [],
     "checklist": [
       {
-        "id": "checklist-8820fc74-29f5-4af8-b85b-0ba0955303a1-TECH_NVIDIA_ANALYST-1765580584604-b328020a",
+        "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141440-502c101a",
         "sourceAgentId": "TECH_NVIDIA_ANALYST",
         "actionType": "HOLD",
         "symbol": "TECH",
@@ -728,7 +456,7 @@
         "status": "PENDING"
       },
       {
-        "id": "checklist-8820fc74-29f5-4af8-b85b-0ba0955303a1-TECH_NVIDIA_ANALYST-1765580584605-b0f2718c",
+        "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141441-49dfdd7c",
         "sourceAgentId": "TECH_NVIDIA_ANALYST",
         "actionType": "HOLD",
         "symbol": "TECH",
@@ -740,7 +468,19 @@
         "status": "PENDING"
       },
       {
-        "id": "checklist-8820fc74-29f5-4af8-b85b-0ba0955303a1-TECH_NVIDIA_ANALYST-1765580584605-a14a8783",
+        "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141441-88c16eda",
+        "sourceAgentId": "TECH_NVIDIA_ANALYST",
+        "actionType": "HOLD",
+        "symbol": "TECH",
+        "amount": 0,
+        "allocationPercent": 0,
+        "confidence": 1,
+        "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+        "status": "PENDING"
+      },
+      {
+        "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141441-6a51035f",
         "sourceAgentId": "TECH_NVIDIA_ANALYST",
         "actionType": "HOLD",
         "symbol": "TECH",
@@ -762,13 +502,13 @@
         "managerDecisions": [],
         "messages": [
           {
-            "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1-msg-0",
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-0",
             "agentId": "TECH_NVIDIA_ANALYST",
             "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
             "role": "agent",
-            "timestamp": "2025-12-12T23:01:16.320Z",
-            "createdAt": "2025-12-12T23:01:16.320Z",
+            "timestamp": "2025-12-12T23:27:59.720Z",
+            "createdAt": "2025-12-12T23:27:59.720Z",
             "proposal": {
               "action": "HOLD",
               "symbol": "TECH",
@@ -776,16 +516,16 @@
               "confidence": 1,
               "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
             },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
           },
           {
-            "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1-msg-1",
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-1",
             "agentId": "TECH_NVIDIA_ANALYST",
             "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
             "role": "agent",
-            "timestamp": "2025-12-12T23:01:58.768Z",
-            "createdAt": "2025-12-12T23:01:58.768Z",
+            "timestamp": "2025-12-12T23:28:18.300Z",
+            "createdAt": "2025-12-12T23:28:18.300Z",
             "proposal": {
               "action": "HOLD",
               "symbol": "TECH",
@@ -793,16 +533,16 @@
               "confidence": 1,
               "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
             },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
           },
           {
-            "id": "8820fc74-29f5-4af8-b85b-0ba0955303a1-msg-2",
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-2",
             "agentId": "TECH_NVIDIA_ANALYST",
             "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
             "role": "agent",
-            "timestamp": "2025-12-12T23:02:48.442Z",
-            "createdAt": "2025-12-12T23:02:48.442Z",
+            "timestamp": "2025-12-12T23:28:39.055Z",
+            "createdAt": "2025-12-12T23:28:39.056Z",
             "proposal": {
               "action": "HOLD",
               "symbol": "TECH",
@@ -810,90 +550,91 @@
               "confidence": 1,
               "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
             },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+          },
+          {
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-3",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "role": "agent",
+            "timestamp": "2025-12-12T23:28:49.269Z",
+            "createdAt": "2025-12-12T23:28:49.269Z",
+            "proposal": {
+              "action": "HOLD",
+              "symbol": "TECH",
+              "allocationPercent": 0,
+              "confidence": 1,
+              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            },
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
           }
         ],
-        "timestamp": "2025-12-12T23:02:50.991Z"
-      }
-    ],
-    "finalDecision": null,
-    "rationale": null,
-    "confidence": null,
-    "selectedAgent": null,
-    "voteBreakdown": null,
-    "conflictScore": null,
-    "decidedAt": null,
-    "managerDecisions": [],
-    "discussionClosedAt": "2025-12-12T23:02:50.991Z",
-    "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": null,
-    "closeReason": "no_more_proposals",
-    "checklistMigrated": true
-  },
-  {
-    "id": "1fbab4d5-148e-4b25-9b8c-2c56abaadbfb",
-    "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-    "title": "Discussion: tech - Deploy available capital (Balance: 100)",
-    "agentIds": [
-      "TECH_NVIDIA_ANALYST"
-    ],
-    "messages": [
-      {
-        "id": "1fbab4d5-148e-4b25-9b8c-2c56abaadbfb-msg-0",
-        "agentId": "TECH_NVIDIA_ANALYST",
-        "agentName": "TECH_NVIDIA_ANALYST",
-        "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "role": "agent",
-        "timestamp": "2025-12-12T23:02:17.870Z",
-        "createdAt": "2025-12-12T23:02:17.870Z",
-        "proposal": {
-          "action": "HOLD",
-          "symbol": "TECH",
-          "allocationPercent": 0,
-          "confidence": 1,
-          "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-        },
-        "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
-      }
-    ],
-    "messagesCount": 1,
-    "status": "CLOSED",
-    "createdAt": "2025-12-12T23:01:31.077Z",
-    "updatedAt": "2025-12-12T23:03:04.671Z",
-    "round": 1,
-    "currentRound": 1,
-    "checklistDraft": [],
-    "checklist": [
-      {
-        "id": "checklist-1fbab4d5-148e-4b25-9b8c-2c56abaadbfb-TECH_NVIDIA_ANALYST-1765580584671-9ba858cc",
-        "sourceAgentId": "TECH_NVIDIA_ANALYST",
-        "actionType": "HOLD",
-        "symbol": "TECH",
-        "amount": 0,
-        "allocationPercent": 0,
-        "confidence": 1,
-        "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
-        "status": "PENDING"
-      }
-    ],
-    "finalizedChecklist": [],
-    "needsRefinement": [],
-    "roundHistory": [
+        "timestamp": "2025-12-12T23:28:50.409Z"
+      },
       {
         "round": 1,
-        "checklist": [],
+        "checklist": [
+          {
+            "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141440-502c101a",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
+            "amount": 0,
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
+          },
+          {
+            "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141441-49dfdd7c",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
+            "amount": 0,
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
+          },
+          {
+            "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141441-88c16eda",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
+            "amount": 0,
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
+          },
+          {
+            "id": "checklist-b3dde572-81e0-4c3a-a262-6c679b5cda59-TECH_NVIDIA_ANALYST-1765582141441-6a51035f",
+            "sourceAgentId": "TECH_NVIDIA_ANALYST",
+            "actionType": "HOLD",
+            "symbol": "TECH",
+            "amount": 0,
+            "allocationPercent": 0,
+            "confidence": 1,
+            "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "rationale": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "status": "PENDING"
+          }
+        ],
         "finalizedChecklist": [],
         "managerDecisions": [],
         "messages": [
           {
-            "id": "1fbab4d5-148e-4b25-9b8c-2c56abaadbfb-msg-0",
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-0",
             "agentId": "TECH_NVIDIA_ANALYST",
             "agentName": "TECH_NVIDIA_ANALYST",
-            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
             "role": "agent",
-            "timestamp": "2025-12-12T23:02:17.870Z",
-            "createdAt": "2025-12-12T23:02:17.870Z",
+            "timestamp": "2025-12-12T23:27:59.720Z",
+            "createdAt": "2025-12-12T23:27:59.720Z",
             "proposal": {
               "action": "HOLD",
               "symbol": "TECH",
@@ -901,28 +642,85 @@
               "confidence": 1,
               "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
             },
-            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+          },
+          {
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-1",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "role": "agent",
+            "timestamp": "2025-12-12T23:28:18.300Z",
+            "createdAt": "2025-12-12T23:28:18.300Z",
+            "proposal": {
+              "action": "HOLD",
+              "symbol": "TECH",
+              "allocationPercent": 0,
+              "confidence": 1,
+              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            },
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+          },
+          {
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-2",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "role": "agent",
+            "timestamp": "2025-12-12T23:28:39.055Z",
+            "createdAt": "2025-12-12T23:28:39.056Z",
+            "proposal": {
+              "action": "HOLD",
+              "symbol": "TECH",
+              "allocationPercent": 0,
+              "confidence": 1,
+              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            },
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+          },
+          {
+            "id": "b3dde572-81e0-4c3a-a262-6c679b5cda59-msg-3",
+            "agentId": "TECH_NVIDIA_ANALYST",
+            "agentName": "TECH_NVIDIA_ANALYST",
+            "content": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+            "role": "agent",
+            "timestamp": "2025-12-12T23:28:49.269Z",
+            "createdAt": "2025-12-12T23:28:49.269Z",
+            "proposal": {
+              "action": "HOLD",
+              "symbol": "TECH",
+              "allocationPercent": 0,
+              "confidence": 1,
+              "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
+            },
+            "analysis": "TECH_NVIDIA_ANALYST recommends: HOLD\nAllocation: 0%\nConfidence: 1%\nConfidence Reasoning: Low confidence (1%) - HOLD due to limited conviction.\n\nReasoning: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals."
           }
         ],
-        "timestamp": "2025-12-12T23:02:20.951Z"
+        "timestamp": "2025-12-12T23:29:01.838Z",
+        "closedBy": "watchdog",
+        "closeReason": "watchdog_force_close_stalled_71s_no_new_items"
       }
     ],
-    "finalDecision": null,
-    "rationale": null,
-    "confidence": null,
-    "selectedAgent": null,
-    "voteBreakdown": null,
+    "finalDecision": "HOLD",
+    "rationale": "Majority vote: 1 agents voted HOLD",
+    "confidence": 0.4,
+    "selectedAgent": "TECH_NVIDIA_ANALYST",
+    "voteBreakdown": {
+      "BUY": 0,
+      "SELL": 0,
+      "HOLD": 1
+    },
     "conflictScore": null,
-    "decidedAt": null,
+    "decidedAt": "2025-12-12T23:29:02.526Z",
     "managerDecisions": [],
-    "discussionClosedAt": "2025-12-12T23:02:20.951Z",
+    "discussionClosedAt": "2025-12-12T23:29:01.838Z",
     "checklistCreationAttempts": {},
     "lastChecklistItemTimestamp": null,
-    "closeReason": "no_more_proposals",
+    "closeReason": "watchdog_force_close_stalled_71s_no_new_items",
     "checklistMigrated": true
   },
   {
-    "id": "c0a63015-3f1a-4f4d-8180-13c087450424",
+    "id": "d7af3f46-4c57-4bea-80ef-8aa871bd035b",
     "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
     "title": "Discussion for tech",
     "agentIds": [
@@ -930,9 +728,9 @@
     ],
     "messages": [],
     "messagesCount": 0,
-    "status": "CLOSED",
-    "createdAt": "2025-12-12T23:02:13.663Z",
-    "updatedAt": "2025-12-12T23:02:51.120Z",
+    "status": "IN_PROGRESS",
+    "createdAt": "2025-12-12T23:29:03.813Z",
+    "updatedAt": "2025-12-12T23:29:03.900Z",
     "round": 1,
     "currentRound": 1,
     "checklistDraft": [],
@@ -946,7 +744,327 @@
         "finalizedChecklist": [],
         "managerDecisions": [],
         "messages": [],
-        "timestamp": "2025-12-12T23:02:51.120Z"
+        "timestamp": "2025-12-12T23:29:40.607Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:30:00.620Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:30:10.620Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:30:20.623Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:30:30.651Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:30:40.657Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:30:50.665Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:31:00.683Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:31:10.697Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:31:20.714Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:31:30.733Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:31:40.741Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:31:50.761Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:32:00.750Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:32:10.760Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:32:20.771Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:32:30.788Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:32:40.784Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:32:50.787Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:33:00.793Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:33:10.803Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:33:20.821Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:33:30.824Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:33:40.837Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:33:50.850Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:34:00.859Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:34:10.864Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:34:20.867Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:34:30.880Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:34:40.893Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:34:50.915Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:35:00.898Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:35:10.909Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:35:49.901Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:36:20.884Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:36:31.908Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:36:41.950Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:37:17.421Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:37:21.918Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:37:54.099Z"
+      },
+      {
+        "round": 1,
+        "checklist": [],
+        "finalizedChecklist": [],
+        "managerDecisions": [],
+        "messages": [],
+        "timestamp": "2025-12-12T23:38:04.107Z"
       }
     ],
     "finalDecision": null,
@@ -957,76 +1075,10 @@
     "conflictScore": null,
     "decidedAt": null,
     "managerDecisions": [],
-    "discussionClosedAt": "2025-12-12T23:02:51.120Z",
+    "discussionClosedAt": null,
     "checklistCreationAttempts": {},
     "lastChecklistItemTimestamp": null,
-    "closeReason": "no_more_proposals",
+    "closeReason": null,
     "checklistMigrated": true
-  },
-  {
-    "id": "fe839d9a-676b-4c01-9280-49e49cb26bee",
-    "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-    "title": "Discussion for tech",
-    "agentIds": [
-      "TECH_NVIDIA_ANALYST"
-    ],
-    "messages": [],
-    "messagesCount": 0,
-    "status": "IN_PROGRESS",
-    "createdAt": "2025-12-12T23:03:06.981Z",
-    "updatedAt": "2025-12-12T23:03:07.013Z",
-    "round": 1,
-    "currentRound": 1,
-    "checklistDraft": [],
-    "checklist": [],
-    "finalizedChecklist": [],
-    "needsRefinement": [],
-    "roundHistory": [],
-    "finalDecision": null,
-    "rationale": null,
-    "confidence": null,
-    "selectedAgent": null,
-    "voteBreakdown": null,
-    "conflictScore": null,
-    "decidedAt": null,
-    "managerDecisions": [],
-    "discussionClosedAt": null,
-    "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": null,
-    "closeReason": null,
-    "checklistMigrated": false
-  },
-  {
-    "id": "e7c2423e-ddec-41fa-bb73-4bd2be8ea6b5",
-    "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-    "title": "Discussion: tech - Deploy available capital (Balance: 100)",
-    "agentIds": [
-      "TECH_NVIDIA_ANALYST"
-    ],
-    "messages": [],
-    "messagesCount": 0,
-    "status": "IN_PROGRESS",
-    "createdAt": "2025-12-12T23:03:07.335Z",
-    "updatedAt": "2025-12-12T23:03:07.363Z",
-    "round": 1,
-    "currentRound": 1,
-    "checklistDraft": [],
-    "checklist": [],
-    "finalizedChecklist": [],
-    "needsRefinement": [],
-    "roundHistory": [],
-    "finalDecision": null,
-    "rationale": null,
-    "confidence": null,
-    "selectedAgent": null,
-    "voteBreakdown": null,
-    "conflictScore": null,
-    "decidedAt": null,
-    "managerDecisions": [],
-    "discussionClosedAt": null,
-    "checklistCreationAttempts": {},
-    "lastChecklistItemTimestamp": null,
-    "closeReason": null,
-    "checklistMigrated": false
   }
 ]

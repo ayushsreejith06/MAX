@@ -446,7 +446,7 @@ module.exports = async (fastify) => {
       
       log(`POST /debug/discussions/${id}/trigger-rounds - Manually triggering rounds`);
       
-      await discussionEngine.startRounds(id, numRounds || 3);
+      await discussionEngine.startRounds(id, numRounds || 2); // Default reduced to 2 rounds for faster lifecycle
       
       const { findDiscussionById } = require('../utils/discussionStorage');
       const discussionData = await findDiscussionById(id);

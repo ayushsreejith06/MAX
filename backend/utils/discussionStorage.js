@@ -48,6 +48,62 @@ async function deleteDiscussion(discussionId) {
 }
 
 /**
+ * Check if a sector has an active discussion (IN_PROGRESS or OPEN)
+ * Only ONE active discussion per sector is allowed at a time
+ * New discussions are allowed ONLY after previous is CLOSED or DECIDED
+ * @param {string} sectorId - Sector ID
+ * @returns {Promise<{hasActive: boolean, activeDiscussion: Object|null}>} 
+ *   Object with hasActive flag and the active discussion if found
+ */
+async function hasActiveDiscussion(sectorId) {
+  const discussions = await loadDiscussions();
+  const sectorDiscussions = discussions.filter(d => d.sectorId === sectorId);
+  
+  // If no discussions exist for this sector, allow new discussion
+  if (sectorDiscussions.length === 0) {
+    console.log(`[hasActiveDiscussion] No discussions found for sector ${sectorId}, allowing new discussion`);
+    return { hasActive: false, activeDiscussion: null };
+  }
+  
+  // Active statuses that block new discussions
+  // Both OPEN and IN_PROGRESS prevent new discussions
+  // Also treat DECIDED discussions without checklist items as invalid/active
+  const activeStatuses = ['OPEN', 'IN_PROGRESS', 'open', 'in_progress', 'ACTIVE', 'active', 'CREATED', 'created'];
+  
+  // Find any discussion with active status OR DECIDED without checklist items
+  const activeDiscussion = sectorDiscussions.find(d => {
+    const rawStatus = d.status || '';
+    const status = rawStatus.toUpperCase();
+    const isActiveStatus = activeStatuses.includes(status);
+    
+    // Also check if DECIDED discussion has no checklist items (invalid state)
+    const isDecidedWithoutChecklist = status === 'DECIDED' && 
+      (!Array.isArray(d.checklist) || d.checklist.length === 0) &&
+      (!Array.isArray(d.checklistDraft) || d.checklistDraft.length === 0);
+    
+    const isActive = isActiveStatus || isDecidedWithoutChecklist;
+    
+    if (isActive) {
+      if (isDecidedWithoutChecklist) {
+        console.log(`[hasActiveDiscussion] ✗ Found invalid DECIDED discussion without checklist items for sector ${sectorId}: ID=${d.id}, status="${rawStatus}"`);
+      } else {
+        console.log(`[hasActiveDiscussion] ✗ Found active discussion for sector ${sectorId}: ID=${d.id}, status="${rawStatus}"`);
+      }
+    }
+    return isActive;
+  });
+  
+  if (activeDiscussion) {
+    return { hasActive: true, activeDiscussion };
+  }
+  
+  // No active discussions found
+  const statuses = sectorDiscussions.map(d => d.status).join(', ');
+  console.log(`[hasActiveDiscussion] ✓ No active discussions for sector ${sectorId}. All ${sectorDiscussions.length} discussion(s) are closed. Statuses: [${statuses}]`);
+  return { hasActive: false, activeDiscussion: null };
+}
+
+/**
  * Check if a sector has any non-closed discussions
  * A discussion is considered "closed" if its status is 'DECIDED' or 'CLOSED'
  * (or any legacy closed status variants)
@@ -104,6 +160,7 @@ module.exports = {
   findDiscussionById,
   saveDiscussion,
   deleteDiscussion,
-  hasNonClosedDiscussions
+  hasNonClosedDiscussions,
+  hasActiveDiscussion
 };
 

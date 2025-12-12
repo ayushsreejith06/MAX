@@ -13,6 +13,7 @@ const { validateTrade, checkRiskAppetite, loadRules } = require('../simulation/r
 const fs = require('fs');
 const path = require('path');
 const { readDataFile, writeDataFile } = require('../utils/persistence');
+const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -178,12 +179,23 @@ class ManagerEngine {
       (normalizedRiskScore * weights.riskLevel) +
       (alignmentWithSectorGoal * weights.alignmentWithSectorGoal);
 
-    // Apply scoring threshold
-    const status = compositeScore >= this.APPROVAL_THRESHOLD ? 'APPROVED' : 'REJECTED';
+    // Apply scoring threshold - but be lenient: only reject if score is significantly below threshold
+    // Default to approval unless there's a clear reason to reject
+    // Only reject if score is well below threshold (more than 20 points) OR if there are other red flags
+    const scoreGap = this.APPROVAL_THRESHOLD - compositeScore;
+    const shouldReject = scoreGap > 20 || // Score is significantly below threshold
+      workerConfidence < 10 || // Worker has very low confidence (< 10%)
+      (riskLevel > 80 && workerConfidence < 50); // High risk AND low confidence
+    
+    const status = shouldReject ? 'REJECTED' : 'APPROVED';
     
     const managerReason = status === 'APPROVED'
       ? `Approved: Score ${compositeScore.toFixed(1)}/${100} (Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)})`
-      : `Rejected: Score ${compositeScore.toFixed(1)}/${100} below threshold ${this.APPROVAL_THRESHOLD} (Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)})`;
+      : shouldReject && scoreGap > 20
+        ? `Rejected: Score ${compositeScore.toFixed(1)}/${100} is significantly below threshold ${this.APPROVAL_THRESHOLD} (gap: ${scoreGap.toFixed(1)}). Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)}`
+        : shouldReject && workerConfidence < 10
+          ? `Rejected: Worker confidence (${workerConfidence.toFixed(1)}%) is too low (< 10%). Score: ${compositeScore.toFixed(1)}/${100}`
+          : `Rejected: High risk (${riskLevel.toFixed(1)}) combined with low confidence (${workerConfidence.toFixed(1)}%). Score: ${compositeScore.toFixed(1)}/${100}`;
 
     // DEBUG LOG: Final evaluation result
     const debugData = {
@@ -372,7 +384,47 @@ class ManagerEngine {
       return discussionRoom;
     }
 
+    // FAILSAFE: Check for items that have been stuck too long and force-resolve them
+    const now = Date.now();
+    const ITEM_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes timeout for items
+    const REVISE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes timeout for REVISE_REQUIRED items
+    
+    let forceResolvedCount = 0;
+    for (const item of discussionRoom.checklist) {
+      const status = (item.status || '').toUpperCase();
+      const itemCreatedAt = item.createdAt ? new Date(item.createdAt).getTime() : now;
+      const itemUpdatedAt = item.updatedAt ? new Date(item.updatedAt).getTime() : itemCreatedAt;
+      const timeSinceUpdate = now - itemUpdatedAt;
+      const timeSinceCreation = now - itemCreatedAt;
+      
+      // Force-resolve PENDING items that have been stuck too long
+      if ((!item.status || status === 'PENDING') && timeSinceCreation > ITEM_TIMEOUT_MS) {
+        console.warn(`[ManagerEngine] FAILSAFE: Force-resolving PENDING item ${item.id} that has been stuck for ${Math.round(timeSinceCreation / 1000)}s`);
+        item.status = 'REJECTED';
+        item.managerReason = `Auto-rejected: Item remained PENDING for too long (${Math.round(timeSinceCreation / 1000)}s). Manager score threshold not met.`;
+        item.evaluatedAt = new Date().toISOString();
+        forceResolvedCount++;
+      }
+      
+      // Force-resolve REVISE_REQUIRED items that have been stuck too long (convert to terminal REJECTED)
+      if (status === 'REVISE_REQUIRED' && timeSinceUpdate > REVISE_TIMEOUT_MS) {
+        console.warn(`[ManagerEngine] FAILSAFE: Force-resolving REVISE_REQUIRED item ${item.id} that has been stuck for ${Math.round(timeSinceUpdate / 1000)}s`);
+        item.status = 'REJECTED'; // Convert to terminal state
+        item.requiresRevision = false;
+        item.managerReason = (item.managerReason || '') + ` Auto-rejected: No revision received within timeout (${Math.round(timeSinceUpdate / 1000)}s).`;
+        item.evaluatedAt = new Date().toISOString();
+        forceResolvedCount++;
+      }
+    }
+    
+    if (forceResolvedCount > 0) {
+      console.log(`[ManagerEngine] FAILSAFE: Force-resolved ${forceResolvedCount} stuck items in discussion ${discussionId}`);
+      discussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(discussionRoom);
+    }
+
     // Filter for PENDING and RESUBMITTED items (RESUBMITTED items need re-evaluation after worker revision)
+    // Also include items without status (should be treated as PENDING)
     const pendingItems = discussionRoom.checklist.filter(item => {
       const status = (item.status || '').toUpperCase();
       return !item.status || 
@@ -381,20 +433,38 @@ class ManagerEngine {
              (status === 'REVISE_REQUIRED' && !item.requiresRevision); // Items that were REVISE_REQUIRED but worker hasn't responded yet
     });
 
+    // CRITICAL: If no pending items but discussion has items, check if any need evaluation
+    // This ensures we don't skip items that should be evaluated
     if (pendingItems.length === 0) {
-      console.log(`[ManagerEngine] No PENDING items to evaluate for discussion ${discussionId}`);
+      // Check if there are any items that might need re-evaluation
+      const allItems = discussionRoom.checklist || [];
+      const hasUnevaluatedItems = allItems.some(item => {
+        const status = (item.status || '').toUpperCase();
+        // Items without status, or items that were auto-evaluated but might need manager review
+        return !item.status || !item.evaluatedAt || !item.managerReason;
+      });
       
-      // DEBUG LOG: No pending items
-      const debugData = {
-        discussionId: discussionId,
-        checklistLength: discussionRoom.checklist.length,
-        pendingItemsCount: 0,
-        reason: 'No PENDING items to evaluate',
-        allItemStatuses: discussionRoom.checklist.map(item => ({ id: item.id, status: item.status }))
-      };
-      this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No pending items`, debugData);
-      
-      return discussionRoom;
+      if (!hasUnevaluatedItems) {
+        console.log(`[ManagerEngine] No PENDING items to evaluate for discussion ${discussionId}`);
+        
+        // DEBUG LOG: No pending items
+        const debugData = {
+          discussionId: discussionId,
+          checklistLength: discussionRoom.checklist.length,
+          pendingItemsCount: 0,
+          reason: 'No PENDING items to evaluate',
+          allItemStatuses: discussionRoom.checklist.map(item => ({ id: item.id, status: item.status }))
+        };
+        this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No pending items`, debugData);
+        
+        // Even if no pending items, check if discussion can close
+        if (this.canDiscussionClose(discussionRoom)) {
+          console.log(`[ManagerEngine] Discussion ${discussionId} can close - all items resolved. Auto-closing...`);
+          return await this.closeDiscussion(discussionId);
+        }
+        
+        return discussionRoom;
+      }
     }
 
     console.log(`[ManagerEngine] Evaluating ${pendingItems.length} PENDING checklist items for discussion ${discussionId}`);
@@ -441,6 +511,14 @@ class ManagerEngine {
       // Evaluate the item
       const evaluation = await this.evaluateChecklistItem(manager, item, sector);
 
+      // FAILSAFE: If score is below threshold, ensure it's rejected
+      // This is a double-check to ensure low-scoring items are never approved
+      if (evaluation.score !== undefined && evaluation.score < this.APPROVAL_THRESHOLD && evaluation.status === 'APPROVED') {
+        console.warn(`[ManagerEngine] FAILSAFE: Item ${item.id} was approved but score (${evaluation.score}) is below threshold (${this.APPROVAL_THRESHOLD}). Auto-rejecting.`);
+        evaluation.status = 'REJECTED';
+        evaluation.managerReason = `Auto-rejected: Score ${evaluation.score.toFixed(1)} below threshold ${this.APPROVAL_THRESHOLD}. ${evaluation.managerReason || ''}`;
+      }
+
       // Store evaluation result for summary log
       evaluationResults.push({
         itemId: item.id,
@@ -454,14 +532,21 @@ class ManagerEngine {
       // Step 1: Set status to REJECTED and add managerReason
       item.status = evaluation.status;
       item.managerReason = evaluation.managerReason;
+      item.evaluatedAt = new Date().toISOString();
+      if (!item.createdAt) {
+        item.createdAt = item.evaluatedAt;
+      }
+      item.updatedAt = item.evaluatedAt;
 
-      // Step 2: If rejected, immediately convert to REVISE_REQUIRED
+      // Step 2: If rejected, immediately convert to REVISE_REQUIRED (but track for timeout)
       if (evaluation.status === 'REJECTED') {
         item.status = 'REVISE_REQUIRED';
         item.requiresRevision = true;
         if (!item.revisionCount) {
           item.revisionCount = 0;
         }
+        // Track when revision was required for timeout handling
+        item.revisionRequiredAt = item.evaluatedAt;
         // Don't increment revisionCount here - it will be incremented when worker revises
       }
 
@@ -530,15 +615,14 @@ class ManagerEngine {
     const newApprovedItems = approvedItems.filter(item => !existingApprovedIds.has(item.id));
     discussionRoom.finalizedChecklist = [...discussionRoom.finalizedChecklist, ...newApprovedItems];
 
-    // Keep discussion status as in_progress when checklist items exist
-    // Use 'in_progress' instead of 'OPEN' to match UI expectations
-    if (discussionRoom.status !== 'OPEN' && discussionRoom.status !== 'in_progress' && discussionRoom.status !== 'decided') {
-      discussionRoom.status = 'in_progress';
-    }
-    discussionRoom.updatedAt = new Date().toISOString();
-
     // Save updated discussion
     await saveDiscussion(discussionRoom);
+    
+    // Keep discussion status as IN_PROGRESS when checklist items exist
+    const currentStatus = (discussionRoom.status || '').toUpperCase();
+    if (currentStatus !== 'IN_PROGRESS' && currentStatus !== 'DECIDED' && currentStatus !== 'CLOSED') {
+      await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Checklist items exist');
+    }
 
     // Extract rejected items and store them globally (for rejected items count)
     const rejectedDecisions = managerDecisions.filter(decision => decision.approved === false && decision.item);
@@ -605,16 +689,66 @@ class ManagerEngine {
       const updatedAfterWorkerResponse = await findDiscussionById(discussionId);
       if (updatedAfterWorkerResponse) {
         discussionRoom = DiscussionRoom.fromData(updatedAfterWorkerResponse);
+        // Update our local checklist reference
+        updatedChecklist = discussionRoom.checklist || [];
+      }
+    }
+
+    // FAILSAFE: After worker responses, check for any REVISE_REQUIRED items that are still stuck
+    // Convert them to terminal REJECTED state so discussion can close
+    const stillReviseRequired = updatedChecklist.filter(item => {
+      const status = (item.status || '').toUpperCase();
+      return status === 'REVISE_REQUIRED' && item.requiresRevision === true;
+    });
+    
+    if (stillReviseRequired.length > 0) {
+      const currentTime = Date.now();
+      let convertedCount = 0;
+      
+      for (const item of stillReviseRequired) {
+        const revisionRequiredAt = item.revisionRequiredAt ? new Date(item.revisionRequiredAt).getTime() : currentTime;
+        const timeSinceRevisionRequired = currentTime - revisionRequiredAt;
+        
+        // If revision was required more than 10 minutes ago and no revision received, convert to REJECTED
+        if (timeSinceRevisionRequired > REVISE_TIMEOUT_MS) {
+          console.warn(`[ManagerEngine] FAILSAFE: Converting stuck REVISE_REQUIRED item ${item.id} to terminal REJECTED state (no revision received for ${Math.round(timeSinceRevisionRequired / 1000)}s)`);
+          item.status = 'REJECTED';
+          item.requiresRevision = false;
+          item.managerReason = (item.managerReason || '') + ` Auto-rejected: No revision received within timeout.`;
+          item.evaluatedAt = new Date().toISOString();
+          item.updatedAt = item.evaluatedAt;
+          convertedCount++;
+        }
+      }
+      
+      if (convertedCount > 0) {
+        console.log(`[ManagerEngine] FAILSAFE: Converted ${convertedCount} stuck REVISE_REQUIRED items to REJECTED in discussion ${discussionId}`);
+        discussionRoom.checklist = updatedChecklist;
+        discussionRoom.updatedAt = new Date().toISOString();
+        await saveDiscussion(discussionRoom);
       }
     }
 
     console.log(`[ManagerEngine] Completed evaluation for discussion ${discussionId}: ${approvedItems.length} approved, ${pendingItems.length - approvedItems.length} rejected`);
 
-    // Check if discussion can be closed after evaluation
-    // Reload discussion to get latest state after save
+    // CRITICAL: Check if discussion can be closed after evaluation
+    // Reload discussion to get latest state after all updates
     const reloadedData = await findDiscussionById(discussionId);
     if (reloadedData) {
       const reloadedRoom = DiscussionRoom.fromData(reloadedData);
+      
+      // Ensure all items are in terminal states
+      const allItems = Array.isArray(reloadedRoom.checklist) ? reloadedRoom.checklist : [];
+      const nonTerminalItems = allItems.filter(item => {
+        const status = (item.status || '').toUpperCase();
+        return !['APPROVED', 'REJECTED', 'ACCEPT_REJECTION'].includes(status);
+      });
+      
+      if (nonTerminalItems.length > 0) {
+        console.warn(`[ManagerEngine] Discussion ${discussionId} has ${nonTerminalItems.length} non-terminal items:`, 
+          nonTerminalItems.map(item => ({ id: item.id, status: item.status })));
+      }
+      
       if (this.canDiscussionClose(reloadedRoom)) {
         console.log(`[ManagerEngine] Discussion ${discussionId} is ready to close after managerEvaluateChecklist. All items resolved. Auto-closing...`);
         
@@ -624,11 +758,21 @@ class ManagerEngine {
           approvedItemsCount: approvedItems.length,
           rejectedItemsCount: pendingItems.length - approvedItems.length,
           canClose: true,
-          reason: 'All items resolved'
+          reason: 'All items resolved',
+          totalItems: allItems.length,
+          terminalItems: allItems.length - nonTerminalItems.length
         };
         this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - Closing discussion`, closeDebugData);
         
+        // Close discussion (marks as DECIDED then CLOSED)
         return await this.closeDiscussion(discussionId);
+      } else {
+        // Log why discussion cannot close
+        const blockingItems = allItems.filter(item => {
+          const status = (item.status || '').toUpperCase();
+          return ['PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'].includes(status) || item.requiresRevision === true;
+        });
+        console.log(`[ManagerEngine] Discussion ${discussionId} cannot close yet: ${blockingItems.length} blocking items, ${nonTerminalItems.length} non-terminal items`);
       }
     }
 
@@ -787,7 +931,7 @@ class ManagerEngine {
 
       // VALIDATION 1: Check ALL agents (manager + generals) have confidence > 65
       // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
-      // or agent.confidence (which was updated with monotonic rule)
+      // or agent.confidence (which is now LLM-derived)
       const allAboveThreshold = agents.every(agent => extractConfidence(agent) > 65);
 
       if (!allAboveThreshold) {
@@ -1279,15 +1423,14 @@ class ManagerEngine {
     }
     discussionRoom.finalizedChecklist = [...discussionRoom.finalizedChecklist, ...approvedItems];
 
-    // Discussion must stay in_progress (don't change status to decided yet)
-    // Use 'in_progress' instead of 'OPEN' to match UI expectations
-    if (discussionRoom.status !== 'decided' && discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
-      discussionRoom.status = 'in_progress';
-    }
-    discussionRoom.updatedAt = new Date().toISOString();
-
     // Save updated discussion
     await saveDiscussion(discussionRoom);
+    
+    // Discussion must stay IN_PROGRESS (don't change status to DECIDED yet)
+    const currentStatus = (discussionRoom.status || '').toUpperCase();
+    if (currentStatus !== 'DECIDED' && currentStatus !== 'CLOSED') {
+      await transitionStatus(discussionId, STATUS.IN_PROGRESS, 'Manager evaluation in progress');
+    }
 
     // Trigger worker responses for all REVISE_REQUIRED items
     const discussionEngine = new DiscussionEngine();
@@ -1315,9 +1458,6 @@ class ManagerEngine {
     // Check if discussion can be closed after this evaluation
     if (this.canDiscussionClose(discussionRoom)) {
       console.log(`[ManagerEngine] Discussion ${discussionId} is ready to close after evaluation. All items resolved. Auto-closing...`);
-      // Auto-close discussion by setting status to 'decided' when all items are resolved
-      discussionRoom.status = 'decided';
-      discussionRoom.updatedAt = new Date().toISOString();
       
       // Save final round snapshot to roundHistory
       const roundCount = discussionRoom.currentRound || discussionRoom.round || 1;
@@ -1379,8 +1519,10 @@ class ManagerEngine {
           };
           
           discussionRoom.roundHistory.push(finalRoundSnapshot);
-          discussionRoom.discussionClosedAt = new Date().toISOString();
           await saveDiscussion(discussionRoom);
+          
+          // Transition to DECIDED status
+          await transitionStatus(discussionId, STATUS.DECIDED, `Auto-closed after max rounds (${this.MAX_ROUNDS})`);
           
           console.log(`[ManagerEngine] Discussion ${discussionId} auto-closed after max rounds (${this.MAX_ROUNDS}).`);
           return discussionRoom;
@@ -1673,9 +1815,13 @@ class ManagerEngine {
     );
     const rejectedCount = managerDecisions.filter(d => !d.approved).length;
     
+    // Save discussion first
+    await saveDiscussion(discussionRoom);
+    
     // Keep discussion in progress - manager will close when ready
-    if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
-      discussionRoom.status = 'in_progress';
+    const currentStatus = (discussionRoom.status || '').toUpperCase();
+    if (currentStatus !== 'CLOSED') {
+      await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Manager processing items');
     }
     
     // Log current state for manager evaluation
@@ -1791,9 +1937,8 @@ class ManagerEngine {
     // All checks passed - log and start discussion
     console.log(`[DISCUSSION CHECK]`, {
       sectorId: sector.id,
-    agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
-      allAboveThreshold: true,
-      managerConfidence: managerConfidence.toFixed(2)
+      agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
+      allAboveThreshold: true
     });
 
     // Start new discussion
@@ -1960,14 +2105,16 @@ class ManagerEngine {
       }
     }
 
+    // Save discussion first
+    await saveDiscussion(discussionRoom);
+    
     // NOTE: Discussion status is NOT automatically changed here.
-    // The discussion remains in 'in_progress' until the manager explicitly calls closeDiscussion().
+    // The discussion remains in 'IN_PROGRESS' until the manager explicitly calls closeDiscussion().
     if (approvedItems.length > 0) {
-      if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
-        discussionRoom.status = 'in_progress';
+      const currentStatus = (discussionRoom.status || '').toUpperCase();
+      if (currentStatus !== 'CLOSED') {
+        await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Items added to execution backlog');
       }
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
       console.log(`[ManagerEngine] Added ${approvedItems.length} approved items to execution backlog for sector ${sector.id}. Manager should call closeDiscussion() when ready.`);
     }
 
@@ -2192,11 +2339,21 @@ class ManagerEngine {
           workerProposal
         });
       } catch (error) {
-        console.error(`[ManagerEngine] LLM manager evaluation failed for item ${item.id}. Falling back to rejection.`, error);
+        console.error(`[ManagerEngine] LLM manager evaluation failed for item ${item.id}. Falling back to approval unless proposal is invalid.`, error);
+        // Default to approval unless there's a clear reason to reject
+        // Only reject if proposal is clearly invalid (no action, no reasoning, zero confidence)
+        const hasValidProposal = workerProposal && 
+          workerProposal.action && 
+          workerProposal.reasoning && 
+          workerProposal.confidence !== undefined &&
+          workerProposal.confidence > 0;
+        
         decision = {
-          approve: false,
-          confidence: workerProposal.confidence,
-          reasoning: 'Manager evaluation failed; rejecting by default.'
+          approve: hasValidProposal, // Approve if proposal is valid, reject only if clearly invalid
+          confidence: workerProposal.confidence || 50,
+          reasoning: hasValidProposal 
+            ? 'Manager evaluation failed but proposal appears valid; approving based on worker confidence.'
+            : 'Manager evaluation failed and proposal appears invalid; rejecting.'
         };
       }
 
@@ -2290,11 +2447,12 @@ class ManagerEngine {
     }
 
     if (approvedItems.length > 0) {
-      if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
-        discussionRoom.status = 'in_progress';
-      }
-      discussionRoom.updatedAt = new Date().toISOString();
       await saveDiscussion(discussionRoom);
+      
+      const currentStatus = (discussionRoom.status || '').toUpperCase();
+      if (currentStatus !== 'CLOSED') {
+        await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'LLM-approved items added to execution backlog');
+      }
       console.log(`[ManagerEngine] LLM-approved ${approvedItems.length} items for sector ${sector.id}. Added to execution backlog.`);
     }
 
@@ -2441,15 +2599,13 @@ class ManagerEngine {
       const discussionRoom = DiscussionRoom.fromData(discussionData);
 
       // Check if already closed (handle various status formats)
-      const closedStatuses = ['CLOSED', 'closed', 'DECIDED', 'decided', 'finalized', 'archived', 'accepted', 'completed'];
-      if (closedStatuses.includes(discussionRoom.status)) {
-        console.log(`[ManagerEngine] Discussion ${discussionId} is already closed (status: ${discussionRoom.status})`);
-        // Ensure status is normalized to 'CLOSED' if it's a closed variant
-        const statusUpper = (discussionRoom.status || '').toUpperCase();
-        if (statusUpper !== 'CLOSED' && (statusUpper === 'DECIDED' || closedStatuses.map(s => s.toUpperCase()).includes(statusUpper))) {
-          discussionRoom.status = 'CLOSED';
-          discussionRoom.updatedAt = new Date().toISOString();
-          await saveDiscussion(discussionRoom);
+      let currentStatus = (discussionRoom.status || '').toUpperCase();
+      const closedStatuses = ['CLOSED', 'DECIDED'];
+      if (closedStatuses.includes(currentStatus)) {
+        console.log(`[ManagerEngine] Discussion ${discussionId} is already closed (status: ${currentStatus})`);
+        // Ensure status is normalized to 'CLOSED' if it's DECIDED
+        if (currentStatus === 'DECIDED') {
+          await transitionStatus(discussionId, STATUS.CLOSED, 'Normalizing DECIDED to CLOSED');
         }
         return discussionRoom;
       }
@@ -2501,12 +2657,20 @@ class ManagerEngine {
       
       discussionRoom.roundHistory.push(finalRoundSnapshot);
 
-      // Update status and timestamps
-      // State transition: DECIDED → CLOSED
+      // Save discussion with round history
+      await saveDiscussion(discussionRoom);
+      
+      // State transition: IN_PROGRESS → DECIDED → CLOSED
+      // First mark as DECIDED if not already, then mark as CLOSED
       // After CLOSED, the sector becomes eligible for a new discussion
-      discussionRoom.status = 'CLOSED';
-      discussionRoom.discussionClosedAt = new Date().toISOString();
-      discussionRoom.updatedAt = new Date().toISOString();
+      currentStatus = (discussionRoom.status || '').toUpperCase();
+      if (currentStatus !== 'DECIDED' && currentStatus !== 'CLOSED') {
+        await transitionStatus(discussionId, STATUS.DECIDED, 'Discussion ready to close');
+        console.log(`[ManagerEngine] Discussion ${discussionId} marked as DECIDED`);
+      }
+      
+      // Now mark as CLOSED (final state)
+      await transitionStatus(discussionId, STATUS.CLOSED, 'Discussion closed by manager');
 
       // Save updated discussion
       await saveDiscussion(discussionRoom);
@@ -2631,15 +2795,15 @@ class ManagerEngine {
     // Clear discussionDraft
     discussionRoom.checklistDraft = [];
     
-    // NOTE: Discussion status is NOT automatically changed here.
-    // The discussion remains in 'in_progress' until the manager explicitly calls closeDiscussion().
-    if (discussionRoom.status !== 'CLOSED' && discussionRoom.status !== 'closed') {
-      discussionRoom.status = 'in_progress';
-    }
-    discussionRoom.updatedAt = new Date().toISOString();
-
     // Save finalized discussion
     await saveDiscussion(discussionRoom);
+    
+    // NOTE: Discussion status is NOT automatically changed here.
+    // The discussion remains in 'IN_PROGRESS' until the manager explicitly calls closeDiscussion().
+    const currentStatus = (discussionRoom.status || '').toUpperCase();
+    if (currentStatus !== 'CLOSED') {
+      await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Checklist finalized');
+    }
 
     // Update sector with checklistItems
     const updatedSector = await updateSector(sector.id, {

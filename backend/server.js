@@ -93,6 +93,13 @@ const start = async () => {
       fastify.log.error('Error registering decisionLogs route:', err);
       throw err;
     }
+    try {
+      await fastify.register(require('./routes/priceHistory'), { prefix: '/api/price-history' });
+      fastify.log.info('✅ Routes registered: /api/price-history');
+    } catch (err) {
+      fastify.log.error('Error registering priceHistory route:', err);
+      throw err;
+    }
 
     // Bootstrap SimulationEngine
     try {
@@ -165,6 +172,48 @@ const start = async () => {
       // Don't throw - allow server to start even if watchdog fails
     }
 
+    // Bootstrap SectorPriceSimulator (continuously updates sector prices)
+    try {
+      const { getSectorPriceSimulator } = require('./simulation/SectorPriceSimulator');
+      const priceSimulator = getSectorPriceSimulator();
+      const { getAllSectors } = require('./utils/sectorStorage');
+      const PriceHistory = require('./models/PriceHistory');
+      
+      // Start price simulation for all existing sectors
+      const allSectors = await getAllSectors();
+      for (const sector of allSectors) {
+        if (sector.id) {
+          // Initialize price to 100 if not set
+          if (typeof sector.currentPrice !== 'number' || sector.currentPrice <= 0) {
+            const { updateSector } = require('./utils/sectorStorage');
+            await updateSector(sector.id, { currentPrice: 100 });
+          }
+          
+          // Start simulation
+          priceSimulator.start(sector.id);
+          
+          // Initialize price history if empty
+          const existingHistory = await PriceHistory.getBySectorId(sector.id, 1);
+          if (existingHistory.length === 0) {
+            const initialPrice = sector.currentPrice || 100;
+            const initialPriceHistory = new PriceHistory({
+              sectorId: sector.id,
+              price: initialPrice,
+              timestamp: Date.now()
+            });
+            await initialPriceHistory.save();
+          }
+        }
+      }
+      
+      fastify.log.info(`SectorPriceSimulator initialized and started for ${allSectors.length} sector(s)`);
+      // Store reference for graceful shutdown if needed
+      fastify.priceSimulator = priceSimulator;
+    } catch (err) {
+      fastify.log.error('Error initializing SectorPriceSimulator:', err);
+      // Don't throw - allow server to start even if price simulator fails
+    }
+
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
     console.log(`📍 Environment: ${MAX_ENV}`);
@@ -182,6 +231,7 @@ const start = async () => {
     console.log(`   - /api/execution`);
     console.log(`   - /api/executionLogs`);
     console.log(`   - /api/decision-logs`);
+    console.log(`   - /api/price-history`);
     console.log(`   - /debug`);
     console.log(`📍 Simulation Engine: Initialized`);
   } catch (err) {

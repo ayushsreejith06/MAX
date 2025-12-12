@@ -32,44 +32,33 @@ class ConfidenceEngine {
    */
   _clampConfidence(value) {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return 0;
+      return 1;
     }
-    return Math.max(0, Math.min(100, value));
+    return Math.max(1, Math.min(100, value));
   }
 
   /**
-   * Update agent confidence using LLM-driven Phase 4 rule
-   * 
-   * Phase 4: Confidence is monotonically increasing.
-   * Phase 5: Confidence will be data-driven and bidirectional.
-   * 
-   * Phase 4 confidence growth assist:
-   * - If LLM confidence <= previous_confidence, then confidence_next = min(previous_confidence + 2, 100)
-   * - If LLM confidence > previous_confidence, then confidence_next = min(100, llm_confidence_output)
+   * Update agent confidence using LLM-derived confidence directly.
+   * No automatic increases - confidence is derived from LLM output.
    * 
    * @param {Object} agent - Agent object with id, role, performance, personality, morale, etc.
    * @param {Object} sector - Sector object (optional, for context)
-   * @param {number} llmConfidenceOutput - LLM-provided confidence value (0-100). If not provided, uses agent.llmAction.confidence or maintains current confidence.
-   * @returns {number} Updated confidence value (0 to 100)
+   * @param {number} llmConfidenceOutput - LLM-provided confidence value (1-100). If not provided, uses agent.llmAction.confidence or defaults to 1.
+   * @returns {number} Updated confidence value (1 to 100)
    */
   updateAgentConfidence(agent, sector = null, llmConfidenceOutput = null) {
     if (!agent) {
-      return 0; // Default neutral confidence
+      return 1; // Default minimum confidence
     }
     
     // Ensure agent has required fields
     if (!agent.id) {
-      console.warn('[ConfidenceEngine] Agent missing id field, returning 0');
-      return 0;
+      console.warn('[ConfidenceEngine] Agent missing id field, returning 1');
+      return 1;
     }
 
-    // Get previous confidence (normalize to 0-100 range)
-    const previousConfidence = this._clampConfidence(
-      typeof agent.confidence === 'number' ? agent.confidence : 0
-    );
-
     // Get LLM confidence output
-    let llmConfidence = previousConfidence; // Default: maintain current confidence (no decay)
+    let llmConfidence = 1; // Default: minimum confidence
     
     if (llmConfidenceOutput !== null && typeof llmConfidenceOutput === 'number') {
       llmConfidence = llmConfidenceOutput;
@@ -78,26 +67,16 @@ class ConfidenceEngine {
       llmConfidence = agent.llmAction.confidence;
     }
     
-    // Clamp LLM confidence to valid range
-    llmConfidence = this._clampConfidence(llmConfidence);
-
-    // Phase 4: Confidence is monotonically increasing.
-    // Phase 5: Confidence will be data-driven and bidirectional.
-    
-    // Phase 4 confidence growth assist
-    // If LLM confidence <= previous_confidence, ensure minimum growth of +2
-    let finalConfidence;
-    if (llmConfidence <= previousConfidence) {
-      finalConfidence = Math.min(previousConfidence + 2, 100);
-    } else {
-      // LLM confidence is higher, use it (capped at 100)
-      finalConfidence = Math.min(100, llmConfidence);
-    }
+    // Clamp LLM confidence to valid range (1-100)
+    const finalConfidence = this._clampConfidence(llmConfidence);
 
     // DEBUG: Log agent ID and new confidence value
     const agentName = agent.name || agent.id;
+    const previousConfidence = this._clampConfidence(
+      typeof agent.confidence === 'number' ? agent.confidence : 1
+    );
     if (Math.abs(finalConfidence - previousConfidence) > 0.01) {
-      console.log(`[ConfidenceEngine] Agent ${agent.id} (${agentName}): confidence = ${previousConfidence.toFixed(2)} → ${finalConfidence.toFixed(2)} (LLM: ${llmConfidence.toFixed(2)})`);
+      console.log(`[ConfidenceEngine] Agent ${agent.id} (${agentName}): confidence = ${previousConfidence.toFixed(2)} → ${finalConfidence.toFixed(2)} (LLM-derived)`);
     }
 
     return finalConfidence;

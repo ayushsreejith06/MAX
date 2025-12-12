@@ -168,6 +168,7 @@ export interface Sector {
   balance?: number;
   // Additional fields
   lastSimulatedPrice?: number | null;
+  initialPrice?: number;
   discussions: Discussion[];
   candleData: CandleData[];
   description?: string;

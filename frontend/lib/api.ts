@@ -470,6 +470,7 @@ function normalizeSector(raw: any): Sector {
     balance: typeof raw?.balance === 'number' ? Number(raw.balance.toFixed(2)) : 0, // Default balance to 0 for new sectors
     // Additional fields
     lastSimulatedPrice: typeof raw?.lastSimulatedPrice === 'number' ? Number(raw.lastSimulatedPrice.toFixed(2)) : raw?.lastSimulatedPrice === null ? null : undefined,
+    initialPrice: typeof raw?.initialPrice === 'number' && raw.initialPrice > 0 ? Number(raw.initialPrice.toFixed(2)) : undefined,
     discussions,
     candleData,
     description: typeof raw?.description === 'string' ? raw.description : undefined,

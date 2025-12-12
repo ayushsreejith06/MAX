@@ -37,16 +37,17 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   }, [discussionId]);
 
   // Auto-refresh checklist every 3 seconds during active discussions
+  // Render strictly from persisted status - no inference
   useEffect(() => {
     if (!discussionId) return;
 
-    // Only poll if discussion is OPEN or in progress, decided, finalized, or accepted
-    // Multi-round: OPEN means active discussion
-    const shouldPoll = discussionStatus === 'OPEN' || 
-                      discussionStatus === 'in_progress' || 
-                      discussionStatus === 'decided' || 
-                      discussionStatus === 'finalized' || 
-                      discussionStatus === 'accepted';
+    // Only poll if discussion is CREATED, IN_PROGRESS, or DECIDED (not CLOSED)
+    // Use persisted status only - no inference from messages/checklist
+    const statusUpper = (discussionStatus || '').toUpperCase();
+    const shouldPoll = statusUpper === 'CREATED' || 
+                      statusUpper === 'OPEN' ||
+                      statusUpper === 'IN_PROGRESS' || 
+                      statusUpper === 'DECIDED';
 
     if (!shouldPoll) {
       return;

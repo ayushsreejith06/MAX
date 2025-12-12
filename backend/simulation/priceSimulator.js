@@ -3,12 +3,14 @@
  * Includes volatility parameter per sector and riskScore calculation (0-100)
  */
 
+const { calculateCurrentDrift } = require('./executionDrift');
+
 class PriceSimulator {
   constructor(sectorId, initialPrice = 100, volatility = 0.02) {
     this.sectorId = sectorId;
     this.currentPrice = initialPrice;
     this.volatility = volatility; // Annual volatility (e.g., 0.02 = 2%)
-    this.drift = 0.0; // Drift parameter (expected return)
+    this.drift = 0.0; // Base drift parameter (expected return)
     this.timeStep = 1 / 252; // Daily time step (assuming 252 trading days per year)
   }
 
@@ -16,7 +18,7 @@ class PriceSimulator {
    * Generate next price using Geometric Brownian Motion
    * S(t+1) = S(t) * exp((mu - 0.5*sigma^2)*dt + sigma*sqrt(dt)*Z)
    * where:
-   *   mu = drift (expected return)
+   *   mu = drift (expected return) + execution drift
    *   sigma = volatility
    *   dt = time step
    *   Z = standard normal random variable
@@ -24,7 +26,12 @@ class PriceSimulator {
   generateNextPrice() {
     const dt = this.timeStep;
     const sigma = this.volatility;
-    const mu = this.drift;
+    
+    // Get execution drift from BUY executions
+    const executionDrift = calculateCurrentDrift(this.sectorId);
+    
+    // Combine base drift with execution drift
+    const mu = this.drift + executionDrift;
 
     // Generate random shock (standard normal)
     const Z = this.generateRandomShock();

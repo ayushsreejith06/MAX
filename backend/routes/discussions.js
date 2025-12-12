@@ -13,6 +13,7 @@ const { loadAgents } = require('../utils/agentStorage');
 const { loadRejectedItems } = require('../utils/rejectedItemsStorage');
 const ExecutionEngine = require('../core/ExecutionEngine');
 const { formatChecklistItemDescription } = require('../discussions/workflow/checklistBuilder');
+const { transitionStatus, STATUS, normalizeStatus } = require('../utils/discussionStatusService');
 
 // Simple logger
 function log(message) {
@@ -20,34 +21,15 @@ function log(message) {
   console.log(`[${timestamp}] ${message}`);
 }
 
-// Helper to enrich discussion with agent names and normalize status
+// Helper to enrich discussion with agent names (status normalization removed - use status service)
 async function enrichDiscussion(discussion) {
   try {
     const agents = await loadAgents();
     const agentMap = new Map(agents.map(agent => [agent.id, agent]));
 
-    // Normalize legacy discussion statuses to 'in_progress' or 'decided'
-    // Discussions can only be 'in_progress' or 'decided'
-    let normalizedStatus = discussion.status;
-    if (discussion.status === 'active' || discussion.status === 'open' || discussion.status === 'OPEN' || 
-        discussion.status === 'created' || discussion.status === 'in_progress') {
-      normalizedStatus = 'in_progress';
-    } else if (discussion.status === 'closed' || discussion.status === 'CLOSED' || 
-               discussion.status === 'archived' || discussion.status === 'finalized' || 
-               discussion.status === 'accepted' || discussion.status === 'completed' ||
-               discussion.status === 'decided') {
-      normalizedStatus = 'decided';
-    }
-
-    // If status was normalized, update the discussion in storage
-    if (normalizedStatus !== discussion.status) {
-      const discussionRoom = DiscussionRoom.fromData(discussion);
-      discussionRoom.status = normalizedStatus;
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
-      discussion.status = normalizedStatus;
-      discussion.updatedAt = discussionRoom.updatedAt;
-    }
+    // Normalize status for display (read-only, no mutation)
+    // Status is managed by discussionStatusService
+    const normalizedStatus = normalizeStatus(discussion.status);
 
     // Enrich messages with agent names
     const enrichedMessages = (discussion.messages || []).map(msg => {
@@ -68,7 +50,7 @@ async function enrichDiscussion(discussion) {
 
     return {
       ...discussion,
-      status: normalizedStatus,
+      status: normalizedStatus, // Return normalized status for display
       messages: enrichedMessages
     };
   } catch (error) {
@@ -952,19 +934,19 @@ module.exports = async (fastify) => {
         )
       );
       
+      // Save discussion first
+      await saveDiscussion(discussionRoom);
+      
       // Update discussion status if all items are resolved
       if (allItemsResolved && checklistItems.some(item => 
         (discussionRoom.managerDecisions || []).some(decision => 
           decision.item && decision.item.id === item.id && decision.approved === true
         )
       )) {
-        discussionRoom.status = 'decided';
+        await transitionStatus(id, STATUS.DECIDED, 'All items resolved');
       } else {
-        discussionRoom.status = 'in_progress';
+        await transitionStatus(id, STATUS.IN_PROGRESS, 'Items pending resolution');
       }
-
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
 
       log(`Revision submitted for item ${itemId} in discussion ${id}. Revision count: ${item.revisionCount}`);
       return reply.status(200).send({
@@ -1088,14 +1070,14 @@ module.exports = async (fastify) => {
       log(`[ACCEPT REJECTION] Discussion ${id}: All items statuses:`, JSON.stringify(itemStatuses, null, 2));
       
       // Update discussion status if all items are resolved
+      // Save discussion first
+      await saveDiscussion(discussionRoom);
+      
       // Discussion should be 'decided' when all items are resolved, even if all are rejected
       if (allItemsResolved) {
-        discussionRoom.status = 'decided';
+        await transitionStatus(id, STATUS.DECIDED, 'All items resolved (even if all rejected)');
         log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - status set to 'decided' (even if all items are rejected)`);
       }
-
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
 
       log(`[ACCEPT REJECTION] Discussion ${id}: Rejection accepted for item ${itemId}. All items resolved: ${allItemsResolved}, Discussion status: ${discussionRoom.status}`);
       return reply.status(200).send({
@@ -1227,19 +1209,19 @@ module.exports = async (fastify) => {
         )
       );
       
+      // Save discussion first
+      await saveDiscussion(discussionRoom);
+      
       // Update discussion status if all items are resolved
       if (allItemsResolved && checklistItems.some(item => 
         (discussionRoom.managerDecisions || []).some(decision => 
           decision.item && decision.item.id === item.id && decision.approved === true
         )
       )) {
-        discussionRoom.status = 'decided';
+        await transitionStatus(id, STATUS.DECIDED, 'All items resolved');
       } else {
-        discussionRoom.status = 'in_progress';
+        await transitionStatus(id, STATUS.IN_PROGRESS, 'Items pending resolution');
       }
-
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
 
       log(`Revision submitted for item ${itemId} in discussion ${id}. Revision count: ${item.revisionCount}`);
       return reply.status(200).send({
@@ -1364,14 +1346,14 @@ module.exports = async (fastify) => {
       log(`[ACCEPT REJECTION] Discussion ${id}: All items statuses:`, JSON.stringify(itemStatuses, null, 2));
       
       // Update discussion status if all items are resolved
+      // Save discussion first
+      await saveDiscussion(discussionRoom);
+      
       // Discussion should be 'decided' when all items are resolved, even if all are rejected
       if (allItemsResolved) {
-        discussionRoom.status = 'decided';
+        await transitionStatus(id, STATUS.DECIDED, 'All items resolved (even if all rejected)');
         log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - status set to 'decided' (even if all items are rejected)`);
       }
-
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
 
       log(`[ACCEPT REJECTION] Discussion ${id}: Rejection accepted for item ${itemId}. All items resolved: ${allItemsResolved}, Discussion status: ${discussionRoom.status}`);
       return reply.status(200).send({
@@ -1452,7 +1434,7 @@ module.exports = async (fastify) => {
         const DiscussionEngine = require('../core/DiscussionEngine');
         const discussionEngine = new DiscussionEngine();
         setImmediate(() => {
-          discussionEngine.startRounds(id, 3).catch(error => {
+          discussionEngine.startRounds(id, 2).catch(error => { // Reduced to 2 rounds for faster lifecycle
             console.error(`[Discussions Route] Error auto-starting rounds for discussion ${id}:`, error);
             console.error(`[Discussions Route] Error stack:`, error.stack);
           });
@@ -1611,8 +1593,11 @@ module.exports = async (fastify) => {
               });
 
               // Checklist item is always created (even if fallback is used)
-              // Ensure round is set on the checklist item
-              checklistItem.round = currentRound;
+              // CRITICAL: Ensure round is ALWAYS set on the checklist item
+              // This is required for hasChecklistItemForRound to work correctly
+              if (typeof checklistItem.round !== 'number') {
+                checklistItem.round = currentRound;
+              }
               
               // Auto-evaluate the checklist item immediately after creation
               let finalItem = checklistItem;
@@ -1671,9 +1656,10 @@ module.exports = async (fastify) => {
         console.log(`[POST /discussions/:id/message] No proposal object provided in request body. Skipping checklist item creation.`);
       }
 
-      // Ensure status is in_progress if it was created
-      if (discussionRoom.status === 'created') {
-        discussionRoom.status = 'in_progress';
+      // Ensure status is IN_PROGRESS if it was CREATED
+      const currentStatus = (discussionRoom.status || '').toUpperCase();
+      if (currentStatus === 'CREATED') {
+        await transitionStatus(id, STATUS.IN_PROGRESS, 'First message added');
       }
 
       // After auto-evaluation, check if discussion can close
@@ -1684,8 +1670,6 @@ module.exports = async (fastify) => {
         // Check if all items are terminal and discussion can close
         if (managerEngine.canDiscussionClose(discussionRoom)) {
           log(`[POST /discussions/:id/message] Discussion ${id} can close. All items are terminal.`);
-          discussionRoom.status = 'decided';
-          discussionRoom.updatedAt = new Date().toISOString();
           
           // Save final round snapshot
           const currentRound = discussionRoom.currentRound || discussionRoom.round || 1;
@@ -1703,7 +1687,10 @@ module.exports = async (fastify) => {
           };
           
           discussionRoom.roundHistory.push(finalRoundSnapshot);
-          discussionRoom.discussionClosedAt = new Date().toISOString();
+          await saveDiscussion(discussionRoom);
+          
+          // Transition to DECIDED status
+          await transitionStatus(id, STATUS.DECIDED, 'All items terminal');
         }
       } catch (closeError) {
         log(`[POST /discussions/:id/message] Error checking if discussion can close: ${closeError.message}`);
@@ -1904,9 +1891,7 @@ module.exports = async (fastify) => {
       }
       
       // Update discussion status to decided after successful execution
-      discussionRoom.status = 'decided';
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
+      await transitionStatus(id, STATUS.DECIDED, 'Checklist executed successfully');
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -1940,11 +1925,9 @@ module.exports = async (fastify) => {
       }
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
-      // Discussions should only be 'in_progress' or 'decided'
       // Individual checklist items are classified as 'accepted' or 'rejected', not discussions
-      discussionRoom.status = 'decided';
-      discussionRoom.updatedAt = new Date().toISOString();
-      await saveDiscussion(discussionRoom);
+      // Transition to DECIDED status
+      await transitionStatus(id, STATUS.DECIDED, 'Discussion marked as completed');
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -2067,7 +2050,7 @@ module.exports = async (fastify) => {
       const DiscussionEngine = require('../core/DiscussionEngine');
       const discussionEngine = new DiscussionEngine();
       
-      await discussionEngine.startRounds(id, numRounds || 3);
+      await discussionEngine.startRounds(id, numRounds || 2); // Default reduced to 2 rounds for faster lifecycle
 
       const discussionData = await findDiscussionById(id);
       if (!discussionData) {
@@ -2081,7 +2064,7 @@ module.exports = async (fastify) => {
 
       return reply.status(200).send({
         success: true,
-        message: `Started ${numRounds || 3} rounds for discussion`,
+        message: `Started ${numRounds || 2} rounds for discussion`,
         discussion: enriched
       });
     } catch (error) {
