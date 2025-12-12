@@ -8,6 +8,7 @@ import { fetchDiscussionById, fetchDiscussionMessages, addDiscussionMessage, sen
 import ChecklistSection from '@/components/discussions/ChecklistSection';
 import { usePolling } from '@/hooks/usePolling';
 import { getStatusColor, getStatusLabel } from '@/lib/statusColors';
+import { formatMessageContent } from '@/utils/formatMessage';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -544,7 +545,7 @@ export default function DiscussionDetailClient() {
                       </span>
                     </div>
                     <div className="ml-4 pl-3 border-l-2 border-sage-green/30 text-floral-white">
-                      {message.content}
+                      {formatMessageContent(message.content)}
                     </div>
                     {index < messages.length - 1 && (
                       <div className="mt-3 border-t border-floral-white/10"></div>

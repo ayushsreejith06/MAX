@@ -1188,6 +1188,9 @@ video {
 .bg-ink-500\/20 {
   background-color: rgb(45 45 45 / 0.2);
 }
+.bg-ink-500\/50 {
+  background-color: rgb(45 45 45 / 0.5);
+}
 .bg-ink-600 {
   --tw-bg-opacity: 1;
   background-color: rgb(34 34 34 / var(--tw-bg-opacity, 1));
@@ -1295,9 +1298,6 @@ video {
 }
 .bg-yellow-500\/20 {
   background-color: rgb(234 179 8 / 0.2);
-}
-.bg-ink-500\/50 {
-  background-color: rgb(45 45 45 / 0.5);
 }
 .bg-opacity-50 {
   --tw-bg-opacity: 0.5;

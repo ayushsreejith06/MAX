@@ -57,16 +57,46 @@ class DiscussionEngine {
     // Attach discussion to sector object for return
     updatedSector.discussions = discussions;
 
-    // Immediately start rounds for this discussion (fire and forget - don't block)
-    // This ensures rounds start automatically when discussion is created
-    console.log(`[DiscussionEngine] Scheduling automatic round start for discussion ${discussionRoom.id}`);
-    setImmediate(() => {
-      this.startRounds(discussionRoom.id, 3).catch(error => {
+    // Start rounds for this discussion
+    // We start rounds asynchronously but handle failures to prevent empty discussions
+    console.log(`[DiscussionEngine] Starting rounds for discussion ${discussionRoom.id}`);
+    setImmediate(async () => {
+      try {
+        await this.startRounds(discussionRoom.id, 3);
+        console.log(`[DiscussionEngine] Successfully completed rounds for discussion ${discussionRoom.id}`);
+        
+        // Verify that messages were actually created
+        const updatedDiscussionData = await findDiscussionById(discussionRoom.id);
+        if (updatedDiscussionData) {
+          const messages = Array.isArray(updatedDiscussionData.messages) ? updatedDiscussionData.messages : [];
+          if (messages.length === 0) {
+            console.error(`[DiscussionEngine] WARNING: Discussion ${discussionRoom.id} was created but has no messages after rounds completed. This should not happen.`);
+            // Mark discussion as failed or delete it
+            const failedDiscussion = DiscussionRoom.fromData(updatedDiscussionData);
+            failedDiscussion.status = 'CLOSED';
+            failedDiscussion.updatedAt = new Date().toISOString();
+            await saveDiscussion(failedDiscussion);
+            console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to no messages`);
+          }
+        }
+      } catch (error) {
         console.error(`[DiscussionEngine] Error starting rounds for discussion ${discussionRoom.id}:`, error);
         console.error(`[DiscussionEngine] Error stack:`, error.stack);
-        // Don't throw - discussion was created successfully, just rounds failed
-        // But log the error so it's visible
-      });
+        
+        // If rounds fail, mark the discussion as CLOSED to prevent empty discussions
+        try {
+          const failedDiscussionData = await findDiscussionById(discussionRoom.id);
+          if (failedDiscussionData) {
+            const failedDiscussion = DiscussionRoom.fromData(failedDiscussionData);
+            failedDiscussion.status = 'CLOSED';
+            failedDiscussion.updatedAt = new Date().toISOString();
+            await saveDiscussion(failedDiscussion);
+            console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to round failure`);
+          }
+        } catch (saveError) {
+          console.error(`[DiscussionEngine] Failed to mark discussion as CLOSED:`, saveError);
+        }
+      }
     });
     
     return updatedSector;
@@ -137,10 +167,10 @@ class DiscussionEngine {
         id: `${discussionRoom.id}-msg-${discussionRoom.messages.length}`,
         agentId: agent.id,
         agentName: agent.name || 'Unknown Agent',
-        content: messageData.proposal.reasoning, // Display reasoning in UI
-        analysis: messageData.analysis, // Internal, not shown
+        content: messageData.analysis, // Full LLM response as message content
+        analysis: messageData.analysis, // Full LLM response
         proposal: messageData.proposal, // Structured proposal for checklist
-        role: agent.role || 'general',
+        role: 'agent', // Always 'agent' for discussion messages
         timestamp: new Date().toISOString()
       });
 
@@ -151,88 +181,80 @@ class DiscussionEngine {
       }
 
       // Try to extract structured proposal (BUY/SELL/HOLD) from message and create checklist item
+      // GUARDRAIL: Ensure checklist creation is attempted exactly once per agent per round
+      const currentRound = discussionRoom.round || 1;
+      
+      // Check if agent already has a checklist item for this round (prevent duplicates)
+      if (discussionRoom.hasChecklistItemForRound(agent.id, currentRound)) {
+        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) already has a checklist item for this round, skipping duplicate creation`);
+        continue;
+      }
+
+      // Check if agent has already attempted checklist creation for this round
+      if (discussionRoom.hasAttemptedChecklistCreation(agent.id, currentRound)) {
+        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) has already attempted checklist creation for this round, skipping`);
+        continue;
+      }
+
+      // Mark that we're attempting checklist creation for this agent in this round
+      discussionRoom.markChecklistCreationAttempt(agent.id, currentRound);
+      console.log(`[DiscussionEngine] Round ${currentRound}: Attempting checklist creation for agent ${agent.id} (${agent.name || 'Unknown'})`);
+
       try {
-        // First, try to use the proposal object directly if available (more reliable)
-        let checklistItem = null;
-        if (messageData && typeof messageData === 'object' && messageData.proposal) {
-          const proposal = messageData.proposal;
-          // Check if this is a valid trade proposal (BUY, SELL, or HOLD)
-          const actionType = (proposal.action || '').toUpperCase();
-          if (['BUY', 'SELL', 'HOLD'].includes(actionType)) {
-            // Create checklist item directly from proposal object
-            const { validateChecklistItem } = require('../discussions/workflow/checklistBuilder');
-            const { v4: uuidv4 } = require('uuid');
-            
-            const allowedSymbols = Array.isArray(sector.allowedSymbols) && sector.allowedSymbols.length > 0
-              ? sector.allowedSymbols
-              : [sector.symbol, sector.sectorSymbol, sector.name, sector.sectorName].filter(sym => typeof sym === 'string' && sym.trim() !== '');
-            
-            if (allowedSymbols.length > 0) {
-              const normalizedSymbols = allowedSymbols.map(s => s.trim().toUpperCase());
-              const symbol = (proposal.symbol || normalizedSymbols[0] || 'UNKNOWN').trim().toUpperCase();
-              const availableBalance = typeof sector.balance === 'number' ? sector.balance : 0;
-              const allocationPercent = typeof proposal.allocationPercent === 'number'
-                ? Math.min(Math.max(proposal.allocationPercent, 0), 100)
-                : 0;
-              const amount = availableBalance > 0 ? (allocationPercent / 100) * availableBalance : 0;
-              
-              const id = `checklist-${discussionRoom.id}-${agent.id}-${Date.now()}-${uuidv4().substring(0, 8)}`;
-              
-              try {
-                checklistItem = validateChecklistItem({
-                  id,
-                  sourceAgentId: agent.id,
-                  actionType: actionType,
-                  symbol: normalizedSymbols.includes(symbol) ? symbol : normalizedSymbols[0],
-                  amount,
-                  allocationPercent,
-                  confidence: typeof proposal.confidence === 'number' ? Math.min(Math.max(proposal.confidence, 0), 100) : 50,
-                  reasoning: proposal.reasoning || 'No reasoning provided',
-                  rationale: proposal.reasoning || 'No reasoning provided',
-                  status: 'PENDING',
-                }, {
-                  allowedSymbols: normalizedSymbols,
-                  allowZeroAmount: actionType === 'HOLD',
-                  allowZeroAllocation: actionType === 'HOLD',
-                });
-              } catch (validationError) {
-                console.warn(`[DiscussionEngine] Failed to validate checklist item from proposal: ${validationError.message}`);
-              }
-            }
-          }
-        }
-        
-        // If no checklist item from proposal object, try parsing the message content
-        if (!checklistItem) {
-          const messageContent = messageData?.proposal?.reasoning || messageData?.analysis || JSON.stringify(messageData?.proposal || {});
-          checklistItem = await createChecklistFromLLM({
-            messageContent: messageContent,
-            discussionId: discussionRoom.id,
-            agentId: agent.id,
-            sector: {
-              id: sector.id,
-              symbol: sector.symbol || sector.sectorSymbol,
-              name: sector.name || sector.sectorName,
-              allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-            },
-            sectorData: {
-              currentPrice: sector.currentPrice,
-              baselinePrice: sector.currentPrice,
-              balance: sector.balance,
-            },
-            availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
-            currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
-          });
+        // Create checklist item from structured proposal object
+        // Checklist items MUST ONLY be created from structured proposal objects, never from message text
+        if (!messageData || typeof messageData !== 'object' || !messageData.proposal) {
+          console.warn(`[DiscussionEngine] Round ${currentRound}: Message data missing proposal object for agent ${agent.id} (${agent.name || 'Unknown'}). Skipping checklist item creation.`);
+          // Note: We don't create a fallback here because the proposal should always exist
+          // If it doesn't, that's a data integrity issue that should be fixed upstream
+          continue;
         }
 
-        // If a checklist item was created, add it to the discussion's checklist
-        if (checklistItem) {
-          discussionRoom.checklist.push(checklistItem);
-          console.log(`[DiscussionEngine] Created checklist item from agent ${agent.id} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
-        }
+        const proposal = messageData.proposal;
+        
+        // Create checklist item from structured proposal object
+        // createChecklistFromLLM will create a fallback item if parsing fails
+        const checklistItem = await createChecklistFromLLM({
+          proposal: proposal, // REQUIRED: Structured proposal object
+          discussionId: discussionRoom.id,
+          agentId: agent.id,
+          agentName: agent.name || undefined,
+          sector: {
+            id: sector.id,
+            symbol: sector.symbol || sector.sectorSymbol,
+            name: sector.name || sector.sectorName,
+            allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+          },
+          sectorData: {
+            currentPrice: sector.currentPrice,
+            baselinePrice: sector.currentPrice,
+            balance: sector.balance,
+          },
+          availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
+          currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
+        });
+
+        // Checklist item is always created (even if fallback is used)
+        // Ensure round is set on the checklist item
+        checklistItem.round = currentRound;
+        discussionRoom.checklist.push(checklistItem);
+        discussionRoom.updateLastChecklistItemTimestamp();
+        console.log(`[DiscussionEngine] Round ${currentRound}: Created checklist item from agent ${agent.id} (${agent.name || 'Unknown'}): ${checklistItem.actionType} ${checklistItem.symbol}`);
+        console.log(`[DiscussionEngine] Checklist item details:`, {
+          id: checklistItem.id,
+          actionType: checklistItem.actionType,
+          symbol: checklistItem.symbol,
+          allocationPercent: checklistItem.allocationPercent,
+          confidence: checklistItem.confidence,
+          status: checklistItem.status,
+          round: checklistItem.round,
+          totalChecklistItems: discussionRoom.checklist.length
+        });
       } catch (error) {
         // Log error but don't fail the entire round if checklist creation fails
-        console.warn(`[DiscussionEngine] Failed to create checklist item from message: ${error.message}`);
+        // createChecklistFromLLM should always return a valid item (with fallback), so this is unexpected
+        console.error(`[DiscussionEngine] Round ${currentRound}: Failed to create checklist item from message for agent ${agent.id} (${agent.name || 'Unknown'}): ${error.message}`);
+        console.error(`[DiscussionEngine] Error stack:`, error.stack);
       }
     }
 
@@ -248,6 +270,53 @@ class DiscussionEngine {
 
     // Append to existing checklistDraft
     discussionRoom.checklistDraft = [...(discussionRoom.checklistDraft || []), ...draftItems];
+
+    // After auto-evaluation, check if discussion can close
+    try {
+      const ManagerEngine = require('./ManagerEngine');
+      const managerEngine = new ManagerEngine();
+      
+      // Check if all items are terminal and discussion can close
+      if (managerEngine.canDiscussionClose(discussionRoom)) {
+        console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} can close after round ${currentRound}. All items are terminal.`);
+        discussionRoom.status = 'decided';
+        discussionRoom.updatedAt = new Date().toISOString();
+        
+        // Save final round snapshot
+        if (!Array.isArray(discussionRoom.roundHistory)) {
+          discussionRoom.roundHistory = [];
+        }
+        
+        const finalRoundSnapshot = {
+          round: currentRound,
+          checklist: JSON.parse(JSON.stringify(discussionRoom.checklist || [])),
+          finalizedChecklist: JSON.parse(JSON.stringify(discussionRoom.finalizedChecklist || [])),
+          managerDecisions: JSON.parse(JSON.stringify(discussionRoom.managerDecisions || [])),
+          messages: JSON.parse(JSON.stringify(discussionRoom.messages || [])),
+          timestamp: new Date().toISOString()
+        };
+        
+        discussionRoom.roundHistory.push(finalRoundSnapshot);
+        discussionRoom.discussionClosedAt = new Date().toISOString();
+        await saveDiscussion(discussionRoom);
+        
+        console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} auto-closed and marked as 'decided' after round ${currentRound}.`);
+        return updatedSector;
+      }
+    } catch (closeError) {
+      console.warn(`[DiscussionEngine] Error checking if discussion can close: ${closeError.message}`);
+      // Continue with normal flow if check fails
+    }
+
+    // Log round completion
+    const checklistItemsThisRound = Array.isArray(discussionRoom.checklist) 
+      ? discussionRoom.checklist.filter(item => (item.round || currentRound) === currentRound)
+      : [];
+    console.log(`[DiscussionEngine] Round ${currentRound} completed: ${newMessages.length} messages, ${checklistItemsThisRound.length} checklist items created`);
+
+    // Save discussion after adding checklist items to ensure they're persisted
+    await saveDiscussion(discussionRoom);
+    console.log(`[DiscussionEngine] Saved discussion ${discussionRoom.id} with ${discussionRoom.checklist.length} checklist items`);
 
     // Increment round
     discussionRoom.round = (discussionRoom.round || 1) + 1;
@@ -436,21 +505,30 @@ class DiscussionEngine {
           
           // Add message to discussion with analysis and proposal
           const messageId = `${currentDiscussionRoom.id}-msg-${currentDiscussionRoom.messages.length}`;
-          console.log(`[DiscussionEngine] Adding message with ID: ${messageId}`);
+          console.log(`[DiscussionEngine] Adding message with ID: ${messageId} for agent ${agent.name} (${agent.id})`);
           
-          currentDiscussionRoom.addMessage({
+          const messageAdded = currentDiscussionRoom.addMessage({
             id: messageId,
             agentId: agent.id,
             agentName: agent.name || 'Unknown Agent',
-            content: messageData.proposal.reasoning, // Display reasoning in UI
-            analysis: messageData.analysis, // Internal, not shown
+            content: messageData.analysis, // Full LLM response as message content (what users see)
+            analysis: messageData.analysis, // Full LLM response
             proposal: messageData.proposal, // Structured proposal for checklist
-            role: agent.role || 'general',
+            role: 'agent', // Always 'agent' for discussion messages
             timestamp: new Date().toISOString()
           });
           
-          console.log(`[DiscussionEngine] Message added. Total messages in discussion: ${currentDiscussionRoom.messages.length}`);
+          if (!messageAdded) {
+            console.error(`[DiscussionEngine] Failed to add message for agent ${agent.name} (${agent.id}) in round ${round}`);
+            throw new Error(`Failed to add message for agent ${agent.id}`);
+          }
+          
+          console.log(`[DiscussionEngine] Message added successfully. Total messages in discussion: ${currentDiscussionRoom.messages.length}`);
           messagesAdded++;
+          
+          // NOTE: Checklist items are NOT created during rounds
+          // Messages are just discussion. After all rounds complete, ALL messages
+          // will be fed to LLM to generate executable checklist items in finalizeChecklist()
         } catch (msgError) {
           console.error(`[DiscussionEngine] Failed to generate message for agent ${agent.id} in round ${round}:`, msgError);
           console.error(`[DiscussionEngine] Error stack:`, msgError.stack);
@@ -464,7 +542,7 @@ class DiscussionEngine {
       currentDiscussionRoom.round = round;
       currentDiscussionRoom.updatedAt = new Date().toISOString();
 
-      // Save updated discussion
+      // Save updated discussion (no checklist items yet - those are created after all rounds complete)
       console.log(`[DiscussionEngine] Saving discussion ${discussionId} with ${currentDiscussionRoom.messages.length} messages`);
       await saveDiscussion(currentDiscussionRoom);
       console.log(`[DiscussionEngine] Discussion ${discussionId} saved successfully`);
@@ -521,6 +599,8 @@ class DiscussionEngine {
     // The round field tracks the NEXT round, so actual rounds completed is round - 1
     const roundCount = Math.max(1, (discussionRoom.round || 1) - 1);
     
+    console.log(`[DiscussionEngine] Finalizing checklist for discussion ${discussionId}: Round ${roundCount}, ${allMessages.length} messages`);
+    
     // Load agents to get confidence and determine createdBy
     const allAgents = await loadAgents();
     const discussionAgents = allAgents.filter(agent => 
@@ -537,76 +617,56 @@ class DiscussionEngine {
     const sector = useLlm ? await getSectorById(discussionRoom.sectorId) : null;
     let confidenceUpdated = false;
 
-    if (useLlm) {
-      const sectorTypeRaw = (
-        sector?.sectorType ||
-        sector?.type ||
-        sector?.category ||
-        sector?.assetClass ||
-        ''
-      ).toString().toLowerCase();
-      const sectorType = ['crypto', 'equities', 'forex', 'commodities'].includes(sectorTypeRaw)
-        ? sectorTypeRaw
-        : 'other';
+    if (useLlm && allMessages.length > 0) {
+      // NEW FLOW: Feed ALL messages to LLM to generate executable checklist items
+      console.log(`[DiscussionEngine] Generating executable checklist items from ${allMessages.length} discussion messages`);
+      
+      try {
+        const { generateChecklistFromDiscussion } = require('../discussions/workflow/generateChecklistFromDiscussion');
+        
+        const checklistItems = await generateChecklistFromDiscussion({
+          discussionId: discussionRoom.id,
+          messages: allMessages,
+          sector: {
+            id: sector.id,
+            symbol: sector.symbol || sector.sectorSymbol,
+            name: sector.name || sector.sectorName,
+            allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+            riskScore: sector.riskScore,
+          },
+          sectorData: {
+            currentPrice: sector.currentPrice,
+            baselinePrice: sector.currentPrice,
+            balance: sector.balance,
+          },
+          availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
+          currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
+        });
 
-      const sectorState = {
-        sectorName: sector?.sectorName || sector?.name || sector?.symbol || discussionRoom.sectorId,
-        sectorType,
-        simulatedPrice: typeof sector?.currentPrice === 'number' ? sector.currentPrice : 100,
-        baselinePrice: typeof sector?.baselinePrice === 'number'
-          ? sector.baselinePrice
-          : (typeof sector?.initialPrice === 'number' ? sector.initialPrice : 100),
-        volatility: typeof sector?.volatility === 'number' ? sector.volatility : (sector?.riskScore || 0) / 100,
-        trendDescriptor: typeof sector?.changePercent === 'number'
-          ? `${sector.changePercent}% change`
-          : 'flat',
-        trendPercent: typeof sector?.changePercent === 'number' ? sector.changePercent : undefined,
-        balance: typeof sector?.balance === 'number' ? sector.balance : undefined,
-        allowedSymbols: [
-          sector?.symbol,
-          sector?.sectorSymbol,
-          sector?.ticker,
-          sector?.name,
-          sector?.sectorName,
-        ].filter((sym) => typeof sym === 'string' && sym.trim() !== ''),
-      };
+        // Convert ChecklistItem objects to the format expected by finalizeChecklist
+        refinedItems = checklistItems.map(item => ({
+          action: item.actionType.toLowerCase(),
+          reason: item.reasoning,
+          reasoning: item.reasoning,
+          confidence: item.confidence,
+          workerConfidence: item.confidence,
+          allocationPercent: item.allocationPercent,
+          amount: item.amount,
+          agentId: item.sourceAgentId,
+          agentName: 'Discussion Consensus',
+          symbol: item.symbol,
+          // Keep the ChecklistItem structure for validation
+          id: item.id,
+          sourceAgentId: item.sourceAgentId,
+          actionType: item.actionType,
+          status: item.status,
+        }));
 
-      for (const agent of discussionAgents) {
-        const agentProfile = {
-          name: agent.name || agent.id || 'worker agent',
-          roleDescription: agent.prompt || agent.description || agent.role || 'worker'
-        };
-
-        try {
-          const proposal = await generateWorkerProposal({
-            agentProfile,
-            sectorState
-          });
-
-          const allocationAmount = typeof sector?.balance === 'number'
-            ? Math.max(0, Math.round((proposal.allocationPercent / 100) * sector.balance))
-            : Math.max(0, Math.round(proposal.allocationPercent * 10));
-
-          refinedItems.push({
-            action: (proposal.action || '').toLowerCase(),
-            reason: proposal.reasoning,
-            reasoning: proposal.reasoning,
-            confidence: proposal.confidence,
-            workerConfidence: proposal.confidence,
-            allocationPercent: proposal.allocationPercent,
-            amount: allocationAmount,
-            agentId: agent.id,
-            agentName: agent.name,
-            workerProposal: proposal
-          });
-
-          const updatedConfidence = await this._applyProposalConfidence(agent, proposal.confidence, sector);
-          if (updatedConfidence !== null) {
-            confidenceUpdated = true;
-          }
-        } catch (error) {
-          console.warn(`[DiscussionEngine] Failed to generate worker proposal for ${agent.id} during finalizeChecklist:`, error);
-        }
+        console.log(`[DiscussionEngine] Generated ${refinedItems.length} executable checklist items from discussion`);
+      } catch (error) {
+        console.error(`[DiscussionEngine] Failed to generate checklist from discussion: ${error.message}`);
+        console.error(`[DiscussionEngine] Error stack:`, error.stack);
+        // Fall through to legacy path if LLM generation fails
       }
     }
 
@@ -815,10 +875,15 @@ class DiscussionEngine {
 
     // Validate: Ensure at least 1 item exists
     if (refinedItems.length === 0) {
-      const warning = `[DiscussionEngine] Cannot finalize checklist for discussion ${discussionId}: No checklist items found. Discussion has ${allMessages.length} messages but no valid items could be extracted.`;
+      const warning = `[DiscussionEngine] Cannot finalize checklist for discussion ${discussionId}: No checklist items found. Discussion has ${allMessages.length} messages but no valid items could be extracted. Round: ${roundCount}`;
       console.warn(warning);
+      // Update timestamp to track this attempt
+      discussionRoom.updateLastChecklistItemTimestamp();
+      await saveDiscussion(discussionRoom);
       throw new Error(warning);
     }
+    
+    console.log(`[DiscussionEngine] Generated ${refinedItems.length} checklist items for discussion ${discussionId} (Round ${roundCount})`);
 
     // Create the complete checklist object
     const checklist = {
@@ -831,7 +896,7 @@ class DiscussionEngine {
 
     // Update discussion room with checklist
     // Include agent information from the original messages for display purposes
-    discussionRoom.checklist = refinedItems.map((item, index) => {
+    const checklistItemsWithRound = refinedItems.map((item, index) => {
       // Find the first message that contributed to this item (for agent info)
       const contributingMessage = allMessages.find(msg => {
         const msgContent = (msg.content || '').toLowerCase();
@@ -848,13 +913,25 @@ class DiscussionEngine {
         workerConfidence: item.workerConfidence || item.confidence,
         allocationPercent: item.allocationPercent,
         amount: item.amount,
-        round: roundCount,
+        round: roundCount, // Ensure round is set
         agentId: item.agentId || contributingMessage?.agentId,
         agentName: item.agentName || contributingMessage?.agentName,
         workerProposal: item.workerProposal || null,
         status: 'PENDING' // Initialize as PENDING for manager evaluation
       };
     });
+    
+    // Update checklist and timestamp
+    discussionRoom.checklist = checklistItemsWithRound;
+    discussionRoom.updateLastChecklistItemTimestamp();
+    
+    // Log checklist creation per agent
+    const agentChecklistCounts = {};
+    checklistItemsWithRound.forEach(item => {
+      const agentId = item.agentId || item.sourceAgentId || 'unknown';
+      agentChecklistCounts[agentId] = (agentChecklistCounts[agentId] || 0) + 1;
+    });
+    console.log(`[DiscussionEngine] Checklist items per agent for discussion ${discussionId}:`, agentChecklistCounts);
 
     // Also update checklistDraft for backward compatibility
     discussionRoom.checklistDraft = refinedItems.map((item, index) => ({
@@ -957,10 +1034,10 @@ class DiscussionEngine {
             id: `${discussionRoom.id}-msg-${discussionRoom.messages.length}`,
             agentId: agent.id,
             agentName: agent.name || 'Unknown Agent',
-            content: messageData.proposal.reasoning, // Display reasoning in UI
-            analysis: messageData.analysis, // Internal, not shown
+            content: messageData.analysis, // Full LLM response as message content
+            analysis: messageData.analysis, // Full LLM response
             proposal: messageData.proposal, // Structured proposal for checklist
-            role: agent.role || 'general',
+            role: 'agent', // Always 'agent' for discussion messages
             timestamp: new Date().toISOString()
           });
         }
@@ -1313,6 +1390,18 @@ class DiscussionEngine {
     }
 
     const currentRound = discussionRoom.currentRound || 1;
+    
+    // Check max rounds limit
+    const ManagerEngine = require('./ManagerEngine');
+    const managerEngine = new ManagerEngine();
+    const MAX_ROUNDS = managerEngine.MAX_ROUNDS || 2;
+    
+    if (currentRound >= MAX_ROUNDS) {
+      console.log(`[DiscussionEngine] Discussion ${discussionId} has reached max rounds (${MAX_ROUNDS}). Cannot advance further.`);
+      // Force resolve pending items if not already done
+      await managerEngine.forceResolvePendingItems(discussionId);
+      return discussionRoom;
+    }
 
     // Create snapshot of current round
     const roundSnapshot = {
@@ -1388,30 +1477,21 @@ class DiscussionEngine {
    * @param {number} value
    * @returns {number}
    */
-  _clampConfidence(value) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return 0;
-    }
-    return Math.max(0, Math.min(100, value));
+_clampConfidence(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 1;
   }
+  return Math.max(1, Math.min(100, value));
+}
 
   /**
    * Update an agent's confidence based on an LLM proposal and persist it.
    * Also mutates the provided sector's agents array to keep in sync for responses.
    * 
-   * Phase 4: Confidence is monotonically increasing.
-   * Phase 5: Confidence will be data-driven and bidirectional.
-   * 
-   * Phase 4 Rules:
-   * - If LLM confidence <= previous_confidence, then confidence_next = min(previous_confidence + 2, 100)
-   *   This ensures confidence always trends upward during Phase 4, even when LLM outputs conservative confidence.
-   * - If LLM confidence > previous_confidence, then confidence_next = min(100, llm_confidence_output)
-   * - Confidence can ONLY stay the same or increase
-   * - Confidence can NEVER decrease in Phase 4
-   * - Confidence MUST be capped at 100
+   * Confidence is now derived directly from LLM output - no automatic increases.
    * 
    * @param {Object} agent
-   * @param {number} proposalConfidence - LLM-provided confidence value (0-100)
+   * @param {number} proposalConfidence - LLM-provided confidence value (1-100)
    * @param {Object|null} sector
    * @returns {Promise<number|null>} Updated confidence or null if agent invalid
    */
@@ -1420,30 +1500,16 @@ class DiscussionEngine {
       return null;
     }
 
-    // Get previous confidence (default to 0 if not set)
-    const previousConfidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-    
-    // Get LLM confidence output (clamp to 0-100)
+    // Get LLM confidence output (clamp to 1-100)
     const llmConfidenceOutput = this._clampConfidence(
-      typeof proposalConfidence === 'number' ? proposalConfidence : previousConfidence
+      typeof proposalConfidence === 'number' ? proposalConfidence : 1
     );
     
-    // Phase 4: Confidence is monotonically increasing.
-    // Phase 5: Confidence will be data-driven and bidirectional.
-    
-    // Phase 4 confidence growth assist
-    // If LLM confidence <= previous_confidence, ensure minimum growth of +2
-    let updatedConfidence;
-    if (llmConfidenceOutput <= previousConfidence) {
-      updatedConfidence = Math.min(previousConfidence + 2, 100);
-    } else {
-      // LLM confidence is higher, use it (capped at 100)
-      updatedConfidence = Math.min(100, llmConfidenceOutput);
-    }
+    // Use LLM confidence directly - no automatic increases
+    const updatedConfidence = llmConfidenceOutput;
 
-    console.debug('[DiscussionEngine] Agent confidence update', {
+    console.debug('[DiscussionEngine] Agent confidence update (LLM-derived)', {
       agentId: agent.id,
-      previousConfidence: previousConfidence,
       llmConfidenceOutput: llmConfidenceOutput,
       updatedConfidence
     });
@@ -1505,224 +1571,175 @@ class DiscussionEngine {
       ? sectorTypeRaw
       : 'other';
 
-    const sectorState = {
-      sectorName,
-      sectorType,
-      simulatedPrice: typeof sector?.currentPrice === 'number' ? sector.currentPrice : 100,
-      baselinePrice: typeof sector?.baselinePrice === 'number'
-        ? sector.baselinePrice
-        : (typeof sector?.initialPrice === 'number' ? sector.initialPrice : 100),
-      volatility: typeof sector?.volatility === 'number' ? sector.volatility : (sector?.riskScore || 0) / 100,
-      trendDescriptor: typeof sector?.changePercent === 'number'
-        ? `${sector.changePercent}% change`
-        : 'flat',
-      trendPercent: typeof sector?.changePercent === 'number' ? sector.changePercent : undefined,
-      balance: typeof sector?.balance === 'number' ? sector.balance : undefined,
-      allowedSymbols: [
-        sector?.symbol,
-        sector?.sectorSymbol,
-        sector?.ticker,
-        sector?.name,
-        sector?.sectorName,
-      ].filter((sym) => typeof sym === 'string' && sym.trim() !== ''),
-    };
+    // Extract agent properties
+    const agentRole = agent.role || 'general';
+    const agentStyle = agent.style || agent.personality?.decisionStyle || 'Balanced';
+    const agentRiskLevel = agent.riskTolerance || agent.personality?.riskTolerance || 'medium';
+    
+    // Extract sector data
+    const currentPrice = typeof sector?.currentPrice === 'number' ? sector.currentPrice : 100;
+    const baselinePrice = typeof sector?.baselinePrice === 'number'
+      ? sector.baselinePrice
+      : (typeof sector?.initialPrice === 'number' ? sector.initialPrice : 100);
+    const trendPercent = typeof sector?.changePercent === 'number' ? sector.changePercent : 0;
+    const volatility = typeof sector?.volatility === 'number' ? sector.volatility : (sector?.riskScore || 0) / 100;
+    const sectorBalance = typeof sector?.balance === 'number' ? sector.balance : 0;
+    
+    const allowedSymbols = [
+      sector?.symbol,
+      sector?.sectorSymbol,
+      sector?.ticker,
+      sector?.name,
+      sector?.sectorName,
+    ].filter((sym) => typeof sym === 'string' && sym.trim() !== '');
 
     // Use LLM for worker agents if enabled
     if (isLlmEnabled) {
       try {
-        const { buildDecisionPrompt } = require('../ai/prompts/buildDecisionPrompt');
         const { callLLM } = require('../ai/llmClient');
-        const agentProfile = {
-          name: agentName,
-          roleDescription: agent.purpose || agent.role || 'general worker agent'
-        };
-
-        const { systemPrompt, userPrompt, allowedSymbols } = buildDecisionPrompt({
-          sectorName,
-          agentSpecialization: agent.purpose || agent.role || 'general worker agent',
-          agentBrief: agent.purpose || `Contributing to ${sectorName} sector discussion`,
-          allowedSymbols: sectorState.allowedSymbols,
-          remainingCapital: sectorState.balance,
-          realTimeData: {
-            recentPrice: sectorState.simulatedPrice,
-            baselinePrice: sectorState.baselinePrice,
-            trendPercent: sectorState.trendPercent,
-            volatility: sectorState.volatility,
-          }
-        });
-
-        // Call LLM without jsonMode since we need two-part response
-        const rawResponse = await callLLM({
-          systemPrompt,
-          userPrompt,
-          jsonMode: false
-        });
-
-        // Parse the two-part response
-        const responseText = typeof rawResponse === 'string' ? rawResponse : String(rawResponse);
         
-        // Check if response is empty or too short
-        if (!responseText || responseText.trim().length < 10) {
-          console.error(`[DiscussionEngine] Empty or too short LLM response for agent ${agent.id}. Response length: ${responseText?.length || 0}`);
-          throw new Error(`LLM returned empty or invalid response for agent ${agent.id}`);
-        }
+        // Build comprehensive system prompt with all required information
+        const systemPrompt = [
+          `You are ${agentName}, a trading agent participating in a discussion about the ${sectorName} sector.`,
+          `Your role: ${agentRole}`,
+          `Your style: ${agentStyle}`,
+          `Your risk level: ${agentRiskLevel}`,
+          `Sector: ${sectorName}`,
+          `Current sector balance: $${sectorBalance.toFixed(2)}`,
+          `Latest price: $${currentPrice.toFixed(2)}`,
+          `Trend: ${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}%`,
+          `Volatility: ${(volatility * 100).toFixed(2)}%`,
+          '',
+          'You are analyzing market data and must propose a concrete trading action.',
+          'Your response should be a clear, concise analysis with a specific recommendation.',
+          'Focus on the current market conditions, price trends, and risk factors.',
+        ].join('\n');
+
+        // Build user prompt that asks for structured JSON output
+        const userPrompt = [
+          'Analyze the current market data and provide your trading recommendation.',
+          '',
+          'You MUST respond with a JSON object containing:',
+          '{',
+          '  "action": "BUY" | "SELL" | "HOLD",',
+          '  "allocationPercent": number (0-100),',
+          '  "confidence": number (0-100),',
+          '  "reasoning": string or string[] (your analysis and reasoning),',
+          '  "riskNotes": string or string[] (optional risk assessment)',
+          '}',
+          '',
+          'Provide a clear, detailed analysis in the reasoning field.',
+        ].join('\n');
+
+        // Call LLM in JSON mode to get structured output
+        console.log(`[DiscussionEngine] Calling LLM in JSON mode for agent ${agentName} (${agent.id}) in sector ${sectorName}`);
+        let structuredProposal;
+        let analysisText = '';
         
-        console.log(`[DiscussionEngine] Raw LLM response for agent ${agent.id} (first 500 chars):`, responseText.substring(0, 500));
-        
-        // Extract ANALYSIS and PROPOSAL sections
-        let analysis = '';
-        let proposalJson = null;
-
-        // Try to find ANALYSIS section
-        const analysisMatch = responseText.match(/ANALYSIS:\s*([\s\S]*?)(?=PROPOSAL:|$)/i);
-        if (analysisMatch) {
-          analysis = analysisMatch[1].trim();
-          console.log(`[DiscussionEngine] Extracted analysis (${analysis.length} chars) for agent ${agent.id}`);
-        } else {
-          // If no ANALYSIS section, use empty string
-          analysis = '';
-          console.log(`[DiscussionEngine] No ANALYSIS section found for agent ${agent.id}`);
-        }
-
-        // Try to find PROPOSAL section
-        const proposalMatch = responseText.match(/PROPOSAL:\s*([\s\S]*?)$/ims);
-        if (proposalMatch) {
-          let proposalText = proposalMatch[1].trim();
-          console.log(`[DiscussionEngine] Extracted proposal text (${proposalText.length} chars) for agent ${agent.id}:`, proposalText.substring(0, 200));
-          
-          // Clean up JSON (remove markdown code blocks if present)
-          const cleanedProposal = proposalText
-            .replace(/```json/gi, '')
-            .replace(/```/g, '')
-            .trim();
-          
-          try {
-            proposalJson = JSON.parse(cleanedProposal);
-            console.log(`[DiscussionEngine] Successfully parsed proposal JSON for agent ${agent.id}:`, proposalJson);
-          } catch (parseError) {
-            console.error(`[DiscussionEngine] Failed to parse proposal JSON for agent ${agent.id}:`, parseError.message);
-            console.error(`[DiscussionEngine] Proposal text that failed to parse:`, cleanedProposal);
-            
-            // Try to extract JSON object from the text (handle cases where there's extra text)
-            const jsonMatch = cleanedProposal.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              try {
-                proposalJson = JSON.parse(jsonMatch[0]);
-                console.log(`[DiscussionEngine] Successfully parsed JSON after extraction for agent ${agent.id}`);
-              } catch (e2) {
-                console.error(`[DiscussionEngine] Failed to parse extracted JSON for agent ${agent.id}:`, e2.message);
-                // Fallback to generateWorkerProposal
-                const fallbackProposal = await generateWorkerProposal({
-                  agentProfile,
-                  sectorState,
-                  purpose: agent.purpose || `Contributing to ${sectorName} sector discussion`
-                });
-                proposalJson = {
-                  action: fallbackProposal.action,
-                  symbol: fallbackProposal.symbol,
-                  allocationPercent: fallbackProposal.allocationPercent,
-                  confidence: fallbackProposal.confidence,
-                  reasoning: fallbackProposal.reasoning
-                };
-                console.log(`[DiscussionEngine] Using fallback proposal for agent ${agent.id}`);
-              }
-            } else {
-              // No JSON object found, use fallback
-              console.error(`[DiscussionEngine] No JSON object found in proposal text for agent ${agent.id}`);
-              const fallbackProposal = await generateWorkerProposal({
-                agentProfile,
-                sectorState,
-                purpose: agent.purpose || `Contributing to ${sectorName} sector discussion`
-              });
-              proposalJson = {
-                action: fallbackProposal.action,
-                symbol: fallbackProposal.symbol,
-                allocationPercent: fallbackProposal.allocationPercent,
-                confidence: fallbackProposal.confidence,
-                reasoning: fallbackProposal.reasoning
-              };
-            }
-          }
-        } else {
-          console.error(`[DiscussionEngine] No PROPOSAL section found in response for agent ${agent.id}`);
-          // If no PROPOSAL section found, try to parse entire response as JSON
-          try {
-            const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            proposalJson = JSON.parse(cleaned);
-            console.log(`[DiscussionEngine] Parsed entire response as JSON for agent ${agent.id}`);
-          } catch (e) {
-            console.error(`[DiscussionEngine] Failed to parse entire response as JSON for agent ${agent.id}:`, e.message);
-            // Fallback to generateWorkerProposal
-            const fallbackProposal = await generateWorkerProposal({
-              agentProfile,
-              sectorState,
-              purpose: agent.purpose || `Contributing to ${sectorName} sector discussion`
-            });
-            proposalJson = {
-              action: fallbackProposal.action,
-              symbol: fallbackProposal.symbol,
-              allocationPercent: fallbackProposal.allocationPercent,
-              confidence: fallbackProposal.confidence,
-              reasoning: fallbackProposal.reasoning
-            };
-            console.log(`[DiscussionEngine] Using fallback proposal for agent ${agent.id} (no PROPOSAL section)`);
-          }
-        }
-
-        // Validate proposal structure - use fallback if invalid
-        if (!proposalJson || typeof proposalJson !== 'object') {
-          console.error(`[DiscussionEngine] Invalid proposal structure for agent ${agent.id}. proposalJson type: ${typeof proposalJson}, value:`, proposalJson);
-          // Use fallback instead of throwing
-          const fallbackProposal = await generateWorkerProposal({
-            agentProfile,
-            sectorState,
-            purpose: agent.purpose || `Contributing to ${sectorName} sector discussion`
+        try {
+          const jsonResponse = await callLLM({
+            systemPrompt,
+            userPrompt,
+            jsonMode: true,
+            maxTokens: 1000
           });
-          proposalJson = {
-            action: fallbackProposal.action,
-            symbol: fallbackProposal.symbol,
-            allocationPercent: fallbackProposal.allocationPercent,
-            confidence: fallbackProposal.confidence,
-            reasoning: fallbackProposal.reasoning
-          };
-          console.log(`[DiscussionEngine] Using fallback proposal due to invalid structure for agent ${agent.id}`);
-        }
 
-        // Ensure required fields exist
-        const proposal = {
-          action: proposalJson.action || 'HOLD',
-          symbol: proposalJson.symbol || allowedSymbols[0] || sectorName,
-          allocationPercent: typeof proposalJson.allocationPercent === 'number' 
-            ? Math.max(0, Math.min(100, proposalJson.allocationPercent))
-            : 0,
-          confidence: typeof proposalJson.confidence === 'number'
-            ? Math.max(0, Math.min(100, proposalJson.confidence))
-            : 50,
-          reasoning: typeof proposalJson.reasoning === 'string' && proposalJson.reasoning.trim()
-            ? proposalJson.reasoning.trim()
-            : 'No reasoning provided'
-        };
+          // Parse JSON response - use normalizeLLMDecision for graceful error handling
+          let parsed;
+          try {
+            parsed = JSON.parse(jsonResponse);
+          } catch (parseError) {
+            // JSON parsing failed - use normalizeLLMDecision to create valid fallback
+            console.warn(`[DiscussionEngine] Failed to parse LLM JSON response for agent ${agent.id}: ${parseError.message}`);
+            parsed = null; // Will trigger normalizeLLMDecision fallback
+          }
+
+          // Use normalizeLLMDecision to handle all parsing/validation failures gracefully
+          const { normalizeLLMDecision } = require('../ai/normalizeLLMDecision');
+          const normalized = normalizeLLMDecision(
+            parsed,
+            `${agentName} recommends maintaining current position due to insufficient market signals.`
+          );
+
+          // Determine symbol from allowed symbols
+          const symbol = allowedSymbols.length > 0 ? allowedSymbols[0] : sectorName;
+
+          structuredProposal = {
+            action: normalized.action,
+            symbol: symbol,
+            allocationPercent: normalized.allocationPercent,
+            confidence: normalized.confidence,
+            reasoning: normalized.reasoning,
+            riskNotes: parsed && parsed.riskNotes 
+              ? (Array.isArray(parsed.riskNotes) ? parsed.riskNotes.join(' ').trim() : parsed.riskNotes.trim())
+              : undefined
+          };
+
+          // Create analysis text from the structured data for display (user-friendly, no error messages)
+          analysisText = [
+            `${agentName} recommends: ${structuredProposal.action}`,
+            `Allocation: ${structuredProposal.allocationPercent}%`,
+            `Confidence: ${structuredProposal.confidence}%`,
+            '',
+            `Reasoning: ${structuredProposal.reasoning}`,
+            structuredProposal.riskNotes ? `\nRisk Notes: ${structuredProposal.riskNotes}` : ''
+          ].join('\n').trim();
+
+          console.log(`[DiscussionEngine] Parsed structured proposal for agent ${agentName}:`, {
+            action: structuredProposal.action,
+            allocationPercent: structuredProposal.allocationPercent,
+            confidence: structuredProposal.confidence,
+            reasoningLength: structuredProposal.reasoning.length
+          });
+        } catch (llmError) {
+          // LLM call failed - create fallback proposal with user-friendly message
+          console.error(`[DiscussionEngine] LLM call failed for agent ${agent.id}: ${llmError.message}`);
+          const fallbackSymbol = allowedSymbols && allowedSymbols.length > 0 
+            ? allowedSymbols[0] 
+            : (sector?.symbol || sector?.name || 'UNKNOWN');
+          structuredProposal = {
+            action: 'HOLD',
+            symbol: fallbackSymbol,
+            allocationPercent: 0,
+            confidence: 1,
+            reasoning: `${agentName} recommends maintaining current position due to insufficient market signals.`
+          };
+          analysisText = [
+            `${agentName} recommends: HOLD`,
+            `Allocation: 0%`,
+            `Confidence: 1%`,
+            '',
+            `Reasoning: ${structuredProposal.reasoning}`
+          ].join('\n').trim();
+        }
 
         return {
-          analysis: analysis || 'No analysis provided',
-          proposal
+          analysis: analysisText, // Formatted analysis text for display
+          proposal: structuredProposal // Structured proposal object for checklist
         };
       } catch (error) {
         console.error(`[DiscussionEngine] Failed to generate LLM message for agent ${agent.id}:`, error.message);
         console.error(`[DiscussionEngine] Full error:`, error);
         console.error(`[DiscussionEngine] Error stack:`, error.stack);
-        // Fallback to simple message if LLM fails - but still create a valid message
-        const fallbackSymbol = sectorState.allowedSymbols && sectorState.allowedSymbols.length > 0 
-          ? sectorState.allowedSymbols[0] 
+        // Fallback to simple message if LLM fails - but still create a valid message with user-friendly text
+        const fallbackSymbol = allowedSymbols && allowedSymbols.length > 0 
+          ? allowedSymbols[0] 
           : (sector?.symbol || sector?.name || 'UNKNOWN');
+        const fallbackReasoning = `${agentName} recommends maintaining current position due to insufficient market signals.`;
         return {
-          analysis: `${agentName}: Error generating proposal: ${error.message}`,
+          analysis: [
+            `${agentName} recommends: HOLD`,
+            `Allocation: 0%`,
+            `Confidence: 1%`,
+            '',
+            `Reasoning: ${fallbackReasoning}`
+          ].join('\n').trim(),
           proposal: {
             action: 'HOLD',
             symbol: fallbackSymbol,
             allocationPercent: 0,
-            confidence: 0,
-            reasoning: `Unable to generate proposal: ${error.message}`
+            confidence: 1,
+            reasoning: fallbackReasoning
           }
         };
       }

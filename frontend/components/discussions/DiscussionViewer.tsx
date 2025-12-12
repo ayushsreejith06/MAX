@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { MessageSquare, Clock, CheckCircle2, Circle } from 'lucide-react';
 import type { Discussion, Message, ChecklistItem } from '@/lib/types';
 import { fetchDiscussionById } from '@/lib/api';
+import { formatMessageContent } from '@/utils/formatMessage';
 
 const agentThemes = [
   { text: 'text-[#9AE6FF]', border: 'border-[#9AE6FF]/40', bg: 'bg-[#9AE6FF]/10' },
@@ -64,7 +65,7 @@ const MessageItem = memo(function MessageItem({ message }: { message: Message })
         </span>
       </div>
       <div className="ml-4 pl-3 border-l-2 border-sage-green/30 text-floral-white">
-        {message.proposal?.reasoning || message.content}
+        {formatMessageContent(message.proposal?.reasoning || message.content)}
       </div>
     </div>
   );
@@ -91,13 +92,29 @@ const ChecklistItemComponent = memo(function ChecklistItemComponent({
   item: ChecklistItem; 
 }) {
   const theme = item.agentName ? getAgentTheme(item.agentName) : null;
-  const rationale = item.rationale || item.reasoning || item.reason || item.text || 'No rationale';
+  
+  // Extract rationale from structured data only - handle both string and array
+  let rationaleText = 'No rationale provided';
+  if (item.rationale) {
+    if (Array.isArray(item.rationale)) {
+      rationaleText = item.rationale.length > 0 
+        ? item.rationale.join(' ') 
+        : 'No rationale provided';
+    } else if (typeof item.rationale === 'string' && item.rationale.trim()) {
+      rationaleText = item.rationale;
+    }
+  }
+  
   const isAccepted = item.approvalStatus === 'accepted';
+  const isRejected = item.approvalStatus === 'rejected';
+  const isPending = !item.approvalStatus || item.approvalStatus === 'pending';
   
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border border-ink-500 bg-ink-600/40">
       {isAccepted ? (
         <CheckCircle2 className="w-4 h-4 text-sage-green mt-0.5 flex-shrink-0" />
+      ) : isRejected ? (
+        <Circle className="w-4 h-4 text-error-red mt-0.5 flex-shrink-0" />
       ) : (
         <Circle className="w-4 h-4 text-warning-amber mt-0.5 flex-shrink-0" />
       )}
@@ -117,6 +134,13 @@ const ChecklistItemComponent = memo(function ChecklistItemComponent({
               }`}
             >
               {item.action.toUpperCase()}
+            </span>
+          )}
+          
+          {/* Allocation % */}
+          {item.allocationPercent !== undefined && item.allocationPercent !== null && (
+            <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
+              {item.allocationPercent.toFixed(1)}%
             </span>
           )}
           
@@ -150,7 +174,8 @@ const ChecklistItemComponent = memo(function ChecklistItemComponent({
           )}
         </div>
         
-        <p className="text-floral-white text-sm font-mono mb-2">{rationale}</p>
+        {/* Rationale Text - from structured data only */}
+        <p className="text-floral-white text-sm font-mono mb-2">{rationaleText}</p>
         
         {(item.agentName || item.round) && (
           <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-floral-white/70 font-mono">
@@ -389,25 +414,39 @@ export default function DiscussionViewer({
                     <div className="text-xs text-floral-white/70 font-mono mb-1">
                       Checklist Items ({snapshot.checklist.length}):
                     </div>
-                    {snapshot.checklist.map((item) => (
-                      <div key={item.id} className="text-xs text-floral-white/60 font-mono pl-2 border-l-2 border-sage-green/30">
-                        {item.action && (
-                          <span className="text-sage-green">{item.action}</span>
-                        )}
-                        {item.reason && (
-                          <span className="ml-2">{item.reason.substring(0, 100)}{item.reason.length > 100 ? '...' : ''}</span>
-                        )}
-                        {item.status && (
-                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[0.65rem] ${
-                            item.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
-                            item.status === 'REJECTED' || item.status === 'REVISE_REQUIRED' ? 'bg-red-500/20 text-red-400' :
-                            'bg-yellow-500/20 text-yellow-400'
-                          }`}>
-                            {item.status}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                    {snapshot.checklist.map((item) => {
+                      // Extract rationale from structured data only
+                      let rationaleText = 'No rationale provided';
+                      if (item.rationale) {
+                        if (Array.isArray(item.rationale)) {
+                          rationaleText = item.rationale.length > 0 
+                            ? item.rationale.join(' ') 
+                            : 'No rationale provided';
+                        } else if (typeof item.rationale === 'string' && item.rationale.trim()) {
+                          rationaleText = item.rationale;
+                        }
+                      }
+                      
+                      return (
+                        <div key={item.id} className="text-xs text-floral-white/60 font-mono pl-2 border-l-2 border-sage-green/30">
+                          {item.action && (
+                            <span className="text-sage-green">{item.action}</span>
+                          )}
+                          {rationaleText && rationaleText !== 'No rationale provided' && (
+                            <span className="ml-2">{rationaleText.substring(0, 100)}{rationaleText.length > 100 ? '...' : ''}</span>
+                          )}
+                          {item.status && (
+                            <span className={`ml-2 px-1.5 py-0.5 rounded text-[0.65rem] ${
+                              item.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
+                              item.status === 'REJECTED' || item.status === 'REVISE_REQUIRED' ? 'bg-red-500/20 text-red-400' :
+                              'bg-yellow-500/20 text-yellow-400'
+                            }`}>
+                              {item.status}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

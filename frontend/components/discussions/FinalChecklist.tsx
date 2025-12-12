@@ -125,7 +125,18 @@ export default function FinalChecklist({ discussionId, isFinalized }: FinalCheck
                 </thead>
                 <tbody>
                   {items.map((item) => {
-                    const rationale = item.rationale || item.reasoning || item.reason || 'N/A';
+                    // Extract rationale from structured data only - handle both string and array
+                    let rationaleText = 'No rationale provided';
+                    if (item.rationale) {
+                      if (Array.isArray(item.rationale)) {
+                        rationaleText = item.rationale.length > 0 
+                          ? item.rationale.join(' ') 
+                          : 'No rationale provided';
+                      } else if (typeof item.rationale === 'string' && item.rationale.trim()) {
+                        rationaleText = item.rationale;
+                      }
+                    }
+                    
                     return (
                       <tr
                         key={item.id}
@@ -177,8 +188,8 @@ export default function FinalChecklist({ discussionId, isFinalized }: FinalCheck
                           )}
                         </td>
                         <td className="px-4 py-3 border border-ink-500 text-floral-white/80 max-w-md">
-                          <div className="truncate" title={rationale}>
-                            {rationale}
+                          <div className="truncate" title={rationaleText}>
+                            {rationaleText}
                           </div>
                         </td>
                         <td className="px-4 py-3 border border-ink-500 text-floral-white">

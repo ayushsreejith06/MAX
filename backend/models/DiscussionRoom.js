@@ -33,6 +33,10 @@ class DiscussionRoom {
     this.managerDecisions = [];
     // Closure fields
     this.discussionClosedAt = null;
+    // Guardrail tracking fields
+    this.checklistCreationAttempts = {}; // Map of round -> Set of agentIds who attempted checklist creation
+    this.lastChecklistItemTimestamp = null; // Timestamp of last checklist item creation
+    this.closeReason = null; // Reason why discussion was closed
   }
 
   static fromData(data) {
@@ -90,22 +94,34 @@ class DiscussionRoom {
     discussionRoom.managerDecisions = Array.isArray(data.managerDecisions) ? data.managerDecisions : [];
     // Closure fields
     discussionRoom.discussionClosedAt = data.discussionClosedAt || null;
+    // Guardrail tracking fields
+    discussionRoom.checklistCreationAttempts = data.checklistCreationAttempts || {};
+    discussionRoom.lastChecklistItemTimestamp = data.lastChecklistItemTimestamp || null;
+    discussionRoom.closeReason = data.closeReason || null;
     // Migration flag
     discussionRoom.checklistMigrated = data.checklistMigrated === true;
     return discussionRoom;
   }
 
   addMessage(message) {
-    // Validate message content before adding
-    const validation = validateAgentMessage(
-      message.content,
-      message.agentId,
-      message.agentName
-    );
+    // Skip validation for LLM-generated messages (those with a proposal object)
+    // LLM-generated messages are trusted and should always be added
+    const isLLMGenerated = message.proposal && typeof message.proposal === 'object';
+    
+    if (!isLLMGenerated) {
+      // Validate message content before adding (only for non-LLM messages)
+      const validation = validateAgentMessage(
+        message.content,
+        message.agentId,
+        message.agentName
+      );
 
-    if (!validation.isValid) {
-      console.warn(`[DiscussionRoom] Message validation failed: ${validation.reason}`);
-      return false; // Return false to indicate message was not added
+      if (!validation.isValid) {
+        console.warn(`[DiscussionRoom] Message validation failed: ${validation.reason}`);
+        return false; // Return false to indicate message was not added
+      }
+    } else {
+      console.log(`[DiscussionRoom] Skipping validation for LLM-generated message from agent ${message.agentName || message.agentId}`);
     }
 
     const messageEntry = {
@@ -117,6 +133,15 @@ class DiscussionRoom {
       timestamp: message.timestamp || new Date().toISOString(),
       createdAt: message.createdAt || new Date().toISOString()
     };
+    
+    // Include proposal and analysis if present (for LLM-generated messages)
+    if (message.proposal) {
+      messageEntry.proposal = message.proposal;
+    }
+    if (message.analysis) {
+      messageEntry.analysis = message.analysis;
+    }
+    
     this.messages.push(messageEntry);
     this.messagesCount = this.messages.length;
     this.updatedAt = new Date().toISOString();
@@ -133,6 +158,65 @@ class DiscussionRoom {
     this.decidedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     this.status = 'DECIDED'; // Discussion status: 'OPEN' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
+  }
+
+  /**
+   * Check if agent has already attempted checklist creation in this round
+   * @param {string} agentId - Agent ID
+   * @param {number} round - Round number
+   * @returns {boolean} True if already attempted
+   */
+  hasAttemptedChecklistCreation(agentId, round) {
+    if (!this.checklistCreationAttempts) {
+      this.checklistCreationAttempts = {};
+    }
+    const roundKey = String(round);
+    const attempts = this.checklistCreationAttempts[roundKey];
+    return attempts && Array.isArray(attempts) && attempts.includes(agentId);
+  }
+
+  /**
+   * Mark that agent has attempted checklist creation in this round
+   * @param {string} agentId - Agent ID
+   * @param {number} round - Round number
+   */
+  markChecklistCreationAttempt(agentId, round) {
+    if (!this.checklistCreationAttempts) {
+      this.checklistCreationAttempts = {};
+    }
+    const roundKey = String(round);
+    if (!this.checklistCreationAttempts[roundKey]) {
+      this.checklistCreationAttempts[roundKey] = [];
+    }
+    if (!this.checklistCreationAttempts[roundKey].includes(agentId)) {
+      this.checklistCreationAttempts[roundKey].push(agentId);
+    }
+    this.updatedAt = new Date().toISOString();
+  }
+
+  /**
+   * Check if agent already has a checklist item in this round
+   * @param {string} agentId - Agent ID
+   * @param {number} round - Round number
+   * @returns {boolean} True if agent has checklist item for this round
+   */
+  hasChecklistItemForRound(agentId, round) {
+    if (!Array.isArray(this.checklist)) {
+      return false;
+    }
+    return this.checklist.some(item => {
+      const itemRound = typeof item.round === 'number' ? item.round : (this.currentRound || this.round || 1);
+      const itemAgentId = item.sourceAgentId || item.agentId;
+      return itemAgentId === agentId && itemRound === round;
+    });
+  }
+
+  /**
+   * Update timestamp of last checklist item creation
+   */
+  updateLastChecklistItemTimestamp() {
+    this.lastChecklistItemTimestamp = new Date().toISOString();
+    this.updatedAt = new Date().toISOString();
   }
 
   toJSON() {
@@ -167,6 +251,10 @@ class DiscussionRoom {
       managerDecisions: this.managerDecisions,
       // Closure fields
       discussionClosedAt: this.discussionClosedAt,
+      // Guardrail tracking fields
+      checklistCreationAttempts: this.checklistCreationAttempts || {},
+      lastChecklistItemTimestamp: this.lastChecklistItemTimestamp || null,
+      closeReason: this.closeReason || null,
       // Migration flag
       checklistMigrated: this.checklistMigrated === true
     };

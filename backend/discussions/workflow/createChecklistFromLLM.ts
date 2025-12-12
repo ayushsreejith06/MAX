@@ -1,13 +1,24 @@
-import { parseLLMTradeAction, ParseLLMTradeActionOptions } from '../../ai/parseLLMTradeAction';
-import { validateLLMTradeAction } from '../../types/llmAction';
-import { normalizeLLMResponse } from '../../ai/normalizeLLMResponse';
 import { ChecklistItem, validateChecklistItem } from './checklistBuilder';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizeLLMDecision } from '../../ai/normalizeLLMDecision';
+
+/**
+ * Structured proposal object that MUST be provided by the LLM.
+ * This is the ONLY source of truth for checklist item creation.
+ */
+export type StructuredProposal = {
+  action: 'BUY' | 'SELL' | 'HOLD';
+  allocationPercent: number; // 0-100
+  confidence: number; // 0-100
+  reasoning: string | string[]; // Can be string or array of strings
+  riskNotes?: string | string[]; // Optional risk assessment notes
+};
 
 export type CreateChecklistFromLLMParams = {
-  messageContent: string;
+  proposal: StructuredProposal; // REQUIRED: Structured proposal object from LLM
   discussionId: string;
   agentId: string;
+  agentName?: string; // Agent name for sourceAgent
   sector: {
     id: string;
     symbol?: string;
@@ -22,82 +33,74 @@ export type CreateChecklistFromLLMParams = {
 };
 
 /**
- * Attempts to extract a structured trade proposal (BUY/SELL/HOLD) from LLM message content
- * and create a ChecklistItem if a valid proposal is found.
+ * Creates a checklist item from a structured proposal object.
+ * This function ONLY accepts structured proposal objects - never parses message text.
  * 
- * @param params - Parameters for creating checklist item from LLM output
- * @returns ChecklistItem if a valid proposal is found, null otherwise
+ * If the proposal cannot be parsed or validated, a fallback checklist item is created.
+ * 
+ * @param params - Parameters for creating checklist item from structured proposal
+ * @returns ChecklistItem (always returns a valid item, even if fallback is used)
  */
 export async function createChecklistFromLLM(
   params: CreateChecklistFromLLMParams
-): Promise<ChecklistItem | null> {
+): Promise<ChecklistItem> {
   const {
-    messageContent,
+    proposal,
     discussionId,
     agentId,
+    agentName,
     sector,
     sectorData = {},
     availableBalance = 0,
-    currentPrice,
   } = params;
-
-  if (!messageContent || typeof messageContent !== 'string' || messageContent.trim() === '') {
-    return null;
-  }
 
   // Determine allowed symbols
   const allowedSymbols = Array.isArray(sector.allowedSymbols) && sector.allowedSymbols.length > 0
     ? sector.allowedSymbols
     : [sector.symbol, sector.name].filter((sym): sym is string => typeof sym === 'string' && sym.trim() !== '');
 
-  if (allowedSymbols.length === 0) {
-    console.warn(`[createChecklistFromLLM] No allowed symbols found for sector ${sector.id}`);
-    return null;
-  }
+  // If no allowed symbols, use a default
+  const normalizedSymbols = allowedSymbols.length > 0
+    ? allowedSymbols.map(s => s.trim().toUpperCase())
+    : ['UNKNOWN'];
 
-  const normalizedSymbols = allowedSymbols.map(s => s.trim().toUpperCase());
-
-  // Prepare parse options
-  const parseOptions: ParseLLMTradeActionOptions = {
-    fallbackSector: sector.name || sector.symbol || 'UNKNOWN',
-    fallbackSymbol: normalizedSymbols[0],
-    remainingCapital: availableBalance,
-    currentPrice: currentPrice || (typeof sectorData.currentPrice === 'number' ? sectorData.currentPrice : undefined) ||
-                   (typeof sectorData.baselinePrice === 'number' ? sectorData.baselinePrice : undefined),
-  };
+  const sectorBalance = typeof availableBalance === 'number' && availableBalance > 0 ? availableBalance : 0;
 
   try {
-    // Attempt to parse the message content as a structured trade action
-    const parsed = parseLLMTradeAction(messageContent, parseOptions);
+    // Normalize the proposal object using normalizeLLMDecision - this NEVER throws
+    const normalized = normalizeLLMDecision(
+      proposal,
+      `LLM output could not be parsed for agent ${agentId}; defaulting to conservative HOLD position.`
+    );
 
-    // Validate the parsed response
-    const validated = validateLLMTradeAction(parsed, {
-      allowedSymbols: normalizedSymbols,
-      remainingCapital: availableBalance,
-      fallbackSector: sector.name || sector.symbol || 'UNKNOWN',
-      fallbackSymbol: normalizedSymbols[0],
-      currentPrice: parseOptions.currentPrice,
-    });
-
-    // Normalize LLM response before checklist creation
-    const normalized = normalizeLLMResponse(validated, {
-      sectorRiskProfile: sector.riskScore,
-      lastConfidence: params.agentConfidence,
-      allowedSymbols: normalizedSymbols,
-    });
-
-    // Check if this is a valid trade proposal (BUY, SELL, or HOLD)
-    if (!['BUY', 'SELL', 'HOLD'].includes(normalized.actionType)) {
-      // Not a valid trade proposal, skip
-      return null;
+    // Extract riskNotes if present (optional field)
+    let riskNotes: string | undefined;
+    if (proposal && typeof proposal === 'object' && 'riskNotes' in proposal) {
+      const rawRiskNotes = (proposal as any).riskNotes;
+      if (Array.isArray(rawRiskNotes)) {
+        riskNotes = rawRiskNotes.join(' ').trim();
+      } else if (typeof rawRiskNotes === 'string') {
+        riskNotes = rawRiskNotes.trim();
+      }
     }
 
-    // Use normalized allocationPercent (already handled by normalization layer)
-    const finalAllocationPercent = normalized.allocationPercent ?? 0;
+    const extractedAction: {
+      action: 'BUY' | 'SELL' | 'HOLD';
+      allocationPercent: number;
+      confidence: number;
+      reasoning: string;
+      riskNotes?: string;
+    } = {
+      action: normalized.action,
+      allocationPercent: normalized.allocationPercent,
+      confidence: normalized.confidence,
+      reasoning: normalized.reasoning,
+      riskNotes,
+    };
 
     // Calculate amount from allocation percent
-    const amount = availableBalance > 0
-      ? (finalAllocationPercent / 100) * availableBalance
+    const amount = sectorBalance > 0
+      ? (extractedAction.allocationPercent / 100) * sectorBalance
       : 0;
 
     // Generate unique ID
@@ -107,31 +110,87 @@ export async function createChecklistFromLLM(
     const checklistItemPayload: Partial<ChecklistItem> = {
       id,
       sourceAgentId: agentId,
-      actionType: normalized.actionType,
-      symbol: normalized.symbol,
+      actionType: extractedAction.action,
+      symbol: normalizedSymbols[0], // Use first allowed symbol
       amount,
-      allocationPercent: finalAllocationPercent,
-      confidence: normalized.confidence,
-      reasoning: normalized.reasoning,
-      rationale: normalized.reasoning,
-      status: 'PENDING', // Using PENDING as ChecklistItem type doesn't support "PROPOSED"
+      allocationPercent: extractedAction.allocationPercent,
+      confidence: extractedAction.confidence,
+      reasoning: extractedAction.reasoning,
+      rationale: extractedAction.reasoning,
+      status: 'PENDING',
     };
 
     // Validate and return the checklist item
-    return validateChecklistItem(checklistItemPayload, {
-      allowedSymbols: normalizedSymbols,
-      allowZeroAmount: actionType === 'HOLD',
-      allowZeroAllocation: actionType === 'HOLD',
-    });
-  } catch (error) {
-    // If parsing fails, it's not a structured proposal - this is expected for many messages
-    // Only log if it's an unexpected error (not just a parse failure)
-    if (error instanceof Error && error.message.includes('LLM response is missing required confidence')) {
-      // This is a structured proposal but missing required fields - log for debugging
-      console.debug(`[createChecklistFromLLM] Message contains structured proposal but missing required fields: ${error.message}`);
+    try {
+      const validatedItem = validateChecklistItem(checklistItemPayload, {
+        allowedSymbols: normalizedSymbols,
+        allowZeroAmount: extractedAction.action === 'HOLD',
+        allowZeroAllocation: extractedAction.action === 'HOLD',
+      });
+      
+      console.log(`[createChecklistFromLLM] Checklist item created successfully: ${validatedItem.actionType} ${validatedItem.symbol} (confidence: ${validatedItem.confidence}, allocation: ${validatedItem.allocationPercent}%) for agent ${agentId} in discussion ${discussionId}`);
+      return validatedItem;
+    } catch (validationError) {
+      // Validation failed - create fallback checklist item
+      console.error(`[createChecklistFromLLM] Failed to validate checklist item for agent ${agentId} in discussion ${discussionId}: ${validationError instanceof Error ? validationError.message : 'Unknown error'}. Creating fallback checklist item.`);
+      return createFallbackChecklistItem(discussionId, agentId, agentName, normalizedSymbols[0]);
     }
-    // Silently return null - not all messages will be structured proposals
-    return null;
+  } catch (error) {
+    // Any other error - create fallback checklist item
+    console.error(`[createChecklistFromLLM] Error creating checklist item for agent ${agentId} in discussion ${discussionId}: ${error instanceof Error ? error.message : 'Unknown error'}. Creating fallback checklist item.`);
+    return createFallbackChecklistItem(discussionId, agentId, agentName, normalizedSymbols[0]);
   }
 }
+
+/**
+ * Creates a fallback checklist item when parsing fails.
+ * This ensures a checklist item is ALWAYS created, even if the LLM output is malformed.
+ * Returns HOLD, 0%, confidence 1 to ensure the discussion lifecycle continues.
+ */
+function createFallbackChecklistItem(
+  discussionId: string,
+  agentId: string,
+  agentName?: string,
+  symbol: string = 'UNKNOWN'
+): ChecklistItem {
+  const id = `checklist-${discussionId}-${agentId}-${Date.now()}-${uuidv4().substring(0, 8)}`;
+  
+  const fallbackPayload: Partial<ChecklistItem> = {
+    id,
+    sourceAgentId: agentId,
+    actionType: 'HOLD',
+    symbol,
+    amount: 0,
+    allocationPercent: 0,
+    confidence: 1,
+    reasoning: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
+    rationale: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
+    status: 'PENDING',
+  };
+
+  // Try to validate, but if it fails, return a minimal valid item
+  try {
+    return validateChecklistItem(fallbackPayload, {
+      allowedSymbols: [symbol],
+      allowZeroAmount: true,
+      allowZeroAllocation: true,
+    });
+  } catch (validationError) {
+    // If even validation fails, return a minimal valid item
+    console.error(`[createFallbackChecklistItem] Fallback validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
+    return {
+      id,
+      sourceAgentId: agentId,
+      actionType: 'HOLD',
+      symbol: symbol || 'UNKNOWN',
+      amount: 0,
+      allocationPercent: 0,
+      confidence: 1,
+      reasoning: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
+      rationale: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
+      status: 'PENDING',
+    };
+  }
+}
+
 

@@ -121,20 +121,22 @@ export function parseLLMTradeAction(
       ? json.reasoning.trim()
       : 'LLM did not provide reasoning';
 
-  // CRITICAL: Confidence is REQUIRED - reject if missing or invalid
+  // CRITICAL: Confidence is REQUIRED - use fallback if missing or invalid (non-blocking)
   const rawConfidence = (json as any).confidence;
+  let confidence: number;
   if (rawConfidence === undefined || rawConfidence === null) {
-    console.error('[LLM_PARSE_ERROR] Missing required confidence field', { json });
-    throw new Error('LLM response is missing required confidence field. Confidence must be a number between 0-100.');
+    console.error('[LLM_PARSE_ERROR] Missing required confidence field, defaulting to 1', { json });
+    confidence = 1; // Minimum confidence to ensure it's actionable
+  } else {
+    const confidenceValue = parseNumber(rawConfidence);
+    if (confidenceValue === null) {
+      console.error('[LLM_PARSE_ERROR] Invalid confidence value (must be numeric), defaulting to 1', { json, rawConfidence });
+      confidence = 1; // Minimum confidence to ensure it's actionable
+    } else {
+      // Clamp to [1, 100] - minimum 1 to ensure it's actionable
+      confidence = Math.min(Math.max(confidenceValue, 1), 100);
+    }
   }
-  
-  const confidenceValue = parseNumber(rawConfidence);
-  if (confidenceValue === null) {
-    console.error('[LLM_PARSE_ERROR] Invalid confidence value (must be numeric)', { json, rawConfidence });
-    throw new Error('LLM response has invalid confidence value. Confidence must be a number between 0-100.');
-  }
-  
-  const confidence = Math.min(Math.max(confidenceValue, 0), 100);
 
   // Extract new fields (allocation_percent, risk_notes) if present
   const allocationPercent = parseNumber((json as any).allocation_percent ?? (json as any).allocationPercent);

@@ -521,9 +521,14 @@ module.exports = async (fastify) => {
 
       // Get proposed checklist items (from discussion.checklist)
       const rawChecklistItems = Array.isArray(discussion.checklist) ? discussion.checklist : [];
+      log(`GET /discussions/${id}/checklist - Found ${rawChecklistItems.length} raw checklist items in discussion.checklist`);
+      if (rawChecklistItems.length > 0) {
+        log(`GET /discussions/${id}/checklist - Sample checklist item:`, JSON.stringify(rawChecklistItems[0], null, 2));
+      }
       
       // Get finalized checklist items (from discussion.finalizedChecklist)
       const finalizedChecklistItems = Array.isArray(discussion.finalizedChecklist) ? discussion.finalizedChecklist : [];
+      log(`GET /discussions/${id}/checklist - Found ${finalizedChecklistItems.length} finalized checklist items`);
       
       // Get manager decisions to determine approval status for each proposed item
       const managerDecisions = Array.isArray(discussion.managerDecisions) ? discussion.managerDecisions : [];
@@ -694,6 +699,9 @@ module.exports = async (fastify) => {
       };
 
       log(`Found checklist for discussion ${id}: ${checklist.length} proposed items, ${finalizedChecklist.length} finalized items, ${checklistItems.length} total items`);
+      if (checklistItems.length > 0) {
+        log(`GET /discussions/${id}/checklist - Sample formatted checklist item:`, JSON.stringify(checklistItems[0], null, 2));
+      }
       return reply.status(200).send(response);
     } catch (error) {
       log(`Error fetching checklist: ${error.message}`);
@@ -1466,18 +1474,35 @@ module.exports = async (fastify) => {
     try {
       const { sectorId, title, agentIds } = request.body;
 
-      if (!sectorId || !title) {
+      if (!sectorId) {
         return reply.status(400).send({
           success: false,
-          error: 'sectorId and title are required'
+          error: 'sectorId is required'
         });
       }
 
-      log(`POST /discussions - Creating discussion with sectorId: ${sectorId}, title: ${title}`);
+      log(`POST /discussions - Creating discussion with sectorId: ${sectorId}, title: ${title || 'auto-generated'}`);
 
-      const discussionRoom = await startDiscussion(sectorId, title, agentIds);
+      // Use ManagerEngine.createDiscussion to ensure all validations are performed:
+      // 1. No active discussions in the sector
+      // 2. All agents have confidence > 65
+      // 3. Sector balance > 0
+      const ManagerEngine = require('../core/ManagerEngine');
+      const managerEngine = new ManagerEngine();
+      const result = await managerEngine.createDiscussion(sectorId);
 
-      const enriched = await enrichDiscussion(discussionRoom.toJSON());
+      if (!result.created || !result.discussion) {
+        const errorMsg = result.discussion 
+          ? `Cannot create discussion: There is already a non-closed discussion for this sector`
+          : `Cannot create discussion: Validation failed (check logs for details)`;
+        log(`Failed to create discussion: ${errorMsg}`);
+        return reply.status(400).send({
+          success: false,
+          error: errorMsg
+        });
+      }
+
+      const enriched = await enrichDiscussion(result.discussion.toJSON());
 
       log(`Discussion created successfully - ID: ${enriched.id}, Title: ${enriched.title}`);
 
@@ -1538,47 +1563,151 @@ module.exports = async (fastify) => {
         });
       }
 
-      // Try to extract structured proposal (BUY/SELL/HOLD) from message and create checklist item
-      try {
-        // Get sector information for checklist creation
-        const { getSectorById } = require('../utils/sectorStorage');
-        const sector = await getSectorById(discussionRoom.sectorId);
+      // Create checklist item from structured proposal object if provided
+      // Checklist items MUST ONLY be created from structured proposal objects, never from message text
+      const { proposal } = request.body;
+      
+      if (proposal && typeof proposal === 'object') {
+        // GUARDRAIL: Ensure checklist creation is attempted exactly once per agent per round
+        const currentRound = discussionRoom.currentRound || discussionRoom.round || 1;
         
-        if (sector) {
-          const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
-          const checklistItem = await createChecklistFromLLM({
-            messageContent: content,
-            discussionId: discussionRoom.id,
-            agentId,
-            sector: {
-              id: sector.id,
-              symbol: sector.symbol || sector.sectorSymbol,
-              name: sector.name || sector.sectorName,
-              allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-            },
-            sectorData: {
-              currentPrice: sector.currentPrice,
-              baselinePrice: sector.currentPrice,
-              balance: sector.balance,
-            },
-            availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
-            currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
-          });
+        // Check if agent already has a checklist item for this round (prevent duplicates)
+        if (discussionRoom.hasChecklistItemForRound(agentId, currentRound)) {
+          console.log(`[POST /discussions/:id/message] Round ${currentRound}: Agent ${agentId} already has a checklist item for this round, skipping duplicate creation`);
+        } else if (discussionRoom.hasAttemptedChecklistCreation(agentId, currentRound)) {
+          console.log(`[POST /discussions/:id/message] Round ${currentRound}: Agent ${agentId} has already attempted checklist creation for this round, skipping`);
+        } else {
+          // Mark that we're attempting checklist creation for this agent in this round
+          discussionRoom.markChecklistCreationAttempt(agentId, currentRound);
+          console.log(`[POST /discussions/:id/message] Round ${currentRound}: Attempting checklist creation for agent ${agentId}`);
 
-          // If a checklist item was created, add it to the discussion's checklist
-          if (checklistItem) {
-            discussionRoom.checklist.push(checklistItem);
-            console.log(`[POST /discussions/:id/message] Created checklist item from agent ${agentId} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
+          try {
+            // Get sector information for checklist creation
+            const { getSectorById } = require('../utils/sectorStorage');
+            const sector = await getSectorById(discussionRoom.sectorId);
+            
+            if (sector) {
+              const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
+              // Create checklist item from structured proposal object
+              // createChecklistFromLLM will create a fallback item if parsing fails
+              const checklistItem = await createChecklistFromLLM({
+                proposal: proposal, // REQUIRED: Structured proposal object
+                discussionId: discussionRoom.id,
+                agentId,
+                agentName: agentName || undefined,
+                sector: {
+                  id: sector.id,
+                  symbol: sector.symbol || sector.sectorSymbol,
+                  name: sector.name || sector.sectorName,
+                  allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+                },
+                sectorData: {
+                  currentPrice: sector.currentPrice,
+                  baselinePrice: sector.currentPrice,
+                  balance: sector.balance,
+                },
+                availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
+                currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
+              });
+
+              // Checklist item is always created (even if fallback is used)
+              // Ensure round is set on the checklist item
+              checklistItem.round = currentRound;
+              
+              // Auto-evaluate the checklist item immediately after creation
+              let finalItem = checklistItem;
+              try {
+                const ManagerEngine = require('../core/ManagerEngine');
+                const managerEngine = new ManagerEngine();
+                
+                // Get sector state for evaluation
+                const sectorState = {
+                  id: sector.id,
+                  sectorId: sector.id,
+                  sectorName: sector.name || sector.sectorName,
+                  sectorType: sector.type || 'other',
+                  simulatedPrice: sector.currentPrice || sector.simulatedPrice,
+                  baselinePrice: sector.currentPrice || sector.baselinePrice,
+                  volatility: sector.volatility || 0,
+                  trendDescriptor: sector.trendDescriptor || 'neutral',
+                  balance: sector.balance,
+                  allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+                  riskScore: sector.riskScore
+                };
+                
+                // Auto-evaluate the item (this modifies the item in place)
+                finalItem = await managerEngine.autoEvaluateChecklistItem(checklistItem, sectorState);
+                console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created and auto-evaluated checklist item from agent ${agentId} message: ${finalItem.actionType} ${finalItem.symbol} (status: ${finalItem.status})`);
+              } catch (evalError) {
+                // If auto-evaluation fails, use original item as PENDING (fallback)
+                console.warn(`[POST /discussions/:id/message] Auto-evaluation failed for checklist item, adding as PENDING: ${evalError.message}`);
+                console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created checklist item from agent ${agentId} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
+              }
+              
+              // Add the final item (either evaluated or original) to checklist
+              discussionRoom.checklist.push(finalItem);
+              discussionRoom.updateLastChecklistItemTimestamp();
+              console.log(`[POST /discussions/:id/message] Checklist item added. Total items: ${discussionRoom.checklist.length}`);
+              console.log(`[POST /discussions/:id/message] Checklist item details:`, {
+                id: finalItem.id,
+                actionType: finalItem.actionType,
+                symbol: finalItem.symbol,
+                allocationPercent: finalItem.allocationPercent,
+                confidence: finalItem.confidence,
+                status: finalItem.status,
+                round: finalItem.round
+              });
+            }
+          } catch (error) {
+            // Log error but don't fail the request if checklist creation fails
+            // createChecklistFromLLM should always return a valid item (with fallback), so this is unexpected
+            console.error(`[POST /discussions/:id/message] Round ${currentRound}: Failed to create checklist item from message for agent ${agentId}: ${error.message}`);
+            console.error(`[POST /discussions/:id/message] Error stack:`, error.stack);
           }
         }
-      } catch (error) {
-        // Log error but don't fail the request if checklist creation fails
-        console.warn(`[POST /discussions/:id/message] Failed to create checklist item from message: ${error.message}`);
+      } else {
+        // No proposal object provided - cannot create checklist item
+        // This is expected for manually posted messages without structured proposals
+        console.log(`[POST /discussions/:id/message] No proposal object provided in request body. Skipping checklist item creation.`);
       }
 
       // Ensure status is in_progress if it was created
       if (discussionRoom.status === 'created') {
         discussionRoom.status = 'in_progress';
+      }
+
+      // After auto-evaluation, check if discussion can close
+      try {
+        const ManagerEngine = require('../core/ManagerEngine');
+        const managerEngine = new ManagerEngine();
+        
+        // Check if all items are terminal and discussion can close
+        if (managerEngine.canDiscussionClose(discussionRoom)) {
+          log(`[POST /discussions/:id/message] Discussion ${id} can close. All items are terminal.`);
+          discussionRoom.status = 'decided';
+          discussionRoom.updatedAt = new Date().toISOString();
+          
+          // Save final round snapshot
+          const currentRound = discussionRoom.currentRound || discussionRoom.round || 1;
+          if (!Array.isArray(discussionRoom.roundHistory)) {
+            discussionRoom.roundHistory = [];
+          }
+          
+          const finalRoundSnapshot = {
+            round: currentRound,
+            checklist: JSON.parse(JSON.stringify(discussionRoom.checklist || [])),
+            finalizedChecklist: JSON.parse(JSON.stringify(discussionRoom.finalizedChecklist || [])),
+            managerDecisions: JSON.parse(JSON.stringify(discussionRoom.managerDecisions || [])),
+            messages: JSON.parse(JSON.stringify(discussionRoom.messages || [])),
+            timestamp: new Date().toISOString()
+          };
+          
+          discussionRoom.roundHistory.push(finalRoundSnapshot);
+          discussionRoom.discussionClosedAt = new Date().toISOString();
+        }
+      } catch (closeError) {
+        log(`[POST /discussions/:id/message] Error checking if discussion can close: ${closeError.message}`);
+        // Continue with normal flow if check fails
       }
 
       await saveDiscussion(discussionRoom);

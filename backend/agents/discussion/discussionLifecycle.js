@@ -31,6 +31,26 @@ const { getSystemMode } = require('../../core/SystemMode');
  */
 async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCheck = false) {
   try {
+    // VALIDATION 1: Check if there are any non-closed discussions for this sector FIRST
+    // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
+    // This check should happen BEFORE any other processing
+    const { hasNonClosedDiscussions, loadDiscussions } = require('../../utils/discussionStorage');
+    const hasActive = await hasNonClosedDiscussions(sectorId);
+    
+    if (hasActive) {
+      // Find the active discussion for error message
+      const existingDiscussions = await loadDiscussions();
+      const openDiscussion = existingDiscussions.find(d => 
+        d.sectorId === sectorId && 
+        !['DECIDED', 'decided', 'CLOSED', 'closed', 'finalized', 'archived', 'accepted', 'completed'].includes((d.status || '').toUpperCase())
+      );
+      
+      if (openDiscussion) {
+        console.log(`[DiscussionLifecycle] Cannot start discussion - Non-closed discussion already exists for sector ${sectorId}: ${openDiscussion.id} (status: ${openDiscussion.status})`);
+        throw new Error(`Cannot start discussion: There is already a non-closed discussion for this sector`);
+      }
+    }
+
     // If agentIds not provided, get all agents in the sector
     if (!agentIds || agentIds.length === 0) {
       const agents = await loadAgents();
@@ -40,7 +60,8 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
       agentIds = sectorAgents.map(a => a.id);
     }
 
-    // STRICT THRESHOLD CHECK (unless bypassed for manual API calls)
+    // VALIDATION 2: STRICT THRESHOLD CHECK (unless bypassed for manual API calls)
+    // This check ensures all agents have confidence > 65 before creating a discussion
     if (!skipThresholdCheck) {
       // GUARD: Reload agents from storage to prevent stale confidence values
       // This ensures we read confidence AFTER it was updated with monotonic rule
@@ -59,25 +80,6 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
           console.log(`[DiscussionLifecycle] Cannot start discussion - Not all agents meet threshold (> 65). Agents: ${agentDetails}`);
           throw new Error(`Cannot start discussion: Not all agents have confidence > 65. Current confidences: ${agentDetails}`);
         }
-      }
-    }
-
-    // Check if there are any non-closed discussions for this sector
-    // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
-    const { hasNonClosedDiscussions } = require('../../utils/discussionStorage');
-    const hasActive = await hasNonClosedDiscussions(sectorId);
-    
-    if (hasActive) {
-      // Find the active discussion for error message
-      const existingDiscussions = await loadDiscussions();
-      const openDiscussion = existingDiscussions.find(d => 
-        d.sectorId === sectorId && 
-        !['DECIDED', 'decided', 'CLOSED', 'closed', 'finalized', 'archived', 'accepted', 'completed'].includes((d.status || '').toUpperCase())
-      );
-      
-      if (openDiscussion) {
-        console.log(`[DiscussionLifecycle] Non-closed discussion already exists for sector ${sectorId}: ${openDiscussion.id} (status: ${openDiscussion.status})`);
-        throw new Error(`Cannot start discussion: There is already a non-closed discussion for this sector`);
       }
     }
 
@@ -111,9 +113,42 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
       console.log(`[DiscussionLifecycle] Starting rounds for discussion ${discussionRoom.id}`);
       await discussionEngine.startRounds(discussionRoom.id, 3);
       console.log(`[DiscussionLifecycle] Completed rounds for discussion ${discussionRoom.id}`);
+      
+      // Verify that messages were actually created
+      const { findDiscussionById } = require('../../utils/discussionStorage');
+      const updatedDiscussionData = await findDiscussionById(discussionRoom.id);
+      if (updatedDiscussionData) {
+        const messages = Array.isArray(updatedDiscussionData.messages) ? updatedDiscussionData.messages : [];
+        if (messages.length === 0) {
+          console.error(`[DiscussionLifecycle] WARNING: Discussion ${discussionRoom.id} was created but has no messages after rounds completed. Marking as CLOSED.`);
+          // Mark discussion as CLOSED to prevent empty discussions
+          const failedDiscussion = DiscussionRoom.fromData(updatedDiscussionData);
+          failedDiscussion.status = 'CLOSED';
+          failedDiscussion.updatedAt = new Date().toISOString();
+          await saveDiscussion(failedDiscussion);
+          throw new Error(`Discussion created but no messages were generated. Discussion marked as CLOSED.`);
+        }
+      }
     } catch (error) {
       console.error(`[DiscussionLifecycle] Error starting rounds for discussion ${discussionRoom.id}:`, error);
-      // Don't throw - discussion was created successfully, just rounds failed
+      
+      // If rounds fail, mark the discussion as CLOSED to prevent empty discussions
+      try {
+        const { findDiscussionById } = require('../../utils/discussionStorage');
+        const failedDiscussionData = await findDiscussionById(discussionRoom.id);
+        if (failedDiscussionData) {
+          const failedDiscussion = DiscussionRoom.fromData(failedDiscussionData);
+          failedDiscussion.status = 'CLOSED';
+          failedDiscussion.updatedAt = new Date().toISOString();
+          await saveDiscussion(failedDiscussion);
+          console.error(`[DiscussionLifecycle] Marked discussion ${discussionRoom.id} as CLOSED due to round failure`);
+        }
+      } catch (saveError) {
+        console.error(`[DiscussionLifecycle] Failed to mark discussion as CLOSED:`, saveError);
+      }
+      
+      // Re-throw the error so the caller knows the discussion creation failed
+      throw new Error(`Failed to start rounds for discussion: ${error.message}`);
     }
 
     return discussionRoom;

@@ -26,6 +26,7 @@ class ManagerEngine {
     this.confidenceThreshold = 65; // Default threshold for discussion readiness
     this.approvalConfidenceThreshold = 65; // Threshold for auto-approving checklist items
     this.APPROVAL_THRESHOLD = 70; // Minimum score (0-100) for checklist item approval
+    this.MAX_ROUNDS = 2; // Maximum number of discussion rounds before force resolution
     // Track recent discussion creation times per sector to prevent discussion storms
     // Format: sectorId -> timestamp of last discussion creation
     this.lastDiscussionCreation = new Map();
@@ -1345,7 +1346,53 @@ class ManagerEngine {
       return discussionRoom;
     }
 
-    // Advance to next round only if discussion cannot close yet
+    // Check if we've reached max rounds - if so, force resolve all pending items
+    const currentRound = discussionRoom.currentRound || discussionRoom.round || 1;
+    if (currentRound >= this.MAX_ROUNDS) {
+      console.log(`[ManagerEngine] Discussion ${discussionId} reached max rounds (${this.MAX_ROUNDS}). Force resolving all pending items...`);
+      await this.forceResolvePendingItems(discussionId);
+      
+      // Reload discussion after force resolution
+      const reloadedData = await findDiscussionById(discussionId);
+      if (reloadedData) {
+        discussionRoom = DiscussionRoom.fromData(reloadedData);
+        
+        // Check if discussion can now close
+        if (this.canDiscussionClose(discussionRoom)) {
+          console.log(`[ManagerEngine] Discussion ${discussionId} can now close after force resolution. Auto-closing...`);
+          discussionRoom.status = 'decided';
+          discussionRoom.updatedAt = new Date().toISOString();
+          
+          // Save final round snapshot
+          const roundCount = discussionRoom.currentRound || discussionRoom.round || 1;
+          if (!Array.isArray(discussionRoom.roundHistory)) {
+            discussionRoom.roundHistory = [];
+          }
+          
+          const finalRoundSnapshot = {
+            round: roundCount,
+            checklist: JSON.parse(JSON.stringify(discussionRoom.checklist || [])),
+            finalizedChecklist: JSON.parse(JSON.stringify(discussionRoom.finalizedChecklist || [])),
+            managerDecisions: JSON.parse(JSON.stringify(discussionRoom.managerDecisions || [])),
+            messages: JSON.parse(JSON.stringify(discussionRoom.messages || [])),
+            timestamp: new Date().toISOString()
+          };
+          
+          discussionRoom.roundHistory.push(finalRoundSnapshot);
+          discussionRoom.discussionClosedAt = new Date().toISOString();
+          await saveDiscussion(discussionRoom);
+          
+          console.log(`[ManagerEngine] Discussion ${discussionId} auto-closed after max rounds (${this.MAX_ROUNDS}).`);
+          return discussionRoom;
+        }
+      }
+      
+      // If discussion still can't close, don't advance to next round
+      console.warn(`[ManagerEngine] Discussion ${discussionId} reached max rounds but cannot close. Items may need manual resolution.`);
+      return discussionRoom;
+    }
+
+    // Advance to next round only if discussion cannot close yet and hasn't reached max rounds
     // (increments currentRound, saves snapshot to roundHistory)
     const advancedDiscussion = await discussionEngine.advanceDiscussionRound(discussionId);
 
@@ -2353,8 +2400,8 @@ class ManagerEngine {
       return false;
     }
 
-    // Ensure all items are either APPROVED or ACCEPT_REJECTION
-    const validFinalStatuses = ['APPROVED', 'approved', 'ACCEPT_REJECTION', 'accept_rejection'];
+    // Ensure all items are in terminal states: APPROVED, REJECTED, or ACCEPT_REJECTION
+    const validFinalStatuses = ['APPROVED', 'approved', 'REJECTED', 'rejected', 'ACCEPT_REJECTION', 'accept_rejection'];
     const invalidItems = allItems.filter(item => {
       const status = (item.status || '').toUpperCase();
       return !validFinalStatuses.includes(status);
@@ -2515,11 +2562,17 @@ class ManagerEngine {
         ? 'no_more_proposals'
         : 'all_items_resolved';
 
-      console.log(`[ManagerEngine] Discussion ${discussionId} closed successfully after ${roundCount} rounds. Status set to 'CLOSED'.`, {
+      // Set close reason for logging and tracking
+      discussionRoom.closeReason = closureReason;
+      await saveDiscussion(discussionRoom);
+
+      console.log(`[ManagerEngine] Discussion ${discussionId} closed successfully after ${roundCount} rounds. Status set to 'CLOSED'. Close reason: ${closureReason}`, {
         event: 'DISCUSSION_CLOSED',
         sectorId: discussionRoom.sectorId,
         discussionId,
-        reason: closureReason
+        reason: closureReason,
+        roundCount: roundCount,
+        checklistItemsCount: allItems.length
       });
       
       return discussionRoom;
@@ -2597,6 +2650,90 @@ class ManagerEngine {
     updatedSector.checklistItems = checklistItems;
 
     return updatedSector;
+  }
+
+  /**
+   * Auto-evaluate a checklist item immediately after creation
+   * Uses manager scoring logic to determine APPROVED or REJECTED status
+   * @param {Object} item - Checklist item to evaluate
+   * @param {Object} sectorState - Sector state for evaluation context
+   * @returns {Promise<Object>} Updated checklist item with status and managerReason
+   */
+  async autoEvaluateChecklistItem(item, sectorState) {
+    try {
+      // Get manager for this sector
+      const manager = await getManagerBySectorId(sectorState.id || sectorState.sectorId);
+      if (!manager) {
+        console.warn(`[ManagerEngine] No manager found for sector ${sectorState.id || sectorState.sectorId}. Skipping auto-evaluation.`);
+        return item;
+      }
+
+      // Normalize item format for evaluation (checklist items use actionType, but evaluateChecklistItem expects action)
+      const itemForEvaluation = {
+        ...item,
+        action: item.action || item.actionType, // Support both action and actionType
+        reasoning: item.reasoning || item.rationale || item.reason || '',
+        reason: item.reason || item.reasoning || item.rationale || ''
+      };
+
+      // Evaluate using existing manager scoring logic
+      const evaluation = await this.evaluateChecklistItem(manager, itemForEvaluation, sectorState);
+      
+      // Update item status based on evaluation
+      item.status = evaluation.status; // APPROVED or REJECTED
+      item.managerReason = evaluation.managerReason;
+      item.evaluatedAt = new Date().toISOString();
+      
+      console.log(`[ManagerEngine] Auto-evaluated checklist item ${item.id}: ${evaluation.status} (score: ${evaluation.score?.toFixed(1) || 'N/A'})`);
+      
+      return item;
+    } catch (error) {
+      console.error(`[ManagerEngine] Error auto-evaluating checklist item ${item.id}:`, error.message);
+      // On error, mark as rejected with error reason
+      item.status = 'REJECTED';
+      item.managerReason = `Auto-evaluation failed: ${error.message}`;
+      item.evaluatedAt = new Date().toISOString();
+      return item;
+    }
+  }
+
+  /**
+   * Force resolve all pending checklist items by rejecting them with "Timed out" reason
+   * Called when discussion reaches max rounds
+   * @param {string} discussionId - Discussion ID
+   * @returns {Promise<Object>} Updated discussion
+   */
+  async forceResolvePendingItems(discussionId) {
+    const discussionData = await findDiscussionById(discussionId);
+    if (!discussionData) {
+      throw new Error(`Discussion ${discussionId} not found`);
+    }
+
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+    const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
+    
+    const blockingStatuses = ['PENDING', 'pending', 'REVISE_REQUIRED', 'revise_required', 'RESUBMITTED', 'resubmitted'];
+    let resolvedCount = 0;
+
+    for (const item of allItems) {
+      const status = (item.status || '').toUpperCase();
+      if (blockingStatuses.includes(status)) {
+        item.status = 'REJECTED';
+        item.managerReason = `Timed out: Discussion reached max rounds (${this.MAX_ROUNDS})`;
+        item.evaluatedAt = new Date().toISOString();
+        resolvedCount++;
+        
+        console.log(`[ManagerEngine] Force resolved pending item ${item.id} to REJECTED (timed out)`);
+      }
+    }
+
+    if (resolvedCount > 0) {
+      discussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(discussionRoom);
+      console.log(`[ManagerEngine] Force resolved ${resolvedCount} pending items in discussion ${discussionId}`);
+    }
+
+    return discussionRoom;
   }
 
   /**

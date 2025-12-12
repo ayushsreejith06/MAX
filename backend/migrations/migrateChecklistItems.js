@@ -59,19 +59,22 @@ async function migrateChecklistItems() {
         }
         
         // Re-parse agent messages and regenerate checklist items
+        // Only process messages that have structured proposal objects
         const newChecklistItems = [];
         
         for (const message of messages) {
-          // Only process messages from agents (skip system messages)
-          if (!message.agentId || !message.content) {
+          // Only process messages from agents with proposal objects
+          if (!message.agentId || !message.proposal || typeof message.proposal !== 'object') {
             continue;
           }
           
           try {
+            // Create checklist item from structured proposal object
             const checklistItem = await createChecklistFromLLM({
-              messageContent: message.content,
+              proposal: message.proposal, // REQUIRED: Structured proposal object
               discussionId: discussion.id,
               agentId: message.agentId,
+              agentName: message.agentName,
               sector: {
                 id: sector.id,
                 symbol: sector.symbol || sector.sectorSymbol,
@@ -87,12 +90,11 @@ async function migrateChecklistItems() {
               currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
             });
             
-            if (checklistItem) {
-              newChecklistItems.push(checklistItem);
-            }
+            // Checklist item is always created (even if fallback is used)
+            newChecklistItems.push(checklistItem);
           } catch (error) {
             // Log error but continue with other messages
-            console.warn(`[Migration] Failed to parse message ${message.id} from discussion ${discussion.id}:`, error.message);
+            console.warn(`[Migration] Failed to create checklist item from message ${message.id} in discussion ${discussion.id}:`, error.message);
           }
         }
         

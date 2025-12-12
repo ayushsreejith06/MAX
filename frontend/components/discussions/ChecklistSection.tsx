@@ -97,7 +97,17 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   };
 
   const renderChecklistItem = (item: ChecklistItemResponse) => {
-    const rationale = item.rationale || item.reasoning || item.reason || item.description || 'No rationale';
+    // Extract rationale from structured data only - handle both string and array
+    let rationaleText = 'No rationale provided';
+    if (item.rationale) {
+      if (Array.isArray(item.rationale)) {
+        rationaleText = item.rationale.length > 0 
+          ? item.rationale.join(' ') 
+          : 'No rationale provided';
+      } else if (typeof item.rationale === 'string' && item.rationale.trim()) {
+        rationaleText = item.rationale;
+      }
+    }
     
     return (
       <div key={item.id} className="mb-3 p-3 bg-pure-black/60 rounded-lg border border-ink-500">
@@ -156,10 +166,10 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
               )}
             </div>
             
-            {/* Rationale Text */}
-            <p className="text-floral-white text-sm font-mono mb-2">
-              {rationale}
-            </p>
+            {/* Rationale Text - from structured data only */}
+            <div className="text-floral-white text-sm font-mono mb-2">
+              {rationaleText}
+            </div>
           </div>
         </div>
         
@@ -202,7 +212,7 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
             </span>
             {checklistData && hasAnyItems && (
               <span className="text-xs text-floral-white/50 font-mono">
-                ({acceptedItems.length} accepted, {rejectedItems.length} rejected, {pendingItems.length} pending, {finalizedItems.length} finalized)
+                ({acceptedItems.length} accepted, {rejectedItems.length} rejected, {pendingItems.length} pending)
               </span>
             )}
           </div>

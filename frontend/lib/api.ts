@@ -1,5 +1,5 @@
 import { Agent, ApiPayload, Discussion, Sector, CandleData, RejectedItem } from './types';
-import { getApiBaseUrl, getBackendBaseUrl } from './desktopEnv';
+import { getApiBaseUrl, getBackendBaseUrl, isDesktopApp } from './desktopEnv';
 import { rateLimitedFetch } from './rateLimit';
 
 /**
@@ -70,11 +70,13 @@ async function request<T>(
   try {
     // Get API base URL dynamically (handles desktop vs web mode)
     const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
+    const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
     const fullUrl = `${apiBase}${path}`;
     
     // Debug logging (always log to help debug issues)
     if (typeof window !== 'undefined') {
       console.log(`[API Request] ${init?.method || 'GET'} ${fullUrl}`);
+      console.log(`[API Request] Backend base URL: ${backendUrl}`);
     }
     
     const response = await rateLimitedFetch(
@@ -84,6 +86,8 @@ async function request<T>(
         cache: 'no-store',
         credentials: 'omit',
         ...init,
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(10000), // 10 second timeout
       },
       { bypass: bypassRateLimit }
     );
@@ -120,23 +124,50 @@ async function request<T>(
     return unwrapPayload<T>(payload);
   } catch (error) {
     if (error instanceof Error) {
-      // Check if it's a network error
-      if (error.message.includes('fetch') || error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
+      // Check if it's a network error or timeout
+      const isNetworkError = error.message.includes('fetch') || 
+                            error.message.includes('Failed to fetch') || 
+                            error.message.includes('NetworkError') || 
+                            error.message.includes('timeout') ||
+                            error.message.includes('aborted') ||
+                            (error.name === 'TypeError' && error.message.includes('fetch'));
+      
+      if (isNetworkError) {
         // Always use dynamic detection for error messages
         const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
-        const backendUrl = getBackendBaseUrl();
+        const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
         const fullUrl = `${apiBase}${path}`;
         
-        // Log more details in development
-        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-          console.error('[API Error]', {
-            error: error.message,
-            name: error.name,
-            attemptedUrl: fullUrl,
-            backendUrl,
-            envApiUrl: process.env.NEXT_PUBLIC_API_URL,
-            envBackendUrl: process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL,
-          });
+        // Log more details
+        console.error('[API Connection Error]', {
+          error: error.message,
+          name: error.name,
+          attemptedUrl: fullUrl,
+          backendUrl,
+          apiBase,
+          envApiUrl: process.env.NEXT_PUBLIC_API_URL,
+          envBackendUrl: process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL,
+          isDesktop: typeof window !== 'undefined' ? isDesktopApp() : false,
+        });
+        
+        // Try to check if backend health endpoint is reachable
+        if (typeof window !== 'undefined') {
+          try {
+            const healthUrl = `${backendUrl}/health`;
+            console.log(`[API] Checking backend health at: ${healthUrl}`);
+            const healthCheck = await fetch(healthUrl, { 
+              method: 'GET',
+              cache: 'no-store',
+              signal: AbortSignal.timeout(2000) // 2 second timeout for health check
+            });
+            if (healthCheck.ok) {
+              console.log('[API] Backend health check passed, but API request failed. This might be a CORS or routing issue.');
+            } else {
+              console.error(`[API] Backend health check failed with status: ${healthCheck.status}`);
+            }
+          } catch (healthError) {
+            console.error('[API] Backend health check also failed:', healthError);
+          }
         }
         
         throw new Error(`Cannot connect to backend server. Please ensure the backend is running on ${backendUrl}. Attempted URL: ${fullUrl}`);

@@ -153,6 +153,18 @@ const start = async () => {
       // Don't throw - allow server to start even if orchestrator fails
     }
 
+    // Bootstrap DiscussionWatchdog (monitors and force-resolves stalled discussions)
+    try {
+      const DiscussionWatchdog = require('./core/DiscussionWatchdog');
+      DiscussionWatchdog.start();
+      fastify.log.info('DiscussionWatchdog initialized and started (monitoring IN_PROGRESS discussions)');
+      // Store reference for graceful shutdown if needed
+      fastify.discussionWatchdog = DiscussionWatchdog;
+    } catch (err) {
+      fastify.log.error('Error initializing DiscussionWatchdog:', err);
+      // Don't throw - allow server to start even if watchdog fails
+    }
+
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`🚀 MAX Backend Server listening on ${HOST}:${PORT}`);
     console.log(`📍 Environment: ${MAX_ENV}`);

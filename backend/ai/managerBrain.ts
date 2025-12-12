@@ -8,6 +8,7 @@ import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmActi
 import { buildDecisionPrompt } from './prompts/buildDecisionPrompt';
 import { parseLLMTradeAction } from './parseLLMTradeAction';
 import { normalizeLLMResponse } from './normalizeLLMResponse';
+import { normalizeLLMDecision } from './normalizeLLMDecision';
 
 type EvaluateChecklistItemParams = {
   managerProfile: {
@@ -97,37 +98,77 @@ export async function evaluateChecklistItem(
 
   try {
     const { systemPrompt, userPrompt, allowedSymbols } = buildPrompts(params);
-    const raw = await callLLM({
-      systemPrompt,
-      userPrompt,
-      jsonMode: true,
-    });
+    
+    let raw: string;
+    try {
+      raw = await callLLM({
+        systemPrompt,
+        userPrompt,
+        jsonMode: true,
+      });
+    } catch (llmError) {
+      // LLM call failed - return fallback decision
+      console.error('[managerBrain] LLM call failed:', llmError);
+      return createFallbackDecision(params);
+    }
 
     const priceContext = params.sectorState.simulatedPrice ?? params.sectorState.baselinePrice;
-    const parsed = parseLLMTradeAction(raw, {
-      fallbackSector: params.sectorState.sectorName,
-      fallbackSymbol: allowedSymbols[0],
-      remainingCapital: params.sectorState.balance,
-      currentPrice: priceContext,
-    });
-    const llmTrade = validateLLMTradeAction(parsed, {
-      allowedSymbols,
-      remainingCapital: params.sectorState.balance,
-      fallbackSector: params.sectorState.sectorName,
-      fallbackSymbol: allowedSymbols[0],
-      currentPrice: priceContext,
-    });
+    
+    let parsed;
+    try {
+      parsed = parseLLMTradeAction(raw, {
+        fallbackSector: params.sectorState.sectorName,
+        fallbackSymbol: allowedSymbols[0],
+        remainingCapital: params.sectorState.balance,
+        currentPrice: priceContext,
+      });
+    } catch (parseError) {
+      // Parse failed - return fallback decision
+      console.error('[managerBrain] Failed to parse LLM trade action:', parseError);
+      return createFallbackDecision(params);
+    }
 
+    let llmTrade;
+    try {
+      llmTrade = validateLLMTradeAction(parsed, {
+        allowedSymbols,
+        remainingCapital: params.sectorState.balance,
+        fallbackSector: params.sectorState.sectorName,
+        fallbackSymbol: allowedSymbols[0],
+        currentPrice: priceContext,
+      });
+    } catch (validationError) {
+      // Validation failed - return fallback decision
+      console.error('[managerBrain] Failed to validate LLM trade action:', validationError);
+      return createFallbackDecision(params);
+    }
+
+    // Check balance constraint
     if (params.sectorState.balance !== undefined && llmTrade.amount > params.sectorState.balance) {
-      throw new Error('LLMTradeAction.amount exceeds sector balance.');
+      console.warn('[managerBrain] LLMTradeAction.amount exceeds sector balance, clamping amount');
+      llmTrade.amount = params.sectorState.balance;
     }
 
     // Normalize LLM response before checklist creation
-    const normalized = normalizeLLMResponse(llmTrade, {
-      sectorRiskProfile: params.sectorState.riskScore,
-      lastConfidence: params.managerConfidence,
-      allowedSymbols,
-    });
+    let normalized;
+    try {
+      normalized = normalizeLLMResponse(llmTrade, {
+        sectorRiskProfile: params.sectorState.riskScore,
+        lastConfidence: params.managerConfidence,
+        allowedSymbols,
+      });
+    } catch (normalizeError) {
+      // Normalization failed - use normalizeLLMDecision as fallback
+      console.error('[managerBrain] Failed to normalize LLM response:', normalizeError);
+      const fallbackNormalized = normalizeLLMDecision(llmTrade, 'LLM output could not be normalized; defaulting to conservative HOLD position.');
+      normalized = {
+        actionType: fallbackNormalized.action,
+        symbol: llmTrade.symbol || allowedSymbols[0] || 'UNKNOWN',
+        allocationPercent: fallbackNormalized.allocationPercent,
+        confidence: fallbackNormalized.confidence,
+        reasoning: fallbackNormalized.reasoning,
+      };
+    }
 
     const trade = {
       action: normalized.actionType as WorkerAgentProposal['action'],
@@ -138,9 +179,22 @@ export async function evaluateChecklistItem(
 
     return mapTradeToDecision(trade, params.sectorState);
   } catch (error) {
-    console.error('[managerBrain] Invalid JSON or LLM error:', error);
-    // Bubble up to allow the discussion workflow to handle invalid output.
-    throw error;
+    // Any other error - return fallback decision (non-blocking behavior)
+    console.error('[managerBrain] Unexpected error:', error);
+    return createFallbackDecision(params);
   }
+}
+
+/**
+ * Creates a fallback manager decision when LLM parsing fails.
+ * Returns a conservative HOLD decision to ensure the discussion lifecycle continues.
+ */
+function createFallbackDecision(params: EvaluateChecklistItemParams): ManagerChecklistDecision {
+  return validateManagerChecklistDecision({
+    approve: false, // Don't approve on parse failure
+    editedAllocationPercent: 0,
+    confidence: 1, // Minimum confidence
+    reasoning: 'LLM output could not be parsed; defaulting to conservative HOLD position.',
+  });
 }
 

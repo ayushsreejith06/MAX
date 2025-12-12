@@ -30,21 +30,18 @@ const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils
  * @param {number} llmConfidenceOutput - LLM-provided confidence value (0-100)
  * @returns {number} Updated confidence (monotonically increasing, capped at 100)
  */
+/**
+ * Update confidence using LLM output directly - no automatic increases.
+ * Confidence is derived from LLM and can increase or decrease based on LLM output.
+ * 
+ * @param {number} previousConfidence - Previous confidence value (not used, kept for compatibility)
+ * @param {number} llmConfidenceOutput - LLM-provided confidence value (1-100)
+ * @returns {number} Updated confidence value (1-100)
+ */
 function updateConfidencePhase4(previousConfidence, llmConfidenceOutput) {
-  const previous = typeof previousConfidence === 'number' ? previousConfidence : 0;
-  const llmConfidence = clampConfidence(typeof llmConfidenceOutput === 'number' ? llmConfidenceOutput : previous);
-  
-  // Phase 4: Confidence is monotonically increasing.
-  // Phase 5: Confidence will be data-driven and bidirectional.
-  
-  // Phase 4 confidence growth assist
-  // If LLM confidence <= previous_confidence, ensure minimum growth of +2
-  if (llmConfidence <= previous) {
-    return Math.min(previous + 2, 100);
-  } else {
-    // LLM confidence is higher, use it (capped at 100)
-    return Math.min(100, llmConfidence);
-  }
+  // Use LLM confidence directly - no automatic increases or monotonic behavior
+  const llmConfidence = clampConfidence(typeof llmConfidenceOutput === 'number' ? llmConfidenceOutput : 1);
+  return llmConfidence;
 }
 
 /**
@@ -328,9 +325,17 @@ async function updateAgentsConfidenceAfterConsensus(agentIds = [], consensusCont
  * @param {number} extractedConfidence - Extracted confidence value (from llmAction or stored)
  * @returns {number} Stabilized confidence (monotonically increasing, capped at 100)
  */
+/**
+ * Stabilize confidence - now just uses LLM-derived confidence directly.
+ * No automatic increases or monotonic behavior.
+ * 
+ * @param {number} previousConfidence - Previous confidence (not used, kept for compatibility)
+ * @param {number} extractedConfidence - LLM-derived confidence value (1-100)
+ * @returns {number} Updated confidence value (1-100)
+ */
 function stabilizeConfidence(previousConfidence, extractedConfidence) {
-  // Use updateConfidencePhase4 which implements the growth rule
-  return updateConfidencePhase4(previousConfidence, extractedConfidence);
+  // Use LLM-derived confidence directly
+  return clampConfidence(typeof extractedConfidence === 'number' ? extractedConfidence : 1);
 }
 
 module.exports = {
