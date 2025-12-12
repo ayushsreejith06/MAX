@@ -14758,5 +14758,35 @@
         "reason": "Insufficient balance"
       }
     ]
+  },
+  {
+    "id": "0c93e8d3-73f5-4094-9c8e-7f23b5056136",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765533985945,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
+  },
+  {
+    "id": "f97cbf88-c516-4090-bb65-a05d51d1fb08",
+    "sectorId": "a2f2b269-5475-4710-8e6d-4ea8189323e8",
+    "checklistId": "49050ff1-2b63-4a68-9eb5-648eee534997",
+    "timestamp": 1765533987955,
+    "results": [
+      {
+        "itemId": "checklist-49050ff1-2b63-4a68-9eb5-648eee534997-0",
+        "action": "buy",
+        "amount": 16,
+        "success": false,
+        "reason": "Insufficient balance"
+      }
+    ]
   }
 ]
