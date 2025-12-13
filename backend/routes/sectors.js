@@ -190,17 +190,19 @@ module.exports = async (fastify) => {
       const currentBalance = typeof sector.balance === 'number' ? sector.balance : 0;
       const currentPrice = typeof sector.currentPrice === 'number' ? sector.currentPrice : 0;
       
+      // Withdrawals are based on current valuation (currentPrice), not balance
+      // User is selling their position at the current market price
       // Determine withdrawal amount
       let withdrawAmount;
       if (amount === undefined || amount === null || amount === 'all') {
-        // Withdraw all available balance
-        withdrawAmount = currentBalance;
+        // Withdraw all available valuation (currentPrice)
+        withdrawAmount = currentPrice;
       } else if (typeof amount === 'number' && amount > 0 && isFinite(amount)) {
-        // Validate partial withdrawal
-        if (amount > currentBalance) {
+        // Validate partial withdrawal against current valuation
+        if (amount > currentPrice) {
           return reply.status(400).send({
             success: false,
-            error: `Insufficient balance. Available: $${currentBalance.toFixed(2)}, Requested: $${amount.toFixed(2)}`
+            error: `Insufficient valuation. Available: $${currentPrice.toFixed(2)}, Requested: $${amount.toFixed(2)}`
           });
         }
         withdrawAmount = amount;
@@ -212,20 +214,32 @@ module.exports = async (fastify) => {
       }
 
       // Check if there's anything to withdraw
-      if (withdrawAmount <= 0) {
+      if (withdrawAmount <= 0 || currentPrice <= 0) {
         return reply.status(400).send({
           success: false,
-          error: 'Sector has no balance to withdraw'
+          error: 'Sector has no valuation to withdraw'
         });
       }
 
-      // Calculate new balance (withdrawals only affect balance, not price)
-      // Price is only updated by executed actions, not by deposits/withdrawals
+      // Calculate new price (withdrawal reduces the current valuation)
+      // This simulates selling the position at current market price
+      const newPrice = Math.max(0.01, currentPrice - withdrawAmount);
+      const priceChange = newPrice - currentPrice;
+      const priceChangePercent = currentPrice > 0 ? (priceChange / currentPrice) * 100 : 0;
+
+      // Also update balance proportionally (reduce balance by withdrawal amount)
+      // This maintains consistency between price and balance
       const newBalance = Math.max(0, currentBalance - withdrawAmount);
 
-      // Update sector with new balance only (price remains unchanged)
+      // Update sector with new price and balance
       const updatedSector = await updateSector(id, { 
-        balance: newBalance 
+        balance: newBalance,
+        currentPrice: newPrice,
+        simulatedPrice: newPrice,
+        lastSimulatedPrice: newPrice,
+        change: priceChange,
+        changePercent: priceChangePercent,
+        lastPriceUpdate: Date.now()
       });
       if (!updatedSector) {
         return reply.status(500).send({

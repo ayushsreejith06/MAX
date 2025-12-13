@@ -344,7 +344,17 @@ export default function Dashboard() {
   // Aggregate data from ALL sectors - sums volumes, agents, and calculates averages across all sectors
   const aggregatedOverview = useMemo(() => {
     if (!adjustedSectors.length) {
-      return { marketIndex: 0, marketIndexChange: 0, totalVolume: 0, totalAgents: 0, activeAgents: 0 };
+      return { 
+        marketIndex: 0, 
+        marketIndexChange: 0, 
+        totalVolume: 0, 
+        totalAgents: 0, 
+        activeAgents: 0,
+        totalInvestment: 0,
+        totalValuation: 0,
+        totalPnL: 0,
+        totalPnLPercent: 0
+      };
     }
 
     // Sum all volumes across all sectors
@@ -358,16 +368,52 @@ export default function Dashboard() {
     // Calculate average change percent across all sectors
     const averageChangePercent = adjustedSectors.reduce((sum, sector) => sum + sector.changePercent, 0) / adjustedSectors.length;
 
+    // Calculate total investment and valuation across all active sectors
+    const totalInvestment = adjustedSectors.reduce((sum, sector) => {
+      const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+      const position = typeof sector.position === 'number' 
+        ? sector.position 
+        : (typeof sector.holdings?.position === 'number' 
+          ? sector.holdings.position 
+          : (typeof sector.performance?.investedCapital === 'number' 
+            ? sector.performance.investedCapital 
+            : 0));
+      // Total investment = balance + position (what user has put in)
+      return sum + balance + position;
+    }, 0);
+
+    const totalValuation = adjustedSectors.reduce((sum, sector) => {
+      const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+      const position = typeof sector.position === 'number' 
+        ? sector.position 
+        : (typeof sector.holdings?.position === 'number' 
+          ? sector.holdings.position 
+          : 0);
+      // Current valuation = balance + position (position value changes with price)
+      // For more accurate valuation, we'd need position * currentPrice, but position is already in dollar terms
+      const totalValue = typeof sector.performance?.totalValue === 'number'
+        ? sector.performance.totalValue
+        : (balance + position);
+      return sum + totalValue;
+    }, 0);
+
+    const totalPnL = totalValuation - totalInvestment;
+    const totalPnLPercent = totalInvestment > 0 ? (totalPnL / totalInvestment) * 100 : 0;
+
     return {
       marketIndex: Number(totalMarketValue.toFixed(2)),
       marketIndexChange: Number(averageChangePercent.toFixed(2)),
       totalVolume,
       totalAgents,
       activeAgents,
+      totalInvestment: Number(totalInvestment.toFixed(2)),
+      totalValuation: Number(totalValuation.toFixed(2)),
+      totalPnL: Number(totalPnL.toFixed(2)),
+      totalPnLPercent: Number(totalPnLPercent.toFixed(2)),
     };
   }, [adjustedSectors]);
 
-  const { marketIndex, marketIndexChange, totalVolume, totalAgents, activeAgents } = aggregatedOverview;
+  const { marketIndex, marketIndexChange, totalVolume, totalAgents, activeAgents, totalInvestment, totalValuation, totalPnL, totalPnLPercent } = aggregatedOverview;
   const utilizationPercent = totalAgents > 0 ? ((activeAgents / totalAgents) * 100).toFixed(1) : '0';
 
   const selectedSector = useMemo(() => {
@@ -795,13 +841,32 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* TOTAL INVESTMENT Card */}
+          <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
+            <span className="text-xs uppercase text-floral-white/70 tracking-wide block mb-2 font-mono">TOTAL INVESTMENT</span>
+            <div className="text-3xl font-bold text-floral-white mb-1 font-mono">${totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-xs text-floral-white/50 font-mono">Across all sectors</div>
+          </div>
+
+          {/* CURRENT VALUATION Card */}
+          <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
+            <span className="text-xs uppercase text-floral-white/70 tracking-wide block mb-2 font-mono">CURRENT VALUATION</span>
+            <div className="text-3xl font-bold text-floral-white mb-1 font-mono">${totalValuation.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className={`text-xs font-mono ${totalPnL >= 0 ? 'text-sage-green' : 'text-error-red'}`}>
+              {totalPnL >= 0 ? '+' : ''}${totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%)
+            </div>
+          </div>
+
           {/* TOTAL VOLUME Card */}
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
             <span className="text-xs uppercase text-floral-white/70 tracking-wide block mb-2 font-mono">TOTAL VOLUME</span>
             <div className="text-3xl font-bold text-floral-white mb-1 font-mono">{formatVolume(cardSummaries.volumeValue)}</div>
             <div className="text-xs text-floral-white/50 font-mono">{cardSummaries.volumeSubtitle}</div>
           </div>
+        </div>
 
+        {/* Secondary Metrics Row */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
           {/* TOTAL AGENTS Card */}
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
             <span className="text-xs uppercase text-floral-white/70 tracking-wide block mb-2 font-mono">TOTAL AGENTS</span>

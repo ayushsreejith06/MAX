@@ -1604,8 +1604,16 @@ _clampConfidence(value) {
           `Volatility: ${(volatility * 100).toFixed(2)}%`,
           '',
           'You are analyzing market data and must propose a concrete trading action.',
+          'Decision guidelines:',
+          `- If trend is positive (>2%) and volatility is reasonable (<30%), strongly consider BUY with higher confidence (60-85%)`,
+          `- If trend is negative (<-2%) and volatility is reasonable, consider SELL with appropriate confidence (50-80%)`,
+          `- Only choose HOLD if market signals are truly neutral or uncertain (confidence should be low: 5-30%)`,
+          `- Your confidence MUST reflect the strength of market signals: strong trends = higher confidence, weak signals = lower confidence`,
+          `- For BUY/SELL actions, allocation_percent should be 10-30% based on confidence and risk`,
+          `- For HOLD actions, allocation_percent should be 0%`,
           'Your response should be a clear, concise analysis with a specific recommendation.',
           'Focus on the current market conditions, price trends, and risk factors.',
+          'Use the actual market data provided above to justify your decision.',
         ].join('\n');
 
         // Build user prompt that asks for structured JSON output
@@ -1621,7 +1629,13 @@ _clampConfidence(value) {
           '  "riskNotes": string or string[] (optional risk assessment)',
           '}',
           '',
-          'Provide a clear, detailed analysis in the reasoning field.',
+          'Important:',
+          '- Your confidence MUST be based on the strength of market signals and your reasoning',
+          '- Strong conviction with clear signals (trend >2% or <-2%) should have confidence 60-85',
+          '- Moderate signals should have confidence 40-60',
+          '- Weak/uncertain signals (HOLD) should have confidence 5-30',
+          '- Reference specific numbers from the market data in your reasoning',
+          '- Provide a clear, detailed analysis in the reasoning field that explains your confidence level.',
         ].join('\n');
 
         // Call LLM in JSON mode to get structured output

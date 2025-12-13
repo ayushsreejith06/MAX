@@ -13,6 +13,7 @@ import { useExecutionRefresh } from '@/hooks/useExecutionRefresh';
 import { useSectorDataPolling } from '@/hooks/useSectorDataPolling';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { getStatusColor, statusColorMap20 } from '@/lib/statusColors';
+import { fetchStockData, getStockDataParams, formatTimeRangeLabel, type StockDataPoint } from '@/lib/stockData';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
 const AgentRow = memo(function AgentRow({
@@ -201,8 +202,10 @@ export default function SectorDetailClient() {
   const [agentConfidences, setAgentConfidences] = useState<Map<string, number>>(new Map());
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
-  const [chartTimeWindow, setChartTimeWindow] = useState<number | 'all'>(6); // Default 6 hours
+  const [chartTimeWindow, setChartTimeWindow] = useState<string>('1m'); // Default 1 month
   const [isLoadingChart, setIsLoadingChart] = useState(false);
+  const [stockData, setStockData] = useState<StockDataPoint[]>([]);
+  const [useRealStockData, setUseRealStockData] = useState(true);
   const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
   const isLoadingRef = useRef(false); // Prevent concurrent loads
   const lastAgentConfidencesRef = useRef<Map<string, number>>(new Map()); // Cache for comparison
@@ -383,6 +386,44 @@ export default function SectorDetailClient() {
     if (!normalizedSectorId) return;
     void loadExecutionLogs();
   }, [normalizedSectorId, loadExecutionLogs]);
+
+  // Fetch real stock data when sector or time range changes
+  useEffect(() => {
+    if (!sector?.symbol || !useRealStockData) {
+      setStockData([]);
+      return;
+    }
+
+    const loadStockData = async () => {
+      setIsLoadingChart(true);
+      try {
+        const params = getStockDataParams(chartTimeWindow);
+        // Pass current price as fallback for realistic data generation
+        const data = await fetchStockData({
+          symbol: sector.symbol,
+          ...params,
+        }, 3, sector.currentPrice || undefined);
+        
+        if (data.length > 0) {
+          setStockData(data);
+          setUseRealStockData(true);
+        } else {
+          // If no data returned, use simulated data
+          setStockData([]);
+          setUseRealStockData(false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stock data:', error);
+        setStockData([]);
+        // Fallback to simulated data on error
+        setUseRealStockData(false);
+      } finally {
+        setIsLoadingChart(false);
+      }
+    };
+
+    void loadStockData();
+  }, [sector?.symbol, chartTimeWindow, useRealStockData]);
 
   // Poll agents every 1500ms to update confidence values without re-rendering entire table
   const pollAgentConfidences = useCallback(async () => {
@@ -616,10 +657,11 @@ export default function SectorDetailClient() {
   const handleWithdrawClick = useCallback(() => {
     if (!sector) return;
     
-    const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+    // Withdrawals are based on current valuation (currentPrice), not balance
+    const currentValuation = typeof sector.currentPrice === 'number' ? sector.currentPrice : 0;
     
-    if (sectorBalance <= 0) {
-      alert('Sector has no balance to withdraw');
+    if (currentValuation <= 0) {
+      alert('Sector has no valuation to withdraw');
       return;
     }
 
@@ -631,10 +673,11 @@ export default function SectorDetailClient() {
   const handleWithdraw = useCallback(async () => {
     if (!sector) return;
     
-    const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+    // Withdrawals are based on current valuation (currentPrice), not balance
+    const currentValuation = typeof sector.currentPrice === 'number' ? sector.currentPrice : 0;
     
-    if (sectorBalance <= 0) {
-      alert('Sector has no balance to withdraw');
+    if (currentValuation <= 0) {
+      alert('Sector has no valuation to withdraw');
       setShowWithdrawModal(false);
       return;
     }
@@ -651,8 +694,8 @@ export default function SectorDetailClient() {
         alert('Please enter a valid positive amount');
         return;
       }
-      if (parsedAmount > sectorBalance) {
-        alert(`Insufficient balance. Available: $${sectorBalance.toFixed(2)}, Requested: $${parsedAmount.toFixed(2)}`);
+      if (parsedAmount > currentValuation) {
+        alert(`Insufficient valuation. Available: $${currentValuation.toFixed(2)}, Requested: $${parsedAmount.toFixed(2)}`);
         return;
       }
       withdrawValue = parsedAmount;
@@ -722,30 +765,113 @@ export default function SectorDetailClient() {
   
   // Determine color based on growth
   const growthColor = priceChange > 0 ? 'text-sage-green' : priceChange < 0 ? 'text-error-red' : 'text-floral-white/70';
-  
-  // Determine color based on growth
-  const growthColor = priceChange > 0 ? 'text-sage-green' : priceChange < 0 ? 'text-error-red' : 'text-floral-white/70';
 
   // Filter candleData based on selected time window
-  // Since we don't have exact timestamps, we estimate based on data point frequency
-  // Assuming data points are added roughly every 1-2 minutes during active simulation
+  // Use real stock data if available, otherwise fall back to simulated data
   const filteredCandleData = useMemo(() => {
-    if (!sector?.candleData || sector.candleData.length === 0) {
+    // If we have real stock data, use it
+    if (stockData.length > 0 && useRealStockData) {
+      return stockData.map(point => ({
+        time: point.time,
+        value: point.value,
+      }));
+    }
+
+    // Otherwise, use simulated data from sector
+    // Normalize candle data - handle both {time, value} and {open, close, high, low} formats
+    let normalizedData = (sector?.candleData || []).map((entry: any, index: number) => {
+      // If already in correct format, return as-is
+      if (entry && typeof entry.time === 'string' && typeof entry.value === 'number') {
+        return entry;
+      }
+      
+      // Convert from {open, close, high, low} format to {time, value}
+      const value = typeof entry?.value === 'number' 
+        ? entry.value 
+        : typeof entry?.close === 'number' 
+        ? entry.close 
+        : typeof entry?.open === 'number'
+        ? entry.open
+        : sector?.currentPrice || 0;
+      
+      // Generate time from index (assuming data points are roughly 2 minutes apart)
+      const minutesAgo = (sector?.candleData?.length || 0) - index - 1;
+      const now = new Date();
+      const dataTime = new Date(now.getTime() - minutesAgo * 2 * 60 * 1000);
+      const hours = dataTime.getHours();
+      const mins = dataTime.getMinutes();
+      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+      
+      return {
+        time,
+        value: Number(value.toFixed(2))
+      };
+    }).filter((entry: any) => entry && typeof entry.value === 'number' && Number.isFinite(entry.value));
+
+    // If no candle data but we have a current price, generate data points from current price
+    // This ensures the chart always shows something when price data exists
+    if (normalizedData.length === 0 && sector?.currentPrice && sector.currentPrice > 0) {
+      const now = new Date();
+      
+      // Generate enough data points to show a smooth chart with proper time distribution
+      // Calculate number of points based on selected time window
+      let hoursToShow = 6; // Default
+      if (chartTimeWindow === '1d') hoursToShow = 24;
+      else if (chartTimeWindow === '1w') hoursToShow = 168; // 7 days
+      else if (chartTimeWindow === '1m') hoursToShow = 720; // 30 days
+      else if (chartTimeWindow === '3m') hoursToShow = 2160; // 90 days
+      else if (chartTimeWindow === '6m') hoursToShow = 4320; // 180 days
+      else if (chartTimeWindow === '1y') hoursToShow = 8760; // 365 days
+      else if (chartTimeWindow === 'max') hoursToShow = 8760; // Use 1 year as max for generated data
+      const numPoints = Math.max(30, hoursToShow * 10); // At least 30 points, or 10 per hour
+      normalizedData = [];
+      
+      // Calculate initial price (current price minus the change)
+      const initialPrice = sector.currentPrice - (sector.change || 0);
+      const totalMinutes = hoursToShow * 60;
+      const minutesPerPoint = totalMinutes / numPoints;
+      
+      for (let i = numPoints - 1; i >= 0; i--) {
+        const minutesAgo = i * minutesPerPoint;
+        const dataTime = new Date(now.getTime() - minutesAgo * 60 * 1000);
+        const hours = dataTime.getHours();
+        const mins = dataTime.getMinutes();
+        const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        
+        // Interpolate price from initial to current
+        const progress = (numPoints - 1 - i) / (numPoints - 1);
+        const value = initialPrice + (sector.currentPrice - initialPrice) * progress;
+        
+        normalizedData.push({
+          time,
+          value: Number(Math.max(0, value).toFixed(2))
+        });
+      }
+    }
+
+    if (normalizedData.length === 0) {
       return [];
     }
 
-    if (chartTimeWindow === 'all') {
-      return sector.candleData;
-    }
+    // For simulated data, filter based on time window
+    // Since we're using hours for simulated data, convert the new time ranges
+    let hoursToShow = 6; // Default
+    if (chartTimeWindow === '1d') hoursToShow = 24;
+    else if (chartTimeWindow === '1w') hoursToShow = 168; // 7 days
+    else if (chartTimeWindow === '1m') hoursToShow = 720; // 30 days
+    else if (chartTimeWindow === '3m') hoursToShow = 2160; // 90 days
+    else if (chartTimeWindow === '6m') hoursToShow = 4320; // 180 days
+    else if (chartTimeWindow === '1y') hoursToShow = 8760; // 365 days
+    else if (chartTimeWindow === 'max') return normalizedData;
 
     // Estimate data points per hour (assuming ~30-60 points per hour during active simulation)
     // For safety, we'll use a conservative estimate of 30 points per hour
     const pointsPerHour = 30;
-    const pointsToShow = chartTimeWindow * pointsPerHour;
+    const pointsToShow = hoursToShow * pointsPerHour;
     
     // Take the last N points
-    return sector.candleData.slice(-Math.max(pointsToShow, 10)); // At least 10 points
-  }, [sector?.candleData, chartTimeWindow]);
+    return normalizedData.slice(-Math.max(pointsToShow, 10)); // At least 10 points
+  }, [sector?.candleData, sector?.currentPrice, sector?.change, chartTimeWindow, stockData, useRealStockData]);
 
   // Show loading state only if we don't have a sector loaded yet
   if (loading && !sector) {
@@ -857,23 +983,15 @@ export default function SectorDetailClient() {
               </p>
             </div>
             <div className="text-right">
-              <div className="flex items-center gap-3 justify-end mb-2">
-                <div className={`text-4xl font-bold text-floral-white font-mono ${highlightedFields.has('currentPrice') ? 'value-highlight' : ''}`}>${formatPrice(sector.currentPrice)}</div>
                 <button
                   onClick={handleWithdrawClick}
-                  disabled={(typeof sector.balance === 'number' ? sector.balance : 0) <= 0}
+                  disabled={(typeof sector.currentPrice === 'number' ? sector.currentPrice : 0) <= 0}
                   className="px-4 py-2 bg-sage-green/20 text-sage-green border border-sage-green/50 rounded text-sm font-mono font-semibold uppercase tracking-wider hover:bg-sage-green/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  title="Withdraw balance to your account"
+                  title="Withdraw from current valuation to your account"
                 >
                   <ArrowDown className="w-4 h-4" />
                   Withdraw
                 </button>
-              </div>
-              <div className={`text-lg font-medium font-mono ${
-                sector.change >= 0 ? 'text-sage-green' : 'text-error-red'
-              } ${highlightedFields.has('change') || highlightedFields.has('changePercent') ? 'value-highlight' : ''}`}>
-                {sector.change >= 0 ? '+' : ''}{formatPrice(sector.change)} ({sector.changePercent >= 0 ? '+' : ''}{sector.changePercent.toFixed(2)}%)
-              </div>
             </div>
           </div>
         </div>
@@ -973,6 +1091,107 @@ export default function SectorDetailClient() {
           </div>
         </div>
 
+        {/* Investment & Valuation Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">TOTAL INVESTMENT</span>
+              <DollarSign className="w-5 h-5 text-sage-green" />
+            </div>
+            <div className="text-3xl font-bold text-floral-white font-mono">
+              ${(() => {
+                const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+                const position = typeof sector.position === 'number' 
+                  ? sector.position 
+                  : (typeof sector.holdings?.position === 'number' 
+                    ? sector.holdings.position 
+                    : (typeof sector.performance?.investedCapital === 'number' 
+                      ? sector.performance.investedCapital 
+                      : 0));
+                return (balance + position).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              })()}
+            </div>
+            <div className="text-xs text-floral-white/50 font-mono mt-1">Balance + Position</div>
+          </div>
+
+          <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-floral-white/70 font-mono text-sm uppercase tracking-wider">CURRENT VALUATION</span>
+              <TrendingUp className="w-5 h-5 text-sage-green" />
+            </div>
+            <div className={`text-4xl font-bold text-floral-white font-mono mb-2 ${highlightedFields.has('currentPrice') ? 'value-highlight' : ''}`}>
+              ${formatPrice(sector.currentPrice)}
+            </div>
+            <div className={`text-lg font-medium font-mono mb-3 ${
+              sector.change >= 0 ? 'text-sage-green' : 'text-error-red'
+            } ${highlightedFields.has('change') || highlightedFields.has('changePercent') ? 'value-highlight' : ''}`}>
+              {sector.change >= 0 ? '+' : ''}{formatPrice(sector.change)} ({sector.changePercent >= 0 ? '+' : ''}{sector.changePercent.toFixed(2)}%)
+            </div>
+            <div className="border-t border-ink-500/30 pt-3 mt-3">
+              <div className="text-xs text-floral-white/50 font-mono uppercase tracking-wider mb-1">Portfolio Value</div>
+              <div className="text-2xl font-bold text-floral-white font-mono mb-1">
+                ${(() => {
+                  const totalValue = typeof sector.performance?.totalValue === 'number'
+                    ? sector.performance.totalValue
+                    : (() => {
+                        const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+                        const position = typeof sector.position === 'number' 
+                          ? sector.position 
+                          : (typeof sector.holdings?.position === 'number' 
+                            ? sector.holdings.position 
+                            : 0);
+                        return balance + position;
+                      })();
+                  return totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                })()}
+              </div>
+              <div className={`text-sm font-mono ${(() => {
+                const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+                const position = typeof sector.position === 'number' 
+                  ? sector.position 
+                  : (typeof sector.holdings?.position === 'number' 
+                    ? sector.holdings.position 
+                    : (typeof sector.performance?.investedCapital === 'number' 
+                      ? sector.performance.investedCapital 
+                      : 0));
+                const totalInvestment = balance + position;
+                const totalValue = typeof sector.performance?.totalValue === 'number'
+                  ? sector.performance.totalValue
+                  : (balance + (typeof sector.position === 'number' 
+                    ? sector.position 
+                    : (typeof sector.holdings?.position === 'number' 
+                      ? sector.holdings.position 
+                      : 0)));
+                const pnl = totalValue - totalInvestment;
+                const pnlPercent = totalInvestment > 0 ? (pnl / totalInvestment) * 100 : 0;
+                return pnl >= 0 ? 'text-sage-green' : 'text-error-red';
+              })()}`}>
+                {(() => {
+                  const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+                  const position = typeof sector.position === 'number' 
+                    ? sector.position 
+                    : (typeof sector.holdings?.position === 'number' 
+                      ? sector.holdings.position 
+                      : (typeof sector.performance?.investedCapital === 'number' 
+                        ? sector.performance.investedCapital 
+                        : 0));
+                  const totalInvestment = balance + position;
+                  const totalValue = typeof sector.performance?.totalValue === 'number'
+                    ? sector.performance.totalValue
+                    : (balance + (typeof sector.position === 'number' 
+                      ? sector.position 
+                      : (typeof sector.holdings?.position === 'number' 
+                        ? sector.holdings.position 
+                        : 0)));
+                  const pnl = totalValue - totalInvestment;
+                  const pnlPercent = totalInvestment > 0 ? (pnl / totalInvestment) * 100 : 0;
+                  return `${pnl >= 0 ? '+' : ''}$${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`;
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Performance Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-shadow-grey rounded-lg p-6 border border-shadow-grey">
@@ -1036,23 +1255,20 @@ export default function SectorDetailClient() {
               </div>
               {/* Time Window Controls */}
               <div className="flex items-center gap-2">
-                {[1, 6, 12, 24, 'all'].map((window) => (
+                {['1d', '1w', '1m', '3m', '6m', '1y', 'max'].map((range) => (
                   <button
-                    key={window}
+                    key={range}
                     onClick={() => {
-                      setIsLoadingChart(true);
-                      setChartTimeWindow(window);
-                      // Simulate loading state briefly for smooth UX
-                      setTimeout(() => setIsLoadingChart(false), 200);
+                      setChartTimeWindow(range);
                     }}
                     disabled={isLoadingChart}
                     className={`px-3 py-1.5 rounded text-xs font-mono font-semibold uppercase tracking-wider transition-all ${
-                      chartTimeWindow === window
+                      chartTimeWindow === range
                         ? 'bg-sage-green text-pure-black shadow-[0_0_10px_rgba(127,176,105,0.4)]'
                         : 'border border-ink-500/50 text-floral-white/70 hover:border-sage-green/50 hover:text-floral-white disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
                   >
-                    {window === 'all' ? 'All' : `${window}h`}
+                    {formatTimeRangeLabel(range)}
                   </button>
                 ))}
               </div>
@@ -1065,16 +1281,18 @@ export default function SectorDetailClient() {
             </div>
           ) : filteredCandleData && filteredCandleData.length > 0 ? (
             <LineChart 
-              key={`${sector.id}-${chartTimeWindow}`}
+              key={`${sector.id}-${chartTimeWindow}-${filteredCandleData.length}`}
               data={filteredCandleData} 
               sectorName={sector?.name || 'N/A'}
               sectorSymbol={sector?.symbol || 'N/A'}
-              initialWindowHours={typeof chartTimeWindow === 'number' ? chartTimeWindow : 24}
+              initialWindowHours={24}
             />
           ) : (
             <div className="h-64 flex items-center justify-center text-floral-white/60 font-mono">
               {sector?.candleData && sector.candleData.length > 0
                 ? 'No data available for selected time window'
+                : sector?.currentPrice && sector.currentPrice > 0
+                ? 'Generating chart data...'
                 : 'No chart data available. Start the simulation to see price history.'}
             </div>
           )}
@@ -1370,7 +1588,7 @@ export default function SectorDetailClient() {
                 ⚠️ This will delete the sector and all its agents.
               </p>
               <p className="text-sage-green text-sm mb-4 font-mono">
-                💰 Balance of ${(sector.balance || 0).toFixed(2)} will be withdrawn to your account.
+                💰 Valuation of ${(sector.currentPrice || 0).toFixed(2)} will be withdrawn to your account.
               </p>
               <input
                 type="text"
@@ -1409,10 +1627,10 @@ export default function SectorDetailClient() {
             <div className="bg-shadow-grey rounded-lg p-6 border border-ink-500 max-w-md w-full mx-4">
               <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase">Withdraw Funds</h2>
               <p className="text-floral-white/70 mb-4 font-mono">
-                Withdraw funds from <span className="font-bold text-floral-white">"{sector.name}"</span> to your account.
+                Withdraw from current valuation of <span className="font-bold text-floral-white">"{sector.name}"</span> to your account. This will reduce the sector's current price by the withdrawal amount.
               </p>
               <p className="text-sage-green text-sm mb-4 font-mono">
-                💰 Available balance: ${(sector.balance || 0).toFixed(2)}
+                💰 Available valuation: $${(sector.currentPrice || 0).toFixed(2)}
               </p>
               <div className="mb-4">
                 <label className="block text-sm text-floral-white/70 mb-2 font-mono uppercase tracking-wider">
@@ -1422,7 +1640,7 @@ export default function SectorDetailClient() {
                   type="text"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder={`Enter amount or "all" for $${(sector.balance || 0).toFixed(2)}`}
+                  placeholder={`Enter amount or "all" for $${(sector.currentPrice || 0).toFixed(2)}`}
                   className="w-full rounded-lg border border-ink-500 bg-ink-600/70 px-4 py-2 text-floral-white font-mono focus:outline-none focus:border-sage-green focus:ring-1 focus:ring-sage-green"
                   autoFocus
                   onKeyDown={(e) => {

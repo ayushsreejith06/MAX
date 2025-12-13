@@ -71,11 +71,17 @@ export function buildDecisionPrompt(params: BuildDecisionPromptParams): BuildDec
     `You are a trading agent for the ${sectorName} sector.`,
     'You see contextual data: sector, allowedSymbols, simulated price, baseline, trend %, volatility, recent P/L, and indicators.',
     `The agent brief is: "${params.agentBrief || specialization}".`,
+    'Analyze the market data carefully and make informed decisions:',
+    '- If trend is positive (>2%) and volatility is reasonable (<0.3), consider BUY',
+    '- If trend is negative (<-2%) and volatility is reasonable, consider SELL',
+    '- Only choose HOLD if market signals are truly neutral or uncertain',
+    '- Base your confidence on the strength of market signals: strong trends = higher confidence, weak signals = lower confidence',
     'Think about risks, available capital, and whether to BUY, SELL, HOLD, or REBALANCE.',
     'Pick a sizingBasis (fixed_units | fixed_dollars | percent_of_capital) and a numeric size that matches the basis and capital.',
     'Optionally include entryPrice, stopLoss, and takeProfit (numbers) or null.',
     'Output ONLY one JSON object, no markdown or extra prose, matching the REQUIRED schema below.',
     'CRITICAL: You MUST include confidence (0-100), allocation_percent (0-100), and risk_notes in your response.',
+    'CRITICAL: Your confidence MUST be based on the strength of your reasoning and market signals, not arbitrary values.',
   ].join(' ');
 
   const sizingRule = remainingCapital
@@ -110,13 +116,17 @@ export function buildDecisionPrompt(params: BuildDecisionPromptParams): BuildDec
     '',
     'Rules:',
     '- Select symbol from allowedSymbols.',
-    '- Choose action (BUY/SELL/HOLD) based on risk and trend; HOLD if nothing stands out.',
+    '- Choose action (BUY/SELL/HOLD) based on risk and trend; prefer BUY/SELL when market signals are clear.',
     '- confidence MUST be a number between 0-100. This is REQUIRED and cannot be omitted.',
+    '- confidence MUST reflect the strength of your reasoning: strong conviction with clear signals = 60-90, moderate = 40-60, weak/uncertain = 10-40',
     '- allocation_percent MUST be a number between 0-100. This is REQUIRED and cannot be omitted.',
+    '- For BUY/SELL actions, allocation_percent should typically be 10-30% based on confidence and risk.',
+    '- For HOLD actions, allocation_percent should be 0%.',
     '- risk_notes MUST be a string describing your risk assessment. This is REQUIRED and cannot be omitted.',
     '- Confidence is allowed to increase across rounds as you gather more information.',
     `- ${sizingRule}`,
     '- Base reasoning on realTimeData (price, baseline, trend %, volatility, P/L, indicators).',
+    '- Use actual market data to justify your decision - reference specific numbers from realTimeData in your reasoning.',
     '- Output pure JSON only (jsonMode=true).',
     '- If you omit confidence, allocation_percent, or risk_notes, your response will be rejected.'
   ].join('\n');

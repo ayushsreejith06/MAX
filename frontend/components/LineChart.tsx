@@ -61,8 +61,19 @@ const LineChart = React.memo(function LineChart({
     setWindowIndex(0);
   }, [tickIncrement, windowSizeHours, sectorName, sectorSymbol]);
 
-  // Convert time string to minutes since midnight
+  // Convert time string to minutes since midnight or timestamp for dates
   const timeToMinutes = (time: string): number => {
+    // Check if it's a date format (MM/DD or YYYY-MM-DD)
+    if (time.includes('/')) {
+      const parts = time.split('/');
+      if (parts.length === 2) {
+        // MM/DD format - use as sortable value (month * 100 + day)
+        const month = parseInt(parts[0], 10);
+        const day = parseInt(parts[1], 10);
+        return month * 100 + day;
+      }
+    }
+    // Time format (HH:MM)
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   };
@@ -142,6 +153,52 @@ const LineChart = React.memo(function LineChart({
       .map(([, point]) => point);
   }, [windowedData.data, filteredData]);
 
+  // Calculate Y-axis domain based on data range for better scaling
+  // This ensures even small price movements are visible
+  const yAxisDomain = useMemo(() => {
+    if (!chartData.length) {
+      return [0, 10];
+    }
+
+    const values = chartData.map(point => point.value).filter(v => Number.isFinite(v));
+    if (values.length === 0) {
+      return [0, 10];
+    }
+
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const dataRange = dataMax - dataMin;
+    const dataCenter = (dataMin + dataMax) / 2;
+
+    // If all values are the same, create a visible range around that value
+    if (dataRange === 0) {
+      const center = dataMin;
+      // Use 1% of the center value as padding to show small movements
+      const padding = Math.max(center * 0.01, Math.max(center * 0.005, 0.01));
+      return [center - padding, center + padding];
+    }
+
+    // For small ranges, amplify the visual range to make changes visible
+    // Use a minimum range of 1% of the center value to ensure visibility
+    const minVisualRange = Math.max(dataCenter * 0.01, dataRange * 2);
+    const actualRange = Math.max(dataRange, minVisualRange);
+    
+    // Add 10% padding above and below for better visualization
+    const padding = actualRange * 0.1;
+    const min = Math.max(0, dataCenter - (actualRange / 2) - padding);
+    const max = dataCenter + (actualRange / 2) + padding;
+
+    return [min, max];
+  }, [chartData]);
+
+  // Calculate X-axis interval to show approximately 8-10 ticks
+  const xAxisInterval = useMemo(() => {
+    if (!chartData.length) return 0;
+    if (chartData.length <= 10) return 0; // Show all ticks if 10 or fewer
+    // Show approximately 8 ticks by skipping the right number
+    return Math.floor(chartData.length / 8);
+  }, [chartData]);
+
   const { chartSeries, trendMap } = useMemo(() => {
     type TrendPoint = CandleData & {
       riseValue: number | null;
@@ -196,12 +253,27 @@ const LineChart = React.memo(function LineChart({
     const trendColor =
       trend === 'up' ? '#14B116' : trend === 'down' ? '#BD0000' : '#EDEDED';
 
+    // Calculate change from first point if available
+    const firstValue = chartSeries.length > 0 ? chartSeries[0]?.value : undefined;
+    const change = firstValue ? point.value - firstValue : 0;
+    const changePercent = firstValue ? (change / firstValue) * 100 : 0;
+
     return (
-      <div className="rounded-2xl border border-ink-500 bg-card-bg px-3 py-2 shadow-xl">
-        <p className="text-[0.65rem] font-mono uppercase tracking-[0.3em] text-floral-white/60">{label}</p>
-        <p className="text-sm font-mono" style={{ color: trendColor }}>
-          {sectorSymbol} : ${point.value.toFixed(2)}
-        </p>
+      <div className="rounded-xl border border-ink-500 bg-pure-black/95 backdrop-blur-sm px-4 py-3 shadow-2xl">
+        <p className="text-[0.65rem] font-mono uppercase tracking-[0.3em] text-floral-white/60 mb-2">{label}</p>
+        <div className="space-y-1">
+          <p className="text-lg font-bold font-mono" style={{ color: trendColor }}>
+            {sectorSymbol}: ${point.value.toFixed(2)}
+          </p>
+          {firstValue !== undefined && (
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-floral-white/60">Change:</span>
+              <span style={{ color: change >= 0 ? '#14B116' : '#BD0000' }}>
+                {change >= 0 ? '+' : ''}${change.toFixed(2)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -293,58 +365,85 @@ const LineChart = React.memo(function LineChart({
 
       <div className="relative rounded-2xl border border-ink-500 bg-card-bg/70 p-4">
         <ResponsiveContainer width="100%" height={420}>
-          <RechartsLineChart data={chartSeries} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+          <RechartsLineChart data={chartSeries} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2D2D2D" />
             <XAxis
               dataKey="time"
               stroke="#EDEDED"
               style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}
               tick={{ fill: '#EDEDED' }}
+              interval={xAxisInterval}
+              minTickGap={20}
+              angle={-45}
+              textAnchor="end"
+              height={60}
             />
             <YAxis
               stroke="#EDEDED"
               style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace' }}
               tick={{ fill: '#EDEDED' }}
-              domain={[
-                (dataMin: number) => (Number.isFinite(dataMin) ? Math.floor(dataMin - 10) : 0),
-                (dataMax: number) => (Number.isFinite(dataMax) ? Math.ceil(dataMax + 10) : 10),
-              ]}
+              domain={yAxisDomain}
               tickFormatter={(value) => (isMarketIndex ? `$${value.toFixed(2)}` : value.toFixed(2))}
             />
             <Tooltip
               content={<CustomTooltipContent />}
               cursor={{ stroke: '#EDEDED', strokeDasharray: '3 3' }}
             />
+            <defs>
+              <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#14B116" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#14B116" stopOpacity={0.05} />
+              </linearGradient>
+              <linearGradient id="priceLineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#14B116" />
+                <stop offset="100%" stopColor="#7FB069" />
+              </linearGradient>
+            </defs>
+            {/* Area fill for price line */}
             <Line
-              type="linear"
+              type="monotone"
               dataKey="value"
-              stroke="#F5F5F580"
-              strokeWidth={2}
-              dot={showMarkers ? <CustomDot /> : false}
-              activeDot={
-                showMarkers
-                  ? { r: 6, fill: '#FFFFFF', stroke: '#171717', strokeWidth: 1.5 }
-                  : false
-              }
+              stroke="url(#priceLineGradient)"
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{
+                r: 6,
+                fill: '#FFFFFF',
+                stroke: '#14B116',
+                strokeWidth: 2,
+                style: { filter: 'drop-shadow(0 0 4px rgba(20, 177, 22, 0.6))' }
+              }}
               connectNulls
               isAnimationActive={false}
             />
+            {/* Rise segments */}
             <Line
-              type="linear"
+              type="monotone"
               dataKey="riseValue"
               stroke="#14B116"
-              strokeWidth={2.5}
+              strokeWidth={3}
               dot={false}
               connectNulls={false}
               isAnimationActive={false}
             />
+            {/* Fall segments */}
             <Line
-              type="linear"
+              type="monotone"
               dataKey="fallValue"
               stroke="#BD0000"
-              strokeWidth={2.5}
+              strokeWidth={3}
               dot={false}
               connectNulls={false}
+              isAnimationActive={false}
+            />
+            {/* Base line for context */}
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#F5F5F540"
+              strokeWidth={1.5}
+              dot={showMarkers ? <CustomDot /> : false}
+              connectNulls
               isAnimationActive={false}
             />
           </RechartsLineChart>
