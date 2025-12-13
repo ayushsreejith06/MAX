@@ -26,7 +26,31 @@ export type ChecklistItem = {
   confidence: number; // 0–100
   reasoning: string; // Alias for rationale
   rationale: string; // Primary field (1–2 sentences, concise)
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVISE_REQUIRED' | 'ACCEPT_REJECTION' | 'RESUBMITTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | 'REVISE_REQUIRED' | 'ACCEPT_REJECTION' | 'RESUBMITTED';
+  // Manager decision metadata - authoritative state
+  decisionBy?: string; // Manager ID who made the decision
+  decidedAt?: string; // ISO timestamp when decision was made
+  rejectionReason?: {
+    score?: number;
+    approvalThreshold?: number;
+    scoreBreakdown?: {
+      workerConfidence?: number;
+      expectedImpact?: number;
+      riskLevel?: number;
+      alignmentWithSectorGoal?: number;
+      normalizedRiskScore?: number;
+      weights?: {
+        workerConfidence?: number;
+        expectedImpact?: number;
+        riskLevel?: number;
+        alignmentWithSectorGoal?: number;
+      };
+    };
+    reason?: string;
+    confidence?: number;
+    effectiveThreshold?: number;
+    requiredImprovements?: string[];
+  };
 };
 
 type AllowedAction = 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
@@ -126,7 +150,7 @@ export function validateChecklistItem(
   }
 
   // Validate status (default to PENDING if not provided)
-  const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'REVISE_REQUIRED', 'ACCEPT_REJECTION', 'RESUBMITTED'];
+  const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'EXECUTED', 'REVISE_REQUIRED', 'ACCEPT_REJECTION', 'RESUBMITTED'];
   const status = item.status || 'PENDING';
   if (!validStatuses.includes(status)) {
     throw new Error(`ChecklistItem.status must be one of: ${validStatuses.join(', ')}`);

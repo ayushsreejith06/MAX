@@ -172,30 +172,41 @@ const start = async () => {
       // Don't throw - allow server to start even if watchdog fails
     }
 
-    // Bootstrap SectorPriceSimulator (continuously updates sector prices)
+    // DISABLED: SectorPriceSimulator - Valuation now only changes due to execution outcomes
+    // Prices are updated deterministically based on execution deltas (BUY/SELL/HOLD/REBALANCE)
+    // No random price updates or automatic simulation
     try {
-      const { getSectorPriceSimulator } = require('./simulation/SectorPriceSimulator');
-      const priceSimulator = getSectorPriceSimulator();
       const { getAllSectors } = require('./utils/sectorStorage');
+      const { updateSector } = require('./utils/sectorStorage');
       const PriceHistory = require('./models/PriceHistory');
       
-      // Start price simulation for all existing sectors
+      // Initialize sector valuations (balance + position) for all existing sectors
       const allSectors = await getAllSectors();
       for (const sector of allSectors) {
         if (sector.id) {
-          // Initialize price to 100 if not set
-          if (typeof sector.currentPrice !== 'number' || sector.currentPrice <= 0) {
-            const { updateSector } = require('./utils/sectorStorage');
-            await updateSector(sector.id, { currentPrice: 100 });
-          }
+          // Calculate valuation as balance + position
+          const balance = typeof sector.balance === 'number' ? sector.balance : 0;
+          const position = typeof sector.position === 'number' 
+            ? sector.position 
+            : (typeof sector.holdings?.position === 'number' 
+              ? sector.holdings.position 
+              : (typeof sector.performance?.position === 'number' 
+                ? sector.performance.position 
+                : 0));
+          const valuation = balance + position;
           
-          // Start simulation
-          priceSimulator.start(sector.id);
+          // Initialize price to valuation if not set or if it doesn't match valuation
+          if (typeof sector.currentPrice !== 'number' || sector.currentPrice <= 0 || sector.currentPrice !== valuation) {
+            await updateSector(sector.id, { 
+              currentPrice: valuation > 0 ? valuation : 100,
+              baselinePrice: valuation > 0 ? valuation : 100
+            });
+          }
           
           // Initialize price history if empty
           const existingHistory = await PriceHistory.getBySectorId(sector.id, 1);
           if (existingHistory.length === 0) {
-            const initialPrice = sector.currentPrice || 100;
+            const initialPrice = valuation > 0 ? valuation : 100;
             const initialPriceHistory = new PriceHistory({
               sectorId: sector.id,
               price: initialPrice,
@@ -206,12 +217,10 @@ const start = async () => {
         }
       }
       
-      fastify.log.info(`SectorPriceSimulator initialized and started for ${allSectors.length} sector(s)`);
-      // Store reference for graceful shutdown if needed
-      fastify.priceSimulator = priceSimulator;
+      fastify.log.info(`Sector valuation initialized for ${allSectors.length} sector(s) (valuation = balance + position, no automatic simulation)`);
     } catch (err) {
-      fastify.log.error('Error initializing SectorPriceSimulator:', err);
-      // Don't throw - allow server to start even if price simulator fails
+      fastify.log.error('Error initializing sector valuations:', err);
+      // Don't throw - allow server to start even if initialization fails
     }
 
     await fastify.listen({ port: PORT, host: HOST });

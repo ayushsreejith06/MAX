@@ -2,6 +2,7 @@ const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage')
 const { updateSector } = require('../utils/sectorStorage');
 const { loadDiscussions } = require('../utils/discussionStorage');
 const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils');
+const ConfidenceEngine = require('./ConfidenceEngine');
 
 /**
  * SectorEngine - Handles sector-level operations including confidence updates
@@ -12,6 +13,7 @@ class SectorEngine {
     this.discussionCooldowns = new Map();
     // Cooldown duration in ticks (default: 2 ticks)
     this.cooldownTicks = 2;
+    this.confidenceEngine = new ConfidenceEngine();
   }
 
   /**
@@ -62,48 +64,51 @@ class SectorEngine {
 
       const confidenceList = [];
 
-      // Action-based confidence: Only update if LLM confidence is provided
-      // Confidence comes from LLM output only, no passive updates
+      // Update confidence: apply idle decay if no new proposal, otherwise use proposal-based calculation
       for (const agent of nonManagerAgents) {
-        // Extract confidence from LLM (llmAction.confidence) or stored value
         const extractedConfidence = extractConfidence(agent);
+        let newConfidence = extractedConfidence;
         
-        // Only update if we have LLM-derived confidence (from llmAction)
-        // If agent has llmAction.confidence, use it; otherwise keep current confidence
+        // If agent has a new LLM action with confidence, calculate from proposal attributes
         if (agent.llmAction && typeof agent.llmAction.confidence === 'number') {
-          const llmConfidence = clampConfidence(agent.llmAction.confidence);
-          agent.confidence = llmConfidence;
-          confidenceMap.set(agent.id, llmConfidence);
+          // Calculate confidence from proposal attributes
+          const proposal = {
+            signalStrength: agent.llmAction.confidence,
+            confidence: agent.llmAction.confidence,
+            action: agent.llmAction.action,
+            volatility: sector.volatility ? sector.volatility * 100 : 50
+          };
+          newConfidence = this.confidenceEngine.updateAgentConfidence(agent, proposal, sector);
+        } else {
+          // No new proposal - apply idle decay
+          newConfidence = this.confidenceEngine.applyIdleDecay(agent, extractedConfidence);
+        }
+        
+        // Only update if confidence changed
+        if (Math.abs(newConfidence - extractedConfidence) > 0.01) {
+          agent.confidence = newConfidence;
+          confidenceMap.set(agent.id, newConfidence);
           
           // Persist updated confidence to storage
           try {
-            await updateAgent(agent.id, { confidence: llmConfidence });
+            await updateAgent(agent.id, { confidence: newConfidence });
           } catch (error) {
             console.warn(`[SectorEngine] Failed to persist confidence for ${agent.id}:`, error);
           }
         } else {
-          // No LLM action, keep current confidence
-          const currentConfidence = extractedConfidence;
-          agent.confidence = currentConfidence;
-          confidenceMap.set(agent.id, currentConfidence);
+          confidenceMap.set(agent.id, extractedConfidence);
         }
         
         const agentName = agent.name || agent.id;
         confidenceList.push({ name: agentName, confidence: confidenceMap.get(agent.id) });
       }
 
-      const nonManagerAverage = nonManagerAgents.length
-        ? nonManagerAgents.reduce((sum, agent) => sum + confidenceMap.get(agent.id), 0) / nonManagerAgents.length
-        : null;
-
       for (const manager of managerAgents) {
-        // Manager confidence: Use average of non-manager agents if available
-        // Action-based: Manager confidence reflects team performance
-        const derivedConfidence = nonManagerAverage !== null
-          ? nonManagerAverage
-          : extractConfidence(manager);
+        // Manager confidence: Use weighted average of non-manager agents
+        // This ensures manager confidence updates dynamically as agent confidence changes
+        const managerConfidence = this.confidenceEngine.updateManagerConfidence(manager, allAgents);
         
-        const normalizedConfidence = clampConfidence(derivedConfidence);
+        const normalizedConfidence = clampConfidence(managerConfidence);
         
         // Update manager confidence
         manager.confidence = normalizedConfidence;

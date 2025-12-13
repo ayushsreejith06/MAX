@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle2, Clock, XCircle, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle2, Clock, XCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { fetchChecklist, type ChecklistResponse, type ChecklistItemResponse } from '@/lib/api';
 
 interface ChecklistSectionProps {
@@ -10,6 +11,7 @@ interface ChecklistSectionProps {
 }
 
 export default function ChecklistSection({ discussionId, discussionStatus }: ChecklistSectionProps) {
+  const router = useRouter();
   const [checklistData, setChecklistData] = useState<ChecklistResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,12 +43,13 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   useEffect(() => {
     if (!discussionId) return;
 
-    // Only poll if discussion is CREATED, IN_PROGRESS, or DECIDED (not CLOSED)
+    // Only poll if discussion is CREATED, IN_PROGRESS, AWAITING_EXECUTION, or DECIDED (not CLOSED)
     // Use persisted status only - no inference from messages/checklist
     const statusUpper = (discussionStatus || '').toUpperCase();
     const shouldPoll = statusUpper === 'CREATED' || 
                       statusUpper === 'OPEN' ||
                       statusUpper === 'IN_PROGRESS' || 
+                      statusUpper === 'AWAITING_EXECUTION' ||
                       statusUpper === 'DECIDED';
 
     if (!shouldPoll) {
@@ -67,6 +70,7 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   const acceptedItems = allItems.filter(item => item.approvalStatus === 'accepted');
   const rejectedItems = allItems.filter(item => item.approvalStatus === 'rejected');
   const pendingItems = allItems.filter(item => item.approvalStatus === 'pending' || !item.approvalStatus);
+  const executedItems = allItems.filter(item => item.status === 'EXECUTED' || item.executedAt);
   
   // Filter items based on showRejected toggle
   const filteredItems = showRejected 
@@ -75,7 +79,12 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
   
   const hasAnyItems = allItems.length > 0;
 
-  const getApprovalStatusIcon = (status: string) => {
+  const getApprovalStatusIcon = (item: ChecklistItemResponse) => {
+    // Check if item is executed first
+    if (item.status === 'EXECUTED' || item.executedAt) {
+      return <CheckCircle2 className="w-4 h-4 text-sage-green" />;
+    }
+    const status = item.approvalStatus || '';
     switch (status) {
       case 'accepted':
         return <CheckCircle className="w-4 h-4 text-sage-green" />;
@@ -86,7 +95,12 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
     }
   };
 
-  const getApprovalStatusBadge = (status: string) => {
+  const getApprovalStatusBadge = (item: ChecklistItemResponse) => {
+    // Check if item is executed first
+    if (item.status === 'EXECUTED' || item.executedAt) {
+      return 'bg-sage-green/20 text-sage-green border border-sage-green/50';
+    }
+    const status = item.approvalStatus || '';
     switch (status) {
       case 'accepted':
         return 'bg-sage-green/15 text-sage-green border border-sage-green/40';
@@ -94,6 +108,16 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
         return 'bg-error-red/15 text-error-red border border-error-red/40';
       default:
         return 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40';
+    }
+  };
+
+  const formatTimestamp = (timestamp: string | null | undefined) => {
+    if (!timestamp) return '';
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString();
+    } catch {
+      return timestamp;
     }
   };
 
@@ -158,11 +182,11 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
                 </span>
               )}
               
-              {/* Manager Approval Status - REQUIRED */}
-              {item.approvalStatus && (
-                <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 ${getApprovalStatusBadge(item.approvalStatus)}`}>
-                  {getApprovalStatusIcon(item.approvalStatus)}
-                  {item.approvalStatus}
+              {/* Status Badge - Shows EXECUTED, approval status, or pending */}
+              {(item.status === 'EXECUTED' || item.executedAt || item.approvalStatus) && (
+                <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 ${getApprovalStatusBadge(item)}`}>
+                  {getApprovalStatusIcon(item)}
+                  {item.status === 'EXECUTED' || item.executedAt ? 'EXECUTED' : (item.approvalStatus || 'pending')}
                 </span>
               )}
             </div>
@@ -187,6 +211,31 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
             </span>
           )}
         </div>
+        
+        {/* Execution Information - Show if item is executed */}
+        {(item.status === 'EXECUTED' || item.executedAt) && (
+          <div className="mt-2 pt-2 border-t border-ink-500">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-sage-green font-mono font-semibold">
+                ✓ Executed
+              </span>
+              {item.executedAt && (
+                <span className="text-xs text-floral-white/60 font-mono">
+                  at {formatTimestamp(item.executedAt)}
+                </span>
+              )}
+              {item.executionLogId && (
+                <button
+                  onClick={() => router.push(`/decision-logs?executionLogId=${item.executionLogId}`)}
+                  className="text-xs text-sage-green hover:text-sage-green/80 font-mono flex items-center gap-1 underline"
+                >
+                  View execution log
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Manager Approval Reason */}
         {item.approvalReason && (
@@ -213,7 +262,7 @@ export default function ChecklistSection({ discussionId, discussionStatus }: Che
             </span>
             {checklistData && hasAnyItems && (
               <span className="text-xs text-floral-white/50 font-mono">
-                ({acceptedItems.length} accepted, {rejectedItems.length} rejected, {pendingItems.length} pending)
+                ({executedItems.length} executed, {acceptedItems.length} accepted, {rejectedItems.length} rejected, {pendingItems.length} pending)
               </span>
             )}
           </div>

@@ -8,6 +8,7 @@ const { storePriceTick } = require('../utils/priceHistoryStorage');
 const { getManagerById, getExecutionList, removeExecutionItem } = require('../utils/executionListStorage');
 const { calculateNewPrice, mapActionToImpact } = require('../simulation/priceModel');
 const { setAgentExecuting, refreshAgentStatus } = require('../utils/agentStatusService');
+const { captureConfidenceSnapshot, calculateConfidenceMultiplier, applyConfidenceMultiplier } = require('../utils/confidenceMultiplier');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -74,19 +75,29 @@ class ExecutionEngine {
       throw new Error(`Cannot execute checklist item ${checklistItemId}: status is ${status}, must be APPROVED`);
     }
 
-    // Verify discussion is closed (execution only happens after discussion closes)
-    const discussionStatus = (discussionRoom.status || '').toUpperCase();
-    if (discussionStatus !== 'CLOSED' && discussionStatus !== 'DECIDED') {
-      throw new Error(`Cannot execute checklist item ${checklistItemId}: discussion ${discussionId} is not closed (status: ${discussionStatus})`);
-    }
+    // Execution does NOT depend on discussion.status
+    // Checklist item acceptance is the only trigger
 
     // Execute the single item using existing executeChecklist logic
     const executionResult = await this.executeChecklist([checklistItem], sectorId, discussionId);
 
-    // Mark item as executed with timestamp
+    // Mark item as executed with timestamp and find execution log ID
     const executedAt = new Date().toISOString();
     checklistItem.executedAt = executedAt;
     checklistItem.status = 'EXECUTED';
+    
+    // Find the execution log entry for this item
+    const ExecutionLog = require('../models/ExecutionLog');
+    let executionLogId = null;
+    try {
+      const executionLog = await ExecutionLog.getByChecklistItemId(checklistItemId);
+      if (executionLog) {
+        executionLogId = executionLog.id;
+        checklistItem.executionLogId = executionLogId;
+      }
+    } catch (logError) {
+      console.warn(`[ExecutionEngine] Failed to find execution log for item ${checklistItemId}:`, logError.message);
+    }
 
     // Update the item in both finalizedChecklist and checklist
     if (Array.isArray(discussionRoom.finalizedChecklist)) {
@@ -104,6 +115,16 @@ class ExecutionEngine {
 
     // Save updated discussion
     await saveDiscussion(discussionRoom);
+
+    // Check if discussion should transition from AWAITING_EXECUTION to DECIDED
+    // (all ACCEPTED items are now executed)
+    try {
+      const { checkAndTransitionToDecided } = require('../utils/discussionStatusService');
+      await checkAndTransitionToDecided(discussionId);
+    } catch (transitionError) {
+      console.warn(`[ExecutionEngine] Failed to check transition to DECIDED:`, transitionError.message);
+      // Don't throw - transition failure shouldn't break execution
+    }
 
     // Extract execution details from result
     // executeChecklist returns { success, updatedSectorState } but doesn't expose individual results
@@ -123,11 +144,11 @@ class ExecutionEngine {
       sectorId: sectorId,
       timestamp: timestamp,
       executedAt: executedAt,
-      action: tradeResult.actionType || checklistItem.action,
+      action: action,
       amount: impact,
       impact: impact,
       delta: delta,
-      price: tradeResult.price || executionResult.updatedSectorState?.currentPrice || 0,
+      price: price,
       success: executionResult.success !== false
     };
 
@@ -147,6 +168,82 @@ class ExecutionEngine {
       price: price,
       event: executionEvent
     };
+  }
+
+  /**
+   * Handle checklist item status transition - execute if item transitions to APPROVED
+   * This is the main trigger for execution - called whenever an item's status changes to APPROVED
+   * @param {string} checklistItemId - ID of the checklist item
+   * @param {string} discussionId - Discussion ID containing the item
+   * @param {string} previousStatus - Previous status of the item (optional)
+   * @returns {Promise<Object>} Execution result or null if not executed
+   */
+  async handleItemStatusTransition(checklistItemId, discussionId, previousStatus = null) {
+    if (!checklistItemId || !discussionId) {
+      return null;
+    }
+
+    try {
+      // Load discussion to check current item status
+      const discussionData = await findDiscussionById(discussionId);
+      if (!discussionData) {
+        console.warn(`[ExecutionEngine] Discussion ${discussionId} not found for item ${checklistItemId}`);
+        return null;
+      }
+
+      const discussionRoom = DiscussionRoom.fromData(discussionData);
+      
+      // Find the checklist item
+      let checklistItem = null;
+      if (Array.isArray(discussionRoom.finalizedChecklist)) {
+        checklistItem = discussionRoom.finalizedChecklist.find(item => item.id === checklistItemId);
+      }
+      if (!checklistItem && Array.isArray(discussionRoom.checklist)) {
+        checklistItem = discussionRoom.checklist.find(item => item.id === checklistItemId);
+      }
+
+      if (!checklistItem) {
+        console.warn(`[ExecutionEngine] Checklist item ${checklistItemId} not found in discussion ${discussionId}`);
+        return null;
+      }
+
+      // Check if already executed (idempotent - prevent double execution)
+      if (checklistItem.executedAt) {
+        console.log(`[ExecutionEngine] Item ${checklistItemId} already executed at ${checklistItem.executedAt}, skipping`);
+        return {
+          success: true,
+          alreadyExecuted: true,
+          executedAt: checklistItem.executedAt
+        };
+      }
+
+      // Only execute if status is APPROVED
+      const status = (checklistItem.status || '').toUpperCase();
+      if (status !== 'APPROVED') {
+        // Not APPROVED - don't execute
+        return null;
+      }
+
+      // Skip if previous status was also APPROVED (no transition)
+      if (previousStatus && (previousStatus.toUpperCase() === 'APPROVED')) {
+        console.log(`[ExecutionEngine] Item ${checklistItemId} was already APPROVED, skipping execution`);
+        return null;
+      }
+
+      // Execute the item
+      console.log(`[ExecutionEngine] Item ${checklistItemId} transitioned to APPROVED, executing...`);
+      const result = await this.executeChecklistItem(checklistItemId, discussionId);
+      return result;
+    } catch (error) {
+      console.error(`[ExecutionEngine] Error handling status transition for item ${checklistItemId}:`, error);
+      // Don't throw - return error result instead
+      return {
+        success: false,
+        error: error.message,
+        itemId: checklistItemId,
+        discussionId: discussionId
+      };
+    }
   }
 
   /**
@@ -569,18 +666,31 @@ class ExecutionEngine {
 
         if (executionSucceeded && executedAction) {
           const priceBeforeAction = sectorState.currentPrice;
-          await this.applyPriceUpdateForAction(sector, sectorState, executedAction);
+          const positionValueBefore = sectorState.position; // Position value before execution
+          
+          // Pass execution amount for BUY/SELL to calculate valuation delta
+          const executionAmount = (executedAction === 'BUY' || executedAction === 'SELL') ? amount : 0;
+          await this.applyPriceUpdateForAction(sector, sectorState, executedAction, executionAmount);
           const priceAfterAction = sectorState.currentPrice;
           
-          // Store price change in the trade result for logging
+          // Calculate position value after execution
+          const positionValueAfter = sectorState.position; // Position value after execution
+          
+          // Calculate valuation delta: change in total portfolio value
+          const valuationAfter = sectorState.balance + positionValueAfter;
+          const deltaValue = valuationAfter - valuationBeforeExecution;
+          
+          // Store price change and valuation metrics in the trade result for logging
           const lastResult = tradeResults[tradeResults.length - 1];
           if (lastResult && lastResult.success) {
             lastResult.priceBefore = priceBeforeAction;
             lastResult.priceAfter = priceAfterAction;
             lastResult.priceChange = priceAfterAction - priceBeforeAction;
             lastResult.valuationBefore = valuationBeforeExecution;
-            lastResult.valuationAfter = sectorState.balance + getHoldingsTotal();
-            lastResult.valuationDelta = (sectorState.balance + getHoldingsTotal()) - valuationBeforeExecution;
+            lastResult.valuationAfter = valuationAfter;
+            lastResult.valuationDelta = deltaValue;
+            lastResult.deltaValue = deltaValue; // Emit deltaValue
+            lastResult.newPositionValue = positionValueAfter; // Emit newPositionValue
           }
           
           // Update price tracking for next item
@@ -634,12 +744,6 @@ class ExecutionEngine {
       ? (currentPosition / totalValue) * 100 
       : 0;
 
-    // Price is already updated per executed item via applyPriceUpdateForAction.
-    // Calculate aggregate change for logging purposes only.
-    const previousPrice = startingPrice || sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100;
-    const newPrice = sectorState.currentPrice;
-    const priceChangePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
-
     // Ensure the latest balance/positions snapshot is persisted alongside the final price
     // FAILSAFE: Never allow negative balance
     const finalBalance = Math.max(0, sectorState.balance);
@@ -648,6 +752,19 @@ class ExecutionEngine {
       sectorState.balance = finalBalance;
       sectorState.performance.availableCapital = finalBalance;
     }
+
+    // Calculate final valuation as balance + position (ensures consistency)
+    // Valuation changes ONLY when checklist items are executed
+    const finalValuation = finalBalance + currentPosition;
+    
+    // Price is already updated per executed item via applyPriceUpdateForAction.
+    // Recalculate to ensure consistency with balance + position
+    const previousPrice = startingPrice || sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100;
+    const newPrice = finalValuation; // Use calculated valuation, not sectorState.currentPrice
+    const priceChangePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
+
+    // Update sectorState.currentPrice to match calculated valuation
+    sectorState.currentPrice = newPrice;
 
     const updates = {
       balance: finalBalance,
@@ -695,6 +812,9 @@ class ExecutionEngine {
     // This ensures every executed item creates a persistent execution log entry
     const ExecutionLog = require('../models/ExecutionLog');
     
+    // Get sector agents for confidence snapshot
+    const sectorAgents = allAgents.filter(agent => agent && agent.sectorId === sectorId);
+    
     // Map checklist items by ID for quick lookup
     const itemMap = new Map();
     checklistItems.forEach(item => {
@@ -702,6 +822,9 @@ class ExecutionEngine {
         itemMap.set(item.id, item);
       }
     });
+    
+    // Track execution log IDs for each item
+    const executionLogIdMap = new Map();
     
     for (const result of tradeResults) {
       if (result.success && result.action) {
@@ -713,11 +836,20 @@ class ExecutionEngine {
         try {
           // Calculate price impact: change in price due to this action
           // Use the price change tracked during execution
-          const priceImpact = typeof result.priceChange === 'number' 
+          let basePriceImpact = typeof result.priceChange === 'number' 
             ? result.priceChange 
             : (typeof result.priceAfter === 'number' && typeof result.priceBefore === 'number'
               ? result.priceAfter - result.priceBefore
               : 0);
+          
+          // Capture confidence snapshot for future ML analysis
+          const confidenceSnapshot = captureConfidenceSnapshot(sectorAgents, null);
+          
+          // Calculate confidence multiplier (returns null if feature disabled)
+          const confidenceMultiplier = calculateConfidenceMultiplier(confidenceSnapshot, action);
+          
+          // Apply confidence multiplier to price impact (if feature enabled)
+          const adjustedPriceImpact = applyConfidenceMultiplier(basePriceImpact, confidenceMultiplier);
           
           // Calculate valuation delta: change in total portfolio value
           // Use the valuation delta tracked during execution
@@ -733,7 +865,7 @@ class ExecutionEngine {
             allocationPercent = (result.amount / result.valuationBefore) * 100;
           }
           
-          // Create execution log entry with all required fields
+          // Create execution log entry with all required fields including confidence data
           const executionLog = new ExecutionLog({
             executionId: executionId,
             discussionId: checklistId || null,
@@ -742,16 +874,88 @@ class ExecutionEngine {
             action: action,
             allocation: result.amount || result.allocation || null,
             allocationPercent: allocationPercent,
-            priceImpact: priceImpact,
+            priceImpact: adjustedPriceImpact, // Use adjusted price impact (with multiplier if enabled)
             valuationDelta: valuationDelta,
-            timestamp: timestamp
+            deltaValue: typeof result.deltaValue === 'number' ? result.deltaValue : valuationDelta,
+            newPositionValue: typeof result.newPositionValue === 'number' ? result.newPositionValue : null,
+            timestamp: timestamp,
+            confidenceSnapshot: confidenceSnapshot,
+            confidenceMultiplier: confidenceMultiplier
           });
           
           await executionLog.save();
+          
+          // Store execution log ID for this item
+          if (result.itemId) {
+            executionLogIdMap.set(result.itemId, executionLog.id);
+          }
         } catch (logError) {
           console.warn(`[ExecutionEngine] Failed to create ExecutionLog for ${action} (item ${result.itemId}):`, logError.message);
           // Don't throw - logging failure shouldn't break execution
         }
+      }
+    }
+    
+    // Mark executed items as EXECUTED and update discussion if checklistId is provided
+    if (checklistId) {
+      try {
+        const discussionData = await findDiscussionById(checklistId);
+        if (discussionData) {
+          const discussionRoom = DiscussionRoom.fromData(discussionData);
+          const executedAt = new Date().toISOString();
+          let updated = false;
+          
+          // Update items in finalizedChecklist
+          if (Array.isArray(discussionRoom.finalizedChecklist)) {
+            for (const item of discussionRoom.finalizedChecklist) {
+              if (item && item.id && executionLogIdMap.has(item.id)) {
+                // Only mark as EXECUTED if it was successfully executed
+                const result = tradeResults.find(r => r.itemId === item.id && r.success);
+                if (result) {
+                  item.executedAt = executedAt;
+                  item.status = 'EXECUTED';
+                  item.executionLogId = executionLogIdMap.get(item.id);
+                  updated = true;
+                }
+              }
+            }
+          }
+          
+          // Update items in checklist
+          if (Array.isArray(discussionRoom.checklist)) {
+            for (const item of discussionRoom.checklist) {
+              if (item && item.id && executionLogIdMap.has(item.id)) {
+                // Only mark as EXECUTED if it was successfully executed
+                const result = tradeResults.find(r => r.itemId === item.id && r.success);
+                if (result) {
+                  item.executedAt = executedAt;
+                  item.status = 'EXECUTED';
+                  item.executionLogId = executionLogIdMap.get(item.id);
+                  updated = true;
+                }
+              }
+            }
+          }
+          
+          // Save updated discussion if any items were marked as executed
+          if (updated) {
+            await saveDiscussion(discussionRoom);
+            console.log(`[ExecutionEngine] Marked ${executionLogIdMap.size} checklist items as EXECUTED in discussion ${checklistId}`);
+            
+            // Check if discussion should transition from AWAITING_EXECUTION to DECIDED
+            // (all ACCEPTED items are now executed)
+            try {
+              const { checkAndTransitionToDecided } = require('../utils/discussionStatusService');
+              await checkAndTransitionToDecided(checklistId);
+            } catch (transitionError) {
+              console.warn(`[ExecutionEngine] Failed to check transition to DECIDED:`, transitionError.message);
+              // Don't throw - transition failure shouldn't break execution
+            }
+          }
+        }
+      } catch (updateError) {
+        console.warn(`[ExecutionEngine] Failed to update discussion ${checklistId} with executed items:`, updateError.message);
+        // Don't throw - update failure shouldn't break execution
       }
     }
 
@@ -892,17 +1096,58 @@ class ExecutionEngine {
   }
 
   /**
-   * Apply the mandated price model and persist sector state (price + balance/positions)
-   * after an executed action.
+   * Calculate valuation delta based on execution action
+   * Valuation = balance + position
+   * - BUY: increases position, valuation delta = +amount
+   * - SELL: decreases position, valuation delta = -amount
+   * - HOLD: no change, valuation delta = 0
+   * - REBALANCE: redistributes, net delta = 0
+   * @param {string} actionType - Action type (BUY, SELL, HOLD, REBALANCE)
+   * @param {number} amount - Execution amount (for BUY/SELL)
+   * @returns {number} Valuation delta
    */
-  async applyPriceUpdateForAction(sector, sectorState, actionType) {
-    const previousPrice = typeof sectorState.currentPrice === 'number'
-      ? sectorState.currentPrice
-      : (sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100);
+  calculateValuationDelta(actionType, amount = 0) {
+    const action = (actionType || '').toUpperCase();
+    switch (action) {
+      case 'BUY':
+        return amount; // BUY increases exposure, increases valuation
+      case 'SELL':
+        return -amount; // SELL decreases exposure, decreases valuation
+      case 'HOLD':
+        return 0; // HOLD has zero valuation delta
+      case 'REBALANCE':
+        return 0; // REBALANCE redistributes but net delta = 0
+      default:
+        return 0;
+    }
+  }
 
-    const trendFactor = this.getTrendFactor(sector);
-    const managerImpact = mapActionToImpact(actionType);
-    const newPrice = calculateNewPrice(previousPrice, { managerImpact, trendFactor });
+  /**
+   * Apply valuation update based on execution outcome
+   * Valuation changes ONLY when a checklist item is executed
+   * Valuation = cash + sum(positionValues) where positionValue = position amount
+   * @param {Object} sector - Sector object
+   * @param {Object} sectorState - Current sector state
+   * @param {string} actionType - Action type (BUY, SELL, HOLD, REBALANCE)
+   * @param {number} amount - Execution amount (for BUY/SELL)
+   * @returns {Promise<Object>} Object with newValuation, deltaValue, newPositionValue
+   */
+  async applyPriceUpdateForAction(sector, sectorState, actionType, amount = 0) {
+    // Calculate current valuation directly from balance (cash) + position value
+    // Valuation = cash + sum(positionValues)
+    // Position value is the current dollar amount of positions
+    const currentBalance = typeof sectorState.balance === 'number' ? sectorState.balance : 0;
+    const currentPosition = typeof sectorState.position === 'number' ? sectorState.position : 0;
+    const positionValue = currentPosition; // Position value = position amount (in dollars)
+    const newValuation = currentBalance + positionValue;
+    
+    // Ensure valuation never goes below 0
+    const finalValuation = Math.max(0, newValuation);
+    
+    // Get previous valuation for change calculations
+    const previousValuation = typeof sectorState.currentPrice === 'number' && sectorState.currentPrice > 0
+      ? sectorState.currentPrice
+      : (sector.currentPrice || (sector.balance || 0) + (sector.position || 0) || 100);
 
     // Get baseline price (price before this execution, used for change calculations)
     // Baseline price tracks market movements, not withdrawals
@@ -910,15 +1155,14 @@ class ExecutionEngine {
       ? sector.baselinePrice
       : (typeof sector.initialPrice === 'number' && sector.initialPrice > 0
         ? sector.initialPrice
-        : previousPrice);
+        : previousValuation);
 
     // Calculate change/changePercent from baseline price (market movements only)
     // Only update if there's money in the sector
-    const currentBalance = typeof sectorState.balance === 'number' ? sectorState.balance : 0;
     let priceChange = 0;
     let priceChangePercent = 0;
     if (currentBalance > 0 && baselinePrice > 0) {
-      priceChange = newPrice - baselinePrice;
+      priceChange = finalValuation - baselinePrice;
       priceChangePercent = (priceChange / baselinePrice) * 100;
     } else {
       // If no money, keep previous change values
@@ -926,18 +1170,18 @@ class ExecutionEngine {
       priceChangePercent = typeof sector.changePercent === 'number' ? sector.changePercent : 0;
     }
 
-    sectorState.currentPrice = newPrice;
-    // Update baseline price to new price after execution (market movement)
-    const newBaselinePrice = newPrice;
+    sectorState.currentPrice = finalValuation;
+    // Update baseline price to new valuation after execution (market movement)
+    const newBaselinePrice = finalValuation;
     
     const updates = {
       balance: sectorState.balance,
       holdings: sectorState.holdings,
       position: sectorState.position,
       positions: sectorState.position,
-      currentPrice: newPrice,
-      simulatedPrice: newPrice,
-      lastSimulatedPrice: newPrice,
+      currentPrice: finalValuation,
+      simulatedPrice: finalValuation,
+      lastSimulatedPrice: finalValuation,
       baselinePrice: newBaselinePrice, // Update baseline price with market movement
       lastPriceUpdate: Date.now(),
       change: priceChange,
@@ -949,71 +1193,49 @@ class ExecutionEngine {
     // Store price tick for history
     try {
       await storePriceTick(sector.id, {
-        price: newPrice,
+        price: finalValuation,
         timestamp: Date.now(),
         volume: sector.volume || 0,
-        change: newPrice - previousPrice,
-        changePercent: previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0
+        change: finalValuation - previousValuation,
+        changePercent: previousValuation > 0 ? ((finalValuation - previousValuation) / previousValuation) * 100 : 0
       });
     } catch (tickError) {
       console.warn(`[ExecutionEngine] Failed to store price tick for sector ${sector.id}:`, tickError.message);
     }
 
     // Keep sector reference aligned for subsequent actions within the same execution
-    sector.currentPrice = newPrice;
+    sector.currentPrice = finalValuation;
     sector.balance = sectorState.balance;
     sector.holdings = sectorState.holdings;
     sector.position = sectorState.position;
     sector.positions = sectorState.position;
 
-    return newPrice;
+    // Return valuation metrics
+    return {
+      newValuation: finalValuation,
+      deltaValue: finalValuation - previousValuation,
+      newPositionValue: currentPosition
+    };
   }
 
   /**
    * Update simulated price for a sector based on volatility, noise, trend, and manager impact
+   * DEPRECATED: This method should NOT be used - it mutates prices randomly
+   * Valuation ONLY changes due to executed checklist items (BUY/SELL/REBALANCE)
+   * Price updates happen only in applyPriceUpdateForAction()
    * @param {Object} sector - Sector object
    * @param {Object} executionImpact - Execution impact object with managerImpact
-   * @returns {Promise<number>} New simulated price
+   * @returns {Promise<number>} New simulated price (DEPRECATED - returns current price without updating)
    */
   async updateSimulatedPrice(sector, executionImpact) {
-    // Read old price from sector.simulatedPrice, fallback to currentPrice or lastSimulatedPrice
-    const oldPrice = sector.simulatedPrice || sector.currentPrice || sector.lastSimulatedPrice || 100;
-
-    const managerImpact = executionImpact && typeof executionImpact.managerImpact === 'number'
-      ? executionImpact.managerImpact
-      : 0;
-
-    const trendFactor = this.getTrendFactor(sector);
-    const newPrice = calculateNewPrice(oldPrice, { managerImpact, trendFactor });
-    const priceChange = newPrice - oldPrice;
-    const changePercent = oldPrice > 0 ? (priceChange / oldPrice) * 100 : 0;
-
-    // Update sector with new simulated price and timestamp
-    const updates = {
-      simulatedPrice: newPrice,
-      lastPriceUpdate: Date.now(),
-      currentPrice: newPrice,
-      lastSimulatedPrice: newPrice,
-      change: priceChange,
-      changePercent: changePercent
-    };
-
-    await updateSector(sector.id, updates);
-
-    // Store price tick for history
-    try {
-      await storePriceTick(sector.id, {
-        price: newPrice,
-        timestamp: Date.now(),
-        volume: sector.volume || 0,
-        change: priceChange,
-        changePercent: changePercent
-      });
-    } catch (tickError) {
-      console.warn(`[ExecutionEngine] Failed to store price tick for sector ${sector.id}:`, tickError.message);
-    }
-
-    return newPrice;
+    // DEPRECATED: Do not update price here - valuation only changes on execution
+    // Return current price without updating
+    console.warn('[ExecutionEngine] updateSimulatedPrice called but is deprecated - valuation only changes on execution');
+    return typeof sector.currentPrice === 'number' && sector.currentPrice > 0
+      ? sector.currentPrice
+      : (typeof sector.simulatedPrice === 'number' && sector.simulatedPrice > 0
+        ? sector.simulatedPrice
+        : 100);
   }
 
   /**
@@ -1370,7 +1592,22 @@ class ExecutionEngine {
 
         // Remove item from execution list after successful execution
         if (result.success) {
-          await this.applyPriceUpdateForAction(sector, sectorState, actionType);
+          // Pass execution amount for BUY/SELL to calculate valuation delta
+          const executionAmount = (actionType === 'BUY' || actionType === 'SELL') ? allocation : 0;
+          const valuationBefore = sectorState.balance + sectorState.position;
+          const positionValueBefore = sectorState.position;
+          const valuationResult = await this.applyPriceUpdateForAction(sector, sectorState, actionType, executionAmount);
+          
+          // Update execution result with valuation metrics
+          const lastResult = executionResults[executionResults.length - 1];
+          if (lastResult && lastResult.success) {
+            lastResult.deltaValue = valuationResult.deltaValue;
+            lastResult.newPositionValue = valuationResult.newPositionValue;
+            lastResult.valuationBefore = valuationBefore;
+            lastResult.valuationAfter = valuationResult.newValuation;
+            lastResult.valuationDelta = valuationResult.deltaValue;
+          }
+          
           await removeExecutionItem(managerId, item.id);
           console.log(`[ExecutionEngine] Executed ${actionType} on ${symbol} for manager ${managerId}.`);
           
@@ -1431,9 +1668,16 @@ class ExecutionEngine {
       ? (sectorState.position / totalValue) * 100 
       : 0;
 
+    // Calculate final valuation as balance + position (ensures consistency)
+    // Valuation changes ONLY when checklist items are executed
+    const finalValuation = sectorState.balance + sectorState.position;
+    
     const previousPrice = startingPrice || sector.currentPrice || sector.simulatedPrice || sector.lastSimulatedPrice || 100;
-    const newPrice = sectorState.currentPrice;
+    const newPrice = finalValuation; // Use calculated valuation
     const priceChangePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
+
+    // Update sectorState.currentPrice to match calculated valuation
+    sectorState.currentPrice = newPrice;
 
     // Update sector
     const updates = {

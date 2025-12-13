@@ -6,14 +6,14 @@ import { ChevronLeft, TrendingUp, Users, Activity, MessageSquare, AlertCircle, D
 import LineChart from '@/components/LineChart';
 import { CreateAgentModal } from '@/components/CreateAgentModal';
 import { SectorSettingsForm } from '@/components/SectorSettingsForm';
-import { fetchSectorById, depositSector, withdrawSector, deleteAgent, deleteSector, fetchAgents, fetchDiscussions, fetchExecutionLogs, type ExecutionLog, isSkippedResult } from '@/lib/api';
+import { fetchSectorById, depositSector, withdrawSector, deleteAgent, deleteSector, fetchAgents, fetchDiscussions, fetchExecutionLogs, fetchValuationHistory, type ExecutionLog, isSkippedResult } from '@/lib/api';
 import type { Sector, Agent, Discussion } from '@/lib/types';
 import { usePolling } from '@/hooks/usePolling';
 import { useExecutionRefresh } from '@/hooks/useExecutionRefresh';
 import { useSectorDataPolling } from '@/hooks/useSectorDataPolling';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { getStatusColor, statusColorMap20 } from '@/lib/statusColors';
-import { fetchStockData, getStockDataParams, formatTimeRangeLabel, type StockDataPoint } from '@/lib/stockData';
+import { formatTimeRangeLabel } from '@/lib/stockData';
 
 // Memoized AgentRow component to prevent unnecessary re-renders
 const AgentRow = memo(function AgentRow({
@@ -209,8 +209,7 @@ export default function SectorDetailClient() {
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
   const [chartTimeWindow, setChartTimeWindow] = useState<string>('1m'); // Default 1 month
   const [isLoadingChart, setIsLoadingChart] = useState(false);
-  const [stockData, setStockData] = useState<StockDataPoint[]>([]);
-  const [useRealStockData, setUseRealStockData] = useState(true);
+  const [valuationHistory, setValuationHistory] = useState<Array<{ timestamp: number; valuation: number }>>([]);
   const hasLoadedRef = useRef<string | null>(null); // Track which sectorId we've loaded
   const isLoadingRef = useRef(false); // Prevent concurrent loads
   const lastAgentConfidencesRef = useRef<Map<string, number>>(new Map()); // Cache for comparison
@@ -392,43 +391,50 @@ export default function SectorDetailClient() {
     void loadExecutionLogs();
   }, [normalizedSectorId, loadExecutionLogs]);
 
-  // Fetch real stock data when sector or time range changes
+  // Fetch real valuation history when sector or time range changes
+  // Only uses actual historical valuation snapshots - no synthetic data
   useEffect(() => {
-    if (!sector?.symbol || !useRealStockData) {
-      setStockData([]);
+    if (!normalizedSectorId) {
+      setValuationHistory([]);
       return;
     }
 
-    const loadStockData = async () => {
+    const loadValuationHistory = async () => {
       setIsLoadingChart(true);
       try {
-        const params = getStockDataParams(chartTimeWindow);
-        // Pass current price as fallback for realistic data generation
-        const data = await fetchStockData({
-          symbol: sector.symbol,
-          ...params,
-        }, 3, sector.currentPrice || undefined);
+        const history = await fetchValuationHistory(normalizedSectorId, chartTimeWindow);
         
-        if (data.length > 0) {
-          setStockData(data);
-          setUseRealStockData(true);
-        } else {
-          // If no data returned, use simulated data
-          setStockData([]);
-          setUseRealStockData(false);
+        // Convert to chart format: { timestamp, valuation }
+        // Filter out duplicate consecutive prices (safety measure - backend should already do this)
+        const historyData: Array<{ timestamp: number; valuation: number }> = [];
+        const priceTolerance = 0.0001; // Small tolerance for floating point precision
+        
+        for (const point of history) {
+          const lastPoint = historyData[historyData.length - 1];
+          
+          // Only add if this is the first point or if the price has changed
+          if (!lastPoint || Math.abs(lastPoint.valuation - point.price) > priceTolerance) {
+            historyData.push({
+              timestamp: point.timestamp,
+              valuation: point.price
+            });
+          }
         }
+        
+        // Sort by timestamp to ensure chronological order
+        historyData.sort((a, b) => a.timestamp - b.timestamp);
+        
+        setValuationHistory(historyData);
       } catch (error) {
-        console.error('Failed to fetch stock data:', error);
-        setStockData([]);
-        // Fallback to simulated data on error
-        setUseRealStockData(false);
+        console.error('Failed to fetch valuation history:', error);
+        setValuationHistory([]);
       } finally {
         setIsLoadingChart(false);
       }
     };
 
-    void loadStockData();
-  }, [sector?.symbol, chartTimeWindow, useRealStockData]);
+    void loadValuationHistory();
+  }, [normalizedSectorId, chartTimeWindow]);
 
   // Poll agents every 1500ms to update confidence values without re-rendering entire table
   const pollAgentConfidences = useCallback(async () => {
@@ -771,112 +777,44 @@ export default function SectorDetailClient() {
   // Determine color based on growth
   const growthColor = priceChange > 0 ? 'text-sage-green' : priceChange < 0 ? 'text-error-red' : 'text-floral-white/70';
 
-  // Filter candleData based on selected time window
-  // Use real stock data if available, otherwise fall back to simulated data
+  // Convert valuation history to chart format
+  // Only uses actual historical snapshots - no synthetic data generation
   const filteredCandleData = useMemo(() => {
-    // If we have real stock data, use it
-    if (stockData.length > 0 && useRealStockData) {
-      return stockData.map(point => ({
-        time: point.time,
-        value: point.value,
-      }));
-    }
-
-    // Otherwise, use simulated data from sector
-    // Normalize candle data - handle both {time, value} and {open, close, high, low} formats
-    let normalizedData = (sector?.candleData || []).map((entry: any, index: number) => {
-      // If already in correct format, return as-is
-      if (entry && typeof entry.time === 'string' && typeof entry.value === 'number') {
-        return entry;
-      }
-      
-      // Convert from {open, close, high, low} format to {time, value}
-      const value = typeof entry?.value === 'number' 
-        ? entry.value 
-        : typeof entry?.close === 'number' 
-        ? entry.close 
-        : typeof entry?.open === 'number'
-        ? entry.open
-        : sector?.currentPrice || 0;
-      
-      // Generate time from index (assuming data points are roughly 2 minutes apart)
-      const minutesAgo = (sector?.candleData?.length || 0) - index - 1;
-      const now = new Date();
-      const dataTime = new Date(now.getTime() - minutesAgo * 2 * 60 * 1000);
-      const hours = dataTime.getHours();
-      const mins = dataTime.getMinutes();
-      const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-      
-      return {
-        time,
-        value: Number(value.toFixed(2))
-      };
-    }).filter((entry: any) => entry && typeof entry.value === 'number' && Number.isFinite(entry.value));
-
-    // If no candle data but we have a current price, generate data points from current price
-    // This ensures the chart always shows something when price data exists
-    if (normalizedData.length === 0 && sector?.currentPrice && sector.currentPrice > 0) {
-      const now = new Date();
-      
-      // Generate enough data points to show a smooth chart with proper time distribution
-      // Calculate number of points based on selected time window
-      let hoursToShow = 6; // Default
-      if (chartTimeWindow === '1d') hoursToShow = 24;
-      else if (chartTimeWindow === '1w') hoursToShow = 168; // 7 days
-      else if (chartTimeWindow === '1m') hoursToShow = 720; // 30 days
-      else if (chartTimeWindow === '3m') hoursToShow = 2160; // 90 days
-      else if (chartTimeWindow === '6m') hoursToShow = 4320; // 180 days
-      else if (chartTimeWindow === '1y') hoursToShow = 8760; // 365 days
-      else if (chartTimeWindow === 'max') hoursToShow = 8760; // Use 1 year as max for generated data
-      const numPoints = Math.max(30, hoursToShow * 10); // At least 30 points, or 10 per hour
-      normalizedData = [];
-      
-      // Calculate initial price (current price minus the change)
-      const initialPrice = sector.currentPrice - (sector.change || 0);
-      const totalMinutes = hoursToShow * 60;
-      const minutesPerPoint = totalMinutes / numPoints;
-      
-      for (let i = numPoints - 1; i >= 0; i--) {
-        const minutesAgo = i * minutesPerPoint;
-        const dataTime = new Date(now.getTime() - minutesAgo * 60 * 1000);
-        const hours = dataTime.getHours();
-        const mins = dataTime.getMinutes();
-        const time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    // Use real valuation history from backend - only actual valuation changes
+    if (valuationHistory.length > 0) {
+      return valuationHistory.map(point => {
+        const date = new Date(point.timestamp);
+        // Format time based on time window
+        let timeStr: string;
         
-        // Interpolate price from initial to current
-        const progress = (numPoints - 1 - i) / (numPoints - 1);
-        const value = initialPrice + (sector.currentPrice - initialPrice) * progress;
+        if (chartTimeWindow === '1d' || chartTimeWindow === '1w') {
+          // For short windows, show HH:MM
+          const hours = date.getHours();
+          const mins = date.getMinutes();
+          timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        } else if (chartTimeWindow === '1m' || chartTimeWindow === '3m') {
+          // For medium windows, show MM/DD
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
+          timeStr = `${month}/${day}`;
+        } else {
+          // For long windows, show MM/DD
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
+          timeStr = `${month}/${day}`;
+        }
         
-        normalizedData.push({
-          time,
-          value: Number(Math.max(0, value).toFixed(2))
-        });
-      }
+        return {
+          time: timeStr,
+          value: Number(point.valuation.toFixed(2))
+        };
+      });
     }
 
-    if (normalizedData.length === 0) {
-      return [];
-    }
-
-    // For simulated data, filter based on time window
-    // Since we're using hours for simulated data, convert the new time ranges
-    let hoursToShow = 6; // Default
-    if (chartTimeWindow === '1d') hoursToShow = 24;
-    else if (chartTimeWindow === '1w') hoursToShow = 168; // 7 days
-    else if (chartTimeWindow === '1m') hoursToShow = 720; // 30 days
-    else if (chartTimeWindow === '3m') hoursToShow = 2160; // 90 days
-    else if (chartTimeWindow === '6m') hoursToShow = 4320; // 180 days
-    else if (chartTimeWindow === '1y') hoursToShow = 8760; // 365 days
-    else if (chartTimeWindow === 'max') return normalizedData;
-
-    // Estimate data points per hour (assuming ~30-60 points per hour during active simulation)
-    // For safety, we'll use a conservative estimate of 30 points per hour
-    const pointsPerHour = 30;
-    const pointsToShow = hoursToShow * pointsPerHour;
-    
-    // Take the last N points
-    return normalizedData.slice(-Math.max(pointsToShow, 10)); // At least 10 points
-  }, [sector?.candleData, sector?.currentPrice, sector?.change, chartTimeWindow, stockData, useRealStockData]);
+    // No fallback - chart shows empty if no valuation history exists
+    // This ensures we only visualize actual valuation changes
+    return [];
+  }, [valuationHistory, chartTimeWindow]);
 
   // Show loading state only if we don't have a sector loaded yet
   if (loading && !sector) {
@@ -1294,11 +1232,13 @@ export default function SectorDetailClient() {
             />
           ) : (
             <div className="h-64 flex items-center justify-center text-floral-white/60 font-mono">
-              {sector?.candleData && sector.candleData.length > 0
-                ? 'No data available for selected time window'
-                : sector?.currentPrice && sector.currentPrice > 0
-                ? 'Generating chart data...'
-                : 'No chart data available. Start the simulation to see price history.'}
+              {isLoadingChart
+                ? 'Loading chart data...'
+                : valuationHistory.length === 0
+                ? sector?.currentPrice && sector.currentPrice > 0
+                  ? 'No valuation history available yet. Valuation changes will appear here.'
+                  : 'No chart data available. Start the simulation to see price history.'
+                : 'No data available for selected time window'}
             </div>
           )}
         </div>

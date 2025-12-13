@@ -316,13 +316,19 @@ class SimulationEngine {
       };
 
       // Step 7: Save updates to sector state
+      // CRITICAL: Do NOT update currentPrice or valuation here
+      // Valuation ONLY changes due to executed checklist items (BUY/SELL/REBALANCE)
+      // Price updates happen only in ExecutionEngine.applyPriceUpdateForAction()
+      // This tick only updates simulatedPrice for display purposes, not actual valuation
       const updates = {
         simulatedPrice: newSimulatedPrice,
-        currentPrice: newSimulatedPrice,
+        // DO NOT update currentPrice - it's set by ExecutionEngine only
+        // currentPrice: newSimulatedPrice, // REMOVED - valuation must only change on execution
         lastSimulatedPrice: newSimulatedPrice,
         lastPriceUpdate: now,
-        change: priceChange,
-        changePercent: priceChangePercent,
+        // DO NOT update change/changePercent - these are set by ExecutionEngine only
+        // change: priceChange, // REMOVED
+        // changePercent: priceChangePercent, // REMOVED
         volatility: newVolatility,
         trendDescriptor: updatedTrendDescriptor,
         performance: updatedPerformance

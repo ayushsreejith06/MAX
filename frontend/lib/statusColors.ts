@@ -8,10 +8,12 @@
 export const STATUS_COLORS = {
   // Main status colors
   in_progress: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40',
+  awaiting_execution: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40', // Waiting for execution - similar to in_progress
   decided: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
   
   // Alternative opacity variants (for different contexts)
   in_progress_20: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
+  awaiting_execution_20: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
   decided_20: 'bg-sage-green/20 text-sage-green border-sage-green/50',
   
   // Legacy status mappings (all map to decided or in_progress)
@@ -40,6 +42,11 @@ export function getStatusColor(status: string | null | undefined, variant: 'defa
   // Normalize to in_progress (orange)
   if (statusLower === 'in_progress' || statusLower === 'open' || statusLower === 'active' || statusLower === 'created' || statusLower === 'OPEN' || statusLower === 'ACTIVE' || statusLower === 'CREATED') {
     return variant === '20' ? STATUS_COLORS.in_progress_20 : STATUS_COLORS.in_progress;
+  }
+  
+  // AWAITING_EXECUTION - waiting for execution (orange, similar to in_progress)
+  if (statusLower === 'awaiting_execution' || statusLower === 'AWAITING_EXECUTION') {
+    return variant === '20' ? STATUS_COLORS.awaiting_execution_20 : STATUS_COLORS.awaiting_execution;
   }
   
   // Normalize to decided (green)
@@ -77,6 +84,11 @@ export function getStatusLabel(status: string | null | undefined): string {
     return 'In Progress';
   }
   
+  // AWAITING_EXECUTION
+  if (statusLower === 'awaiting_execution' || statusLower === 'AWAITING_EXECUTION') {
+    return 'Awaiting Execution';
+  }
+  
   // Normalize to decided
   if (statusLower === 'decided' || statusLower === 'closed' || statusLower === 'finalized' || statusLower === 'accepted' || statusLower === 'completed' ||
       statusLower === 'DECIDED' || statusLower === 'CLOSED' || statusLower === 'FINALIZED' || statusLower === 'ACCEPTED' || statusLower === 'COMPLETED') {
@@ -92,6 +104,7 @@ export function getStatusLabel(status: string | null | undefined): string {
  */
 export const statusColorMap: Record<string, string> = {
   in_progress: STATUS_COLORS.in_progress,
+  awaiting_execution: STATUS_COLORS.awaiting_execution,
   decided: STATUS_COLORS.decided,
   open: STATUS_COLORS.in_progress,
   active: STATUS_COLORS.in_progress,
@@ -109,6 +122,7 @@ export const statusColorMap: Record<string, string> = {
  */
 export const statusColorMap20: Record<string, string> = {
   in_progress: STATUS_COLORS.in_progress_20,
+  awaiting_execution: STATUS_COLORS.awaiting_execution_20,
   decided: STATUS_COLORS.decided_20,
   open: STATUS_COLORS.in_progress_20,
   active: STATUS_COLORS.in_progress_20,

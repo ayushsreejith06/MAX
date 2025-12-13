@@ -268,6 +268,21 @@ module.exports = async (fastify) => {
         });
       }
 
+      // Store price tick for history (withdrawal changes the price)
+      try {
+        const priceChange = newPrice - currentPrice;
+        const priceChangePercent = currentPrice > 0 ? (priceChange / currentPrice) * 100 : 0;
+        await storePriceTick(id, {
+          price: newPrice,
+          timestamp: Date.now(),
+          volume: sector.volume || 0,
+          change: priceChange,
+          changePercent: priceChangePercent
+        });
+      } catch (tickError) {
+        console.warn(`[sectors] Failed to store price tick for withdrawal on sector ${id}:`, tickError.message);
+      }
+
       // Add withdrawn amount to user account
       try {
         await addFunds(withdrawAmount);
@@ -558,23 +573,35 @@ module.exports = async (fastify) => {
         throw new Error(`Failed to verify sector creation: sector ${normalizedSector.id} not found in storage`);
       }
       
-      // Start price simulation for the new sector
+      // Initialize sector valuation (balance + position) - no automatic price simulation
+      // Valuation only changes due to execution outcomes
       try {
-        const { getSectorPriceSimulator } = require('../simulation/SectorPriceSimulator');
-        const priceSimulator = getSectorPriceSimulator();
-        priceSimulator.start(normalizedSector.id);
+        const balance = typeof normalizedSector.balance === 'number' ? normalizedSector.balance : 0;
+        const position = typeof normalizedSector.position === 'number' 
+          ? normalizedSector.position 
+          : (typeof normalizedSector.holdings?.position === 'number' 
+            ? normalizedSector.holdings.position 
+            : 0);
+        const valuation = balance + position;
+        const initialPrice = valuation > 0 ? valuation : 100;
         
-        // Initialize price history with the starting price
+        // Update sector with initial valuation
+        await updateSector(normalizedSector.id, {
+          currentPrice: initialPrice,
+          baselinePrice: initialPrice
+        });
+        
+        // Initialize price history with the starting valuation
         const PriceHistory = require('../models/PriceHistory');
         const initialPriceHistory = new PriceHistory({
           sectorId: normalizedSector.id,
-          price: 100,
+          price: initialPrice,
           timestamp: Date.now()
         });
         await initialPriceHistory.save();
       } catch (simError) {
-        console.warn(`[POST /sectors] Warning: Failed to start price simulation for sector ${normalizedSector.id}:`, simError.message);
-        // Don't fail the request if simulator fails to start
+        console.warn(`[POST /sectors] Warning: Failed to initialize valuation for sector ${normalizedSector.id}:`, simError.message);
+        // Don't fail the request if valuation initialization fails
       }
 
       console.log(`[POST /sectors] Successfully created and verified sector with ID: ${normalizedSector.id}`);

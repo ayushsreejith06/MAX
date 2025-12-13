@@ -608,10 +608,12 @@ async function closeDiscussion(discussionId) {
         discussionRoom = DiscussionRoom.fromData(updatedData);
       }
 
-      // Transition to DECIDED status
-      await transitionStatus(discussionId, STATUS.DECIDED, 'Discussion closed (legacy mode)');
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      // Will transition to DECIDED when all ACCEPTED items are executed
+      const { checkAndTransitionToAwaitingExecution } = require('../../utils/discussionStatusService');
+      await checkAndTransitionToAwaitingExecution(discussionId);
 
-      console.log(`[DiscussionLifecycle] Marked discussion ${discussionId} as decided (legacy mode)`);
+      console.log(`[DiscussionLifecycle] Marked discussion ${discussionId} as AWAITING_EXECUTION (legacy mode)`);
       return discussionRoom;
     }
   } catch (error) {
@@ -643,10 +645,12 @@ async function archiveDiscussion(discussionId) {
       discussionRoom = DiscussionRoom.fromData(updatedData);
     }
 
-    // Transition to DECIDED status if not already
+    // Transition to AWAITING_EXECUTION when all items are terminal
+    // Will transition to DECIDED when all ACCEPTED items are executed
     const updatedStatus = (discussionRoom.status || '').toUpperCase();
-    if (updatedStatus !== 'DECIDED' && updatedStatus !== 'CLOSED') {
-      await transitionStatus(discussionId, STATUS.DECIDED, 'Discussion archived');
+    if (updatedStatus !== 'DECIDED' && updatedStatus !== 'CLOSED' && updatedStatus !== 'AWAITING_EXECUTION') {
+      const { checkAndTransitionToAwaitingExecution } = require('../../utils/discussionStatusService');
+      await checkAndTransitionToAwaitingExecution(discussionId);
     }
 
     console.log(`[DiscussionLifecycle] Marked discussion ${discussionId} as decided`);

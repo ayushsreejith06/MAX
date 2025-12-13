@@ -3,14 +3,29 @@ const { getSectorById } = require('../utils/sectorStorage');
 
 /**
  * Parse window parameter to hours
- * Supports: '6h', '12h', '24h', 'all', or number in hours
+ * Supports: '1d', '1w', '1m', '3m', '6m', '1y', 'max', '6h', '12h', '24h', 'all', or number in hours
  */
 function parseWindow(windowParam) {
-  if (!windowParam || windowParam === 'all') {
+  if (!windowParam || windowParam === 'all' || windowParam === 'max') {
     return null; // Return all history
   }
 
   if (typeof windowParam === 'string') {
+    // Handle common time window formats: '1d', '1w', '1m', '3m', '6m', '1y'
+    const timeWindowMap = {
+      '1d': 24,        // 1 day = 24 hours
+      '1w': 168,       // 1 week = 7 * 24 = 168 hours
+      '1m': 720,       // 1 month = 30 * 24 = 720 hours
+      '3m': 2160,      // 3 months = 90 * 24 = 2160 hours
+      '6m': 4320,      // 6 months = 180 * 24 = 4320 hours
+      '1y': 8760,      // 1 year = 365 * 24 = 8760 hours
+    };
+
+    const lowerParam = windowParam.toLowerCase();
+    if (timeWindowMap[lowerParam]) {
+      return { windowHours: timeWindowMap[lowerParam] };
+    }
+
     // Handle '6h', '12h', '24h' format
     const match = windowParam.match(/^(\d+)(h|m)$/i);
     if (match) {
@@ -40,7 +55,7 @@ module.exports = async (fastify) => {
    * Get price history for a sector
    * 
    * Query parameters:
-   *   - window: Time window ('6h', '12h', '24h', 'all', or number in hours) - default: '6h'
+   *   - window: Time window ('1d', '1w', '1m', '3m', '6m', '1y', 'max', '6h', '12h', '24h', 'all', or number in hours) - default: '6h'
    *   - start: Start timestamp (milliseconds) - optional
    *   - end: End timestamp (milliseconds) - optional
    *   - limit: Maximum number of ticks to return - optional

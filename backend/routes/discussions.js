@@ -11,6 +11,7 @@ const {
 } = require('../agents/discussion/discussionLifecycle');
 const { loadAgents } = require('../utils/agentStorage');
 const { loadRejectedItems } = require('../utils/rejectedItemsStorage');
+const { extractConfidence } = require('../utils/confidenceUtils');
 const ExecutionEngine = require('../core/ExecutionEngine');
 const { formatChecklistItemDescription } = require('../discussions/workflow/checklistBuilder');
 const { transitionStatus, STATUS, normalizeStatus } = require('../utils/discussionStatusService');
@@ -599,6 +600,9 @@ module.exports = async (fastify) => {
           revisionCount: item.revisionCount || 0,
           revisedAt: item.revisedAt || null,
           previousVersions: item.previousVersions || [],
+          // Execution metadata
+          executedAt: item.executedAt || null,
+          executionLogId: item.executionLogId || null,
           // Include new format fields for reference
           symbol: item.symbol,
           sourceAgentId: agentId,
@@ -654,6 +658,9 @@ module.exports = async (fastify) => {
           agentName: item.agentName,
           approvalStatus: 'accepted',
           approvedAt: item.approvedAt,
+          // Execution metadata
+          executedAt: item.executedAt || null,
+          executionLogId: item.executionLogId || null,
           // Include new format fields
           symbol: item.symbol,
           sourceAgentId: agentId,
@@ -938,12 +945,10 @@ module.exports = async (fastify) => {
       await saveDiscussion(discussionRoom);
       
       // Update discussion status if all items are resolved
-      if (allItemsResolved && checklistItems.some(item => 
-        (discussionRoom.managerDecisions || []).some(decision => 
-          decision.item && decision.item.id === item.id && decision.approved === true
-        )
-      )) {
-        await transitionStatus(id, STATUS.DECIDED, 'All items resolved');
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      if (allItemsResolved) {
+        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+        await checkAndTransitionToAwaitingExecution(id);
       } else {
         await transitionStatus(id, STATUS.IN_PROGRESS, 'Items pending resolution');
       }
@@ -1073,10 +1078,12 @@ module.exports = async (fastify) => {
       // Save discussion first
       await saveDiscussion(discussionRoom);
       
-      // Discussion should be 'decided' when all items are resolved, even if all are rejected
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      // Will transition to DECIDED when all ACCEPTED items are executed
       if (allItemsResolved) {
-        await transitionStatus(id, STATUS.DECIDED, 'All items resolved (even if all rejected)');
-        log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - status set to 'decided' (even if all items are rejected)`);
+        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+        await checkAndTransitionToAwaitingExecution(id);
+        log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - transitioned to AWAITING_EXECUTION`);
       }
 
       log(`[ACCEPT REJECTION] Discussion ${id}: Rejection accepted for item ${itemId}. All items resolved: ${allItemsResolved}, Discussion status: ${discussionRoom.status}`);
@@ -1213,12 +1220,10 @@ module.exports = async (fastify) => {
       await saveDiscussion(discussionRoom);
       
       // Update discussion status if all items are resolved
-      if (allItemsResolved && checklistItems.some(item => 
-        (discussionRoom.managerDecisions || []).some(decision => 
-          decision.item && decision.item.id === item.id && decision.approved === true
-        )
-      )) {
-        await transitionStatus(id, STATUS.DECIDED, 'All items resolved');
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      if (allItemsResolved) {
+        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+        await checkAndTransitionToAwaitingExecution(id);
       } else {
         await transitionStatus(id, STATUS.IN_PROGRESS, 'Items pending resolution');
       }
@@ -1312,6 +1317,18 @@ module.exports = async (fastify) => {
       // Update the item in checklist
       checklistItems[itemIndex] = item;
       discussionRoom.checklist = checklistItems;
+      
+      // Mark refinement cycle as resolved (item accepted rejection)
+      if (Array.isArray(discussionRoom.activeRefinementCycles)) {
+        const cycleIndex = discussionRoom.activeRefinementCycles.findIndex(
+          cycle => cycle.itemId === itemId
+        );
+        if (cycleIndex !== -1) {
+          // Remove from active cycles since it's resolved
+          discussionRoom.activeRefinementCycles.splice(cycleIndex, 1);
+          log(`[ACCEPT REJECTION] Discussion ${id}: Removed item ${itemId} from active refinement cycles`);
+        }
+      }
 
       // Update manager decision to reflect acceptance of rejection
       if (Array.isArray(discussionRoom.managerDecisions)) {
@@ -1349,10 +1366,12 @@ module.exports = async (fastify) => {
       // Save discussion first
       await saveDiscussion(discussionRoom);
       
-      // Discussion should be 'decided' when all items are resolved, even if all are rejected
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      // Will transition to DECIDED when all ACCEPTED items are executed
       if (allItemsResolved) {
-        await transitionStatus(id, STATUS.DECIDED, 'All items resolved (even if all rejected)');
-        log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - status set to 'decided' (even if all items are rejected)`);
+        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+        await checkAndTransitionToAwaitingExecution(id);
+        log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - transitioned to AWAITING_EXECUTION`);
       }
 
       log(`[ACCEPT REJECTION] Discussion ${id}: Rejection accepted for item ${itemId}. All items resolved: ${allItemsResolved}, Discussion status: ${discussionRoom.status}`);
@@ -1564,84 +1583,99 @@ module.exports = async (fastify) => {
           console.log(`[POST /discussions/:id/message] Round ${currentRound}: Attempting checklist creation for agent ${agentId}`);
 
           try {
-            // Get sector information for checklist creation
-            const { getSectorById } = require('../utils/sectorStorage');
-            const sector = await getSectorById(discussionRoom.sectorId);
+            // CONFIDENCE GATING: Check if agent has sufficient confidence to create checklist items
+            // Agents with confidence < 65 can post analysis messages but cannot create checklist items
+            const agents = await loadAgents();
+            const agent = agents.find(a => a && a.id === agentId);
             
-            if (sector) {
-              const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
-              // Create checklist item from structured proposal object
-              // createChecklistFromLLM will create a fallback item if parsing fails
-              const checklistItem = await createChecklistFromLLM({
-                proposal: proposal, // REQUIRED: Structured proposal object
-                discussionId: discussionRoom.id,
-                agentId,
-                agentName: agentName || undefined,
-                sector: {
-                  id: sector.id,
-                  symbol: sector.symbol || sector.sectorSymbol,
-                  name: sector.name || sector.sectorName,
-                  allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-                },
-                sectorData: {
-                  currentPrice: sector.currentPrice,
-                  baselinePrice: sector.currentPrice,
-                  balance: sector.balance,
-                },
-                availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
-                currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
-              });
+            if (agent) {
+              const agentConfidence = extractConfidence(agent, 0);
+              if (agentConfidence < 65) {
+                console.log(`[POST /discussions/:id/message] Round ${currentRound}: Agent ${agentId} has confidence ${agentConfidence.toFixed(2)} < 65. Skipping checklist item creation. Agent may still post analysis messages.`);
+                // Continue to save the message even though checklist creation is skipped
+              } else {
+                // Get sector information for checklist creation
+                const { getSectorById } = require('../utils/sectorStorage');
+                const sector = await getSectorById(discussionRoom.sectorId);
+                
+                if (sector) {
+                  const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
+                  // Create checklist item from structured proposal object
+                  // createChecklistFromLLM will create a fallback item if parsing fails
+                  const checklistItem = await createChecklistFromLLM({
+                    proposal: proposal, // REQUIRED: Structured proposal object
+                    discussionId: discussionRoom.id,
+                    agentId,
+                    agentName: agentName || undefined,
+                    sector: {
+                      id: sector.id,
+                      symbol: sector.symbol || sector.sectorSymbol,
+                      name: sector.name || sector.sectorName,
+                      allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+                    },
+                    sectorData: {
+                      currentPrice: sector.currentPrice,
+                      baselinePrice: sector.currentPrice,
+                      balance: sector.balance,
+                    },
+                    availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
+                    currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
+                  });
 
-              // Checklist item is always created (even if fallback is used)
-              // CRITICAL: Ensure round is ALWAYS set on the checklist item
-              // This is required for hasChecklistItemForRound to work correctly
-              if (typeof checklistItem.round !== 'number') {
-                checklistItem.round = currentRound;
+                  // Checklist item is always created (even if fallback is used)
+                  // CRITICAL: Ensure round is ALWAYS set on the checklist item
+                  // This is required for hasChecklistItemForRound to work correctly
+                  if (typeof checklistItem.round !== 'number') {
+                    checklistItem.round = currentRound;
+                  }
+                  
+                  // Auto-evaluate the checklist item immediately after creation
+                  let finalItem = checklistItem;
+                  try {
+                    const ManagerEngine = require('../core/ManagerEngine');
+                    const managerEngine = new ManagerEngine();
+                    
+                    // Get sector state for evaluation
+                    const sectorState = {
+                      id: sector.id,
+                      sectorId: sector.id,
+                      sectorName: sector.name || sector.sectorName,
+                      sectorType: sector.type || 'other',
+                      simulatedPrice: sector.currentPrice || sector.simulatedPrice,
+                      baselinePrice: sector.currentPrice || sector.baselinePrice,
+                      volatility: sector.volatility || 0,
+                      trendDescriptor: sector.trendDescriptor || 'neutral',
+                      balance: sector.balance,
+                      allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
+                      riskScore: sector.riskScore
+                    };
+                    
+                    // Auto-evaluate the item (this modifies the item in place)
+                    finalItem = await managerEngine.autoEvaluateChecklistItem(checklistItem, sectorState);
+                    console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created and auto-evaluated checklist item from agent ${agentId} message: ${finalItem.actionType} ${finalItem.symbol} (status: ${finalItem.status})`);
+                  } catch (evalError) {
+                    // If auto-evaluation fails, use original item as PENDING (fallback)
+                    console.warn(`[POST /discussions/:id/message] Auto-evaluation failed for checklist item, adding as PENDING: ${evalError.message}`);
+                    console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created checklist item from agent ${agentId} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
+                  }
+                  
+                  // Add the final item (either evaluated or original) to checklist
+                  discussionRoom.checklist.push(finalItem);
+                  discussionRoom.updateLastChecklistItemTimestamp();
+                  console.log(`[POST /discussions/:id/message] Checklist item added. Total items: ${discussionRoom.checklist.length}`);
+                  console.log(`[POST /discussions/:id/message] Checklist item details:`, {
+                    id: finalItem.id,
+                    actionType: finalItem.actionType,
+                    symbol: finalItem.symbol,
+                    allocationPercent: finalItem.allocationPercent,
+                    confidence: finalItem.confidence,
+                    status: finalItem.status,
+                    round: finalItem.round
+                  });
+                }
               }
-              
-              // Auto-evaluate the checklist item immediately after creation
-              let finalItem = checklistItem;
-              try {
-                const ManagerEngine = require('../core/ManagerEngine');
-                const managerEngine = new ManagerEngine();
-                
-                // Get sector state for evaluation
-                const sectorState = {
-                  id: sector.id,
-                  sectorId: sector.id,
-                  sectorName: sector.name || sector.sectorName,
-                  sectorType: sector.type || 'other',
-                  simulatedPrice: sector.currentPrice || sector.simulatedPrice,
-                  baselinePrice: sector.currentPrice || sector.baselinePrice,
-                  volatility: sector.volatility || 0,
-                  trendDescriptor: sector.trendDescriptor || 'neutral',
-                  balance: sector.balance,
-                  allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-                  riskScore: sector.riskScore
-                };
-                
-                // Auto-evaluate the item (this modifies the item in place)
-                finalItem = await managerEngine.autoEvaluateChecklistItem(checklistItem, sectorState);
-                console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created and auto-evaluated checklist item from agent ${agentId} message: ${finalItem.actionType} ${finalItem.symbol} (status: ${finalItem.status})`);
-              } catch (evalError) {
-                // If auto-evaluation fails, use original item as PENDING (fallback)
-                console.warn(`[POST /discussions/:id/message] Auto-evaluation failed for checklist item, adding as PENDING: ${evalError.message}`);
-                console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created checklist item from agent ${agentId} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
-              }
-              
-              // Add the final item (either evaluated or original) to checklist
-              discussionRoom.checklist.push(finalItem);
-              discussionRoom.updateLastChecklistItemTimestamp();
-              console.log(`[POST /discussions/:id/message] Checklist item added. Total items: ${discussionRoom.checklist.length}`);
-              console.log(`[POST /discussions/:id/message] Checklist item details:`, {
-                id: finalItem.id,
-                actionType: finalItem.actionType,
-                symbol: finalItem.symbol,
-                allocationPercent: finalItem.allocationPercent,
-                confidence: finalItem.confidence,
-                status: finalItem.status,
-                round: finalItem.round
-              });
+            } else {
+              console.warn(`[POST /discussions/:id/message] Agent ${agentId} not found. Skipping checklist item creation.`);
             }
           } catch (error) {
             // Log error but don't fail the request if checklist creation fails
@@ -1689,8 +1723,10 @@ module.exports = async (fastify) => {
           discussionRoom.roundHistory.push(finalRoundSnapshot);
           await saveDiscussion(discussionRoom);
           
-          // Transition to DECIDED status
-          await transitionStatus(id, STATUS.DECIDED, 'All items terminal');
+          // Transition to AWAITING_EXECUTION when all items are terminal
+          // Will transition to DECIDED when all ACCEPTED items are executed
+          const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+          await checkAndTransitionToAwaitingExecution(id);
         }
       } catch (closeError) {
         log(`[POST /discussions/:id/message] Error checking if discussion can close: ${closeError.message}`);
@@ -1861,37 +1897,13 @@ module.exports = async (fastify) => {
       }
       
       // Discussion has approved checklist items - can be accepted
-      // Execute the checklist items to update balance and sector state
-      const executionEngine = new ExecutionEngine();
-      log(`Executing ${finalizedChecklist.length} approved checklist items for discussion ${id}`);
+      // Execution happens automatically when items transition to APPROVED status
+      // No need to execute here - items are already executed when they were approved
       
-      try {
-        const executionResult = await executionEngine.executeChecklist(
-          finalizedChecklist,
-          discussionRoom.sectorId,
-          discussionRoom.id
-        );
-        
-        if (!executionResult.success) {
-          log(`Execution failed for discussion ${id}`);
-          return reply.status(500).send({
-            success: false,
-            error: 'Failed to execute checklist items. Discussion was not accepted.'
-          });
-        }
-        
-        log(`Successfully executed checklist items for discussion ${id}. Balance and sector state updated.`);
-      } catch (executionError) {
-        const errorMessage = executionError?.message || executionError?.toString() || 'Unknown execution error';
-        log(`Error executing checklist for discussion ${id}: ${errorMessage}`);
-        return reply.status(500).send({
-          success: false,
-          error: `Failed to execute checklist items: ${errorMessage}`
-        });
-      }
-      
-      // Update discussion status to decided after successful execution
-      await transitionStatus(id, STATUS.DECIDED, 'Checklist executed successfully');
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      // Will transition to DECIDED when all ACCEPTED items are executed
+      const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+      await checkAndTransitionToAwaitingExecution(id);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -1926,8 +1938,10 @@ module.exports = async (fastify) => {
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
       // Individual checklist items are classified as 'accepted' or 'rejected', not discussions
-      // Transition to DECIDED status
-      await transitionStatus(id, STATUS.DECIDED, 'Discussion marked as completed');
+      // Transition to AWAITING_EXECUTION when all items are terminal
+      // Will transition to DECIDED when all ACCEPTED items are executed
+      const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+      await checkAndTransitionToAwaitingExecution(id);
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 

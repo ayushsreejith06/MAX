@@ -19,6 +19,8 @@ class DiscussionRoom {
     this.checklist = [];
     this.finalizedChecklist = [];
     this.needsRefinement = [];
+    // Refinement cycle tracking
+    this.activeRefinementCycles = []; // Array of {itemId, rejectedAt, rejectionReason, requiredImprovements}
     // Multi-round discussion fields
     this.roundHistory = []; // Array of round snapshots
     // Decision fields
@@ -81,6 +83,8 @@ class DiscussionRoom {
     discussionRoom.checklist = Array.isArray(data.checklist) ? data.checklist : [];
     discussionRoom.finalizedChecklist = Array.isArray(data.finalizedChecklist) ? data.finalizedChecklist : [];
     discussionRoom.needsRefinement = Array.isArray(data.needsRefinement) ? data.needsRefinement : [];
+    // Refinement cycle tracking
+    discussionRoom.activeRefinementCycles = Array.isArray(data.activeRefinementCycles) ? data.activeRefinementCycles : [];
     // Multi-round: roundHistory stores snapshots of previous rounds
     discussionRoom.roundHistory = Array.isArray(data.roundHistory) ? data.roundHistory : [];
     // Decision fields
@@ -159,6 +163,39 @@ class DiscussionRoom {
       const error = `Cannot mark discussion as DECIDED: Discussion ${this.id} has no checklist items. A discussion must have checklist items before it can be marked as DECIDED.`;
       console.error(`[DiscussionRoom.setDecision] ${error}`);
       throw new Error(error);
+    }
+
+    // INVARIANT: discussion.status === DECIDED  ⇔  checklist.pendingCount === 0
+    // Cannot mark as DECIDED if ANY checklist items are still PENDING
+    if (hasChecklistItems) {
+      const terminalStatuses = ['APPROVED', 'REJECTED', 'ACCEPT_REJECTION', 'EXECUTED'];
+      const pendingItems = [];
+
+      for (const item of this.checklist) {
+        const status = (item.status || '').toUpperCase();
+        const isTerminal = terminalStatuses.includes(status);
+        
+        if (!isTerminal) {
+          pendingItems.push({
+            id: item.id || 'unknown',
+            status: status || 'PENDING',
+            action: item.action || item.actionType || 'unknown',
+            symbol: item.symbol || 'unknown'
+          });
+        }
+      }
+
+      if (pendingItems.length > 0) {
+        const pendingItemIds = pendingItems.map(item => item.id).join(', ');
+        const pendingItemDetails = pendingItems.map(item => 
+          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
+        ).join('\n');
+        
+        const warning = `Cannot mark discussion as DECIDED: Discussion ${this.id} has ${pendingItems.length} pending checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
+        
+        console.warn(`[DiscussionRoom.setDecision] ${warning}`);
+        throw new Error(`Cannot mark as DECIDED: ${pendingItems.length} checklist item(s) still pending (IDs: ${pendingItemIds}). Manager agent must remain ACTIVE until all items are resolved.`);
+      }
     }
     
     this.finalDecision = decision.action || decision.finalDecision;
@@ -254,6 +291,8 @@ class DiscussionRoom {
       checklist: this.checklist,
       finalizedChecklist: this.finalizedChecklist,
       needsRefinement: this.needsRefinement,
+      // Refinement cycle tracking
+      activeRefinementCycles: this.activeRefinementCycles || [],
       // Multi-round discussion fields
       roundHistory: this.roundHistory, // Array of round snapshots
       // Decision fields

@@ -90,36 +90,42 @@ class SectorPriceSimulator {
     // Generate random noise within ±0.15%
     const noise = (Math.random() * 0.003 - 0.0015); // -0.15% to +0.15%
 
+    // CRITICAL: Do NOT update currentPrice or valuation here
+    // Valuation ONLY changes due to executed checklist items (BUY/SELL/REBALANCE)
+    // Price updates happen only in ExecutionEngine.applyPriceUpdateForAction()
+    // This simulator is disabled - price should only update on execution
+    // Keeping this code for reference but it should not be called
+    
     // Calculate new price: newPrice = lastPrice * (1 + drift + noise)
     let newPrice = lastPrice * (1 + drift + noise);
 
     // Ensure price never goes below 0
     newPrice = Math.max(0, newPrice);
 
-    // Update sector price
-    const previousPrice = lastPrice;
-    const change = newPrice - previousPrice;
-    const changePercent = previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0;
+    // DO NOT update sector price - valuation must only change on execution
+    // await updateSector(sectorId, {
+    //   currentPrice: newPrice,
+    //   change: change,
+    //   changePercent: changePercent,
+    //   lastSimulatedPrice: newPrice
+    // });
+    
+    console.warn(`[SectorPriceSimulator] Price update skipped - valuation only changes on execution. Calculated price: ${newPrice.toFixed(2)} (not applied)`);
 
-    await updateSector(sectorId, {
-      currentPrice: newPrice,
-      change: change,
-      changePercent: changePercent,
-      lastSimulatedPrice: newPrice
-    });
-
-    // Persist price history
-    const priceHistory = new PriceHistory({
-      sectorId: sectorId,
-      price: newPrice,
-      timestamp: Date.now()
-    });
-    await priceHistory.save();
+    // DO NOT persist price history - price only updates on execution
+    // const priceHistory = new PriceHistory({
+    //   sectorId: sectorId,
+    //   price: newPrice,
+    //   timestamp: Date.now()
+    // });
+    // await priceHistory.save();
 
     // Update last update time
     this.lastUpdateTime.set(sectorId, Date.now());
 
-    console.log(`[SectorPriceSimulator] Sector ${sectorId}: ${previousPrice.toFixed(2)} -> ${newPrice.toFixed(2)} (drift: ${(drift * 100).toFixed(3)}%, noise: ${(noise * 100).toFixed(3)}%)`);
+    // Log warning instead of price update
+    const previousPrice = lastPrice;
+    console.log(`[SectorPriceSimulator] Sector ${sectorId}: Price update skipped (valuation only changes on execution). Current: ${previousPrice.toFixed(2)}, Calculated: ${newPrice.toFixed(2)} (not applied)`);
   }
 
   /**

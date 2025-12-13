@@ -3,6 +3,16 @@ export interface CandleData {
   value: number;
 }
 
+export interface ValuationHistoryPoint {
+  id: string;
+  sectorId: string;
+  price: number;
+  timestamp: number;
+  volume?: number;
+  change?: number;
+  changePercent?: number;
+}
+
 export type AgentStatus = 'IDLE' | 'THINKING' | 'DISCUSSING' | 'EXECUTING' | 'active' | 'idle' | 'processing' | string;
 
 export interface AgentPersonality {
@@ -79,12 +89,36 @@ export interface ChecklistItem {
   approvalStatus?: 'pending' | 'accepted' | 'rejected' | 'accept_rejection';
   approvalReason?: string | null;
   // Revision metadata
-  status?: 'PENDING' | 'REJECTED' | 'REVISE_REQUIRED' | 'APPROVED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | 'REVISE_REQUIRED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
   requiresRevision?: boolean;
   requiresManagerEvaluation?: boolean;
   managerReason?: string | null;
   revisionCount?: number;
   revisedAt?: string;
+  // Manager decision metadata - authoritative state
+  decisionBy?: string; // Manager ID who made the decision
+  decidedAt?: string; // ISO timestamp when decision was made
+  rejectionReason?: {
+    score?: number;
+    approvalThreshold?: number;
+    scoreBreakdown?: {
+      workerConfidence?: number;
+      expectedImpact?: number;
+      riskLevel?: number;
+      alignmentWithSectorGoal?: number;
+      normalizedRiskScore?: number;
+      weights?: {
+        workerConfidence?: number;
+        expectedImpact?: number;
+        riskLevel?: number;
+        alignmentWithSectorGoal?: number;
+      };
+    };
+    reason?: string;
+    confidence?: number;
+    effectiveThreshold?: number;
+    requiredImprovements?: string[];
+  };
   previousVersions?: Array<{
     action?: string;
     amount?: number;
@@ -93,6 +127,9 @@ export interface ChecklistItem {
     confidence?: number;
     timestamp: string;
   }>;
+  // Execution metadata
+  executedAt?: string | null; // ISO timestamp when item was executed
+  executionLogId?: string | null; // ID of the execution log entry
 }
 
 // Round history snapshot for multi-round discussions
@@ -108,7 +145,7 @@ export interface RoundSnapshot {
   timestamp: string;
 }
 
-export type DiscussionStatus = 'OPEN' | 'CLOSED' | 'in_progress' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | 'finalized' | string;
+export type DiscussionStatus = 'OPEN' | 'CLOSED' | 'in_progress' | 'IN_PROGRESS' | 'AWAITING_EXECUTION' | 'awaiting_execution' | 'accepted' | 'rejected' | 'closed' | 'archived' | 'decided' | 'DECIDED' | 'finalized' | string;
 
 export interface Discussion {
   id: string;

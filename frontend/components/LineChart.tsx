@@ -79,14 +79,29 @@ const LineChart = React.memo(function LineChart({
   };
 
   // Filter data based on tick increment
+  // Since we only show actual valuation changes (no synthetic points),
+  // we use tick increment as a display preference to reduce point density
   const filteredData = useMemo(() => {
     if (!data.length) return [];
+    // If tick increment is small, show all points (they're all real valuation changes)
     if (tickIncrement <= 5) return data;
 
-    return data.filter(point => {
+    // For larger increments, sample points to reduce visual clutter
+    // But always include first and last points to show the full range
+    const result = [];
+    for (let i = 0; i < data.length; i++) {
+      const point = data[i];
       const minutes = timeToMinutes(point.time);
-      return minutes % tickIncrement === 0;
-    });
+      
+      // Always include first and last points
+      if (i === 0 || i === data.length - 1) {
+        result.push(point);
+      } else if (minutes % tickIncrement === 0) {
+        result.push(point);
+      }
+    }
+    
+    return result.length > 0 ? result : data;
   }, [data, tickIncrement]);
 
   // Calculate windowed data

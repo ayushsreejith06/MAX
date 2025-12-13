@@ -20,9 +20,11 @@ async function ensurePriceHistoryFile() {
 
 /**
  * Store a price tick for a sector
+ * Only stores if the valuation has actually changed from the last stored tick
+ * This ensures the chart only shows actual valuation changes, not synthetic points
  * @param {string} sectorId - Sector ID
  * @param {Object} tickData - Price tick data (price, timestamp, volume, change, changePercent)
- * @returns {Promise<Object>} Stored price tick
+ * @returns {Promise<Object|null>} Stored price tick, or null if price hasn't changed
  */
 async function storePriceTick(sectorId, tickData) {
   if (!sectorId || typeof sectorId !== 'string') {
@@ -31,37 +33,63 @@ async function storePriceTick(sectorId, tickData) {
 
   await ensurePriceHistoryFile();
 
-  const tick = new PriceTick({
-    sectorId: sectorId.trim().toLowerCase(),
-    price: tickData.price,
-    timestamp: tickData.timestamp || Date.now(),
-    volume: tickData.volume || 0,
-    change: tickData.change || 0,
-    changePercent: tickData.changePercent || 0
-  });
+  const normalizedSectorId = sectorId.trim().toLowerCase();
+  const newPrice = typeof tickData.price === 'number' ? tickData.price : 0;
+  const newTimestamp = tickData.timestamp || Date.now();
+
+  // Check if price has changed before storing
+  let shouldStore = false;
+  let storedTick = null;
 
   await atomicUpdate(PRICE_HISTORY_FILE, (history) => {
     if (!history || typeof history !== 'object') {
       history = {};
     }
 
-    if (!history[sectorId]) {
-      history[sectorId] = [];
+    if (!history[normalizedSectorId]) {
+      history[normalizedSectorId] = [];
     }
 
-    // Add new tick
-    history[sectorId].push(tick.toJSON());
+    const sectorHistory = history[normalizedSectorId];
+    
+    // Get the last stored tick to compare prices
+    const lastTick = sectorHistory.length > 0 
+      ? sectorHistory[sectorHistory.length - 1] 
+      : null;
+    
+    // Only store if:
+    // 1. This is the first tick (no history), OR
+    // 2. The price has actually changed (with a small tolerance for floating point precision)
+    const priceTolerance = 0.0001; // Allow for floating point precision issues
+    const priceChanged = !lastTick || 
+      Math.abs(Number(lastTick.price) - newPrice) > priceTolerance;
 
-    // Keep only last 10000 ticks per sector to prevent unbounded growth
-    // In production, you might want to archive old data or use a time-based cleanup
-    if (history[sectorId].length > 10000) {
-      history[sectorId] = history[sectorId].slice(-10000);
+    if (priceChanged) {
+      const tick = new PriceTick({
+        sectorId: normalizedSectorId,
+        price: newPrice,
+        timestamp: newTimestamp,
+        volume: tickData.volume || 0,
+        change: tickData.change || 0,
+        changePercent: tickData.changePercent || 0
+      });
+
+      // Add new tick
+      sectorHistory.push(tick.toJSON());
+      storedTick = tick.toJSON();
+      shouldStore = true;
+
+      // Keep only last 10000 ticks per sector to prevent unbounded growth
+      // In production, you might want to archive old data or use a time-based cleanup
+      if (sectorHistory.length > 10000) {
+        history[normalizedSectorId] = sectorHistory.slice(-10000);
+      }
     }
 
     return history;
   });
 
-  return tick.toJSON();
+  return shouldStore ? storedTick : null;
 }
 
 /**

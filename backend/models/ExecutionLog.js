@@ -15,8 +15,12 @@ class ExecutionLog {
     allocationPercent = null,
     priceImpact = null,
     valuationDelta = null,
+    deltaValue = null, // Change in total portfolio value (same as valuationDelta for consistency)
+    newPositionValue = null, // New position value after execution
     impact = null, // Legacy field, maps to priceImpact
-    timestamp = Date.now()
+    timestamp = Date.now(),
+    confidenceSnapshot = null, // Snapshot of agent confidence at execution time
+    confidenceMultiplier = null // Multiplier applied to priceImpact based on confidence (if enabled)
   }) {
     if (!sectorId || typeof sectorId !== 'string') {
       throw new Error('sectorId is required and must be a string');
@@ -42,8 +46,19 @@ class ExecutionLog {
     this.allocationPercent = typeof allocationPercent === 'number' ? allocationPercent : null;
     this.priceImpact = typeof priceImpact === 'number' ? priceImpact : (typeof impact === 'number' ? impact : 0);
     this.valuationDelta = typeof valuationDelta === 'number' ? valuationDelta : null;
+    this.deltaValue = typeof deltaValue === 'number' ? deltaValue : (typeof valuationDelta === 'number' ? valuationDelta : null);
+    this.newPositionValue = typeof newPositionValue === 'number' ? newPositionValue : null;
     this.impact = this.priceImpact; // Keep for backward compatibility
     this.timestamp = typeof timestamp === 'number' ? timestamp : Date.now();
+    this.executedAt = new Date(this.timestamp).toISOString(); // ISO timestamp for executedAt
+    
+    // Confidence snapshot: stores agent confidence at execution time for future ML analysis
+    // Format: { agentId: confidence, ... } or { managerId: confidence, agentConfidences: { agentId: confidence, ... } }
+    this.confidenceSnapshot = confidenceSnapshot || null;
+    
+    // Confidence multiplier: multiplier applied to priceImpact based on confidence (if feature enabled)
+    // Stored for audit/debugging purposes. When feature is disabled, this will be null.
+    this.confidenceMultiplier = typeof confidenceMultiplier === 'number' ? confidenceMultiplier : null;
   }
 
   toJSON() {
@@ -58,8 +73,13 @@ class ExecutionLog {
       allocationPercent: this.allocationPercent,
       priceImpact: this.priceImpact,
       valuationDelta: this.valuationDelta,
+      deltaValue: this.deltaValue,
+      newPositionValue: this.newPositionValue,
       impact: this.impact, // Keep for backward compatibility
-      timestamp: this.timestamp
+      timestamp: this.timestamp,
+      executedAt: this.executedAt, // ISO timestamp when execution occurred
+      confidenceSnapshot: this.confidenceSnapshot,
+      confidenceMultiplier: this.confidenceMultiplier
     };
   }
 
@@ -124,8 +144,13 @@ class ExecutionLog {
       allocationPercent: data.allocationPercent,
       priceImpact: data.priceImpact !== undefined ? data.priceImpact : data.impact,
       valuationDelta: data.valuationDelta,
+      deltaValue: data.deltaValue !== undefined ? data.deltaValue : data.valuationDelta,
+      newPositionValue: data.newPositionValue,
       impact: data.impact !== undefined ? data.impact : (data.priceImpact !== undefined ? data.priceImpact : 0),
-      timestamp: data.timestamp
+      timestamp: data.timestamp,
+      executedAt: data.executedAt || (data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString()),
+      confidenceSnapshot: data.confidenceSnapshot || null,
+      confidenceMultiplier: data.confidenceMultiplier || null
     });
   }
 
@@ -214,6 +239,7 @@ class ExecutionLog {
 }
 
 module.exports = ExecutionLog;
+
 
 
 

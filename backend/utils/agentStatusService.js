@@ -8,7 +8,8 @@ const STATUS = {
   IDLE: 'IDLE',
   THINKING: 'THINKING',
   DISCUSSING: 'DISCUSSING',
-  EXECUTING: 'EXECUTING'
+  EXECUTING: 'EXECUTING',
+  ACTIVE: 'ACTIVE'
 };
 
 /**
@@ -29,6 +30,114 @@ async function isAgentInActiveDiscussion(agentId) {
     });
   } catch (error) {
     console.error(`[agentStatusService] Error checking active discussions for agent ${agentId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Check if an agent has unresolved checklist items
+ * Unresolved items are: PENDING, REVISE_REQUIRED, RESUBMITTED, or REJECTED (but not ACCEPT_REJECTION)
+ * @param {string} agentId - Agent ID
+ * @returns {Promise<boolean>} True if agent has unresolved checklist items
+ */
+async function hasUnresolvedChecklistItems(agentId) {
+  try {
+    const discussions = await loadDiscussions();
+    
+    for (const discussion of discussions) {
+      const checklist = Array.isArray(discussion.checklist) ? discussion.checklist : [];
+      const finalizedChecklist = Array.isArray(discussion.finalizedChecklist) ? discussion.finalizedChecklist : [];
+      const allItems = [...checklist, ...finalizedChecklist];
+      
+      // Check if any item belongs to this agent and is unresolved
+      const hasUnresolved = allItems.some(item => {
+        const itemAgentId = item.agentId || item.sourceAgentId;
+        if (itemAgentId !== agentId) {
+          return false;
+        }
+        
+        const itemStatus = (item.status || '').toUpperCase();
+        
+        // ACCEPT_REJECTION means the worker accepted the rejection - this is resolved
+        if (itemStatus === 'ACCEPT_REJECTION') {
+          return false;
+        }
+        
+        // Unresolved statuses: PENDING, REVISE_REQUIRED, RESUBMITTED, REJECTED
+        const unresolvedStatuses = ['PENDING', 'REVISE_REQUIRED', 'RESUBMITTED', 'REJECTED'];
+        const isUnresolved = unresolvedStatuses.includes(itemStatus);
+        
+        // Also check requiresRevision flag
+        const needsRevision = item.requiresRevision === true;
+        
+        return isUnresolved || needsRevision;
+      });
+      
+      if (hasUnresolved) {
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`[agentStatusService] Error checking unresolved checklist items for agent ${agentId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Check if an agent is refining a rejected proposal
+ * This checks for items with REVISE_REQUIRED status or items in active refinement cycles
+ * @param {string} agentId - Agent ID
+ * @returns {Promise<boolean>} True if agent is refining a rejected proposal
+ */
+async function isRefiningRejectedProposal(agentId) {
+  try {
+    const discussions = await loadDiscussions();
+    
+    for (const discussion of discussions) {
+      // Check active refinement cycles
+      const activeRefinementCycles = Array.isArray(discussion.activeRefinementCycles) 
+        ? discussion.activeRefinementCycles 
+        : [];
+      
+      const hasActiveRefinement = activeRefinementCycles.some(cycle => {
+        // Find the item in the checklist
+        const checklist = Array.isArray(discussion.checklist) ? discussion.checklist : [];
+        const item = checklist.find(i => i.id === cycle.itemId);
+        if (!item) return false;
+        
+        const itemAgentId = item.agentId || item.sourceAgentId;
+        return itemAgentId === agentId;
+      });
+      
+      if (hasActiveRefinement) {
+        return true;
+      }
+      
+      // Check for items with REVISE_REQUIRED status
+      const checklist = Array.isArray(discussion.checklist) ? discussion.checklist : [];
+      const finalizedChecklist = Array.isArray(discussion.finalizedChecklist) ? discussion.finalizedChecklist : [];
+      const allItems = [...checklist, ...finalizedChecklist];
+      
+      const hasReviseRequired = allItems.some(item => {
+        const itemAgentId = item.agentId || item.sourceAgentId;
+        if (itemAgentId !== agentId) {
+          return false;
+        }
+        
+        const itemStatus = (item.status || '').toUpperCase();
+        return itemStatus === 'REVISE_REQUIRED' || item.requiresRevision === true;
+      });
+      
+      if (hasReviseRequired) {
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`[agentStatusService] Error checking rejected proposal refinement for agent ${agentId}:`, error);
     return false;
   }
 }
@@ -96,42 +205,70 @@ async function setAgentExecuting(agentId, action = '') {
 
 /**
  * Update agent status to IDLE (when not in any active discussions)
- * This should only be called when the agent is confirmed to not be in any active discussions
+ * This should only be called when the agent is confirmed to have no pending responsibilities
  * @param {string} agentId - Agent ID
  * @returns {Promise<Object|null>} Updated agent or null if not found
  */
 async function setAgentIdle(agentId) {
-  return updateAgentStatus(agentId, STATUS.IDLE, 'No active discussions');
+  return updateAgentStatus(agentId, STATUS.IDLE, 'No pending responsibilities');
 }
 
 /**
  * Update agent status based on current state
- * This is a smart function that checks if agent is in active discussions
- * and sets status accordingly
+ * Dynamically sets status based on agent's actual participation:
+ * - ACTIVE when: has unresolved checklist items, responding to discussion, or refining rejected proposal
+ * - IDLE only when: no pending discussion responsibilities
  * @param {string} agentId - Agent ID
  * @returns {Promise<Object|null>} Updated agent or null if not found
  */
 async function refreshAgentStatus(agentId) {
   try {
-    const inActiveDiscussion = await isAgentInActiveDiscussion(agentId);
+    const { loadAgents } = require('./agentStorage');
+    const agents = await loadAgents();
+    const agent = agents.find(a => a.id === agentId);
     
-    if (inActiveDiscussion) {
-      // If agent is in active discussion but status is not DISCUSSING or THINKING or EXECUTING,
-      // set to DISCUSSING (default for active participation)
-      // Note: We don't override THINKING or EXECUTING as those are more specific states
-      const { loadAgents } = require('./agentStorage');
-      const agents = await loadAgents();
-      const agent = agents.find(a => a.id === agentId);
-      
-      if (agent) {
-        const currentStatus = (agent.status || '').toUpperCase();
-        if (currentStatus !== STATUS.THINKING && currentStatus !== STATUS.EXECUTING && currentStatus !== STATUS.DISCUSSING) {
-          return setAgentDiscussing(agentId);
-        }
+    if (!agent) {
+      console.warn(`[agentStatusService] Agent ${agentId} not found`);
+      return null;
+    }
+    
+    const currentStatus = (agent.status || '').toUpperCase();
+    
+    // Don't override THINKING or EXECUTING as those are more specific states
+    // These are set explicitly by other parts of the system
+    if (currentStatus === STATUS.THINKING || currentStatus === STATUS.EXECUTING) {
+      return null; // Keep current status
+    }
+    
+    // Check all conditions that make an agent ACTIVE
+    const [inActiveDiscussion, hasUnresolvedItems, isRefining] = await Promise.all([
+      isAgentInActiveDiscussion(agentId),
+      hasUnresolvedChecklistItems(agentId),
+      isRefiningRejectedProposal(agentId)
+    ]);
+    
+    // Agent is ACTIVE if any of these conditions are true:
+    // 1. Participating in active discussion
+    // 2. Has unresolved checklist items
+    // 3. Is refining a rejected proposal
+    const shouldBeActive = inActiveDiscussion || hasUnresolvedItems || isRefining;
+    
+    if (shouldBeActive) {
+      // Set to ACTIVE (or DISCUSSING if already in that state)
+      // Use DISCUSSING as the active state for semantic clarity
+      if (currentStatus !== STATUS.DISCUSSING && currentStatus !== STATUS.ACTIVE) {
+        const reason = [];
+        if (inActiveDiscussion) reason.push('participating in discussion');
+        if (hasUnresolvedItems) reason.push('has unresolved checklist items');
+        if (isRefining) reason.push('refining rejected proposal');
+        
+        return updateAgentStatus(agentId, STATUS.ACTIVE, reason.join(', '));
       }
     } else {
-      // Agent is not in any active discussions, set to IDLE
-      return setAgentIdle(agentId);
+      // Agent has no pending responsibilities - set to IDLE
+      if (currentStatus !== STATUS.IDLE) {
+        return setAgentIdle(agentId);
+      }
     }
     
     return null;
@@ -174,6 +311,8 @@ module.exports = {
   setAgentIdle,
   refreshAgentStatus,
   isAgentInActiveDiscussion,
+  hasUnresolvedChecklistItems,
+  isRefiningRejectedProposal,
   updateMultipleAgentStatuses
 };
 

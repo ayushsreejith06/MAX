@@ -1,4 +1,4 @@
-import { Agent, ApiPayload, Discussion, Sector, CandleData, RejectedItem } from './types';
+import { Agent, ApiPayload, Discussion, Sector, CandleData, RejectedItem, ValuationHistoryPoint } from './types';
 import { getApiBaseUrl, getBackendBaseUrl, isDesktopApp } from './desktopEnv';
 import { rateLimitedFetch } from './rateLimit';
 
@@ -517,6 +517,44 @@ export async function fetchSectorById(id: string): Promise<Sector | null> {
   return payload ? normalizeSector(payload) : null;
 }
 
+/**
+ * Fetch valuation history for a sector
+ * @param sectorId - Sector ID
+ * @param window - Time window ('1d', '1w', '1m', '3m', '6m', '1y', 'max', or hours like '6h', '24h')
+ * @returns Array of valuation history points
+ */
+export async function fetchValuationHistory(
+  sectorId: string,
+  window: string = '1m'
+): Promise<ValuationHistoryPoint[]> {
+  if (!sectorId) {
+    return [];
+  }
+
+  // Normalize ID to lowercase for consistent case-sensitivity
+  const normalizedId = String(sectorId).trim().toLowerCase();
+  
+  const result = await request<{ success: boolean; count: number; data: ValuationHistoryPoint[] }>(
+    `/price-history/${normalizedId}?window=${encodeURIComponent(window)}`
+  );
+  
+  // Handle rate limiting - return empty array when skipped
+  if (result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true) {
+    return [];
+  }
+  
+  // Handle both direct array response and wrapped response
+  if (Array.isArray(result)) {
+    return result;
+  }
+  
+  if (result && typeof result === 'object' && 'data' in result && Array.isArray(result.data)) {
+    return result.data;
+  }
+  
+  return [];
+}
+
 // Manager Agent API functions
 export async function fetchAgents(): Promise<Agent[]> {
   const result = await request<Agent[]>('/agents');
@@ -692,11 +730,35 @@ export interface ChecklistItemResponse {
   approvalReason?: string | null;
   approvedAt?: string;
   // Revision metadata
-  status?: 'PENDING' | 'REVISE_REQUIRED' | 'APPROVED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | 'REVISE_REQUIRED' | 'ACCEPT_REJECTION' | 'RESUBMITTED' | string;
   requiresRevision?: boolean;
   managerReason?: string | null;
   revisionCount?: number;
   revisedAt?: string;
+  // Manager decision metadata - authoritative state
+  decisionBy?: string; // Manager ID who made the decision
+  decidedAt?: string; // ISO timestamp when decision was made
+  rejectionReason?: {
+    score?: number;
+    approvalThreshold?: number;
+    scoreBreakdown?: {
+      workerConfidence?: number;
+      expectedImpact?: number;
+      riskLevel?: number;
+      alignmentWithSectorGoal?: number;
+      normalizedRiskScore?: number;
+      weights?: {
+        workerConfidence?: number;
+        expectedImpact?: number;
+        riskLevel?: number;
+        alignmentWithSectorGoal?: number;
+      };
+    };
+    reason?: string;
+    confidence?: number;
+    effectiveThreshold?: number;
+    requiredImprovements?: string[];
+  };
   previousVersions?: Array<{
     action?: string;
     amount?: number;
@@ -705,6 +767,9 @@ export interface ChecklistItemResponse {
     confidence?: number;
     timestamp: string;
   }>;
+  // Execution metadata
+  executedAt?: string | null; // ISO timestamp when item was executed
+  executionLogId?: string | null; // ID of the execution log entry
 }
 
 export interface ChecklistResponse {

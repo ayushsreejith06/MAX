@@ -203,8 +203,8 @@ class DiscussionEngine {
         console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to THINKING:`, error.message);
       }
 
-      // Generate agent message using LLM
-      const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages);
+      // Generate agent message using LLM (pass discussionRoom to include rejected items)
+      const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages, discussionRoom);
       
       // After message generation, set back to DISCUSSING (still in discussion)
       try {
@@ -257,6 +257,14 @@ class DiscussionEngine {
       console.log(`[DiscussionEngine] Round ${currentRound}: Attempting checklist creation for agent ${agent.id} (${agent.name || 'Unknown'})`);
 
       try {
+        // CONFIDENCE GATING: Check if agent has sufficient confidence to create checklist items
+        // Agents with confidence < 65 can post analysis messages but cannot create checklist items
+        const agentConfidence = extractConfidence(agent, 0);
+        if (agentConfidence < 65) {
+          console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) has confidence ${agentConfidence.toFixed(2)} < 65. Skipping checklist item creation. Agent may still post analysis messages.`);
+          continue;
+        }
+
         // Create checklist item from structured proposal object
         // Checklist items MUST ONLY be created from structured proposal objects, never from message text
         if (!messageData || typeof messageData !== 'object' || !messageData.proposal) {
@@ -357,10 +365,12 @@ class DiscussionEngine {
         discussionRoom.roundHistory.push(finalRoundSnapshot);
         await saveDiscussion(discussionRoom);
         
-        // Transition to DECIDED status
-        await transitionStatus(discussionRoom.id, STATUS.DECIDED, `All items terminal after round ${currentRound}`);
+        // Transition to AWAITING_EXECUTION when all items are terminal
+        // Will transition to DECIDED when all ACCEPTED items are executed
+        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+        await checkAndTransitionToAwaitingExecution(discussionRoom.id);
         
-        console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} auto-closed and marked as 'decided' after round ${currentRound}.`);
+        console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} all items terminal after round ${currentRound}.`);
         return updatedSector;
       }
     } catch (closeError) {
@@ -442,8 +452,10 @@ class DiscussionEngine {
     discussionRoom.checklist = checklist;
     await saveDiscussion(discussionRoom);
 
-    // Transition to DECIDED status
-    await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Discussion finalized');
+    // Transition to AWAITING_EXECUTION when all items are terminal
+    // Will transition to DECIDED when all ACCEPTED items are executed
+    const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
+    await checkAndTransitionToAwaitingExecution(discussionRoom.id);
 
     // Update sector
     const updatedSector = await updateSector(sector.id, {
@@ -543,9 +555,9 @@ class DiscussionEngine {
           continue;
         }
 
-        // Generate message using LLM
+        // Generate message using LLM (pass discussionRoom for rejected items context)
         try {
-          const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages);
+          const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages, currentDiscussionRoom);
           
           if (!messageData || !messageData.proposal) {
             console.error(`[DiscussionEngine] Invalid message data from agent ${agent.id}:`, messageData);
@@ -1082,9 +1094,9 @@ class DiscussionEngine {
           continue;
         }
 
-        // Generate 1-2 messages per agent for this round
+        // Generate 1-2 messages per agent for this round (pass discussionRoom for rejected items context)
         for (let msgIndex = 0; msgIndex < messagesPerAgent; msgIndex++) {
-          const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages);
+          const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages, discussionRoom);
           
           // Add message to discussion with analysis and proposal
           discussionRoom.addMessage({
@@ -1181,7 +1193,7 @@ class DiscussionEngine {
             workerProposal: proposal
           });
 
-          const updatedConfidence = await this._applyProposalConfidence(agent, proposal.confidence, sector);
+          const updatedConfidence = await this._applyProposalConfidence(agent, proposal, sector);
           if (updatedConfidence !== null) {
             agentsUpdated = true;
           }
@@ -1546,47 +1558,105 @@ _clampConfidence(value) {
 }
 
   /**
-   * Update an agent's confidence based on an LLM proposal and persist it.
+   * Update an agent's confidence based on a proposal and persist it.
    * Also mutates the provided sector's agents array to keep in sync for responses.
    * 
-   * Confidence is now derived directly from LLM output - no automatic increases.
+   * Confidence is derived from proposal attributes:
+   * - signal strength (from proposal confidence)
+   * - volatility (from sector)
+   * - alignment with sector trend
    * 
    * @param {Object} agent
-   * @param {number} proposalConfidence - LLM-provided confidence value (1-100)
+   * @param {Object|number} proposalOrConfidence - Proposal object with attributes OR LLM-provided confidence value (1-100) for backward compatibility
    * @param {Object|null} sector
    * @returns {Promise<number|null>} Updated confidence or null if agent invalid
    */
-  async _applyProposalConfidence(agent, proposalConfidence, sector = null) {
+  async _applyProposalConfidence(agent, proposalOrConfidence, sector = null) {
     if (!agent || !agent.id) {
       return null;
     }
 
-    // Get LLM confidence output (clamp to 1-100)
-    const llmConfidenceOutput = this._clampConfidence(
-      typeof proposalConfidence === 'number' ? proposalConfidence : 1
-    );
-    
-    // Use LLM confidence directly - no automatic increases
-    const updatedConfidence = llmConfidenceOutput;
+    const ConfidenceEngine = require('./ConfidenceEngine');
+    const confidenceEngine = new ConfidenceEngine();
 
-    console.debug('[DiscussionEngine] Agent confidence update (LLM-derived)', {
-      agentId: agent.id,
-      llmConfidenceOutput: llmConfidenceOutput,
-      updatedConfidence
-    });
+    // Extract proposal attributes
+    let proposal = null;
+    if (typeof proposalOrConfidence === 'object' && proposalOrConfidence !== null) {
+      proposal = proposalOrConfidence;
+    } else {
+      // Backward compatibility: if just a number, create a minimal proposal object
+      const proposalConfidence = typeof proposalOrConfidence === 'number' ? proposalOrConfidence : 1;
+      proposal = {
+        signalStrength: proposalConfidence,
+        confidence: proposalConfidence
+      };
+    }
 
+    // Extract signal strength from proposal
+    const signalStrength = typeof proposal.signalStrength === 'number'
+      ? proposal.signalStrength
+      : (typeof proposal.confidence === 'number' ? proposal.confidence : 50);
+
+    // Extract volatility from sector or proposal
+    const volatility = typeof proposal.volatility === 'number'
+      ? proposal.volatility * 100 // Convert to 0-100 scale
+      : (sector && typeof sector.volatility === 'number'
+        ? sector.volatility * 100
+        : (sector && typeof sector.riskScore === 'number'
+          ? sector.riskScore
+          : 50));
+
+    // Calculate alignment with sector trend
+    let alignmentWithSectorTrend = 50; // Default neutral
+    if (sector) {
+      const trendPercent = typeof sector.changePercent === 'number' ? sector.changePercent : 0;
+      const action = (proposal.action || '').toUpperCase();
+      
+      // Alignment: BUY aligns with positive trend, SELL aligns with negative trend
+      if (action === 'BUY' && trendPercent > 0) {
+        alignmentWithSectorTrend = Math.min(100, 50 + (trendPercent * 10)); // Higher trend = better alignment
+      } else if (action === 'SELL' && trendPercent < 0) {
+        alignmentWithSectorTrend = Math.min(100, 50 + (Math.abs(trendPercent) * 10));
+      } else if (action === 'HOLD') {
+        alignmentWithSectorTrend = Math.abs(trendPercent) < 0.5 ? 60 : 40; // HOLD aligns with neutral trends
+      } else {
+        // Misalignment: BUY with negative trend or SELL with positive trend
+        alignmentWithSectorTrend = Math.max(0, 50 - (Math.abs(trendPercent) * 10));
+      }
+    }
+
+    // Build proposal object with all attributes
+    const proposalWithAttributes = {
+      signalStrength,
+      volatility,
+      alignmentWithSectorTrend,
+      confidence: signalStrength, // Keep for backward compatibility
+      action: proposal.action
+    };
+
+    // Calculate confidence from proposal attributes
+    const updatedConfidence = confidenceEngine.updateAgentConfidence(agent, proposalWithAttributes, sector);
+
+    // Update last activity timestamp
+    const now = new Date().toISOString();
     try {
-      await updateAgent(agent.id, { confidence: updatedConfidence });
+      await updateAgent(agent.id, { 
+        confidence: updatedConfidence,
+        lastActivity: now,
+        lastProposalAt: now
+      });
     } catch (error) {
       console.warn(`[DiscussionEngine] Failed to persist confidence for ${agent.id}:`, error);
     }
 
     agent.confidence = updatedConfidence;
+    agent.lastActivity = now;
+    agent.lastProposalAt = now;
 
     if (sector && Array.isArray(sector.agents)) {
       sector.agents = sector.agents.map(a => {
         if (a && a.id === agent.id) {
-          return { ...a, confidence: updatedConfidence };
+          return { ...a, confidence: updatedConfidence, lastActivity: now, lastProposalAt: now };
         }
         return a;
       });
@@ -1600,9 +1670,10 @@ _clampConfidence(value) {
    * @param {Object} agent - Agent object
    * @param {Object} sector - Sector object
    * @param {Array<Object>} previousMessages - Array of previous messages in the discussion
+   * @param {DiscussionRoom} discussionRoom - Optional discussion room (for rejected items context)
    * @returns {Promise<Object>} Generated message with {analysis, proposal} structure
    */
-  async generateAgentMessageWithLLM(agent, sector, previousMessages = []) {
+  async generateAgentMessageWithLLM(agent, sector, previousMessages = [], discussionRoom = null) {
     const agentName = agent.name || 'Unknown Agent';
     
     // Skip manager agents
@@ -1720,8 +1791,49 @@ _clampConfidence(value) {
           'Use the actual market data provided above to justify your decision.',
         ].join('\n');
 
+        // Check for rejected items that need refinement from this agent
+        let rejectedItemsContext = '';
+        if (discussionRoom) {
+          const activeRefinementCycles = Array.isArray(discussionRoom.activeRefinementCycles) 
+            ? discussionRoom.activeRefinementCycles 
+            : [];
+          
+          // Find rejected items from this agent that are in active refinement cycles
+          const agentRejectedItems = activeRefinementCycles.filter(cycle => {
+            const originalItem = cycle.originalItem || {};
+            const itemAgentId = originalItem.sourceAgentId || originalItem.agentId;
+            return itemAgentId === agent.id;
+          });
+          
+          if (agentRejectedItems.length > 0) {
+            rejectedItemsContext = '\n\n=== REJECTED ITEMS REQUIRING REFINEMENT ===\n';
+            rejectedItemsContext += 'The following proposal(s) you previously submitted were REJECTED. ';
+            rejectedItemsContext += 'You MUST create a NEW, REVISED proposal (do NOT modify the old one - it is immutable).\n\n';
+            
+            agentRejectedItems.forEach((cycle, index) => {
+              const item = cycle.originalItem || {};
+              rejectedItemsContext += `Rejected Proposal #${index + 1}:\n`;
+              rejectedItemsContext += `  - Action: ${item.actionType || item.action || 'N/A'}\n`;
+              rejectedItemsContext += `  - Symbol: ${item.symbol || 'N/A'}\n`;
+              rejectedItemsContext += `  - Allocation: ${item.allocationPercent || 0}%\n`;
+              rejectedItemsContext += `  - Confidence: ${item.confidence || 0}%\n`;
+              rejectedItemsContext += `  - Reasoning: ${item.reasoning || 'N/A'}\n`;
+              rejectedItemsContext += `  - Rejection Reason: ${cycle.rejectionReason || 'N/A'}\n`;
+              rejectedItemsContext += `  - Required Improvements: ${cycle.requiredImprovements || 'N/A'}\n\n`;
+            });
+            
+            rejectedItemsContext += 'CRITICAL INSTRUCTIONS FOR REVISED PROPOSAL:\n';
+            rejectedItemsContext += '1. Create a COMPLETELY NEW proposal (the old one cannot be modified)\n';
+            rejectedItemsContext += '2. Address ALL required improvements listed above\n';
+            rejectedItemsContext += '3. Ensure your new proposal meets the confidence threshold\n';
+            rejectedItemsContext += '4. Provide stronger reasoning that addresses the rejection concerns\n';
+            rejectedItemsContext += '5. Your new proposal will be evaluated independently\n\n';
+          }
+        }
+
         // Build user prompt that asks for structured JSON output
         const userPrompt = [
+          rejectedItemsContext ? rejectedItemsContext : '',
           'Analyze the current market data and provide your trading recommendation.',
           '',
           'You MUST respond with a JSON object containing:',

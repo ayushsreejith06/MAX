@@ -318,19 +318,19 @@ export default function DiscussionDetailClient() {
 
   // Polling callbacks for auto-refresh (without loading state)
   const pollDiscussion = useCallback(async () => {
-    // Poll if discussion is in progress or CREATED (to detect when it becomes decided or when messages appear)
+    // Poll if discussion is in progress, CREATED, or AWAITING_EXECUTION (to detect when it becomes decided or when messages appear)
     // Render strictly from persisted status - no inference
     const status = (currentDiscussionRef.current?.status || '').toUpperCase();
-    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN') {
+    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN' || status === 'AWAITING_EXECUTION') {
       await loadDiscussion(false);
     }
   }, [loadDiscussion]);
 
   const pollMessages = useCallback(async () => {
-    // Poll if discussion is in progress or CREATED (messages are still being added)
+    // Poll if discussion is in progress, CREATED, or AWAITING_EXECUTION (messages are still being added)
     // Render strictly from persisted status - no inference
     const status = (currentDiscussionRef.current?.status || '').toUpperCase();
-    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN') {
+    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN' || status === 'AWAITING_EXECUTION') {
       await loadMessages(false);
     }
   }, [loadMessages]);
@@ -339,7 +339,7 @@ export default function DiscussionDetailClient() {
   // Poll more frequently when discussion is active, less when it's decided/closed
   const pollInterval = useMemo(() => {
     const status = (discussion?.status || '').toUpperCase();
-    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN') {
+    if (status === 'IN_PROGRESS' || status === 'CREATED' || status === 'OPEN' || status === 'AWAITING_EXECUTION') {
       return 2000; // Poll every 2 seconds when active (slightly increased from 1.5s to reduce load)
     }
     return 5000; // Poll every 5 seconds when decided/closed (less frequent)
@@ -460,7 +460,7 @@ export default function DiscussionDetailClient() {
     // Determine icon based on persisted status only
     const statusUpper = (status || '').toUpperCase();
     let icon = MessageSquare;
-    if (statusUpper === 'CREATED' || statusUpper === 'OPEN' || statusUpper === 'IN_PROGRESS') {
+    if (statusUpper === 'CREATED' || statusUpper === 'OPEN' || statusUpper === 'IN_PROGRESS' || statusUpper === 'AWAITING_EXECUTION') {
       icon = Clock;
     } else if (statusUpper === 'DECIDED' || statusUpper === 'CLOSED') {
       icon = CheckCircle;

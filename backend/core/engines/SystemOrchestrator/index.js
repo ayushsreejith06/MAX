@@ -319,45 +319,13 @@ class SystemOrchestrator {
         // Check if there are manager-approved checklist items
         const approvedChecklist = this._getApprovedChecklist(discussionRoom);
         
+        // Execution happens automatically when items transition to APPROVED status
+        // No need to execute here - items are already executed when they were approved
         if (approvedChecklist && approvedChecklist.length > 0) {
-          console.log(`[SystemOrchestrator] Found decided discussion ${discussionRoom.id} with ${approvedChecklist.length} approved checklist items, executing...`);
+          console.log(`[SystemOrchestrator] Found decided discussion ${discussionRoom.id} with ${approvedChecklist.length} approved checklist items`);
           
-          try {
-            // Execute the checklist
-            const executionResult = await this.executionEngine.executeChecklist(approvedChecklist, sectorId, discussionRoom.id);
-            console.log(`[SystemOrchestrator] Executed checklist: ${executionResult.success ? 'success' : 'failed'}`);
-            
-            // After execution: mark as decided but keep checklist items for historical reference
-            // Don't clear checklist or finalizedChecklist - users should see what was proposed and finalized
-            await saveDiscussion(discussionRoom);
-            const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
-            await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Checklist executed');
-            
-            // Allow new discussions later (by clearing the discussion from active state)
-            // The discussion is now executed, so it won't block new discussions
-            
-            // Update sector performance (ExecutionEngine already updates sector, but we track execution stats)
-            await this._updateSectorPerformance(sectorId, {
-              success: executionResult.success,
-              results: approvedChecklist.map(item => ({
-                itemId: item.id,
-                success: executionResult.success,
-                action: item.action
-              }))
-            });
-            
-            // Reload sector after execution
-            updatedSector = await getSectorById(sectorId);
-            const allAgents = await loadAgents();
-            const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
-            updatedSector.agents = sectorAgents;
-            
-            // Mark discussion as ended to start cooldown period
-            this.sectorEngine.markDiscussionEnded(sectorId);
-          } catch (execError) {
-            console.error(`[SystemOrchestrator] Error executing checklist for discussion ${discussionRoom.id}:`, execError);
-            // Continue even if execution fails
-          }
+          // Mark discussion as ended to start cooldown period
+          this.sectorEngine.markDiscussionEnded(sectorId);
         } else {
           // Discussion is finalized but has no approved checklist items
           // Mark as ended to allow new discussions

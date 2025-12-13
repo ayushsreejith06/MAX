@@ -4,6 +4,8 @@
 
 const ExecutionAgent = require('../agents/ExecutionAgent');
 const ExecutionLog = require('../models/ExecutionLog');
+const { captureConfidenceSnapshot, calculateConfidenceMultiplier, applyConfidenceMultiplier } = require('../utils/confidenceMultiplier');
+const { loadAgents } = require('../utils/agentStorage');
 
 function log(message) {
   console.log(`[Execution] ${message}`);
@@ -185,12 +187,33 @@ module.exports = async (fastify) => {
 
       log(`Logging execution for sector ${sectorId}: ${action} (impact: ${impact})`);
 
+      // Optionally capture confidence snapshot if agents are available
+      let confidenceSnapshot = null;
+      let confidenceMultiplier = null;
+      let adjustedImpact = impact;
+      
+      try {
+        const allAgents = await loadAgents();
+        const sectorAgents = allAgents.filter(agent => agent && agent.sectorId === sectorId);
+        
+        if (sectorAgents.length > 0) {
+          confidenceSnapshot = captureConfidenceSnapshot(sectorAgents, null);
+          confidenceMultiplier = calculateConfidenceMultiplier(confidenceSnapshot, action);
+          adjustedImpact = applyConfidenceMultiplier(impact, confidenceMultiplier);
+        }
+      } catch (error) {
+        // Don't fail if confidence capture fails - this is optional
+        console.warn(`[Execution] Failed to capture confidence snapshot: ${error.message}`);
+      }
+
       // Create and save execution log
       const executionLog = new ExecutionLog({
         sectorId,
         action,
-        impact,
-        timestamp: Date.now()
+        impact: adjustedImpact, // Use adjusted impact if confidence multiplier was applied
+        timestamp: Date.now(),
+        confidenceSnapshot: confidenceSnapshot,
+        confidenceMultiplier: confidenceMultiplier
       });
 
       await executionLog.save();

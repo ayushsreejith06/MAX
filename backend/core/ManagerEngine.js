@@ -2,7 +2,7 @@ const { startDiscussion } = require('../agents/discussion/discussionLifecycle');
 const { loadDiscussions, findDiscussionById, saveDiscussion } = require('../utils/discussionStorage');
 const DiscussionEngine = require('./DiscussionEngine');
 const DiscussionRoom = require('../models/DiscussionRoom');
-const { loadAgents } = require('../utils/agentStorage');
+const { loadAgents, updateAgent } = require('../utils/agentStorage');
 const { updateSector, getSectorById } = require('../utils/sectorStorage');
 const ExecutionEngine = require('./ExecutionEngine');
 const { saveRejectedItems } = require('../utils/rejectedItemsStorage');
@@ -10,6 +10,7 @@ const { getAllSectors } = require('../utils/sectorStorage');
 const { managerAddToExecutionList, getManagerBySectorId } = require('../utils/executionListStorage');
 const { extractConfidence } = require('../utils/confidenceUtils');
 const { validateTrade, checkRiskAppetite, loadRules } = require('../simulation/rules');
+const ConfidenceEngine = require('./ConfidenceEngine');
 const fs = require('fs');
 const path = require('path');
 const { readDataFile, writeDataFile } = require('../utils/persistence');
@@ -24,6 +25,7 @@ class ManagerEngine {
   constructor() {
     this.tickCounter = 0;
     this.discussionEngine = new DiscussionEngine();
+    this.confidenceEngine = new ConfidenceEngine();
     this.confidenceThreshold = 65; // Default threshold for discussion readiness
     this.approvalConfidenceThreshold = 65; // Threshold for auto-approving checklist items
     this.APPROVAL_THRESHOLD = 70; // Minimum score (0-100) for checklist item approval
@@ -2045,6 +2047,113 @@ class ManagerEngine {
       // Don't finalize discussion without checklist items
       return sector;
     }
+
+    // Check manager confidence and agent thresholds before approving
+    // Manager must refuse to approve checklist items if:
+    // - Manager confidence < 65
+    // - OR not all agents meet confidence threshold (>= 65)
+    const allAgents = await loadAgents();
+    const manager = await getManagerBySectorId(sector.id);
+    
+    if (!manager) {
+      console.warn(`[ManagerEngine] No manager found for sector ${sector.id}. Cannot approve checklist items.`);
+      // Reject all items
+      for (const item of discussionRoom.checklistDraft) {
+        if (item.status !== 'approved' && item.status !== 'rejected') {
+          item.status = 'rejected';
+          item.managerReason = 'Manager not found - cannot approve checklist items';
+        }
+      }
+      await saveDiscussion(discussionRoom);
+      return sector;
+    }
+
+    // Calculate manager confidence as weighted average of agent confidence
+    const managerConfidence = this.confidenceEngine.updateManagerConfidence(manager, allAgents);
+    
+    // Check if manager confidence meets threshold
+    if (managerConfidence < 65) {
+      console.log(`[ManagerEngine] Manager confidence (${managerConfidence.toFixed(2)}) below threshold (65). Refusing to approve checklist items.`);
+      // Reject all items
+      for (const item of discussionRoom.checklistDraft) {
+        if (item.status !== 'approved' && item.status !== 'rejected') {
+          item.status = 'rejected';
+          item.managerReason = `Manager confidence (${managerConfidence.toFixed(2)}) below threshold (65). Cannot approve checklist items.`;
+          
+          // Update agent confidence after rejection
+          try {
+            const agentId = item.sourceAgentId || item.agentId;
+            if (agentId) {
+              const agent = allAgents.find(a => a && a.id === agentId);
+              if (agent) {
+                const newConfidence = this.confidenceEngine.updateConfidenceAfterRejected(agent, item);
+                try {
+                  await updateAgent(agent.id, { confidence: newConfidence });
+                  agent.confidence = newConfidence;
+                } catch (updateError) {
+                  console.warn(`[ManagerEngine] Failed to persist confidence update for agent ${agent.id}:`, updateError);
+                }
+              }
+            }
+          } catch (confidenceError) {
+            console.warn(`[ManagerEngine] Error updating agent confidence after rejection:`, confidenceError);
+          }
+        }
+      }
+      await saveDiscussion(discussionRoom);
+      return sector;
+    }
+
+    // Check if all agents meet confidence threshold (>= 65)
+    const sectorAgents = allAgents.filter(agent => 
+      agent && agent.id && agent.sectorId === sector.id
+    );
+    
+    const agentsBelowThreshold = sectorAgents.filter(agent => {
+      const confidence = extractConfidence(agent);
+      return confidence < 65;
+    });
+
+    if (agentsBelowThreshold.length > 0) {
+      const agentDetails = agentsBelowThreshold.map(agent => {
+        const confidence = extractConfidence(agent);
+        return `${agent.name || agent.id}: ${confidence.toFixed(2)}`;
+      }).join(', ');
+      
+      console.log(`[ManagerEngine] Not all agents meet confidence threshold (>= 65). Refusing to approve checklist items. Agents below threshold: ${agentDetails}`);
+      
+      // Reject all items
+      for (const item of discussionRoom.checklistDraft) {
+        if (item.status !== 'approved' && item.status !== 'rejected') {
+          item.status = 'rejected';
+          item.managerReason = `Not all agents meet confidence threshold (>= 65). Agents below threshold: ${agentDetails}`;
+          
+          // Update agent confidence after rejection
+          try {
+            const agentId = item.sourceAgentId || item.agentId;
+            if (agentId) {
+              const agent = allAgents.find(a => a && a.id === agentId);
+              if (agent) {
+                const newConfidence = this.confidenceEngine.updateConfidenceAfterRejected(agent, item);
+                try {
+                  await updateAgent(agent.id, { confidence: newConfidence });
+                  agent.confidence = newConfidence;
+                } catch (updateError) {
+                  console.warn(`[ManagerEngine] Failed to persist confidence update for agent ${agent.id}:`, updateError);
+                }
+              }
+            }
+          } catch (confidenceError) {
+            console.warn(`[ManagerEngine] Error updating agent confidence after rejection:`, confidenceError);
+          }
+        }
+      }
+      await saveDiscussion(discussionRoom);
+      return sector;
+    }
+
+    // All checks passed - proceed with approval
+    console.log(`[ManagerEngine] Manager confidence (${managerConfidence.toFixed(2)}) and all agents meet thresholds. Proceeding with checklist approval.`);
 
     // Mark all items as approved
     const approvedItems = [];
