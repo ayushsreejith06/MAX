@@ -54,25 +54,43 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
     }
 
     // VALIDATION 2: STRICT THRESHOLD CHECK (unless bypassed for manual API calls)
-    // This check ensures all agents have confidence > 65 before creating a discussion
+    // This check ensures ALL participating agents (non-manager) have confidence >= 65 before creating a discussion
     if (!skipThresholdCheck) {
       // GUARD: Reload agents from storage to prevent stale confidence values
       // This ensures we read confidence AFTER it was updated from LLM output
       // Flow order: LLM reasoning → extract confidence → discussion check
       const agents = await loadAgents();
-      const allSectorAgents = agents.filter(a => a && a.id && a.sectorId === sectorId);
       
-      if (allSectorAgents.length > 0) {
-        // Check ALL agents (manager + generals) have confidence > 65
+      // Get participating agents (non-manager agents only)
+      // If agentIds provided, use those; otherwise get all non-manager agents in sector
+      let participatingAgents = [];
+      if (agentIds && agentIds.length > 0) {
+        participatingAgents = agents.filter(a => a && a.id && agentIds.includes(a.id));
+      } else {
+        participatingAgents = agents.filter(a => 
+          a && a.id && 
+          a.sectorId === sectorId && 
+          a.role !== 'manager' && 
+          !(a.role || '').toLowerCase().includes('manager')
+        );
+      }
+      
+      if (participatingAgents.length > 0) {
+        // Check ALL participating agents (non-manager) have confidence >= 65
+        // Manager confidence alone is insufficient - only participating agents are checked
         // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
         // or agent.confidence (which is now LLM-derived)
-        const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
+        const allAboveThreshold = participatingAgents.every(agent => extractConfidence(agent) >= 65);
         
         if (!allAboveThreshold) {
-          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
-          console.log(`[DiscussionLifecycle] Cannot start discussion - Not all agents meet threshold (> 65). Agents: ${agentDetails}`);
-          throw new Error(`Cannot start discussion: Not all agents have confidence > 65. Current confidences: ${agentDetails}`);
+          const agentDetails = participatingAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
+          console.log(`[DiscussionLifecycle] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - Not all participating agents meet threshold (>= 65). Agents: ${agentDetails}`);
+          throw new Error(`Cannot start discussion: Not all participating agents have confidence >= 65. Current confidences: ${agentDetails}`);
         }
+      } else {
+        // No participating agents found
+        console.log(`[DiscussionLifecycle] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - No participating agents found for sector ${sectorId}`);
+        throw new Error(`Cannot start discussion: No participating agents found for sector ${sectorId}`);
       }
     }
 
@@ -97,6 +115,14 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
     // Create new discussion room
     const discussionRoom = new DiscussionRoom(sectorId, title, agentIds);
     await saveDiscussion(discussionRoom);
+
+    // Update agent statuses to DISCUSSING when they join the discussion
+    const { updateMultipleAgentStatuses, STATUS: AGENT_STATUS } = require('../../utils/agentStatusService');
+    try {
+      await updateMultipleAgentStatuses(agentIds, AGENT_STATUS.DISCUSSING, `Joined discussion ${discussionRoom.id}`);
+    } catch (error) {
+      console.warn(`[DiscussionLifecycle] Failed to update agent statuses when starting discussion:`, error.message);
+    }
 
     console.log(`[DiscussionLifecycle] Started discussion ${discussionRoom.id} for sector ${sectorId}`);
 
@@ -168,12 +194,27 @@ async function collectArguments(discussionId) {
     // For each agent, generate an argument/signal
     for (const agent of sectorAgents) {
       try {
+        // Set agent status to DISCUSSING when participating
+        const { setAgentDiscussing, setAgentThinking } = require('../../utils/agentStatusService');
+        try {
+          await setAgentDiscussing(agent.id, discussionId);
+        } catch (error) {
+          console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status to DISCUSSING:`, error.message);
+        }
+
         let signal = null;
         let argumentText = '';
 
         // Try to use ResearchAgent if agent role is 'research'
         if (agent.role === 'research' || agent.role === 'analyst') {
           try {
+            // Set status to THINKING when generating research signal
+            try {
+              await setAgentThinking(agent.id, `Producing research signal for discussion ${discussionId}`);
+            } catch (error) {
+              console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status to THINKING:`, error.message);
+            }
+
             const ResearchAgent = require('../research/ResearchAgent');
             const researchAgent = new ResearchAgent({
               id: agent.id,
@@ -186,6 +227,13 @@ async function collectArguments(discussionId) {
             // Generate research signal
             const sectorSymbol = sector?.sectorSymbol || sector?.symbol || 'UNKNOWN';
             const researchSignal = await researchAgent.produceResearchSignal(sectorSymbol);
+            
+            // Set back to DISCUSSING after research signal generation
+            try {
+              await setAgentDiscussing(agent.id, discussionId);
+            } catch (error) {
+              console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status back to DISCUSSING:`, error.message);
+            }
             
             if (researchSignal && researchSignal.action) {
               signal = {
@@ -720,29 +768,40 @@ function autoDiscussionLoop(intervalMs = 10000) {
             }
             // STRICT THRESHOLD: Check if we should create a new discussion
             // Create a discussion ONLY if:
-            // 1. ALL agents (manager + generals) have confidence > 65
+            // 1. ALL participating agents (non-manager) have confidence >= 65
             // 2. Sector has balance > 0 (money available to deploy)
             // 3. Has agents to participate
             // 4. No recent discussion (within last minute)
             // 5. No active/in-progress discussions
+            // Manager confidence alone is insufficient - only participating agents are checked
             
-            // Get ALL agents for the sector (manager + generals)
+            // Get participating agents for the sector (non-manager agents only)
             // NOTE: Agents are loaded at the start of the loop (line 632)
             // For the main tick flow, SystemOrchestrator ensures agents are reloaded
             // after confidence updates to prevent stale values
-            const allSectorAgents = agents.filter(a => a.sectorId === sector.id);
+            const participatingAgents = agents.filter(a => 
+              a && a.id && 
+              a.sectorId === sector.id && 
+              a.role !== 'manager' && 
+              !(a.role || '').toLowerCase().includes('manager')
+            );
             
-            if (allSectorAgents.length === 0) {
-              continue; // No agents, skip
+            if (participatingAgents.length === 0) {
+              // No participating agents, skip
+              console.log(`[DiscussionLifecycle] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - No participating agents found for sector ${sector.id}`);
+              continue;
             }
             
-            // Check ALL agents (manager + generals) have confidence > 65
+            // Check ALL participating agents (non-manager) have confidence >= 65
+            // Manager confidence alone is insufficient - only participating agents are checked
             // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
             // or agent.confidence (which is now LLM-derived)
-            const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
+            const allAboveThreshold = participatingAgents.every(agent => extractConfidence(agent) >= 65);
             
             if (!allAboveThreshold) {
-              // Skip - not all agents meet threshold
+              // Skip - not all participating agents meet threshold
+              const agentDetails = participatingAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
+              console.log(`[DiscussionLifecycle] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - Not all participating agents meet threshold (>= 65) for sector ${sector.id}. Agents: ${agentDetails}`);
               continue;
             }
             

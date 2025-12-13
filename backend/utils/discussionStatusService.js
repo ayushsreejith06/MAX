@@ -151,6 +151,24 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
   // Save discussion
   await saveDiscussion(discussionRoom);
   
+  // If discussion is being closed, refresh agent statuses
+  // Agents should be set to IDLE if they're not in any other active discussions
+  if (normalizedNewStatus === STATUS.CLOSED) {
+    try {
+      const { refreshAgentStatus } = require('./agentStatusService');
+      const agentIds = Array.isArray(discussionRoom.agentIds) ? discussionRoom.agentIds : [];
+      
+      // Refresh status for all agents in this discussion
+      await Promise.allSettled(
+        agentIds.map(agentId => refreshAgentStatus(agentId))
+      );
+      
+      console.log(`[DiscussionStatusService] Refreshed status for ${agentIds.length} agents after closing discussion ${discussionId}`);
+    } catch (error) {
+      console.warn(`[DiscussionStatusService] Failed to refresh agent statuses after closing discussion:`, error.message);
+    }
+  }
+  
   return discussionRoom;
 }
 

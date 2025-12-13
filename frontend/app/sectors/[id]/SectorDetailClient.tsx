@@ -34,11 +34,16 @@ const AgentRow = memo(function AgentRow({
   isPerformanceHighlighted?: boolean;
 }) {
   const statusColors = {
+    THINKING: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
+    DISCUSSING: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+    EXECUTING: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
+    IDLE: 'bg-floral-white/10 text-floral-white/70 border-floral-white/30',
+    // Legacy statuses for backward compatibility
     active: 'bg-sage-green/20 text-sage-green border-sage-green/50',
     idle: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
     processing: 'bg-sky-blue/20 text-sky-blue border-sky-blue/50',
   };
-  const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.idle;
+  const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.IDLE;
   const agentDisplayName = agent.displayName || agent.name || agent.id;
   const formattedRole = agent.role
     ? agent.role.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())

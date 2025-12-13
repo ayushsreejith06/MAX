@@ -3,7 +3,7 @@ export interface CandleData {
   value: number;
 }
 
-export type AgentStatus = 'active' | 'idle' | 'processing' | string;
+export type AgentStatus = 'IDLE' | 'THINKING' | 'DISCUSSING' | 'EXECUTING' | 'active' | 'idle' | 'processing' | string;
 
 export interface AgentPersonality {
   riskTolerance: string;

@@ -222,16 +222,36 @@ module.exports = async (fastify) => {
       }
 
       // Calculate new price (withdrawal reduces the current valuation)
-      // This simulates selling the position at current market price
-      const newPrice = Math.max(0.01, currentPrice - withdrawAmount);
-      const priceChange = newPrice - currentPrice;
-      const priceChangePercent = currentPrice > 0 ? (priceChange / currentPrice) * 100 : 0;
-
+      // Allow withdrawing everything including the last $0.01
+      const newPrice = Math.max(0, currentPrice - withdrawAmount);
+      
       // Also update balance proportionally (reduce balance by withdrawal amount)
       // This maintains consistency between price and balance
       const newBalance = Math.max(0, currentBalance - withdrawAmount);
+      
+      // Get baseline price (price before withdrawal, used for change calculations)
+      // Baseline price only changes with executions, not withdrawals
+      const baselinePrice = typeof sector.baselinePrice === 'number' && sector.baselinePrice > 0
+        ? sector.baselinePrice
+        : (typeof sector.initialPrice === 'number' && sector.initialPrice > 0
+          ? sector.initialPrice
+          : currentPrice);
+
+      // Calculate change/changePercent from baseline price (market movements only)
+      // Only update change/changePercent if there's money in the sector (balance > 0)
+      let priceChange = 0;
+      let priceChangePercent = 0;
+      if (newBalance > 0 && baselinePrice > 0) {
+        priceChange = newPrice - baselinePrice;
+        priceChangePercent = (priceChange / baselinePrice) * 100;
+      } else {
+        // If no money, keep previous change values (don't update)
+        priceChange = typeof sector.change === 'number' ? sector.change : 0;
+        priceChangePercent = typeof sector.changePercent === 'number' ? sector.changePercent : 0;
+      }
 
       // Update sector with new price and balance
+      // IMPORTANT: Do NOT update baselinePrice on withdrawal - it only changes with executions
       const updatedSector = await updateSector(id, { 
         balance: newBalance,
         currentPrice: newPrice,

@@ -1467,7 +1467,7 @@ module.exports = async (fastify) => {
 
       // Use ManagerEngine.createDiscussion to ensure all validations are performed:
       // 1. No active discussions in the sector
-      // 2. All agents have confidence > 65
+      // 2. All participating agents (non-manager) have confidence >= 65
       // 3. Sector balance > 0
       const ManagerEngine = require('../core/ManagerEngine');
       const managerEngine = new ManagerEngine();

@@ -1,35 +1,17 @@
 /**
- * Confidence normalization - LLM-driven confidence updates
+ * Confidence normalization - Action-based confidence updates
  * 
- * Phase 4: Confidence is monotonically increasing.
- * Phase 5: Confidence will be data-driven and bidirectional.
- * 
- * Phase 4 Rules:
- * - If LLM confidence <= previous_confidence, then confidence_next = min(previous_confidence + 2, 100)
- *   This ensures confidence always trends upward during Phase 4, even when LLM outputs conservative confidence.
- * - If LLM confidence > previous_confidence, then confidence_next = min(100, llm_confidence_output)
- * - Confidence can ONLY stay the same or increase
- * - Confidence can NEVER decrease in Phase 4
- * - Confidence MUST be capped at 100
+ * Rules:
+ * - Agent confidence must be derived from the recommendation it produces
+ * - Confidence must come from the LLM output (e.g. "Confidence: 40%")
+ * - Confidence may increase or decrease between rounds based on refinement
+ * - Confidence must NEVER increase without a new reasoning step
+ * - No passive auto-increment logic
  */
 
 const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage');
 const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils');
 
-/**
- * Phase 4 confidence update: monotonically increasing confidence based on LLM output.
- * 
- * Phase 4: Confidence is monotonically increasing.
- * Phase 5: Confidence will be data-driven and bidirectional.
- * 
- * Phase 4 confidence growth assist:
- * - If LLM confidence <= previous_confidence, then confidence_next = min(previous_confidence + 2, 100)
- * - If LLM confidence > previous_confidence, then confidence_next = min(100, llm_confidence_output)
- * 
- * @param {number} previousConfidence - Previous confidence value
- * @param {number} llmConfidenceOutput - LLM-provided confidence value (0-100)
- * @returns {number} Updated confidence (monotonically increasing, capped at 100)
- */
 /**
  * Update confidence using LLM output directly - no automatic increases.
  * Confidence is derived from LLM and can increase or decrease based on LLM output.
@@ -47,27 +29,27 @@ function updateConfidencePhase4(previousConfidence, llmConfidenceOutput) {
 /**
  * Recalculate agent confidence based on LLM output.
  * 
- * Phase 4: Confidence is monotonically increasing.
- * Phase 5: Confidence will be data-driven and bidirectional.
+ * Action-based confidence: Confidence must come from LLM output only.
+ * No fallback to previous confidence - if no LLM output, confidence is not updated.
  * 
  * @param {Object} agent - Agent object with id, role, performance, confidence, etc.
  * @param {Object} context - Context object containing:
- *   - llmConfidence: number (LLM-provided confidence value, 0-100) - REQUIRED for Phase 4
+ *   - llmConfidence: number (LLM-provided confidence value, 0-100) - REQUIRED
  *   - priceTrend: number (price change direction, positive = up, negative = down) (optional)
  *   - priceChangePercent: number (percentage change in price) (optional)
  *   - volatilityChange: number (change in volatility, positive = more volatile) (optional)
  *   - previousPerformance: Object with { pnl, winRate } or use agent.performance (optional)
  *   - sectorData: Object with sector information (optional)
  *   - decisionOutcome: Object with { action, priceChangePercent, success } (optional)
- * @returns {number} Updated confidence value (0 to 100)
+ * @returns {number|null} Updated confidence value (1-100) or null if no LLM confidence provided
  */
 function recalcConfidence(agent, context = {}) {
-  // Get previous confidence
+  // Get previous confidence for logging
   const previousConfidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
   
-  // Phase 4: Use LLM confidence output if provided
-  // If LLM confidence is not provided, maintain previous confidence (no decay)
-  let llmConfidenceOutput = previousConfidence; // Default: maintain current confidence
+  // Action-based confidence: MUST come from LLM output
+  // If no LLM confidence is provided, return null to indicate no update
+  let llmConfidenceOutput = null;
   
   if (context.llmConfidence !== undefined && typeof context.llmConfidence === 'number') {
     llmConfidenceOutput = context.llmConfidence;
@@ -76,9 +58,12 @@ function recalcConfidence(agent, context = {}) {
     llmConfidenceOutput = agent.llmAction.confidence;
   }
   
-  // Phase 4: Confidence is monotonically increasing.
-  // Phase 5: Confidence will be data-driven and bidirectional.
-  // confidence_next = min(100, max(previous_confidence, llm_confidence_output))
+  // If no LLM confidence provided, return null (no update)
+  if (llmConfidenceOutput === null) {
+    return null;
+  }
+  
+  // Use LLM confidence directly - no automatic increases
   const newConfidence = updateConfidencePhase4(previousConfidence, llmConfidenceOutput);
   
   // Only log if there's a meaningful change
@@ -121,26 +106,27 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
     const updatedAgents = [];
     
     // Update confidence for non-manager agents with tick context
+    // Action-based: Only update if LLM confidence is provided
     for (const agent of nonManagerAgents) {
-      const previousConfidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
       const calculatedConfidence = recalcConfidence(agent, {
         llmConfidence: tickContext.llmConfidence, // LLM confidence if available
         priceChangePercent: tickContext.priceChangePercent,
         volatilityChange: tickContext.volatilityChange
       });
       
-      // Phase 4: Confidence is monotonically increasing (already handled in recalcConfidence)
-      const newConfidence = calculatedConfidence;
-      
-      // Only update if confidence actually changed (avoid unnecessary writes)
-      if (Math.abs(newConfidence - extractConfidence(agent)) > 0.01) {
-        agent.confidence = newConfidence;
-        
-        // Find and update in main agents array
-        const agentIndex = agents.findIndex(a => a.id === agent.id);
-        if (agentIndex !== -1) {
-          agents[agentIndex].confidence = newConfidence;
-          updatedAgents.push(agents[agentIndex]);
+      // Only update if LLM confidence was provided (recalcConfidence returns null otherwise)
+      if (calculatedConfidence !== null) {
+        const currentConfidence = extractConfidence(agent);
+        // Only update if confidence actually changed (avoid unnecessary writes)
+        if (Math.abs(calculatedConfidence - currentConfidence) > 0.01) {
+          agent.confidence = calculatedConfidence;
+          
+          // Find and update in main agents array
+          const agentIndex = agents.findIndex(a => a.id === agent.id);
+          if (agentIndex !== -1) {
+            agents[agentIndex].confidence = calculatedConfidence;
+            updatedAgents.push(agents[agentIndex]);
+          }
         }
       }
     }
@@ -162,33 +148,29 @@ async function updateAgentsConfidenceForSector(sectorId, tickContext = {}) {
         volatilityChange: tickContext.volatilityChange
       });
       
-      // If we have non-manager agents, blend average with recalculated (60% average, 40% recalculated)
-      // This ensures manager confidence reflects team performance but can still change
-      const calculatedManagerConfidence = averageConfidence !== null
-        ? averageConfidence * 0.6 + recalculatedConfidence * 0.4
-        : recalculatedConfidence;
-      
-      const normalizedManagerConfidence = clampConfidence(calculatedManagerConfidence);
-      // Phase 4: Confidence is monotonically increasing (apply Phase 4 rule)
-      const newManagerConfidence = updateConfidencePhase4(previousConfidence, normalizedManagerConfidence);
-      
-      // Only update if confidence actually changed
-      const currentManagerConfidence = extractConfidence(manager);
-      if (Math.abs(newManagerConfidence - currentManagerConfidence) > 0.01) {
-        manager.confidence = newManagerConfidence;
+      // Manager confidence: Use average of non-manager agents if available
+      // Action-based: Only update if we have LLM-derived confidence from non-managers
+      if (averageConfidence !== null) {
+        const normalizedManagerConfidence = clampConfidence(averageConfidence);
+        const currentManagerConfidence = extractConfidence(manager);
         
-        // Find and update in main agents array
-        const agentIndex = agents.findIndex(a => a.id === manager.id);
-        if (agentIndex !== -1) {
-          agents[agentIndex].confidence = newManagerConfidence;
-          updatedAgents.push(agents[agentIndex]);
-        }
-        
-        // Save manager confidence to storage
-        try {
-          await updateAgent(manager.id, { confidence: newManagerConfidence });
-        } catch (error) {
-          console.error(`[Confidence] Error saving manager confidence for ${manager.id}:`, error);
+        // Only update if confidence actually changed
+        if (Math.abs(normalizedManagerConfidence - currentManagerConfidence) > 0.01) {
+          manager.confidence = normalizedManagerConfidence;
+          
+          // Find and update in main agents array
+          const agentIndex = agents.findIndex(a => a.id === manager.id);
+          if (agentIndex !== -1) {
+            agents[agentIndex].confidence = normalizedManagerConfidence;
+            updatedAgents.push(agents[agentIndex]);
+          }
+          
+          // Save manager confidence to storage
+          try {
+            await updateAgent(manager.id, { confidence: normalizedManagerConfidence });
+          } catch (error) {
+            console.error(`[Confidence] Error saving manager confidence for ${manager.id}:`, error);
+          }
         }
       }
     }
@@ -279,6 +261,7 @@ async function updateAgentsConfidenceAfterConsensus(agentIds = [], consensusCont
       const previousConfidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
       
       // Recalculate confidence with decision outcome context
+      // Action-based: Only update if LLM confidence is provided
       // Note: LLM confidence should be provided in consensusContext.llmConfidence
       const calculatedConfidence = recalcConfidence(agent, {
         llmConfidence: consensusContext.llmConfidence, // LLM confidence if available
@@ -286,21 +269,20 @@ async function updateAgentsConfidenceAfterConsensus(agentIds = [], consensusCont
         priceChangePercent: consensusContext.priceChangePercent
       });
       
-      // Phase 4: Confidence is monotonically increasing (already handled in recalcConfidence)
-      const newConfidence = calculatedConfidence;
-      
-      // Update agent confidence
-      agent.confidence = newConfidence;
-      agents[agentIndex].confidence = newConfidence;
-      
-      // Persist the update
-      try {
-        await updateAgent(agent.id, { confidence: newConfidence });
-      } catch (error) {
-        console.warn(`[Confidence] Failed to persist confidence for ${agent.id}:`, error);
+      // Only update if LLM confidence was provided (recalcConfidence returns null otherwise)
+      if (calculatedConfidence !== null) {
+        agent.confidence = calculatedConfidence;
+        agents[agentIndex].confidence = calculatedConfidence;
+        
+        // Persist the update
+        try {
+          await updateAgent(agent.id, { confidence: calculatedConfidence });
+        } catch (error) {
+          console.warn(`[Confidence] Failed to persist confidence for ${agent.id}:`, error);
+        }
+        
+        updatedAgents.push(agents[agentIndex]);
       }
-      
-      updatedAgents.push(agents[agentIndex]);
     }
     
     // Save updated agents
@@ -314,27 +296,16 @@ async function updateAgentsConfidenceAfterConsensus(agentIds = [], consensusCont
 }
 
 /**
- * Stabilize confidence: Apply Phase 4 growth rule to prevent decay and ensure growth.
- * This is a wrapper around updateConfidencePhase4 for backward compatibility.
+ * Stabilize confidence - DEPRECATED: Use updateConfidencePhase4 directly.
+ * This function is kept for backward compatibility but should not be used.
  * 
- * Phase 4 confidence growth assist:
- * - If extracted confidence <= previous_confidence, then confidence_next = min(previous_confidence + 2, 100)
- * - If extracted confidence > previous_confidence, then confidence_next = min(100, extracted_confidence)
- * 
- * @param {number} previousConfidence - Previous confidence value
- * @param {number} extractedConfidence - Extracted confidence value (from llmAction or stored)
- * @returns {number} Stabilized confidence (monotonically increasing, capped at 100)
- */
-/**
- * Stabilize confidence - now just uses LLM-derived confidence directly.
- * No automatic increases or monotonic behavior.
- * 
+ * @deprecated Use updateConfidencePhase4 directly instead
  * @param {number} previousConfidence - Previous confidence (not used, kept for compatibility)
  * @param {number} extractedConfidence - LLM-derived confidence value (1-100)
  * @returns {number} Updated confidence value (1-100)
  */
 function stabilizeConfidence(previousConfidence, extractedConfidence) {
-  // Use LLM-derived confidence directly
+  // Use LLM-derived confidence directly - no automatic increases
   return clampConfidence(typeof extractedConfidence === 'number' ? extractedConfidence : 1);
 }
 

@@ -2,7 +2,6 @@ const { loadAgents, saveAgents, updateAgent } = require('../utils/agentStorage')
 const { updateSector } = require('../utils/sectorStorage');
 const { loadDiscussions } = require('../utils/discussionStorage');
 const { extractConfidence, clampConfidence } = require('../utils/confidenceUtils');
-const { stabilizeConfidence } = require('../simulation/confidence');
 
 /**
  * SectorEngine - Handles sector-level operations including confidence updates
@@ -63,31 +62,34 @@ class SectorEngine {
 
       const confidenceList = [];
 
-      // STEP 1: Extract confidence from LLM (llmAction.confidence) or stored value
-      // STEP 2: Apply monotonic rule (stabilizeConfidence) to prevent decay below 65
+      // Action-based confidence: Only update if LLM confidence is provided
+      // Confidence comes from LLM output only, no passive updates
       for (const agent of nonManagerAgents) {
-        // Get previous confidence for monotonic rule
-        const previousConfidence = typeof agent.confidence === 'number' ? agent.confidence : 0;
-        
         // Extract confidence from LLM (llmAction.confidence) or stored value
         const extractedConfidence = extractConfidence(agent);
         
-        // STEP 3: Apply monotonic rule - ensures confidence never drops below 65
-        const stabilizedConfidence = stabilizeConfidence(previousConfidence, extractedConfidence);
-        
-        // Update agent confidence
-        agent.confidence = stabilizedConfidence;
-        confidenceMap.set(agent.id, stabilizedConfidence);
-        
-        // Persist updated confidence to storage
-        try {
-          await updateAgent(agent.id, { confidence: stabilizedConfidence });
-        } catch (error) {
-          console.warn(`[SectorEngine] Failed to persist confidence for ${agent.id}:`, error);
+        // Only update if we have LLM-derived confidence (from llmAction)
+        // If agent has llmAction.confidence, use it; otherwise keep current confidence
+        if (agent.llmAction && typeof agent.llmAction.confidence === 'number') {
+          const llmConfidence = clampConfidence(agent.llmAction.confidence);
+          agent.confidence = llmConfidence;
+          confidenceMap.set(agent.id, llmConfidence);
+          
+          // Persist updated confidence to storage
+          try {
+            await updateAgent(agent.id, { confidence: llmConfidence });
+          } catch (error) {
+            console.warn(`[SectorEngine] Failed to persist confidence for ${agent.id}:`, error);
+          }
+        } else {
+          // No LLM action, keep current confidence
+          const currentConfidence = extractedConfidence;
+          agent.confidence = currentConfidence;
+          confidenceMap.set(agent.id, currentConfidence);
         }
         
         const agentName = agent.name || agent.id;
-        confidenceList.push({ name: agentName, confidence: stabilizedConfidence });
+        confidenceList.push({ name: agentName, confidence: confidenceMap.get(agent.id) });
       }
 
       const nonManagerAverage = nonManagerAgents.length
@@ -95,38 +97,33 @@ class SectorEngine {
         : null;
 
       for (const manager of managerAgents) {
-        // Get previous confidence for monotonic rule
-        const previousConfidence = typeof manager.confidence === 'number' ? manager.confidence : 0;
-        
-        // Derive manager confidence from average of non-manager agents or extract from LLM
+        // Manager confidence: Use average of non-manager agents if available
+        // Action-based: Manager confidence reflects team performance
         const derivedConfidence = nonManagerAverage !== null
           ? nonManagerAverage
           : extractConfidence(manager);
         
         const normalizedConfidence = clampConfidence(derivedConfidence);
         
-        // STEP 3: Apply monotonic rule - ensures confidence never drops below 65
-        const stabilizedConfidence = stabilizeConfidence(previousConfidence, normalizedConfidence);
-        
         // Update manager confidence
-        manager.confidence = stabilizedConfidence;
-        confidenceMap.set(manager.id, stabilizedConfidence);
+        manager.confidence = normalizedConfidence;
+        confidenceMap.set(manager.id, normalizedConfidence);
         
         // Persist updated confidence to storage
         try {
-          await updateAgent(manager.id, { confidence: stabilizedConfidence });
+          await updateAgent(manager.id, { confidence: normalizedConfidence });
         } catch (error) {
           console.warn(`[SectorEngine] Failed to persist confidence for ${manager.id}:`, error);
         }
         
         const managerName = manager.name || manager.id;
-        confidenceList.push({ name: managerName, confidence: stabilizedConfidence });
+        confidenceList.push({ name: managerName, confidence: normalizedConfidence });
       }
 
       // DEBUG: Log list of confidence values
       if (confidenceList.length > 0) {
         const confidenceStr = confidenceList.map(c => `${c.name}: ${c.confidence.toFixed(2)}`).join(', ');
-        console.log(`[SectorEngine] Confidence values (after monotonic update): [${confidenceStr}]`);
+        console.log(`[SectorEngine] Confidence values (action-based): [${confidenceStr}]`);
       }
 
       // Save updated agents to storage (confidence already persisted per-agent above)
@@ -285,6 +282,7 @@ class SectorEngine {
       }
 
       // STRICT THRESHOLD: Check ALL agents (manager + generals) have confidence >= 65
+      // Hard constraint: Agents with confidence < 65 cannot trigger or continue discussions
       const allAboveThreshold = agents.every(agent => extractConfidence(agent) >= confidenceThreshold);
 
       if (!allAboveThreshold) {

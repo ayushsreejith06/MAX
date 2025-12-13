@@ -347,7 +347,7 @@ module.exports = async (fastify) => {
 
       log(`GET /api/decision-logs/executed - Fetching executed decision logs with filters: sector=${sector}, managerId=${managerId}, timeRange=${timeRange}, discussionId=${discussionId}, actionType=${actionType}`);
 
-      // Read execution logs
+      // Read execution logs - can contain both old format (with results array) and new format (individual ExecutionLog entries)
       let allLogs = [];
       try {
         const data = await readDataFile(EXECUTION_LOGS_FILE);
@@ -370,55 +370,122 @@ module.exports = async (fastify) => {
       const decisionLogs = [];
       
       for (const logEntry of allLogs) {
-        // Filter by sector
-        if (sector && logEntry.sectorId !== sector) {
+        // Skip if this is not a valid log entry
+        if (!logEntry || typeof logEntry !== 'object') {
           continue;
         }
 
-        // Filter by manager ID
-        if (managerId && logEntry.managerId !== managerId) {
-          continue;
-        }
-
-        // Filter by time range
-        if (timeFilter) {
-          const logTimestamp = logEntry.timestamp || 0;
-          if (logTimestamp < timeFilter.start || logTimestamp > timeFilter.end) {
-            continue;
-          }
-        }
-
-        // Process results array
-        const results = Array.isArray(logEntry.results) ? logEntry.results : [];
+        // Check if this is a new format ExecutionLog entry (has executionId, checklistItemId, etc.)
+        const isNewFormat = logEntry.executionId !== undefined || 
+                           (logEntry.checklistItemId !== undefined && !logEntry.results);
         
-        for (const result of results) {
-          // Only include successful executions
-          if (!result.success) {
+        if (isNewFormat) {
+          // New format: Individual ExecutionLog entry with all required fields
+          // Filter by sector
+          if (sector && logEntry.sectorId !== sector) {
             continue;
-          }
-
-          // Extract discussion ID from checklistId for filtering
-          // checklistId can be either direct discussion ID or format: checklist-{discussionId}-{index}
-          let resultDiscussionId = null;
-          if (logEntry.checklistId) {
-            const extracted = extractDiscussionId(logEntry.checklistId);
-            resultDiscussionId = extracted || logEntry.checklistId;
           }
 
           // Filter by discussion ID
-          if (discussionId && resultDiscussionId !== discussionId) {
+          if (discussionId && logEntry.discussionId !== discussionId) {
             continue;
           }
 
           // Filter by action type
-          const resultActionType = (result.actionType || result.action || '').toUpperCase();
-          if (actionType && resultActionType !== actionType.toUpperCase()) {
+          const entryAction = (logEntry.action || '').toUpperCase();
+          if (actionType && entryAction !== actionType.toUpperCase()) {
             continue;
           }
 
-          // Transform to decision log format
-          const decisionLog = await transformToDecisionLog(logEntry, result);
+          // Filter by time range
+          if (timeFilter) {
+            const logTimestamp = logEntry.timestamp || 0;
+            if (logTimestamp < timeFilter.start || logTimestamp > timeFilter.end) {
+              continue;
+            }
+          }
+
+          // Transform new format ExecutionLog to decision log format
+          const decisionLog = {
+            id: logEntry.executionId || logEntry.id,
+            executionId: logEntry.executionId || logEntry.id,
+            discussionId: logEntry.discussionId || null,
+            checklistItemId: logEntry.checklistItemId || null,
+            timestamp: logEntry.timestamp || Date.now(),
+            sectorId: logEntry.sectorId,
+            checklistId: logEntry.discussionId || null, // Use discussionId as checklistId for frontend
+            action: entryAction,
+            impact: logEntry.priceImpact !== undefined ? logEntry.priceImpact : (logEntry.impact || 0),
+            results: [{
+              itemId: logEntry.checklistItemId || null,
+              action: entryAction,
+              actionType: entryAction,
+              amount: logEntry.allocation || 0,
+              allocation: logEntry.allocation || null,
+              allocationPercent: logEntry.allocationPercent || null,
+              symbol: logEntry.sectorId, // Use sectorId as symbol fallback
+              success: true, // ExecutionLog entries are only created for successful executions
+              reason: null,
+              impact: logEntry.priceImpact !== undefined ? logEntry.priceImpact : null,
+              managerImpact: logEntry.priceImpact !== undefined ? logEntry.priceImpact : null,
+              priceImpact: logEntry.priceImpact !== undefined ? logEntry.priceImpact : null,
+              valuationDelta: logEntry.valuationDelta !== undefined ? logEntry.valuationDelta : null
+            }]
+          };
+
           decisionLogs.push(decisionLog);
+        } else {
+          // Old format: Log entry with results array (backward compatibility)
+          // Filter by sector
+          if (sector && logEntry.sectorId !== sector) {
+            continue;
+          }
+
+          // Filter by manager ID
+          if (managerId && logEntry.managerId !== managerId) {
+            continue;
+          }
+
+          // Filter by time range
+          if (timeFilter) {
+            const logTimestamp = logEntry.timestamp || 0;
+            if (logTimestamp < timeFilter.start || logTimestamp > timeFilter.end) {
+              continue;
+            }
+          }
+
+          // Process results array
+          const results = Array.isArray(logEntry.results) ? logEntry.results : [];
+          
+          for (const result of results) {
+            // Only include successful executions
+            if (!result.success) {
+              continue;
+            }
+
+            // Extract discussion ID from checklistId for filtering
+            // checklistId can be either direct discussion ID or format: checklist-{discussionId}-{index}
+            let resultDiscussionId = null;
+            if (logEntry.checklistId) {
+              const extracted = extractDiscussionId(logEntry.checklistId);
+              resultDiscussionId = extracted || logEntry.checklistId;
+            }
+
+            // Filter by discussion ID
+            if (discussionId && resultDiscussionId !== discussionId) {
+              continue;
+            }
+
+            // Filter by action type
+            const resultActionType = (result.actionType || result.action || '').toUpperCase();
+            if (actionType && resultActionType !== actionType.toUpperCase()) {
+              continue;
+            }
+
+            // Transform to decision log format
+            const decisionLog = await transformToDecisionLog(logEntry, result);
+            decisionLogs.push(decisionLog);
+          }
         }
       }
 

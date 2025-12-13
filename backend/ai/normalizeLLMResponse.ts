@@ -135,8 +135,21 @@ export function normalizeLLMResponse(
     // Clamp to 0-100
     allocationPercent = Math.max(0, Math.min(100, rawAllocation));
   } else {
-    // Default to sector risk profile
-    allocationPercent = riskProfileToAllocationPercent(sectorRiskProfile);
+    // Default based on action type
+    if (actionType === 'HOLD') {
+      allocationPercent = 0;
+    } else if (actionType === 'BUY' || actionType === 'SELL') {
+      // Default to sector risk profile for BUY/SELL actions
+      allocationPercent = riskProfileToAllocationPercent(sectorRiskProfile);
+    } else {
+      allocationPercent = riskProfileToAllocationPercent(sectorRiskProfile);
+    }
+  }
+  
+  // Ensure BUY/SELL actions have non-zero allocation when confidence is reasonable
+  if ((actionType === 'BUY' || actionType === 'SELL') && allocationPercent === 0 && confidence >= 30) {
+    // If action is BUY/SELL but allocation is 0, set a minimum allocation based on confidence
+    allocationPercent = Math.max(5, Math.min(20, confidence / 5)); // 5-20% based on confidence
   }
 
   // Normalize confidence

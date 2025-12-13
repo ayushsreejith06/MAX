@@ -1,12 +1,13 @@
 const { getSectorById, updateSector } = require('../utils/sectorStorage');
 const { readDataFile, writeDataFile } = require('../utils/persistence');
 const { v4: uuidv4 } = require('uuid');
-const { findDiscussionById } = require('../utils/discussionStorage');
+const { findDiscussionById, saveDiscussion } = require('../utils/discussionStorage');
 const { updateAgent } = require('../utils/agentStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
 const { storePriceTick } = require('../utils/priceHistoryStorage');
 const { getManagerById, getExecutionList, removeExecutionItem } = require('../utils/executionListStorage');
 const { calculateNewPrice, mapActionToImpact } = require('../simulation/priceModel');
+const { setAgentExecuting, refreshAgentStatus } = require('../utils/agentStatusService');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -16,6 +17,136 @@ const EXECUTION_LOGS_FILE = 'executionLogs.json';
 class ExecutionEngine {
   constructor() {
     // ExecutionEngine is a stateless coordinator
+  }
+
+  /**
+   * Execute a single checklist item
+   * @param {string} checklistItemId - ID of the checklist item to execute
+   * @param {string} discussionId - Discussion ID containing the item
+   * @returns {Promise<Object>} Execution result with success, impact, delta, timestamp, sectorId, discussionId
+   */
+  async executeChecklistItem(checklistItemId, discussionId) {
+    if (!checklistItemId) {
+      throw new Error('checklistItemId is required');
+    }
+    if (!discussionId) {
+      throw new Error('discussionId is required');
+    }
+
+    // Load discussion to find the checklist item
+    const discussionData = await findDiscussionById(discussionId);
+    if (!discussionData) {
+      throw new Error(`Discussion ${discussionId} not found`);
+    }
+
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+    const sectorId = discussionRoom.sectorId;
+
+    // Find the checklist item in finalizedChecklist or checklist
+    let checklistItem = null;
+    if (Array.isArray(discussionRoom.finalizedChecklist)) {
+      checklistItem = discussionRoom.finalizedChecklist.find(item => item.id === checklistItemId);
+    }
+    if (!checklistItem && Array.isArray(discussionRoom.checklist)) {
+      checklistItem = discussionRoom.checklist.find(item => item.id === checklistItemId);
+    }
+
+    if (!checklistItem) {
+      throw new Error(`Checklist item ${checklistItemId} not found in discussion ${discussionId}`);
+    }
+
+    // Check if already executed (prevent double execution)
+    if (checklistItem.executedAt) {
+      console.log(`[ExecutionEngine] Checklist item ${checklistItemId} already executed at ${checklistItem.executedAt}`);
+      return {
+        success: true,
+        alreadyExecuted: true,
+        executedAt: checklistItem.executedAt,
+        itemId: checklistItemId,
+        sectorId: sectorId,
+        discussionId: discussionId
+      };
+    }
+
+    // Verify item is approved
+    const status = (checklistItem.status || '').toUpperCase();
+    if (status !== 'APPROVED') {
+      throw new Error(`Cannot execute checklist item ${checklistItemId}: status is ${status}, must be APPROVED`);
+    }
+
+    // Verify discussion is closed (execution only happens after discussion closes)
+    const discussionStatus = (discussionRoom.status || '').toUpperCase();
+    if (discussionStatus !== 'CLOSED' && discussionStatus !== 'DECIDED') {
+      throw new Error(`Cannot execute checklist item ${checklistItemId}: discussion ${discussionId} is not closed (status: ${discussionStatus})`);
+    }
+
+    // Execute the single item using existing executeChecklist logic
+    const executionResult = await this.executeChecklist([checklistItem], sectorId, discussionId);
+
+    // Mark item as executed with timestamp
+    const executedAt = new Date().toISOString();
+    checklistItem.executedAt = executedAt;
+    checklistItem.status = 'EXECUTED';
+
+    // Update the item in both finalizedChecklist and checklist
+    if (Array.isArray(discussionRoom.finalizedChecklist)) {
+      const finalizedIndex = discussionRoom.finalizedChecklist.findIndex(item => item.id === checklistItemId);
+      if (finalizedIndex >= 0) {
+        discussionRoom.finalizedChecklist[finalizedIndex] = checklistItem;
+      }
+    }
+    if (Array.isArray(discussionRoom.checklist)) {
+      const checklistIndex = discussionRoom.checklist.findIndex(item => item.id === checklistItemId);
+      if (checklistIndex >= 0) {
+        discussionRoom.checklist[checklistIndex] = checklistItem;
+      }
+    }
+
+    // Save updated discussion
+    await saveDiscussion(discussionRoom);
+
+    // Extract execution details from result
+    // executeChecklist returns { success, updatedSectorState } but doesn't expose individual results
+    // We need to extract from the checklist item itself
+    const action = (checklistItem.action || '').toUpperCase();
+    const amount = typeof checklistItem.amount === 'number' ? checklistItem.amount : 0;
+    const impact = amount;
+    const delta = action === 'BUY' ? impact : (action === 'SELL' ? -impact : 0);
+    const timestamp = Date.now();
+    const price = executionResult.updatedSectorState?.currentPrice || 0;
+
+    // Emit execution event
+    const executionEvent = {
+      type: 'CHECKLIST_ITEM_EXECUTED',
+      itemId: checklistItemId,
+      discussionId: discussionId,
+      sectorId: sectorId,
+      timestamp: timestamp,
+      executedAt: executedAt,
+      action: tradeResult.actionType || checklistItem.action,
+      amount: impact,
+      impact: impact,
+      delta: delta,
+      price: tradeResult.price || executionResult.updatedSectorState?.currentPrice || 0,
+      success: executionResult.success !== false
+    };
+
+    console.log(`[ExecutionEngine] Executed checklist item ${checklistItemId}:`, executionEvent);
+
+    return {
+      success: executionResult.success !== false,
+      itemId: checklistItemId,
+      discussionId: discussionId,
+      sectorId: sectorId,
+      executedAt: executedAt,
+      impact: impact,
+      delta: delta,
+      timestamp: timestamp,
+      action: action,
+      amount: impact,
+      price: price,
+      event: executionEvent
+    };
   }
 
   /**
@@ -91,11 +222,22 @@ class ExecutionEngine {
 
     const tradeResults = [];
     const timestamp = Date.now();
+    const executionId = uuidv4(); // Single execution ID for this checklist execution
+
+    // Track price before execution for each item
+    let priceBeforeItem = startingPrice;
 
     // Process each checklist item
     for (const item of checklistItems) {
+      // Skip items that are already executed (prevent double execution)
+      if (item.executedAt) {
+        console.log(`[ExecutionEngine] Skipping item ${item.id || 'unknown'}: already executed at ${item.executedAt}`);
+        continue;
+      }
+
       // Skip items that are not approved
-      if (item.status && item.status !== 'approved') {
+      const itemStatus = (item.status || '').toUpperCase();
+      if (itemStatus !== 'APPROVED' && itemStatus !== 'approved') {
         console.log(`[ExecutionEngine] Skipping item ${item.id || 'unknown'}: status is ${item.status}`);
         continue;
       }
@@ -153,6 +295,8 @@ class ExecutionEngine {
       let executionSucceeded = false;
       let executedAction = null;
       const executionPrice = sectorState.currentPrice; // Capture price at execution time
+      const priceBeforeExecution = priceBeforeItem; // Price before this item's execution
+      const valuationBeforeExecution = sectorState.balance + getHoldingsTotal(); // Total value before execution
 
       try {
         switch (action) {
@@ -286,11 +430,16 @@ class ExecutionEngine {
             break;
 
           case 'hold':
-            // Do nothing for hold
+            // Do nothing for hold, but still track price
             tradeResults.push({
               itemId: item.id || null,
               action: 'hold',
+              actionType: 'HOLD',
               amount: 0,
+              allocation: 0,
+              price: executionPrice,
+              timestamp: timestamp,
+              sectorId: sectorId,
               success: true,
               reason: 'Hold action - no changes'
             });
@@ -373,7 +522,12 @@ class ExecutionEngine {
               tradeResults.push({
                 itemId: item.id || null,
                 action: 'rebalance',
+                actionType: 'REBALANCE',
                 amount: totalValue,
+                allocation: totalValue,
+                price: executionPrice,
+                timestamp: timestamp,
+                sectorId: sectorId,
                 success: true,
                 reason: 'Rebalance executed successfully'
               });
@@ -389,7 +543,12 @@ class ExecutionEngine {
               tradeResults.push({
                 itemId: item.id || null,
                 action: 'rebalance',
+                actionType: 'REBALANCE',
                 amount: 0,
+                allocation: 0,
+                price: executionPrice,
+                timestamp: timestamp,
+                sectorId: sectorId,
                 success: false,
                 reason: rebalanceReason
               });
@@ -409,7 +568,23 @@ class ExecutionEngine {
         }
 
         if (executionSucceeded && executedAction) {
+          const priceBeforeAction = sectorState.currentPrice;
           await this.applyPriceUpdateForAction(sector, sectorState, executedAction);
+          const priceAfterAction = sectorState.currentPrice;
+          
+          // Store price change in the trade result for logging
+          const lastResult = tradeResults[tradeResults.length - 1];
+          if (lastResult && lastResult.success) {
+            lastResult.priceBefore = priceBeforeAction;
+            lastResult.priceAfter = priceAfterAction;
+            lastResult.priceChange = priceAfterAction - priceBeforeAction;
+            lastResult.valuationBefore = valuationBeforeExecution;
+            lastResult.valuationAfter = sectorState.balance + getHoldingsTotal();
+            lastResult.valuationDelta = (sectorState.balance + getHoldingsTotal()) - valuationBeforeExecution;
+          }
+          
+          // Update price tracking for next item
+          priceBeforeItem = sectorState.currentPrice;
         }
       } catch (error) {
         console.error(`[ExecutionEngine] Error processing item ${item.id || 'unknown'}:`, error);
@@ -516,27 +691,66 @@ class ExecutionEngine {
 
     await this._appendExecutionLog(logEntry);
 
-    // Create individual ExecutionLog entries for each executed action (for price simulator drift calculation)
+    // Create individual ExecutionLog entries for EACH executed checklist item
+    // This ensures every executed item creates a persistent execution log entry
     const ExecutionLog = require('../models/ExecutionLog');
+    
+    // Map checklist items by ID for quick lookup
+    const itemMap = new Map();
+    checklistItems.forEach(item => {
+      if (item && item.id) {
+        itemMap.set(item.id, item);
+      }
+    });
+    
     for (const result of tradeResults) {
       if (result.success && result.action) {
         const action = (result.action || result.actionType || '').toUpperCase();
-        // Only log BUY and HOLD actions for drift calculation
-        if (action === 'BUY' || action === 'HOLD') {
-          try {
-            // Calculate impact: BUY = positive impact, HOLD = neutral (0)
-            const impact = action === 'BUY' ? (result.amount || 0) : 0;
-            const executionLog = new ExecutionLog({
-              sectorId: sectorId,
-              action: action,
-              impact: impact,
-              timestamp: timestamp
-            });
-            await executionLog.save();
-          } catch (logError) {
-            console.warn(`[ExecutionEngine] Failed to create ExecutionLog for ${action}:`, logError.message);
-            // Don't throw - logging failure shouldn't break execution
+        
+        // Get the corresponding checklist item to extract additional metadata
+        const item = result.itemId ? itemMap.get(result.itemId) : null;
+        
+        try {
+          // Calculate price impact: change in price due to this action
+          // Use the price change tracked during execution
+          const priceImpact = typeof result.priceChange === 'number' 
+            ? result.priceChange 
+            : (typeof result.priceAfter === 'number' && typeof result.priceBefore === 'number'
+              ? result.priceAfter - result.priceBefore
+              : 0);
+          
+          // Calculate valuation delta: change in total portfolio value
+          // Use the valuation delta tracked during execution
+          const valuationDelta = typeof result.valuationDelta === 'number'
+            ? result.valuationDelta
+            : (typeof result.valuationAfter === 'number' && typeof result.valuationBefore === 'number'
+              ? result.valuationAfter - result.valuationBefore
+              : 0);
+          
+          // Calculate allocation percent if total value is available
+          let allocationPercent = null;
+          if (result.amount && typeof result.valuationBefore === 'number' && result.valuationBefore > 0) {
+            allocationPercent = (result.amount / result.valuationBefore) * 100;
           }
+          
+          // Create execution log entry with all required fields
+          const executionLog = new ExecutionLog({
+            executionId: executionId,
+            discussionId: checklistId || null,
+            checklistItemId: result.itemId || item?.id || null,
+            sectorId: sectorId,
+            action: action,
+            allocation: result.amount || result.allocation || null,
+            allocationPercent: allocationPercent,
+            priceImpact: priceImpact,
+            valuationDelta: valuationDelta,
+            timestamp: timestamp
+          });
+          
+          await executionLog.save();
+        } catch (logError) {
+          console.warn(`[ExecutionEngine] Failed to create ExecutionLog for ${action} (item ${result.itemId}):`, logError.message);
+          // Don't throw - logging failure shouldn't break execution
         }
       }
     }
@@ -690,7 +904,32 @@ class ExecutionEngine {
     const managerImpact = mapActionToImpact(actionType);
     const newPrice = calculateNewPrice(previousPrice, { managerImpact, trendFactor });
 
+    // Get baseline price (price before this execution, used for change calculations)
+    // Baseline price tracks market movements, not withdrawals
+    const baselinePrice = typeof sector.baselinePrice === 'number' && sector.baselinePrice > 0
+      ? sector.baselinePrice
+      : (typeof sector.initialPrice === 'number' && sector.initialPrice > 0
+        ? sector.initialPrice
+        : previousPrice);
+
+    // Calculate change/changePercent from baseline price (market movements only)
+    // Only update if there's money in the sector
+    const currentBalance = typeof sectorState.balance === 'number' ? sectorState.balance : 0;
+    let priceChange = 0;
+    let priceChangePercent = 0;
+    if (currentBalance > 0 && baselinePrice > 0) {
+      priceChange = newPrice - baselinePrice;
+      priceChangePercent = (priceChange / baselinePrice) * 100;
+    } else {
+      // If no money, keep previous change values
+      priceChange = typeof sector.change === 'number' ? sector.change : 0;
+      priceChangePercent = typeof sector.changePercent === 'number' ? sector.changePercent : 0;
+    }
+
     sectorState.currentPrice = newPrice;
+    // Update baseline price to new price after execution (market movement)
+    const newBaselinePrice = newPrice;
+    
     const updates = {
       balance: sectorState.balance,
       holdings: sectorState.holdings,
@@ -699,9 +938,10 @@ class ExecutionEngine {
       currentPrice: newPrice,
       simulatedPrice: newPrice,
       lastSimulatedPrice: newPrice,
+      baselinePrice: newBaselinePrice, // Update baseline price with market movement
       lastPriceUpdate: Date.now(),
-      change: newPrice - previousPrice,
-      changePercent: previousPrice > 0 ? ((newPrice - previousPrice) / previousPrice) * 100 : 0
+      change: priceChange,
+      changePercent: priceChangePercent
     };
 
     await updateSector(sector.id, updates);
@@ -1076,6 +1316,15 @@ class ExecutionEngine {
           continue;
         }
 
+        // Set agent status to EXECUTING if agentId is available
+        if (item.agentId) {
+          try {
+            await setAgentExecuting(item.agentId, actionType);
+          } catch (error) {
+            console.warn(`[ExecutionEngine] Failed to update agent ${item.agentId} status to EXECUTING:`, error.message);
+          }
+        }
+
         // Execute action
         let result;
         switch (actionType) {
@@ -1093,6 +1342,15 @@ class ExecutionEngine {
             break;
           default:
             result = { success: false, reason: `Unknown action: ${actionType}` };
+        }
+
+        // After execution, refresh agent status (will set to DISCUSSING if in active discussion, or IDLE if not)
+        if (item.agentId) {
+          try {
+            await refreshAgentStatus(item.agentId);
+          } catch (error) {
+            console.warn(`[ExecutionEngine] Failed to refresh agent ${item.agentId} status:`, error.message);
+          }
         }
 
         // Store result with execution details (timestamp, sectorId, amount, price)

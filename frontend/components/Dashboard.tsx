@@ -1277,11 +1277,16 @@ export default function Dashboard() {
                   
                   return allAgents.map((agent, index) => {
                     const statusColors = {
+                      THINKING: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
+                      DISCUSSING: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+                      EXECUTING: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
+                      IDLE: 'bg-floral-white/10 text-floral-white/70 border-floral-white/30',
+                      // Legacy statuses for backward compatibility
                       active: 'bg-sage-green/20 text-sage-green border-sage-green/50',
                       idle: 'bg-floral-white/10 text-floral-white/70 border-floral-white/30',
                       processing: 'bg-sky-blue/20 text-sky-blue border-sky-blue/50',
                     };
-                    const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.idle;
+                    const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.IDLE;
                     const createdDate = agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : 'N/A';
                     // Use updated confidence from separate state, fallback to agent.confidence
                     const agentConfidence = agentConfidences.get(agent.id) ?? (typeof agent.confidence === 'number' ? agent.confidence : 0);

@@ -8,6 +8,7 @@ const { isLlmEnabled } = require('../ai/llmClient');
 const { updateConfidencePhase4 } = require('../simulation/confidence');
 const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
 const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
+const { setAgentThinking, setAgentDiscussing, STATUS: AGENT_STATUS } = require('../utils/agentStatusService');
 
 /**
  * DiscussionEngine - Manages discussion lifecycle and rounds
@@ -50,6 +51,14 @@ class DiscussionEngine {
 
     // Save discussion
     await saveDiscussion(discussionRoom);
+
+    // Update agent statuses to DISCUSSING when they join the discussion
+    const { updateMultipleAgentStatuses, STATUS: AGENT_STATUS } = require('../utils/agentStatusService');
+    try {
+      await updateMultipleAgentStatuses(agentIds, AGENT_STATUS.DISCUSSING, `Joined discussion ${discussionRoom.id}`);
+    } catch (error) {
+      console.warn(`[DiscussionEngine] Failed to update agent statuses when starting discussion:`, error.message);
+    }
 
     // Update sector to include discussion reference
     const discussions = Array.isArray(sector.discussions) ? sector.discussions : [];
@@ -155,8 +164,54 @@ class DiscussionEngine {
         continue;
       }
 
+      // Hard constraint: Agents with confidence < 65 cannot continue discussions
+      // They can observe but not propose actions
+      const agentConfidence = extractConfidence(agent);
+      if (agentConfidence < 65) {
+        console.log(`[DiscussionEngine] Agent ${agent.id} (${agent.name || 'Unknown'}) has confidence ${agentConfidence.toFixed(2)} < 65. Skipping participation in discussion ${discussionRoom.id}.`);
+        // Agent can observe but not propose - add observation message
+        discussionRoom.addMessage({
+          id: `${discussionRoom.id}-msg-${discussionRoom.messages.length}`,
+          agentId: agent.id,
+          agentName: agent.name || 'Unknown Agent',
+          content: `${agentName}: Observing discussion (confidence ${agentConfidence.toFixed(2)} < 65, cannot propose actions).`,
+          analysis: `${agentName}: Observing discussion (confidence ${agentConfidence.toFixed(2)} < 65, cannot propose actions).`,
+          proposal: {
+            action: 'HOLD',
+            symbol: sector?.symbol || sector?.name || 'UNKNOWN',
+            allocationPercent: 0,
+            confidence: agentConfidence,
+            reasoning: 'Confidence below threshold - observing only'
+          },
+          role: 'agent',
+          timestamp: new Date().toISOString()
+        });
+        continue;
+      }
+
+      // Set agent status to DISCUSSING when participating in discussion
+      try {
+        await setAgentDiscussing(agent.id, discussionRoom.id);
+      } catch (error) {
+        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to DISCUSSING:`, error.message);
+      }
+
+      // Set agent status to THINKING when generating message
+      try {
+        await setAgentThinking(agent.id, `Generating message for discussion ${discussionRoom.id}`);
+      } catch (error) {
+        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to THINKING:`, error.message);
+      }
+
       // Generate agent message using LLM
       const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages);
+      
+      // After message generation, set back to DISCUSSING (still in discussion)
+      try {
+        await setAgentDiscussing(agent.id, discussionRoom.id);
+      } catch (error) {
+        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status back to DISCUSSING:`, error.message);
+      }
       
       // Add message to discussion (validation happens inside addMessage)
       const messageAdded = discussionRoom.addMessage({
@@ -1229,17 +1284,30 @@ class DiscussionEngine {
       throw new Error(`Cannot start discussion: Sector balance must be greater than 0. Current balance: ${sectorBalance}`);
     }
 
-    // VALIDATION 3: Check all agents have confidence > 65
+    // VALIDATION 3: STRICT CONFIDENCE GATE - Check ALL participating agents (non-manager) have confidence >= 65
+    // Manager confidence alone is insufficient - only participating agents are checked
     const allAgents = await loadAgents();
-    const allSectorAgents = allAgents.filter(a => a && a.id && a.sectorId === sectorId);
     
-    if (allSectorAgents.length > 0) {
-      const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
+    // Get participating agents (non-manager agents only)
+    const participatingAgents = allAgents.filter(a => 
+      a && a.id && 
+      a.sectorId === sectorId && 
+      a.role !== 'manager' && 
+      !(a.role || '').toLowerCase().includes('manager')
+    );
+    
+    if (participatingAgents.length > 0) {
+      const allAboveThreshold = participatingAgents.every(agent => extractConfidence(agent) >= 65);
       
       if (!allAboveThreshold) {
-        const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
-        throw new Error(`Cannot start discussion: Not all agents have confidence > 65. Current confidences: ${agentDetails}`);
+        const agentDetails = participatingAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
+        console.log(`[DiscussionEngine] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - Not all participating agents meet threshold (>= 65) for sector ${sectorId}. Agents: ${agentDetails}`);
+        throw new Error(`Cannot start discussion: Not all participating agents have confidence >= 65. Current confidences: ${agentDetails}`);
       }
+    } else {
+      // No participating agents found
+      console.log(`[DiscussionEngine] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - No participating agents found for sector ${sectorId}`);
+      throw new Error(`Cannot start discussion: No participating agents found for sector ${sectorId}`);
     }
 
     const updatedSector = await this.startDiscussion(sector);
@@ -1551,6 +1619,23 @@ _clampConfidence(value) {
       };
     }
 
+    // Hard constraint: Agents with confidence < 65 cannot propose actions
+    // They can observe but not propose
+    const agentConfidence = extractConfidence(agent);
+    if (agentConfidence < 65) {
+      console.log(`[DiscussionEngine] Agent ${agent.id} (${agentName}) has confidence ${agentConfidence.toFixed(2)} < 65. Cannot propose actions.`);
+      return {
+        analysis: `${agentName}: Observing discussion (confidence ${agentConfidence.toFixed(2)} < 65, cannot propose actions).`,
+        proposal: {
+          action: 'HOLD',
+          symbol: sector?.symbol || sector?.name || 'UNKNOWN',
+          allocationPercent: 0,
+          confidence: agentConfidence,
+          reasoning: 'Confidence below threshold - observing only, cannot propose actions'
+        }
+      };
+    }
+
     // Build sector state for LLM context
     const sectorName = sector?.sectorName || sector?.name || sector?.id || 'Unknown Sector';
     const sectorTypeRaw = (
@@ -1603,14 +1688,33 @@ _clampConfidence(value) {
           `Trend: ${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}%`,
           `Volatility: ${(volatility * 100).toFixed(2)}%`,
           '',
-          'You are analyzing market data and must propose a concrete trading action.',
-          'Decision guidelines:',
-          `- If trend is positive (>2%) and volatility is reasonable (<30%), strongly consider BUY with higher confidence (60-85%)`,
-          `- If trend is negative (<-2%) and volatility is reasonable, consider SELL with appropriate confidence (50-80%)`,
-          `- Only choose HOLD if market signals are truly neutral or uncertain (confidence should be low: 5-30%)`,
-          `- Your confidence MUST reflect the strength of market signals: strong trends = higher confidence, weak signals = lower confidence`,
-          `- For BUY/SELL actions, allocation_percent should be 10-30% based on confidence and risk`,
-          `- For HOLD actions, allocation_percent should be 0%`,
+          'You are an ACTIVE trading agent. Your job is to make trading decisions, not avoid them. HOLD should be rare.',
+          'CRITICAL: Default to action (BUY/SELL) rather than inaction (HOLD) when any market signal exists.',
+          '',
+          'Decision guidelines (prioritize action):',
+          `1. BUY when:`,
+          `   - Trend is positive (>0.5%) OR price > baseline OR any bullish indicators exist`,
+          `   - Volatility is reasonable (<40%)`,
+          `   - Available capital exists (balance > 0)`,
+          `   - Confidence: 50-85% based on signal strength`,
+          `   - Allocation: 15-30% for high confidence, 10-20% for medium, 5-15% for lower`,
+          '',
+          `2. SELL when:`,
+          `   - Trend is negative (<-0.5%) OR price < baseline OR bearish indicators exist`,
+          `   - Volatility is reasonable (<40%)`,
+          `   - You have positions to sell`,
+          `   - Confidence: 50-80% based on signal strength`,
+          '',
+          `3. HOLD ONLY when:`,
+          `   - Trend is truly neutral (-0.5% to +0.5%)`,
+          `   - AND no clear directional indicators exist`,
+          `   - AND volatility is extremely high (>50%)`,
+          `   - Confidence should be low: 5-30%`,
+          `   - Allocation: 0%`,
+          '',
+          `IMPORTANT: If balance > 0 and trend > 0.5%, you should strongly consider BUY.`,
+          `IMPORTANT: If trend < -0.5%, consider SELL.`,
+          `IMPORTANT: Your confidence MUST reflect signal strength: strong signals = 60-85%, moderate = 40-60%, weak = 20-40%, HOLD = 5-30%`,
           'Your response should be a clear, concise analysis with a specific recommendation.',
           'Focus on the current market conditions, price trends, and risk factors.',
           'Use the actual market data provided above to justify your decision.',
@@ -1630,12 +1734,19 @@ _clampConfidence(value) {
           '}',
           '',
           'Important:',
+          '- PREFER BUY/SELL over HOLD: Make active trading decisions when market signals exist',
+          '- When trend > 0.5% or price > baseline: Consider BUY with confidence 50-75%',
+          '- When trend < -0.5% or price < baseline: Consider SELL with confidence 50-70%',
+          '- HOLD only if trend is truly neutral (-0.5% to +0.5%) AND no clear signals (confidence 5-30%)',
           '- Your confidence MUST be based on the strength of market signals and your reasoning',
           '- Strong conviction with clear signals (trend >2% or <-2%) should have confidence 60-85',
           '- Moderate signals should have confidence 40-60',
           '- Weak/uncertain signals (HOLD) should have confidence 5-30',
+          '- For BUY/SELL: allocationPercent should be 15-30% (high confidence), 10-20% (medium), 5-15% (lower)',
+          '- For HOLD: allocationPercent should be 0%',
           '- Reference specific numbers from the market data in your reasoning',
           '- Provide a clear, detailed analysis in the reasoning field that explains your confidence level.',
+          '- REMEMBER: You are an active trader. Make decisions. HOLD is a last resort, not a default.',
         ].join('\n');
 
         // Call LLM in JSON mode to get structured output
@@ -1663,10 +1774,32 @@ _clampConfidence(value) {
 
           // Use normalizeLLMDecision to handle all parsing/validation failures gracefully
           const { normalizeLLMDecision } = require('../ai/normalizeLLMDecision');
-          const normalized = normalizeLLMDecision(
+          let normalized = normalizeLLMDecision(
             parsed,
             `${agentName} recommends maintaining current position due to insufficient market signals.`
           );
+
+          // Post-process to encourage BUY when balance exists and signals are positive
+          // If LLM returned HOLD but we have balance and positive signals, convert to BUY
+          if (normalized.action === 'HOLD' && sectorBalance > 0) {
+            const hasPositiveSignal = trendPercent > 0.5 || (currentPrice > baselinePrice && baselinePrice > 0);
+            const hasNegativeSignal = trendPercent < -0.5 || (currentPrice < baselinePrice && baselinePrice > 0);
+            
+            if (hasPositiveSignal) {
+              // Convert HOLD to BUY when positive signals exist
+              console.log(`[DiscussionEngine] Converting HOLD to BUY for agent ${agentName} due to positive signals (trend: ${trendPercent.toFixed(2)}%, price vs baseline)`);
+              normalized = {
+                ...normalized,
+                action: 'BUY',
+                allocationPercent: Math.max(10, Math.min(25, normalized.allocationPercent || 15)), // 10-25% for converted BUY
+                confidence: Math.max(40, Math.min(65, normalized.confidence || 50)), // 40-65% for converted BUY
+                reasoning: normalized.reasoning + ` (Converted from HOLD to BUY due to positive trend ${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}% and available capital)`
+              };
+            } else if (hasNegativeSignal && sectorBalance > 0) {
+              // Could also convert to SELL if negative signals, but only if we have positions
+              // For now, keep as HOLD if negative signals (we might not have positions to sell)
+            }
+          }
 
           // Determine symbol from allowed symbols
           const symbol = allowedSymbols.length > 0 ? allowedSymbols[0] : sectorName;
@@ -1712,12 +1845,22 @@ _clampConfidence(value) {
           const fallbackSymbol = allowedSymbols && allowedSymbols.length > 0 
             ? allowedSymbols[0] 
             : (sector?.symbol || sector?.name || 'UNKNOWN');
+          
+          // If we have balance and positive signals, default to BUY instead of HOLD
+          const hasPositiveSignal = trendPercent > 0.5 || (currentPrice > baselinePrice && baselinePrice > 0);
+          const fallbackAction = (sectorBalance > 0 && hasPositiveSignal) ? 'BUY' : 'HOLD';
+          const fallbackAllocation = fallbackAction === 'BUY' ? 15 : 0;
+          const fallbackConfidence = fallbackAction === 'BUY' ? 50 : 1;
+          const fallbackReasoning = fallbackAction === 'BUY'
+            ? `${agentName} recommends BUY based on positive trend (${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}%) and available capital.`
+            : `${agentName} recommends maintaining current position due to insufficient market signals.`;
+          
           structuredProposal = {
-            action: 'HOLD',
+            action: fallbackAction,
             symbol: fallbackSymbol,
-            allocationPercent: 0,
-            confidence: 1,
-            reasoning: `${agentName} recommends maintaining current position due to insufficient market signals.`
+            allocationPercent: fallbackAllocation,
+            confidence: fallbackConfidence,
+            reasoning: fallbackReasoning
           };
           analysisText = [
             `${agentName} recommends: HOLD`,
@@ -1741,21 +1884,39 @@ _clampConfidence(value) {
         const fallbackSymbol = allowedSymbols && allowedSymbols.length > 0 
           ? allowedSymbols[0] 
           : (sector?.symbol || sector?.name || 'UNKNOWN');
-        const fallbackReasoning = `${agentName} recommends maintaining current position due to insufficient market signals.`;
+        
+        // If we have balance and positive signals, default to BUY instead of HOLD
+        const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
+        const currentPrice = typeof sector.currentPrice === 'number' ? sector.currentPrice : 0;
+        const baselinePrice = typeof sector.baselinePrice === 'number' && sector.baselinePrice > 0
+          ? sector.baselinePrice
+          : (typeof sector.initialPrice === 'number' && sector.initialPrice > 0 ? sector.initialPrice : currentPrice);
+        const trendPercent = typeof sector.trendPercent === 'number' 
+          ? sector.trendPercent 
+          : (baselinePrice > 0 ? ((currentPrice - baselinePrice) / baselinePrice) * 100 : 0);
+        
+        const hasPositiveSignal = trendPercent > 0.5 || (currentPrice > baselinePrice && baselinePrice > 0);
+        const fallbackAction = (sectorBalance > 0 && hasPositiveSignal) ? 'BUY' : 'HOLD';
+        const fallbackAllocation = fallbackAction === 'BUY' ? 15 : 0;
+        const fallbackConfidence = fallbackAction === 'BUY' ? 50 : 1;
+        const fallbackReasoning = fallbackAction === 'BUY'
+          ? `${agentName} recommends BUY based on positive trend (${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}%) and available capital.`
+          : `${agentName} recommends maintaining current position due to insufficient market signals.`;
+        
         return {
           analysis: [
-            `${agentName} recommends: HOLD`,
-            `Allocation: 0%`,
-            `Confidence: 1%`,
-            `Confidence Reasoning: Low confidence (1%) - HOLD due to insufficient market signals.`,
+            `${agentName} recommends: ${fallbackAction}`,
+            `Allocation: ${fallbackAllocation}%`,
+            `Confidence: ${fallbackConfidence}%`,
+            `Confidence Reasoning: ${fallbackAction === 'BUY' ? `Moderate confidence (${fallbackConfidence}%) - BUY recommendation based on positive signals.` : `Low confidence (${fallbackConfidence}%) - HOLD due to insufficient market signals.`}`,
             '',
             `Reasoning: ${fallbackReasoning}`
           ].join('\n').trim(),
           proposal: {
-            action: 'HOLD',
+            action: fallbackAction,
             symbol: fallbackSymbol,
-            allocationPercent: 0,
-            confidence: 1,
+            allocationPercent: fallbackAllocation,
+            confidence: fallbackConfidence,
             reasoning: fallbackReasoning
           }
         };

@@ -6,9 +6,16 @@ const EXECUTION_LOGS_FILE = 'executionLogs.json';
 class ExecutionLog {
   constructor({
     id = randomUUID(),
+    executionId = null,
+    discussionId = null,
+    checklistItemId = null,
     sectorId,
     action,
-    impact,
+    allocation = null,
+    allocationPercent = null,
+    priceImpact = null,
+    valuationDelta = null,
+    impact = null, // Legacy field, maps to priceImpact
     timestamp = Date.now()
   }) {
     if (!sectorId || typeof sectorId !== 'string') {
@@ -19,23 +26,39 @@ class ExecutionLog {
       throw new Error('action is required and must be a string');
     }
 
-    if (typeof impact !== 'number') {
-      throw new Error('impact is required and must be a number');
+    // impact is optional now (for backward compatibility), but priceImpact should be provided
+    if (priceImpact === null && impact === null) {
+      // Allow 0, but not null/undefined
+      priceImpact = 0;
     }
 
     this.id = id;
+    this.executionId = executionId || id; // Default to id if not provided
+    this.discussionId = discussionId;
+    this.checklistItemId = checklistItemId;
     this.sectorId = sectorId;
-    this.action = action;
-    this.impact = impact;
+    this.action = action.toUpperCase(); // Normalize to uppercase
+    this.allocation = typeof allocation === 'number' ? allocation : null;
+    this.allocationPercent = typeof allocationPercent === 'number' ? allocationPercent : null;
+    this.priceImpact = typeof priceImpact === 'number' ? priceImpact : (typeof impact === 'number' ? impact : 0);
+    this.valuationDelta = typeof valuationDelta === 'number' ? valuationDelta : null;
+    this.impact = this.priceImpact; // Keep for backward compatibility
     this.timestamp = typeof timestamp === 'number' ? timestamp : Date.now();
   }
 
   toJSON() {
     return {
       id: this.id,
+      executionId: this.executionId,
+      discussionId: this.discussionId,
+      checklistItemId: this.checklistItemId,
       sectorId: this.sectorId,
       action: this.action,
-      impact: this.impact,
+      allocation: this.allocation,
+      allocationPercent: this.allocationPercent,
+      priceImpact: this.priceImpact,
+      valuationDelta: this.valuationDelta,
+      impact: this.impact, // Keep for backward compatibility
       timestamp: this.timestamp
     };
   }
@@ -92,9 +115,16 @@ class ExecutionLog {
   static fromData(data = {}) {
     return new ExecutionLog({
       id: data.id,
+      executionId: data.executionId || data.id,
+      discussionId: data.discussionId,
+      checklistItemId: data.checklistItemId,
       sectorId: data.sectorId,
       action: data.action,
-      impact: data.impact,
+      allocation: data.allocation,
+      allocationPercent: data.allocationPercent,
+      priceImpact: data.priceImpact !== undefined ? data.priceImpact : data.impact,
+      valuationDelta: data.valuationDelta,
+      impact: data.impact !== undefined ? data.impact : (data.priceImpact !== undefined ? data.priceImpact : 0),
       timestamp: data.timestamp
     });
   }

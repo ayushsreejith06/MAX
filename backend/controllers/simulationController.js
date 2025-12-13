@@ -89,30 +89,34 @@ async function executeSimulationTick(sectorId) {
       const allAgents = await loadAgents();
       
       for (const agent of sectorAgents) {
+        // Action-based confidence: Only update if LLM confidence is provided
         // Recalculate confidence with market context
         const newConfidence = recalcConfidence(agent, {
           priceChangePercent: priceChangePercent,
           volatilityChange: updatedVolatility - (sector.volatility || 0)
         });
         
-        // Only update if confidence actually changed
-        const currentConf = extractConfidence(agent);
-        if (Math.abs(newConfidence - currentConf) > 0.01) {
-          agent.confidence = newConfidence;
-          
-          // Update in the main agents array and persist
-          const agentIndex = allAgents.findIndex(a => a.id === agent.id);
-          if (agentIndex !== -1) {
-            allAgents[agentIndex].confidence = newConfidence;
-            try {
-              await updateAgent(agent.id, { confidence: newConfidence });
-            } catch (error) {
-              log(`Failed to persist confidence for agent ${agent.id}: ${error.message}`);
+        // Only update if LLM confidence was provided (recalcConfidence returns null otherwise)
+        if (newConfidence !== null) {
+          const currentConf = extractConfidence(agent);
+          // Only update if confidence actually changed
+          if (Math.abs(newConfidence - currentConf) > 0.01) {
+            agent.confidence = newConfidence;
+            
+            // Update in the main agents array and persist
+            const agentIndex = allAgents.findIndex(a => a.id === agent.id);
+            if (agentIndex !== -1) {
+              allAgents[agentIndex].confidence = newConfidence;
+              try {
+                await updateAgent(agent.id, { confidence: newConfidence });
+              } catch (error) {
+                log(`Failed to persist confidence for agent ${agent.id}: ${error.message}`);
+              }
             }
+            
+            updatedAgents.push(agent);
+            log(`Updated agent ${agent.name || agent.id} confidence: ${currentConf.toFixed(2)} → ${newConfidence.toFixed(2)}`);
           }
-          
-          updatedAgents.push(agent);
-          log(`Updated agent ${agent.name || agent.id} confidence: ${currentConf.toFixed(2)} → ${newConfidence.toFixed(2)}`);
         }
       }
       

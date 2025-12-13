@@ -846,6 +846,34 @@ class ManagerEngine {
         return { created: false, discussionId: null, checklistState: null };
       }
 
+      // VALIDATION: STRICT CONFIDENCE GATE - Check ALL participating agents (non-manager) have confidence >= 65
+      // Manager confidence alone is insufficient - only participating agents are checked
+      const { loadAgents } = require('../utils/agentStorage');
+      const { extractConfidence } = require('../utils/confidenceUtils');
+      const allAgentsFromStorage = await loadAgents();
+      
+      // Get participating agents from storage (non-manager agents only)
+      const participatingAgents = allAgentsFromStorage.filter(a => 
+        a && a.id && 
+        a.sectorId === sectorId && 
+        a.role !== 'manager' && 
+        !(a.role || '').toLowerCase().includes('manager')
+      );
+      
+      if (participatingAgents.length > 0) {
+        const allAboveThreshold = participatingAgents.every(agent => extractConfidence(agent) >= 65);
+        
+        if (!allAboveThreshold) {
+          const agentDetails = participatingAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
+          console.log(`[ManagerEngine] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - Not all participating agents meet threshold (>= 65) for sector ${sectorId}. Agents: ${agentDetails}`);
+          return { created: false, discussionId: null, checklistState: null };
+        }
+      } else {
+        // No participating agents found
+        console.log(`[ManagerEngine] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - No participating agents found for sector ${sectorId}`);
+        return { created: false, discussionId: null, checklistState: null };
+      }
+
       // Safeguard: Prevent discussion storms - check if a discussion was created recently
       const lastCreationTime = this.lastDiscussionCreation.get(sectorId);
       if (lastCreationTime !== undefined) {
@@ -929,13 +957,14 @@ class ManagerEngine {
         return { started: false, discussionId: null };
       }
 
-      // VALIDATION 1: Check ALL agents (manager + generals) have confidence > 65
+      // VALIDATION 1: Check ALL agents (manager + generals) have confidence >= 65
+      // Hard constraint: Agents with confidence < 65 cannot trigger or continue discussions
       // extractConfidence reads from agent.llmAction.confidence (if LLM reasoning happened)
       // or agent.confidence (which is now LLM-derived)
-      const allAboveThreshold = agents.every(agent => extractConfidence(agent) > 65);
+      const allAboveThreshold = agents.every(agent => extractConfidence(agent) >= 65);
 
       if (!allAboveThreshold) {
-        console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (> 65)`);
+        console.log(`[DISCUSSION BLOCKED] Not all agents meet threshold (>= 65)`);
         console.log(`[DISCUSSION CHECK]`, {
           sectorId,
           agentConfidences: agents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`),
@@ -1111,19 +1140,31 @@ class ManagerEngine {
         return { created: false, discussion: null };
       }
 
-      // VALIDATION 3: Check all agents have confidence > 65
+      // VALIDATION 3: STRICT CONFIDENCE GATE - Check ALL participating agents (non-manager) have confidence >= 65
+      // Manager confidence alone is insufficient - only participating agents are checked
       const { loadAgents } = require('../utils/agentStorage');
       const allAgents = await loadAgents();
-      const allSectorAgents = allAgents.filter(a => a && a.id && a.sectorId === sectorId);
       
-      if (allSectorAgents.length > 0) {
-        const allAboveThreshold = allSectorAgents.every(agent => extractConfidence(agent) > 65);
+      // Get participating agents (non-manager agents only)
+      const participatingAgents = allAgents.filter(a => 
+        a && a.id && 
+        a.sectorId === sectorId && 
+        a.role !== 'manager' && 
+        !(a.role || '').toLowerCase().includes('manager')
+      );
+      
+      if (participatingAgents.length > 0) {
+        const allAboveThreshold = participatingAgents.every(agent => extractConfidence(agent) >= 65);
         
         if (!allAboveThreshold) {
-          const agentDetails = allSectorAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
-          console.log(`[ManagerEngine] Cannot create discussion for sector ${sectorId}: Not all agents have confidence > 65. Agents: ${agentDetails}`);
+          const agentDetails = participatingAgents.map(a => `${a.name || a.id}: ${extractConfidence(a)}`).join(', ');
+          console.log(`[ManagerEngine] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - Not all participating agents meet threshold (>= 65) for sector ${sectorId}. Agents: ${agentDetails}`);
           return { created: false, discussion: null };
         }
+      } else {
+        // No participating agents found
+        console.log(`[ManagerEngine] DISCUSSION_SKIPPED - reason: LOW_CONFIDENCE - No participating agents found for sector ${sectorId}`);
+        return { created: false, discussion: null };
       }
 
       // Get agent IDs from sector (non-manager agents only)
@@ -1608,10 +1649,20 @@ class ManagerEngine {
       }
 
       // Determine approval based on confidence threshold
-      const approved = confidence > this.approvalConfidenceThreshold;
+      // For BUY actions, be more lenient if there's available balance
+      const isBuyAction = item.action && item.action.toUpperCase().includes('BUY');
+      const sector = await getSectorById(discussionRoom.sectorId);
+      const hasBalance = sector && typeof sector.balance === 'number' && sector.balance > 0;
+      
+      // Lower threshold for BUY actions when balance is available to encourage trading
+      const effectiveThreshold = (isBuyAction && hasBalance) 
+        ? Math.max(0, this.approvalConfidenceThreshold - 10) // 10 points lower for BUY with balance
+        : this.approvalConfidenceThreshold;
+      
+      const approved = confidence > effectiveThreshold;
       const reason = approved 
-        ? `Auto-approved: confidence (${confidence.toFixed(2)}) exceeds threshold (${this.approvalConfidenceThreshold})`
-        : `Auto-rejected: confidence (${confidence.toFixed(2)}) below threshold (${this.approvalConfidenceThreshold}). Needs refinement.`;
+        ? `Auto-approved: confidence (${confidence.toFixed(2)}) exceeds threshold (${effectiveThreshold.toFixed(2)})`
+        : `Auto-rejected: confidence (${confidence.toFixed(2)}) below threshold (${effectiveThreshold.toFixed(2)}). Needs refinement.`;
 
       // If rejected, update the item with revision metadata
       if (!approved) {
@@ -2674,6 +2725,68 @@ class ManagerEngine {
 
       // Save updated discussion
       await saveDiscussion(discussionRoom);
+
+      // Execute all approved checklist items that haven't been executed yet
+      // This happens AFTER discussion closes, not during active rounds
+      try {
+        const ExecutionEngine = require('./ExecutionEngine');
+        const executionEngine = new ExecutionEngine();
+        
+        // Get all approved items from finalizedChecklist
+        const approvedItems = Array.isArray(discussionRoom.finalizedChecklist) 
+          ? discussionRoom.finalizedChecklist.filter(item => {
+              const status = (item.status || '').toUpperCase();
+              return status === 'APPROVED' && !item.executedAt;
+            })
+          : [];
+
+        if (approvedItems.length > 0) {
+          console.log(`[ManagerEngine] Auto-executing ${approvedItems.length} approved checklist items for discussion ${discussionId} after closure`);
+          
+          const executionResults = [];
+          for (const item of approvedItems) {
+            try {
+              // Reload discussion to get latest state before each execution
+              const latestDiscussionData = await findDiscussionById(discussionId);
+              if (latestDiscussionData) {
+                const latestDiscussion = DiscussionRoom.fromData(latestDiscussionData);
+                // Check if item still exists and hasn't been executed
+                const latestItem = latestDiscussion.finalizedChecklist?.find(i => i.id === item.id) ||
+                                  latestDiscussion.checklist?.find(i => i.id === item.id);
+                if (latestItem && !latestItem.executedAt) {
+                  const result = await executionEngine.executeChecklistItem(item.id, discussionId);
+                  executionResults.push(result);
+                  console.log(`[ManagerEngine] Executed checklist item ${item.id}: ${result.success ? 'success' : 'failed'}`);
+                } else if (latestItem?.executedAt) {
+                  console.log(`[ManagerEngine] Checklist item ${item.id} already executed, skipping`);
+                  executionResults.push({
+                    success: true,
+                    itemId: item.id,
+                    alreadyExecuted: true
+                  });
+                }
+              } else {
+                throw new Error(`Discussion ${discussionId} not found during execution`);
+              }
+            } catch (execError) {
+              console.error(`[ManagerEngine] Failed to execute checklist item ${item.id}:`, execError.message);
+              executionResults.push({
+                success: false,
+                itemId: item.id,
+                error: execError.message
+              });
+            }
+          }
+          
+          const successCount = executionResults.filter(r => r.success).length;
+          console.log(`[ManagerEngine] Auto-execution complete: ${successCount}/${approvedItems.length} items executed successfully`);
+        } else {
+          console.log(`[ManagerEngine] No approved items to execute for discussion ${discussionId}`);
+        }
+      } catch (execError) {
+        console.error(`[ManagerEngine] Error during auto-execution after discussion closure:`, execError);
+        // Don't fail the closure if execution fails - log and continue
+      }
 
       // Update agent confidence based on decision outcome
       try {

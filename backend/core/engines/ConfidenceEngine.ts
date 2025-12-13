@@ -1,6 +1,12 @@
 /**
  * ConfidenceEngine - Base confidence system with NO LLM calls and no external dependencies
  * 
+ * DEPRECATED: This engine uses passive increment logic which is no longer allowed.
+ * Confidence must now be action-based and derived from LLM output only.
+ * 
+ * This file is kept for backward compatibility but should not be used.
+ * Use the action-based confidence system in backend/simulation/confidence.js instead.
+ * 
  * Updates agent confidence based on agent role using mock logic:
  * - Researcher: +1 to +5 random
  * - Analyst: -2 to +3 random

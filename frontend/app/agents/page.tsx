@@ -17,12 +17,22 @@ type AgentWithSector = Agent & {
 
 const statusFilters: Array<{ id: 'all' | Agent['status']; label: string; accent?: string }> = [
   { id: 'all', label: 'All' },
+  { id: 'THINKING', label: 'Thinking', accent: 'text-warning-amber' },
+  { id: 'DISCUSSING', label: 'Discussing', accent: 'text-blue-400' },
+  { id: 'EXECUTING', label: 'Executing', accent: 'text-purple-400' },
+  { id: 'IDLE', label: 'Idle', accent: 'text-floral-white/70' },
+  // Legacy statuses for backward compatibility
   { id: 'active', label: 'Live', accent: 'text-sage-green' },
   { id: 'processing', label: 'Processing', accent: 'text-warning-amber' },
   { id: 'idle', label: 'Idle', accent: 'text-floral-white/70' },
 ];
 
-const statusPills: Record<Agent['status'], string> = {
+const statusPills: Record<string, string> = {
+  THINKING: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40',
+  DISCUSSING: 'bg-blue-500/15 text-blue-400 border border-blue-500/40',
+  EXECUTING: 'bg-purple-500/15 text-purple-400 border border-purple-500/40',
+  IDLE: 'bg-muted-text/10 text-floral-white border border-muted-text/20',
+  // Legacy statuses for backward compatibility
   active: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
   processing: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40',
   idle: 'bg-muted-text/10 text-floral-white border border-muted-text/20',
@@ -267,16 +277,28 @@ export default function Agents() {
 
   const heroStats = useMemo(() => {
     const total = agents.length;
+    // Count agents by new status values
+    const thinkingAgents = agents.filter(agent => agent.status === 'THINKING').length;
+    const discussingAgents = agents.filter(agent => agent.status === 'DISCUSSING').length;
+    const executingAgents = agents.filter(agent => agent.status === 'EXECUTING').length;
+    const idleAgents = agents.filter(agent => agent.status === 'IDLE' || agent.status === 'idle').length;
+    // Legacy status counts for backward compatibility
     const live = agents.filter(agent => agent.status === 'active').length;
     const processingAgents = agents.filter(agent => agent.status === 'processing').length;
-    const readiness = total ? Math.round((live / total) * 100) : 0;
+    // Active agents = thinking + discussing + executing (not idle)
+    const activeAgents = thinkingAgents + discussingAgents + executingAgents + live + processingAgents;
+    const readiness = total ? Math.round((activeAgents / total) * 100) : 0;
     const avgPerformance = total
       ? (agents.reduce((sum, agent) => sum + agent.performance, 0) / total).toFixed(2)
       : '0.00';
     return {
       total,
-      live,
-      processing: processingAgents,
+      live: activeAgents, // Total active agents (thinking + discussing + executing + legacy active/processing)
+      thinking: thinkingAgents,
+      discussing: discussingAgents,
+      executing: executingAgents,
+      idle: idleAgents,
+      processing: processingAgents, // Legacy
       readiness,
       avgPerformance,
     };
