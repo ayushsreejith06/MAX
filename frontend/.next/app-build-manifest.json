@@ -11,10 +11,20 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/sectors/[id]/page": [
+    "/agents/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/sectors/[id]/page.js"
+      "static/chunks/app/agents/page.js"
+    ],
+    "/discussions/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/discussions/page.js"
+    ],
+    "/discussions/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/discussions/[id]/page.js"
     ]
   }
 }
