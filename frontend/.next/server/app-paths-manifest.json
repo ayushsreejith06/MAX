@@ -1,6 +1,3 @@
 {
-  "/page": "app/page.js",
-  "/agents/page": "app/agents/page.js",
-  "/discussions/page": "app/discussions/page.js",
-  "/discussions/[id]/page": "app/discussions/[id]/page.js"
+  "/discussions/page": "app/discussions/page.js"
 }

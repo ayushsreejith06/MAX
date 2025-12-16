@@ -1,15 +1,19 @@
 const { updateAgent } = require('./agentStorage');
 const { loadDiscussions } = require('./discussionStorage');
+const { AgentStatus } = require('../core/state');
 
 /**
  * Agent status constants
+ * Note: AgentStatus enum only includes IDLE and ACTIVE as per contract
+ * THINKING, DISCUSSING, and EXECUTING are all mapped to ACTIVE since they indicate active work
  */
 const STATUS = {
-  IDLE: 'IDLE',
-  THINKING: 'THINKING',
-  DISCUSSING: 'DISCUSSING',
-  EXECUTING: 'EXECUTING',
-  ACTIVE: 'ACTIVE'
+  IDLE: AgentStatus.IDLE,
+  ACTIVE: AgentStatus.ACTIVE,
+  // Legacy mappings - these all map to ACTIVE
+  THINKING: AgentStatus.ACTIVE,
+  DISCUSSING: AgentStatus.ACTIVE,
+  EXECUTING: AgentStatus.ACTIVE
 };
 
 /**
@@ -145,7 +149,7 @@ async function isRefiningRejectedProposal(agentId) {
 /**
  * Update agent status atomically
  * @param {string} agentId - Agent ID
- * @param {string} newStatus - New status (STATUS.IDLE, STATUS.THINKING, STATUS.DISCUSSING, STATUS.EXECUTING)
+ * @param {string} newStatus - New status (STATUS.IDLE or STATUS.ACTIVE)
  * @param {string} reason - Optional reason for status change (for logging)
  * @returns {Promise<Object|null>} Updated agent or null if not found
  */
@@ -172,35 +176,35 @@ async function updateAgentStatus(agentId, newStatus, reason = '') {
 }
 
 /**
- * Update agent status to THINKING (when generating messages or reasoning)
+ * Update agent status to ACTIVE (when generating messages or reasoning)
  * @param {string} agentId - Agent ID
  * @param {string} reason - Reason for thinking (e.g., "Generating message", "Producing research signal")
  * @returns {Promise<Object|null>} Updated agent or null if not found
  */
 async function setAgentThinking(agentId, reason = 'Generating message or reasoning') {
-  return updateAgentStatus(agentId, STATUS.THINKING, reason);
+  return updateAgentStatus(agentId, AgentStatus.ACTIVE, reason);
 }
 
 /**
- * Update agent status to DISCUSSING (when participating in a discussion)
+ * Update agent status to ACTIVE (when participating in a discussion)
  * @param {string} agentId - Agent ID
  * @param {string} discussionId - Discussion ID (optional, for logging)
  * @returns {Promise<Object|null>} Updated agent or null if not found
  */
 async function setAgentDiscussing(agentId, discussionId = '') {
   const reason = discussionId ? `Participating in discussion ${discussionId}` : 'Participating in discussion';
-  return updateAgentStatus(agentId, STATUS.DISCUSSING, reason);
+  return updateAgentStatus(agentId, AgentStatus.ACTIVE, reason);
 }
 
 /**
- * Update agent status to EXECUTING (when executing an action)
+ * Update agent status to ACTIVE (when executing an action)
  * @param {string} agentId - Agent ID
  * @param {string} action - Action being executed (e.g., "BUY", "SELL")
  * @returns {Promise<Object|null>} Updated agent or null if not found
  */
 async function setAgentExecuting(agentId, action = '') {
   const reason = action ? `Executing ${action} action` : 'Executing action';
-  return updateAgentStatus(agentId, STATUS.EXECUTING, reason);
+  return updateAgentStatus(agentId, AgentStatus.ACTIVE, reason);
 }
 
 /**
@@ -234,12 +238,6 @@ async function refreshAgentStatus(agentId) {
     
     const currentStatus = (agent.status || '').toUpperCase();
     
-    // Don't override THINKING or EXECUTING as those are more specific states
-    // These are set explicitly by other parts of the system
-    if (currentStatus === STATUS.THINKING || currentStatus === STATUS.EXECUTING) {
-      return null; // Keep current status
-    }
-    
     // Check all conditions that make an agent ACTIVE
     const [inActiveDiscussion, hasUnresolvedItems, isRefining] = await Promise.all([
       isAgentInActiveDiscussion(agentId),
@@ -254,19 +252,18 @@ async function refreshAgentStatus(agentId) {
     const shouldBeActive = inActiveDiscussion || hasUnresolvedItems || isRefining;
     
     if (shouldBeActive) {
-      // Set to ACTIVE (or DISCUSSING if already in that state)
-      // Use DISCUSSING as the active state for semantic clarity
-      if (currentStatus !== STATUS.DISCUSSING && currentStatus !== STATUS.ACTIVE) {
+      // Set to ACTIVE if not already ACTIVE
+      if (currentStatus !== AgentStatus.ACTIVE) {
         const reason = [];
         if (inActiveDiscussion) reason.push('participating in discussion');
         if (hasUnresolvedItems) reason.push('has unresolved checklist items');
         if (isRefining) reason.push('refining rejected proposal');
         
-        return updateAgentStatus(agentId, STATUS.ACTIVE, reason.join(', '));
+        return updateAgentStatus(agentId, AgentStatus.ACTIVE, reason.join(', '));
       }
     } else {
       // Agent has no pending responsibilities - set to IDLE
-      if (currentStatus !== STATUS.IDLE) {
+      if (currentStatus !== AgentStatus.IDLE) {
         return setAgentIdle(agentId);
       }
     }

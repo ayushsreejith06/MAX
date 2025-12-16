@@ -9,6 +9,7 @@ const { getManagerById, getExecutionList, removeExecutionItem } = require('../ut
 const { calculateNewPrice, mapActionToImpact } = require('../simulation/priceModel');
 const { setAgentExecuting, refreshAgentStatus } = require('../utils/agentStatusService');
 const { captureConfidenceSnapshot, calculateConfidenceMultiplier, applyConfidenceMultiplier } = require('../utils/confidenceMultiplier');
+const { ExecutionMode, ChecklistStatus } = require('./state');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -84,7 +85,7 @@ class ExecutionEngine {
     // Mark item as executed with timestamp and find execution log ID
     const executedAt = new Date().toISOString();
     checklistItem.executedAt = executedAt;
-    checklistItem.status = 'EXECUTED';
+    checklistItem.status = ExecutionMode.EXECUTED;
     
     // Find the execution log entry for this item
     const ExecutionLog = require('../models/ExecutionLog');
@@ -993,7 +994,7 @@ class ExecutionEngine {
                 const result = tradeResults.find(r => r.itemId === item.id && r.success);
                 if (result) {
                   item.executedAt = executedAt;
-                  item.status = 'EXECUTED';
+                  item.status = ExecutionMode.EXECUTED;
                   item.executionLogId = executionLogIdMap.get(item.id);
                   updated = true;
                 }
@@ -1009,7 +1010,7 @@ class ExecutionEngine {
                 const result = tradeResults.find(r => r.itemId === item.id && r.success);
                 if (result) {
                   item.executedAt = executedAt;
-                  item.status = 'EXECUTED';
+                  item.status = ExecutionMode.EXECUTED;
                   item.executionLogId = executionLogIdMap.get(item.id);
                   updated = true;
                 }
@@ -1580,7 +1581,7 @@ class ExecutionEngine {
     const { loadAgents } = require('../utils/agentStorage');
     const allAgents = await loadAgents();
     const sectorAgents = allAgents.filter(agent => agent && agent.sectorId === sectorId);
-    const activeAgents = sectorAgents.filter(agent => agent && agent.status === 'active');
+    const activeAgents = sectorAgents.filter(agent => agent && agent.status === AgentStatus.ACTIVE);
     const activeAgentsCount = activeAgents.length;
 
     // Initialize sectorState
@@ -1618,12 +1619,12 @@ class ExecutionEngine {
           continue;
         }
 
-        // Set agent status to EXECUTING if agentId is available
+        // Set agent status to ACTIVE if agentId is available
         if (item.agentId) {
           try {
             await setAgentExecuting(item.agentId, actionType);
           } catch (error) {
-            console.warn(`[ExecutionEngine] Failed to update agent ${item.agentId} status to EXECUTING:`, error.message);
+            console.warn(`[ExecutionEngine] Failed to update agent ${item.agentId} status to ACTIVE:`, error.message);
           }
         }
 
@@ -1646,7 +1647,7 @@ class ExecutionEngine {
             result = { success: false, reason: `Unknown action: ${actionType}` };
         }
 
-        // After execution, refresh agent status (will set to DISCUSSING if in active discussion, or IDLE if not)
+        // After execution, refresh agent status (will set to ACTIVE if in active discussion, or IDLE if not)
         if (item.agentId) {
           try {
             await refreshAgentStatus(item.agentId);

@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { validateAgentMessage } = require('../utils/messageValidation');
+const { DiscussionStatus } = require('../core/state');
 
 class DiscussionRoom {
   constructor(sectorId, title, agentIds = []) {
@@ -60,11 +61,11 @@ class DiscussionRoom {
       'debating': 'IN_PROGRESS',
       'open': 'CREATED',
       'OPEN': 'CREATED',
-      'active': 'IN_PROGRESS',
-      'in_progress': 'IN_PROGRESS',
-      'IN_PROGRESS': 'IN_PROGRESS',
-      'decided': 'DECIDED',
-      'DECIDED': 'DECIDED',
+      'active': DiscussionStatus.IN_PROGRESS,
+      'in_progress': DiscussionStatus.IN_PROGRESS,
+      'IN_PROGRESS': DiscussionStatus.IN_PROGRESS,
+      'decided': DiscussionStatus.DECIDED,
+      'DECIDED': DiscussionStatus.DECIDED,
       'closed': 'CLOSED',
       'CLOSED': 'CLOSED',
       'archived': 'CLOSED',
@@ -174,7 +175,7 @@ class DiscussionRoom {
       for (const item of this.checklist) {
         const status = (item.status || '').toUpperCase();
         
-        if (status === 'PENDING') {
+        if (status === ChecklistStatus.PENDING) {
           pendingItems.push({
             id: item.id || 'unknown',
             status: 'PENDING',
@@ -278,7 +279,7 @@ class DiscussionRoom {
     this.conflictScore = decision.conflictScore || null;
     this.decidedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
-    this.status = 'DECIDED'; // Discussion status: 'CREATED' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
+    this.status = DiscussionStatus.DECIDED; // Discussion status: 'CREATED' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
   }
 
   /**

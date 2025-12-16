@@ -1,5 +1,6 @@
 const { findDiscussionById, saveDiscussion } = require('./discussionStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
+const { DiscussionStatus } = require('../core/state');
 
 /**
  * Discussion Status Service
@@ -17,11 +18,13 @@ const DiscussionRoom = require('../models/DiscussionRoom');
  */
 
 // Valid status values (uppercase for consistency)
+// Note: DiscussionStatus enum only includes IN_PROGRESS and DECIDED as per contract
+// Other statuses (CREATED, AWAITING_EXECUTION, CLOSED) remain as string literals for now
 const STATUS = {
   CREATED: 'CREATED',
-  IN_PROGRESS: 'IN_PROGRESS',
+  IN_PROGRESS: DiscussionStatus.IN_PROGRESS,
   AWAITING_EXECUTION: 'AWAITING_EXECUTION',
-  DECIDED: 'DECIDED',
+  DECIDED: DiscussionStatus.DECIDED,
   CLOSED: 'CLOSED'
 };
 
@@ -354,14 +357,18 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
     }
 
     if (hasChecklistItems) {
-      // GUARD: Explicit check for PENDING status items before allowing transition to DECIDED
+      // INVARIANT GUARD (HARD STOP): Cannot mark discussion as DECIDED while any checklist item is pending
+      // This is a critical invariant: discussion.status === DECIDED  ⇔  all checklist items are in terminal states
       const pendingItems = [];
+      const nonTerminalStatuses = ['PENDING', 'RESUBMITTED', 'REVISE_REQUIRED'];
+      
       for (const item of discussionRoom.checklist) {
         const status = (item.status || '').toUpperCase();
-        if (status === 'PENDING') {
+        // Check for explicit PENDING status or any non-terminal status
+        if (!status || status === 'PENDING' || nonTerminalStatuses.includes(status)) {
           pendingItems.push({
             id: item.id || 'unknown',
-            status: 'PENDING',
+            status: status || 'PENDING',
             action: item.action || item.actionType || 'unknown',
             symbol: item.symbol || 'unknown'
           });
@@ -374,11 +381,11 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
           `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
         ).join('\n');
         
-        const errorMessage = `Cannot mark discussion DECIDED while checklist items are pending`;
-        const warning = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with status PENDING. All items must be resolved (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
+        const errorMessage = `INVARIANT VIOLATION: Cannot mark discussion DECIDED while checklist items are pending`;
+        const violationMessage = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with non-terminal status. All items must be resolved (APPROVED/ACCEPTED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
         
-        console.warn(`[DiscussionStatusService] ${warning}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${warning}`);
+        console.error(`[DiscussionStatusService] HARD STOP - ${violationMessage}`);
+        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
         throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
       }
 

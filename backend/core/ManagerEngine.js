@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { readDataFile, writeDataFile } = require('../utils/persistence');
 const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
+const { ChecklistStatus, ExecutionMode, DiscussionStatus } = require('./state');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -390,9 +391,9 @@ class ManagerEngine {
       const timeSinceCreation = now - itemCreatedAt;
       
       // Force-resolve PENDING items that have been stuck too long
-      if ((!item.status || status === 'PENDING') && timeSinceCreation > ITEM_TIMEOUT_MS) {
+      if ((!item.status || status === ChecklistStatus.PENDING) && timeSinceCreation > ITEM_TIMEOUT_MS) {
         console.warn(`[ManagerEngine] FAILSAFE: Force-resolving PENDING item ${item.id} that has been stuck for ${Math.round(timeSinceCreation / 1000)}s`);
-        item.status = 'REJECTED';
+        item.status = ChecklistStatus.REJECTED;
         item.managerReason = `Auto-rejected: Item remained PENDING for too long (${Math.round(timeSinceCreation / 1000)}s). Manager score threshold not met.`;
         item.evaluatedAt = new Date().toISOString();
         forceResolvedCount++;
@@ -401,7 +402,7 @@ class ManagerEngine {
       // Force-resolve REVISE_REQUIRED items that have been stuck too long (convert to terminal REJECTED)
       if (status === 'REVISE_REQUIRED' && timeSinceUpdate > REVISE_TIMEOUT_MS) {
         console.warn(`[ManagerEngine] FAILSAFE: Force-resolving REVISE_REQUIRED item ${item.id} that has been stuck for ${Math.round(timeSinceUpdate / 1000)}s`);
-        item.status = 'REJECTED'; // Convert to terminal state
+        item.status = ChecklistStatus.REJECTED; // Convert to terminal state
         item.requiresRevision = false;
         item.managerReason = (item.managerReason || '') + ` Auto-rejected: No revision received within timeout (${Math.round(timeSinceUpdate / 1000)}s).`;
         item.evaluatedAt = new Date().toISOString();
@@ -420,7 +421,7 @@ class ManagerEngine {
     const pendingItems = discussionRoom.checklist.filter(item => {
       const status = (item.status || '').toUpperCase();
       return !item.status || 
-             status === 'PENDING' || 
+             status === ChecklistStatus.PENDING || 
              status === 'RESUBMITTED' ||
              (status === 'REVISE_REQUIRED' && !item.requiresRevision); // Items that were REVISE_REQUIRED but worker hasn't responded yet
     });
@@ -485,7 +486,7 @@ class ManagerEngine {
       // Skip items that are not PENDING or RESUBMITTED
       const itemStatus = (item.status || '').toUpperCase();
       const shouldEvaluate = !item.status || 
-                            itemStatus === 'PENDING' || 
+                            itemStatus === ChecklistStatus.PENDING || 
                             itemStatus === 'RESUBMITTED' ||
                             (itemStatus === 'REVISE_REQUIRED' && !item.requiresRevision);
       
@@ -538,7 +539,7 @@ class ManagerEngine {
       }
 
       // Step 2: Post-rejection handling
-      if (evaluation.status === 'REJECTED') {
+      if (evaluation.status === ChecklistStatus.REJECTED) {
         const refinementEnabled = isRejectionRefinementEnabled();
         
         if (!refinementEnabled) {
@@ -602,6 +603,27 @@ class ManagerEngine {
         approvalThreshold: this.APPROVAL_THRESHOLD
       });
 
+      // INVARIANT GUARD (HARD STOP): After manager evaluation, checklist items must have valid status
+      // Valid statuses after manager evaluation:
+      //   - Terminal: ACCEPTED (APPROVED) or REJECT_FINAL (ACCEPT_REJECTION)
+      //   - Intermediate: REVISE_REQUIRED (valid intermediate state that will be resolved later)
+      // Invalid statuses: PENDING, RESUBMITTED, or REJECTED (REJECTED should be converted to ACCEPT_REJECTION or REVISE_REQUIRED)
+      const itemStatusAfterEvaluation = (item.status || '').toUpperCase();
+      const validTerminalStatuses = ['APPROVED', 'ACCEPTED', 'ACCEPT_REJECTION'];
+      const validIntermediateStatuses = ['REVISE_REQUIRED']; // Allowed intermediate state
+      const invalidStatuses = ['PENDING', 'RESUBMITTED', 'REJECTED']; // REJECTED should have been converted
+      const allValidStatuses = [...validTerminalStatuses, ...validIntermediateStatuses];
+      
+      // Check if item has invalid status after manager evaluation
+      if (!itemStatusAfterEvaluation || 
+          invalidStatuses.includes(itemStatusAfterEvaluation) ||
+          !allValidStatuses.includes(itemStatusAfterEvaluation)) {
+        const violationMessage = `INVARIANT VIOLATION: Cannot save checklist item after manager evaluation without valid status. Item ${item.id} has status '${itemStatusAfterEvaluation || 'undefined'}' after manager evaluation. After manager evaluation, items must have terminal status: ACCEPTED (APPROVED) or REJECT_FINAL (ACCEPT_REJECTION), or intermediate status: REVISE_REQUIRED.`;
+        
+        console.error(`[ManagerEngine] HARD STOP - ${violationMessage}`);
+        throw new Error(`Cannot save checklist item ${item.id} after manager evaluation: Invalid status '${itemStatusAfterEvaluation || 'undefined'}'. Must be ACCEPTED (APPROVED), REJECT_FINAL (ACCEPT_REJECTION), or REVISE_REQUIRED.`);
+      }
+
       // Persist status changes immediately after each item evaluation
       discussionRoom.managerDecisions = managerDecisions;
       discussionRoom.checklist = updatedChecklist;
@@ -610,7 +632,7 @@ class ManagerEngine {
 
     // DEBUG LOG: Summary of all evaluations
     const approvedCount = evaluationResults.filter(r => r.status === 'APPROVED').length;
-    const rejectedCount = evaluationResults.filter(r => r.status === 'REJECTED').length;
+    const rejectedCount = evaluationResults.filter(r => r.status === ChecklistStatus.REJECTED).length;
     const summaryDebugData = {
       discussionId: discussionId,
       totalItemsEvaluated: evaluationResults.length,
@@ -659,8 +681,8 @@ class ManagerEngine {
     
     // Keep discussion status as IN_PROGRESS when checklist items exist
     const currentStatus = (discussionRoom.status || '').toUpperCase();
-    if (currentStatus !== 'IN_PROGRESS' && currentStatus !== 'DECIDED' && currentStatus !== 'CLOSED') {
-      await transitionStatus(discussionRoom.id, STATUS.IN_PROGRESS, 'Checklist items exist');
+    if (currentStatus !== DiscussionStatus.IN_PROGRESS && currentStatus !== DiscussionStatus.DECIDED && currentStatus !== 'CLOSED') {
+      await transitionStatus(discussionRoom.id, DiscussionStatus.IN_PROGRESS, 'Checklist items exist');
     }
 
     // Extract rejected items and store them globally (for rejected items count)
@@ -809,7 +831,7 @@ class ManagerEngine {
         // Log why discussion cannot close
         const blockingItems = allItems.filter(item => {
           const status = (item.status || '').toUpperCase();
-          return ['PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'].includes(status) || item.requiresRevision === true;
+          return [ChecklistStatus.PENDING, 'REVISE_REQUIRED', 'RESUBMITTED'].includes(status) || item.requiresRevision === true;
         });
         console.log(`[ManagerEngine] Discussion ${discussionId} cannot close yet: ${blockingItems.length} blocking items, ${nonTerminalItems.length} non-terminal items`);
       }
@@ -1301,7 +1323,7 @@ class ManagerEngine {
       const discussionRoom = DiscussionRoom.fromData(discussionData);
 
       // If discussion is already decided, skip
-      if (discussionRoom.status === 'decided') {
+      if (discussionRoom.status === DiscussionStatus.DECIDED) {
         console.log(`[ManagerEngine] Discussion ${discussion.id} already decided`);
         return { handled: true, discussionId: discussion.id };
       }
@@ -1337,7 +1359,7 @@ class ManagerEngine {
       
       // Keep discussion in progress - manager will close when ready
       if (updatedDiscussionRoom.status !== 'CLOSED' && updatedDiscussionRoom.status !== 'closed') {
-        updatedDiscussionRoom.status = 'in_progress';
+        updatedDiscussionRoom.status = DiscussionStatus.IN_PROGRESS;
       }
       updatedDiscussionRoom.updatedAt = new Date().toISOString();
       await saveDiscussion(updatedDiscussionRoom);
@@ -1432,7 +1454,7 @@ class ManagerEngine {
         } else {
           // New item without evaluation - set to PENDING (but ensure rejected items are never left in PENDING)
           // If item was previously rejected, mark as terminal instead of PENDING
-          if (item.status === 'REJECTED' || item.status === 'REVISE_REQUIRED') {
+          if (item.status === ChecklistStatus.REJECTED || item.status === 'REVISE_REQUIRED') {
             const refinementEnabled = isRejectionRefinementEnabled();
             if (!refinementEnabled) {
               item.status = 'ACCEPT_REJECTION';
@@ -1443,7 +1465,7 @@ class ManagerEngine {
               item.requiresRevision = true;
             }
           } else {
-            item.status = item.status || 'PENDING';
+            item.status = item.status || ChecklistStatus.PENDING;
           }
           updatedChecklist.push(item);
           managerDecisions.push({
@@ -1464,7 +1486,7 @@ class ManagerEngine {
       item.managerReason = evaluation.reason || `Manager evaluation: ${status}`;
 
       // Step 2: Post-rejection handling
-      if (status === 'REJECTED') {
+      if (status === ChecklistStatus.REJECTED) {
         const refinementEnabled = isRejectionRefinementEnabled();
         
         if (!refinementEnabled) {
@@ -1779,8 +1801,8 @@ class ManagerEngine {
         if (!item.status || item.status === 'REVISE_REQUIRED') {
           // Only set to PENDING if item was not previously rejected
           if (item.status !== 'REJECTED' && item.status !== 'ACCEPT_REJECTION') {
-            item.status = 'PENDING';
-          } else if (item.status === 'REJECTED') {
+            item.status = ChecklistStatus.PENDING;
+          } else if (item.status === ChecklistStatus.REJECTED) {
             // Rejected items should not be left in PENDING - mark as terminal if refinement disabled
             const refinementEnabled = isRejectionRefinementEnabled();
             if (!refinementEnabled) {
@@ -1825,7 +1847,7 @@ class ManagerEngine {
       .map(decision => {
         const item = decision.item;
         // Track previous status before setting to APPROVED
-        const previousStatus = item.status || 'PENDING';
+        const previousStatus = item.status || ChecklistStatus.PENDING;
         // Mark item as APPROVED in the discussion
         item.status = 'APPROVED';
         return {
@@ -1982,7 +2004,7 @@ class ManagerEngine {
       item.status === 'REVISE_REQUIRED' || item.requiresRevision === true
     );
     const hasPendingItems = allItems.some(item => 
-      item.status === 'PENDING' || (!item.status && !item.requiresRevision)
+      item.status === ChecklistStatus.PENDING || (!item.status && !item.requiresRevision)
     );
     const rejectedCount = managerDecisions.filter(d => !d.approved).length;
     
@@ -2145,7 +2167,7 @@ class ManagerEngine {
     const discussionRoom = DiscussionRoom.fromData(discussionData);
     
     // Prevent duplicate executions - if already decided, skip
-    if (discussionRoom.status === 'decided') {
+    if (discussionRoom.status === DiscussionStatus.DECIDED) {
       console.log(`[ManagerEngine] Discussion ${discussionId} already decided. Skipping execution.`);
       const updatedSector = await updateSector(sector.id, {
         discussions: discussions
@@ -2305,7 +2327,7 @@ class ManagerEngine {
     for (const item of approvedItems) {
       const draftItem = discussionRoom.checklistDraft.find(d => d.id === item.id);
       if (draftItem) {
-        const previousStatus = draftItem.status || 'PENDING';
+        const previousStatus = draftItem.status || ChecklistStatus.PENDING;
         draftItem.status = 'APPROVED';
         
         // Trigger execution if status transitioned to APPROVED
@@ -2915,7 +2937,7 @@ class ManagerEngine {
       // Validate closure conditions using canDiscussionClose
       if (!this.canDiscussionClose(discussionRoom)) {
         const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
-        const blockingStatuses = ['PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'];
+        const blockingStatuses = [ChecklistStatus.PENDING, 'REVISE_REQUIRED', 'RESUBMITTED'];
         const blockingItems = allItems.filter(item => {
           const status = (item.status || '').toUpperCase();
           return blockingStatuses.includes(status) || item.requiresRevision === true;

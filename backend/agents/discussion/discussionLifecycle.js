@@ -116,10 +116,11 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
     const discussionRoom = new DiscussionRoom(sectorId, title, agentIds);
     await saveDiscussion(discussionRoom);
 
-    // Update agent statuses to DISCUSSING when they join the discussion
-    const { updateMultipleAgentStatuses, STATUS: AGENT_STATUS } = require('../../utils/agentStatusService');
+    // Update agent statuses to ACTIVE when they join the discussion
+    const { updateMultipleAgentStatuses } = require('../../utils/agentStatusService');
+    const { AgentStatus } = require('../../core/state');
     try {
-      await updateMultipleAgentStatuses(agentIds, AGENT_STATUS.DISCUSSING, `Joined discussion ${discussionRoom.id}`);
+      await updateMultipleAgentStatuses(agentIds, AgentStatus.ACTIVE, `Joined discussion ${discussionRoom.id}`);
     } catch (error) {
       console.warn(`[DiscussionLifecycle] Failed to update agent statuses when starting discussion:`, error.message);
     }
@@ -194,12 +195,12 @@ async function collectArguments(discussionId) {
     // For each agent, generate an argument/signal
     for (const agent of sectorAgents) {
       try {
-        // Set agent status to DISCUSSING when participating
+        // Set agent status to ACTIVE when participating
         const { setAgentDiscussing, setAgentThinking } = require('../../utils/agentStatusService');
         try {
           await setAgentDiscussing(agent.id, discussionId);
         } catch (error) {
-          console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status to DISCUSSING:`, error.message);
+          console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status to ACTIVE:`, error.message);
         }
 
         let signal = null;
@@ -208,11 +209,11 @@ async function collectArguments(discussionId) {
         // Try to use ResearchAgent if agent role is 'research'
         if (agent.role === 'research' || agent.role === 'analyst') {
           try {
-            // Set status to THINKING when generating research signal
+            // Set status to ACTIVE when generating research signal
             try {
               await setAgentThinking(agent.id, `Producing research signal for discussion ${discussionId}`);
             } catch (error) {
-              console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status to THINKING:`, error.message);
+              console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status to ACTIVE:`, error.message);
             }
 
             const ResearchAgent = require('../research/ResearchAgent');
@@ -228,11 +229,11 @@ async function collectArguments(discussionId) {
             const sectorSymbol = sector?.sectorSymbol || sector?.symbol || 'UNKNOWN';
             const researchSignal = await researchAgent.produceResearchSignal(sectorSymbol);
             
-            // Set back to DISCUSSING after research signal generation
+            // Set back to ACTIVE after research signal generation
             try {
               await setAgentDiscussing(agent.id, discussionId);
             } catch (error) {
-              console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status back to DISCUSSING:`, error.message);
+              console.warn(`[DiscussionLifecycle] Failed to update agent ${agent.id} status back to ACTIVE:`, error.message);
             }
             
             if (researchSignal && researchSignal.action) {

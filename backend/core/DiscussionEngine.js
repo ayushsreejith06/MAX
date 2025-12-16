@@ -52,10 +52,11 @@ class DiscussionEngine {
     // Save discussion
     await saveDiscussion(discussionRoom);
 
-    // Update agent statuses to DISCUSSING when they join the discussion
-    const { updateMultipleAgentStatuses, STATUS: AGENT_STATUS } = require('../utils/agentStatusService');
+    // Update agent statuses to ACTIVE when they join the discussion
+    const { updateMultipleAgentStatuses } = require('../utils/agentStatusService');
+    const { AgentStatus } = require('./state');
     try {
-      await updateMultipleAgentStatuses(agentIds, AGENT_STATUS.DISCUSSING, `Joined discussion ${discussionRoom.id}`);
+      await updateMultipleAgentStatuses(agentIds, AgentStatus.ACTIVE, `Joined discussion ${discussionRoom.id}`);
     } catch (error) {
       console.warn(`[DiscussionEngine] Failed to update agent statuses when starting discussion:`, error.message);
     }
@@ -189,28 +190,28 @@ class DiscussionEngine {
         continue;
       }
 
-      // Set agent status to DISCUSSING when participating in discussion
+      // Set agent status to ACTIVE when participating in discussion
       try {
         await setAgentDiscussing(agent.id, discussionRoom.id);
       } catch (error) {
-        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to DISCUSSING:`, error.message);
+        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to ACTIVE:`, error.message);
       }
 
-      // Set agent status to THINKING when generating message
+      // Set agent status to ACTIVE when generating message
       try {
         await setAgentThinking(agent.id, `Generating message for discussion ${discussionRoom.id}`);
       } catch (error) {
-        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to THINKING:`, error.message);
+        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status to ACTIVE:`, error.message);
       }
 
       // Generate agent message using LLM (pass discussionRoom to include rejected items)
       const messageData = await this.generateAgentMessageWithLLM(agent, sector, previousMessages, discussionRoom);
       
-      // After message generation, set back to DISCUSSING (still in discussion)
+      // After message generation, set back to ACTIVE (still in discussion)
       try {
         await setAgentDiscussing(agent.id, discussionRoom.id);
       } catch (error) {
-        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status back to DISCUSSING:`, error.message);
+        console.warn(`[DiscussionEngine] Failed to update agent ${agent.id} status back to ACTIVE:`, error.message);
       }
       
       // Add message to discussion (validation happens inside addMessage)
