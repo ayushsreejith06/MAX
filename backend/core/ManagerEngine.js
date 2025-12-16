@@ -16,6 +16,7 @@ const path = require('path');
 const { readDataFile, writeDataFile } = require('../utils/persistence');
 const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
 const { ChecklistStatus, ExecutionMode, DiscussionStatus } = require('./state');
+const { isRejectionRefinementEnabled } = require('../config/featureFlags');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -1168,16 +1169,42 @@ class ManagerEngine {
       const { validateMarketDataForDiscussion } = require('../utils/marketDataValidation');
       sector = await validateMarketDataForDiscussion(sector);
 
-      // VALIDATION 1: Check if there are any non-closed discussions for this sector
+      // VALIDATION 1: INVARIANT GUARD - Check if there are any IN_PROGRESS discussions for this sector
+      // Per sector, there can only be one discussion at a time
       // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
       const { hasNonClosedDiscussions, loadDiscussions } = require('../utils/discussionStorage');
+      const existingDiscussions = await loadDiscussions();
+      const sectorDiscussions = existingDiscussions.filter(d => d.sectorId === sectorId);
+      
+      // Check for IN_PROGRESS discussions (the critical invariant)
+      const inProgressDiscussions = sectorDiscussions.filter(d => {
+        const status = (d.status || '').toUpperCase();
+        return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN';
+      });
+      
+      if (inProgressDiscussions.length > 0) {
+        const inProgressIds = inProgressDiscussions.map(d => d.id).join(', ');
+        const inProgressDetails = inProgressDiscussions.map(d => 
+          `  - ${d.id} (${d.status || 'unknown'}): ${d.title || 'Untitled'}`
+        ).join('\n');
+        
+        const errorMessage = `INVARIANT VIOLATION: Cannot create discussion while another discussion is IN_PROGRESS in the same sector`;
+        const violationMessage = `${errorMessage}: Cannot create discussion for sector ${sectorId} because there are ${inProgressDiscussions.length} IN_PROGRESS discussion(s). Per sector, there can only be one discussion at a time.\nIN_PROGRESS discussions:\n${inProgressDetails}`;
+        
+        console.error(`[ManagerEngine] HARD STOP - ${violationMessage}`);
+        return { 
+          created: false, 
+          discussion: DiscussionRoom.fromData(inProgressDiscussions[0]),
+          error: errorMessage
+        };
+      }
+      
+      // Also check for any other non-closed discussions (legacy check)
       const hasActive = await hasNonClosedDiscussions(sectorId);
       
       if (hasActive) {
         // Find the active discussion for logging
-        const existingDiscussions = await loadDiscussions();
-        const activeDiscussion = existingDiscussions.find(d => {
-          if (d.sectorId !== sectorId) return false;
+        const activeDiscussion = sectorDiscussions.find(d => {
           const status = (d.status || '').toUpperCase();
           const closedStatuses = ['DECIDED', 'CLOSED', 'FINALIZED', 'ARCHIVED', 'ACCEPTED', 'COMPLETED'];
           return !closedStatuses.includes(status);

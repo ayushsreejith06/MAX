@@ -1,4 +1,4 @@
-const { findDiscussionById, saveDiscussion } = require('./discussionStorage');
+const { findDiscussionById, saveDiscussion, loadDiscussions } = require('./discussionStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
 const { DiscussionStatus } = require('../core/state');
 
@@ -265,6 +265,42 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
     return discussionRoom;
   }
 
+  // INVARIANT GUARD (HARD STOP): Cannot mark discussion as IN_PROGRESS while another discussion is IN_PROGRESS in the same sector
+  // Per sector, there can only be one discussion at a time
+  if (normalizedNewStatus === STATUS.IN_PROGRESS) {
+    const allDiscussions = await loadDiscussions();
+    const sectorId = discussionRoom.sectorId;
+    
+    // Find other IN_PROGRESS discussions in the same sector (excluding current discussion)
+    const otherInProgressDiscussions = allDiscussions.filter(d => {
+      if (!d.sectorId || d.id === discussionId) {
+        return false; // Skip if no sectorId or if it's the current discussion
+      }
+      
+      if (d.sectorId !== sectorId) {
+        return false; // Skip if different sector
+      }
+      
+      const status = (d.status || '').toUpperCase();
+      // Check for IN_PROGRESS or legacy active statuses (exclude CREATED as it's just initial state)
+      return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN';
+    });
+    
+    if (otherInProgressDiscussions.length > 0) {
+      const otherDiscussionIds = otherInProgressDiscussions.map(d => d.id).join(', ');
+      const otherDiscussionDetails = otherInProgressDiscussions.map(d => 
+        `  - ${d.id} (${d.status || 'unknown'}): ${d.title || 'Untitled'}`
+      ).join('\n');
+      
+      const errorMessage = `INVARIANT VIOLATION: Cannot mark discussion IN_PROGRESS while another discussion is IN_PROGRESS in the same sector`;
+      const violationMessage = `${errorMessage}: Discussion ${discussionId} cannot be marked as IN_PROGRESS because sector ${sectorId} already has ${otherInProgressDiscussions.length} other active discussion(s). Per sector, there can only be one discussion at a time.\nOther active discussions:\n${otherDiscussionDetails}`;
+      
+      console.error(`[DiscussionStatusService] HARD STOP - ${violationMessage}`);
+      logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
+      throw new Error(`${errorMessage}. Sector ${sectorId} has ${otherInProgressDiscussions.length} other active discussion(s) (IDs: ${otherDiscussionIds}).`);
+    }
+  }
+
   // VALIDATION: Transition to AWAITING_EXECUTION
   // A discussion can transition to AWAITING_EXECUTION when all checklist items are in terminal approval states
   if (normalizedNewStatus === STATUS.AWAITING_EXECUTION) {
@@ -298,9 +334,21 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
 
   // VALIDATION: Transition to DECIDED
   // A discussion can only transition to DECIDED if:
-  // 1. All checklist items are in terminal approval states (ACCEPTED or REJECTED)
-  // 2. All ACCEPTED (APPROVED) checklist items have execution.status === 'EXECUTED'
+  // 1. Has messages (discussion must have activity)
+  // 2. All checklist items are in terminal approval states (ACCEPTED or REJECTED)
+  // 3. All ACCEPTED (APPROVED) checklist items have execution.status === 'EXECUTED'
   if (normalizedNewStatus === STATUS.DECIDED) {
+    // INVARIANT GUARD: Cannot mark discussion as DECIDED without messages
+    // A discussion must have messages to be considered DECIDED (indicates actual discussion activity)
+    const hasMessages = Array.isArray(discussionRoom.messages) && discussionRoom.messages.length > 0;
+    if (!hasMessages) {
+      const errorMessage = `INVARIANT VIOLATION: Cannot mark discussion DECIDED without messages`;
+      const violationMessage = `${errorMessage}: Discussion ${discussionId} has no messages. A discussion must have messages (indicating actual discussion activity) before it can be marked as DECIDED.`;
+      console.error(`[DiscussionStatusService] HARD STOP - ${violationMessage}`);
+      logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
+      throw new Error(`${errorMessage}. Discussion ${discussionId} has 0 messages.`);
+    }
+    
     const hasChecklistItems = Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0;
     const hasChecklistDraft = Array.isArray(discussionRoom.checklistDraft) && discussionRoom.checklistDraft.length > 0;
     

@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { validateAgentMessage } = require('../utils/messageValidation');
-const { DiscussionStatus } = require('../core/state');
+const { DiscussionStatus, ChecklistStatus } = require('../core/state');
 
 class DiscussionRoom {
   constructor(sectorId, title, agentIds = []) {

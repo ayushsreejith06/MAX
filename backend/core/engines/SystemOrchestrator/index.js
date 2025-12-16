@@ -335,6 +335,38 @@ class SystemOrchestrator {
 
       // 5. Check for discussions that are in progress/active but not yet finalized
       // (This handles edge cases where a discussion was created but the cycle didn't complete)
+      // INVARIANT GUARD: Check for multiple IN_PROGRESS discussions in the same sector
+      const { loadDiscussions } = require('../../../utils/discussionStorage');
+      const allDiscussions = await loadDiscussions();
+      const sectorDiscussions = allDiscussions.filter(d => d.sectorId === sectorId);
+      const inProgressDiscussions = sectorDiscussions.filter(d => {
+        const status = (d.status || '').toUpperCase();
+        return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN';
+      });
+      
+      // If multiple IN_PROGRESS discussions exist, log violation and keep only the oldest one
+      if (inProgressDiscussions.length > 1) {
+        const sortedByCreated = inProgressDiscussions.sort((a, b) => 
+          new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+        );
+        const oldest = sortedByCreated[0];
+        const duplicates = sortedByCreated.slice(1);
+        
+        const violationMessage = `INVARIANT VIOLATION: Found ${inProgressDiscussions.length} IN_PROGRESS discussions in sector ${sectorId}. Per sector, there can only be one discussion at a time. Keeping oldest discussion ${oldest.id}, closing duplicates: ${duplicates.map(d => d.id).join(', ')}`;
+        console.error(`[SystemOrchestrator] HARD STOP - ${violationMessage}`);
+        
+        // Close duplicate discussions (mark as CLOSED due to invariant violation)
+        const { transitionStatus, STATUS } = require('../../../utils/discussionStatusService');
+        for (const duplicate of duplicates) {
+          try {
+            console.log(`[SystemOrchestrator] Closing duplicate IN_PROGRESS discussion ${duplicate.id} due to invariant violation`);
+            await transitionStatus(duplicate.id, STATUS.CLOSED, 'Duplicate IN_PROGRESS discussion - invariant violation');
+          } catch (closeError) {
+            console.error(`[SystemOrchestrator] Error closing duplicate discussion ${duplicate.id}:`, closeError.message);
+          }
+        }
+      }
+      
       const activeDiscussion = await this._getActiveDiscussion(sectorId);
       if (activeDiscussion) {
         const discussionRoom = DiscussionRoom.fromData(activeDiscussion);
@@ -372,11 +404,47 @@ class SystemOrchestrator {
             const ageMs = now - createdAt;
             
             if (ageMs > 60000) { // Older than 1 minute
-              console.log(`[SystemOrchestrator] Active discussion ${discussionRoom.id} is stale (${Math.round(ageMs / 1000)}s old) with no checklist, marking as decided...`);
-              // Mark discussion as ended to allow new discussions
+              console.log(`[SystemOrchestrator] Active discussion ${discussionRoom.id} is stale (${Math.round(ageMs / 1000)}s old) with no checklist and ${discussionRoom.messages?.length || 0} messages`);
+              
+              // INVARIANT: Cannot mark as DECIDED without messages or checklist items
+              // Instead, close it directly (bypasses DECIDED state for invalid discussions)
               const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
-              await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion with no checklist');
-              this.sectorEngine.markDiscussionEnded(sectorId);
+              
+              // If it has no messages, it's invalid - close it directly
+              const hasMessages = Array.isArray(discussionRoom.messages) && discussionRoom.messages.length > 0;
+              if (!hasMessages) {
+                console.warn(`[SystemOrchestrator] Stale discussion ${discussionRoom.id} has no messages - closing directly (cannot be DECIDED without messages)`);
+                try {
+                  await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Stale discussion with no messages or checklist - invalid state');
+                  this.sectorEngine.markDiscussionEnded(sectorId);
+                } catch (closeError) {
+                  console.error(`[SystemOrchestrator] Error closing stale discussion ${discussionRoom.id}:`, closeError.message);
+                  // If transition fails, try to delete it
+                  const { deleteDiscussion } = require('../../../utils/discussionStorage');
+                  try {
+                    await deleteDiscussion(discussionRoom.id);
+                    console.log(`[SystemOrchestrator] Deleted invalid stale discussion ${discussionRoom.id}`);
+                  } catch (deleteError) {
+                    console.error(`[SystemOrchestrator] Error deleting stale discussion ${discussionRoom.id}:`, deleteError.message);
+                  }
+                }
+              } else {
+                // Has messages but no checklist - try to mark as DECIDED (will fail validation, then close)
+                try {
+                  await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion with no checklist');
+                  this.sectorEngine.markDiscussionEnded(sectorId);
+                } catch (decidedError) {
+                  // Transition to DECIDED failed (expected - no checklist items)
+                  // Close it instead
+                  console.warn(`[SystemOrchestrator] Cannot mark stale discussion ${discussionRoom.id} as DECIDED (${decidedError.message}), closing instead`);
+                  try {
+                    await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Stale discussion - cannot be DECIDED without checklist items');
+                    this.sectorEngine.markDiscussionEnded(sectorId);
+                  } catch (closeError) {
+                    console.error(`[SystemOrchestrator] Error closing stale discussion ${discussionRoom.id}:`, closeError.message);
+                  }
+                }
+              }
             } else {
               // Try to start rounds if discussion has no messages
               if (!Array.isArray(discussionRoom.messages) || discussionRoom.messages.length === 0) {
@@ -392,7 +460,7 @@ class SystemOrchestrator {
           const allAgents = await loadAgents();
           const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
           updatedSector.agents = sectorAgents;
-        } else if (discussionRoom.status === 'in_progress' && 
+        } else if ((discussionRoom.status || '').toUpperCase() === 'IN_PROGRESS' && 
             Array.isArray(discussionRoom.checklistDraft) && 
             discussionRoom.checklistDraft.length > 0) {
           // If discussion is in_progress with checklistDraft, handle it
@@ -409,9 +477,35 @@ class SystemOrchestrator {
           const allAgents = await loadAgents();
           const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
           updatedSector.agents = sectorAgents;
-        } else if (discussionRoom.status === 'in_progress' && 
+        } else if ((discussionRoom.status || '').toUpperCase() === 'IN_PROGRESS' && 
             Array.isArray(discussionRoom.checklist) && 
             discussionRoom.checklist.length > 0) {
+          // Check for pending items that need manager evaluation
+          const pendingItems = discussionRoom.checklist.filter(item => {
+            const status = (item.status || '').toUpperCase();
+            return !status || status === 'PENDING' || status === 'RESUBMITTED';
+          });
+          
+          // If there are pending items, trigger manager evaluation
+          if (pendingItems.length > 0) {
+            const pendingItemIds = pendingItems.map(item => item.id).join(', ');
+            console.log(`[SystemOrchestrator] Found ${pendingItems.length} pending checklist item(s) in discussion ${discussionRoom.id}, triggering manager evaluation... (IDs: ${pendingItemIds})`);
+            
+            try {
+              await this.managerEngine.managerEvaluateChecklist(discussionRoom.id);
+              console.log(`[SystemOrchestrator] Manager evaluation completed for discussion ${discussionRoom.id}`);
+              
+              // Reload discussion after evaluation to get updated state
+              const updatedDiscussion = await findDiscussionById(discussionRoom.id);
+              if (updatedDiscussion) {
+                discussionRoom = DiscussionRoom.fromData(updatedDiscussion);
+              }
+            } catch (evalError) {
+              console.error(`[SystemOrchestrator] Error during manager evaluation for discussion ${discussionRoom.id}:`, evalError.message);
+              // Continue to check if discussion can close even if evaluation failed
+            }
+          }
+          
           // Periodic check: if discussion is in_progress with checklist, check if it can be closed
           if (this.managerEngine.canDiscussionClose(discussionRoom)) {
             console.log(`[SystemOrchestrator] Found in-progress discussion ${discussionRoom.id} that can be closed, auto-closing...`);
