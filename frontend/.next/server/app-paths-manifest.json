@@ -1,7 +1,4 @@
 {
-  "/page": "app/page.js",
   "/sectors/[id]/page": "app/sectors/[id]/page.js",
-  "/decision-logs/page": "app/decision-logs/page.js",
-  "/discussions/[id]/page": "app/discussions/[id]/page.js",
-  "/discussions/page": "app/discussions/page.js"
+  "/page": "app/page.js"
 }

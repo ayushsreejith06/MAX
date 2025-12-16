@@ -180,6 +180,7 @@ class ExecutionEngine {
    */
   async handleItemStatusTransition(checklistItemId, discussionId, previousStatus = null) {
     if (!checklistItemId || !discussionId) {
+      console.log(`[ExecutionEngine] handleItemStatusTransition called with invalid parameters: checklistItemId=${checklistItemId}, discussionId=${discussionId}`);
       return null;
     }
 
@@ -192,6 +193,7 @@ class ExecutionEngine {
       }
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
+      const sectorId = discussionRoom.sectorId;
       
       // Find the checklist item
       let checklistItem = null;
@@ -207,35 +209,113 @@ class ExecutionEngine {
         return null;
       }
 
+      // Get current status
+      const currentStatus = (checklistItem.status || '').toUpperCase();
+      const normalizedPreviousStatus = previousStatus ? (previousStatus.toUpperCase()) : null;
+
+      // Log execution trigger attempt
+      console.log(`[ExecutionEngine] EXECUTION TRIGGER: Item ${checklistItemId} status transition from ${normalizedPreviousStatus || 'UNKNOWN'} to ${currentStatus} (discussionId=${discussionId}, sectorId=${sectorId})`);
+
       // Check if already executed (idempotent - prevent double execution)
       if (checklistItem.executedAt) {
-        console.log(`[ExecutionEngine] Item ${checklistItemId} already executed at ${checklistItem.executedAt}, skipping`);
+        console.log(`[ExecutionEngine] EXECUTION BLOCKED: Item ${checklistItemId} already executed at ${checklistItem.executedAt}, skipping`);
         return {
           success: true,
           alreadyExecuted: true,
-          executedAt: checklistItem.executedAt
+          executedAt: checklistItem.executedAt,
+          itemId: checklistItemId,
+          discussionId: discussionId,
+          sectorId: sectorId
+        };
+      }
+
+      // Block execution for PENDING status
+      if (currentStatus === 'PENDING') {
+        console.log(`[ExecutionEngine] EXECUTION BLOCKED: Item ${checklistItemId} has status PENDING - execution not allowed`);
+        return {
+          success: false,
+          blocked: true,
+          reason: 'Status is PENDING - execution blocked',
+          itemId: checklistItemId,
+          discussionId: discussionId,
+          sectorId: sectorId,
+          status: currentStatus
+        };
+      }
+
+      // Block execution for REJECTED status
+      if (currentStatus === 'REJECTED') {
+        console.log(`[ExecutionEngine] EXECUTION BLOCKED: Item ${checklistItemId} has status REJECTED - execution not allowed`);
+        return {
+          success: false,
+          blocked: true,
+          reason: 'Status is REJECTED - execution blocked',
+          itemId: checklistItemId,
+          discussionId: discussionId,
+          sectorId: sectorId,
+          status: currentStatus
         };
       }
 
       // Only execute if status is APPROVED
-      const status = (checklistItem.status || '').toUpperCase();
-      if (status !== 'APPROVED') {
-        // Not APPROVED - don't execute
-        return null;
+      if (currentStatus !== 'APPROVED') {
+        console.log(`[ExecutionEngine] EXECUTION BLOCKED: Item ${checklistItemId} has status ${currentStatus} (not APPROVED) - execution not allowed`);
+        return {
+          success: false,
+          blocked: true,
+          reason: `Status is ${currentStatus} - only APPROVED items can be executed`,
+          itemId: checklistItemId,
+          discussionId: discussionId,
+          sectorId: sectorId,
+          status: currentStatus
+        };
       }
 
       // Skip if previous status was also APPROVED (no transition)
-      if (previousStatus && (previousStatus.toUpperCase() === 'APPROVED')) {
-        console.log(`[ExecutionEngine] Item ${checklistItemId} was already APPROVED, skipping execution`);
-        return null;
+      if (normalizedPreviousStatus === 'APPROVED') {
+        console.log(`[ExecutionEngine] EXECUTION SKIPPED: Item ${checklistItemId} was already APPROVED (no transition detected)`);
+        return {
+          success: false,
+          skipped: true,
+          reason: 'No status transition - item was already APPROVED',
+          itemId: checklistItemId,
+          discussionId: discussionId,
+          sectorId: sectorId
+        };
       }
 
+      // Create EXECUTION_REQUESTED event
+      const executionRequestedEvent = {
+        type: 'EXECUTION_REQUESTED',
+        checklistItemId: checklistItemId,
+        discussionId: discussionId,
+        sectorId: sectorId,
+        previousStatus: normalizedPreviousStatus,
+        currentStatus: currentStatus,
+        timestamp: new Date().toISOString(),
+        item: {
+          id: checklistItem.id,
+          action: checklistItem.action,
+          amount: checklistItem.amount,
+          status: currentStatus
+        }
+      };
+
+      console.log(`[ExecutionEngine] EXECUTION REQUESTED: ${JSON.stringify(executionRequestedEvent)}`);
+
       // Execute the item
-      console.log(`[ExecutionEngine] Item ${checklistItemId} transitioned to APPROVED, executing...`);
+      console.log(`[ExecutionEngine] EXECUTING: Item ${checklistItemId} transitioned to APPROVED, starting execution...`);
       const result = await this.executeChecklistItem(checklistItemId, discussionId);
+      
+      // Add execution event to result
+      if (result) {
+        result.executionRequestedEvent = executionRequestedEvent;
+      }
+      
+      console.log(`[ExecutionEngine] EXECUTION COMPLETE: Item ${checklistItemId} execution finished with success=${result?.success}`);
       return result;
     } catch (error) {
-      console.error(`[ExecutionEngine] Error handling status transition for item ${checklistItemId}:`, error);
+      console.error(`[ExecutionEngine] EXECUTION ERROR: Error handling status transition for item ${checklistItemId}:`, error);
       // Don't throw - return error result instead
       return {
         success: false,

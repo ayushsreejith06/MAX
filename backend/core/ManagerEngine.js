@@ -181,23 +181,13 @@ class ManagerEngine {
       (normalizedRiskScore * weights.riskLevel) +
       (alignmentWithSectorGoal * weights.alignmentWithSectorGoal);
 
-    // Apply scoring threshold - but be lenient: only reject if score is significantly below threshold
-    // Default to approval unless there's a clear reason to reject
-    // Only reject if score is well below threshold (more than 20 points) OR if there are other red flags
+    // Apply strict scoring threshold: score >= approvalThreshold = APPROVED, else REJECTED
+    const status = compositeScore >= this.APPROVAL_THRESHOLD ? 'APPROVED' : 'REJECTED';
     const scoreGap = this.APPROVAL_THRESHOLD - compositeScore;
-    const shouldReject = scoreGap > 20 || // Score is significantly below threshold
-      workerConfidence < 10 || // Worker has very low confidence (< 10%)
-      (riskLevel > 80 && workerConfidence < 50); // High risk AND low confidence
-    
-    const status = shouldReject ? 'REJECTED' : 'APPROVED';
     
     const managerReason = status === 'APPROVED'
-      ? `Approved: Score ${compositeScore.toFixed(1)}/${100} (Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)})`
-      : shouldReject && scoreGap > 20
-        ? `Rejected: Score ${compositeScore.toFixed(1)}/${100} is significantly below threshold ${this.APPROVAL_THRESHOLD} (gap: ${scoreGap.toFixed(1)}). Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)}`
-        : shouldReject && workerConfidence < 10
-          ? `Rejected: Worker confidence (${workerConfidence.toFixed(1)}%) is too low (< 10%). Score: ${compositeScore.toFixed(1)}/${100}`
-          : `Rejected: High risk (${riskLevel.toFixed(1)}) combined with low confidence (${workerConfidence.toFixed(1)}%). Score: ${compositeScore.toFixed(1)}/${100}`;
+      ? `Approved: Score ${compositeScore.toFixed(1)}/${100} meets threshold ${this.APPROVAL_THRESHOLD} (Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)})`
+      : `Rejected: Score ${compositeScore.toFixed(1)}/${100} below threshold ${this.APPROVAL_THRESHOLD} (gap: ${scoreGap.toFixed(1)}). Confidence: ${workerConfidence.toFixed(1)}, Impact: ${expectedImpact.toFixed(1)}, Risk: ${riskLevel.toFixed(1)}, Alignment: ${alignmentWithSectorGoal.toFixed(1)}`;
 
     // DEBUG LOG: Final evaluation result
     const debugData = {
@@ -485,11 +475,12 @@ class ManagerEngine {
       discussionRoom.managerDecisions = [];
     }
 
-    // Evaluate each PENDING item
+    // Evaluate each PENDING item explicitly
     const managerDecisions = [];
     const updatedChecklist = [];
     const evaluationResults = [];
 
+    // Iterate through all checklist items, evaluating only PENDING ones
     for (const item of discussionRoom.checklist) {
       // Skip items that are not PENDING or RESUBMITTED
       const itemStatus = (item.status || '').toUpperCase();
@@ -521,14 +512,15 @@ class ManagerEngine {
         evaluation.managerReason = `Auto-rejected: Score ${evaluation.score.toFixed(1)} below threshold ${this.APPROVAL_THRESHOLD}. ${evaluation.managerReason || ''}`;
       }
 
-      // Store evaluation result for summary log
-      evaluationResults.push({
-        itemId: item.id,
-        status: evaluation.status,
-        score: evaluation.score,
+      // Determine final status and rejection reason
+      const finalScore = evaluation.score !== undefined ? evaluation.score : 0;
+      const finalStatus = evaluation.status;
+      const rejectionReason = finalStatus === 'REJECTED' ? {
+        score: finalScore,
+        approvalThreshold: this.APPROVAL_THRESHOLD,
         scoreBreakdown: evaluation.scoreBreakdown,
-        managerReason: evaluation.managerReason
-      });
+        reason: evaluation.managerReason
+      } : undefined;
 
       // Update item status - follow lifecycle: REJECTED -> REVISE_REQUIRED
       // Step 1: Set status to REJECTED and add managerReason
@@ -540,16 +532,43 @@ class ManagerEngine {
       }
       item.updatedAt = item.evaluatedAt;
 
-      // Step 2: If rejected, immediately convert to REVISE_REQUIRED (but track for timeout)
+      // Attach rejectionReason if rejected
+      if (rejectionReason) {
+        item.rejectionReason = rejectionReason;
+      }
+
+      // Step 2: Post-rejection handling
       if (evaluation.status === 'REJECTED') {
-        item.status = 'REVISE_REQUIRED';
-        item.requiresRevision = true;
-        if (!item.revisionCount) {
-          item.revisionCount = 0;
+        const refinementEnabled = isRejectionRefinementEnabled();
+        
+        if (!refinementEnabled) {
+          // Refinement disabled: Mark as terminal immediately
+          item.status = 'ACCEPT_REJECTION';
+          item.requiresRevision = false;
+          item.revisionCount = item.revisionCount || 0;
+          console.log(`[ManagerEngine] Item ${item.id} rejected - refinement disabled, marking as terminal (ACCEPT_REJECTION)`);
+        } else {
+          // Refinement enabled: Convert to REVISE_REQUIRED for agent revision
+          item.status = 'REVISE_REQUIRED';
+          item.requiresRevision = true;
+          if (!item.revisionCount) {
+            item.revisionCount = 0;
+          }
+          // Track when revision was required for timeout handling
+          item.revisionRequiredAt = item.evaluatedAt;
+          // Initialize refinement log if it doesn't exist
+          if (!item.refinementLog) {
+            item.refinementLog = [];
+          }
+          // Log the rejection
+          item.refinementLog.push({
+            round: item.revisionCount + 1,
+            action: 'REJECTED',
+            managerReason: evaluation.managerReason,
+            timestamp: item.evaluatedAt
+          });
+          console.log(`[ManagerEngine] Item ${item.id} rejected - refinement enabled, sending for revision (round ${item.revisionCount + 1})`);
         }
-        // Track when revision was required for timeout handling
-        item.revisionRequiredAt = item.evaluatedAt;
-        // Don't increment revisionCount here - it will be incremented when worker revises
       }
 
       // Create manager decision
@@ -565,7 +584,28 @@ class ManagerEngine {
       managerDecisions.push(managerDecision);
       updatedChecklist.push(item);
 
-      console.log(`[ManagerEngine] Item ${item.id}: ${evaluation.status} - ${evaluation.managerReason}`);
+      // Store evaluation result for summary log
+      evaluationResults.push({
+        itemId: item.id,
+        status: evaluation.status,
+        score: evaluation.score,
+        scoreBreakdown: evaluation.scoreBreakdown,
+        managerReason: evaluation.managerReason
+      });
+
+      // Log detailed evaluation result
+      console.log(`[ManagerEngine] Checklist Item Evaluation:`, {
+        checklistItemId: item.id,
+        finalScore: finalScore !== undefined ? finalScore.toFixed(2) : 'N/A',
+        finalStatus: finalStatus,
+        reason: evaluation.managerReason,
+        approvalThreshold: this.APPROVAL_THRESHOLD
+      });
+
+      // Persist status changes immediately after each item evaluation
+      discussionRoom.managerDecisions = managerDecisions;
+      discussionRoom.checklist = updatedChecklist;
+      await saveDiscussion(discussionRoom);
     }
 
     // DEBUG LOG: Summary of all evaluations
@@ -584,10 +624,7 @@ class ManagerEngine {
     };
     this._writeDebugLog(`[managerEvaluateChecklist] Evaluation summary for discussion ${discussionId}`, summaryDebugData);
 
-    // Update discussion with manager decisions and updated checklist
-    discussionRoom.managerDecisions = managerDecisions;
-    discussionRoom.checklist = updatedChecklist;
-
+    // Note: managerDecisions and checklist are already updated in the loop with immediate persistence
     // Extract approved items for finalizedChecklist
     const approvedItems = managerDecisions
       .filter(decision => decision.approved === true && decision.item)
@@ -1393,8 +1430,21 @@ class ManagerEngine {
           managerDecisions.push(existingDecision);
           updatedChecklist.push(item);
         } else {
-          // New item without evaluation - set to PENDING
-          item.status = item.status || 'PENDING';
+          // New item without evaluation - set to PENDING (but ensure rejected items are never left in PENDING)
+          // If item was previously rejected, mark as terminal instead of PENDING
+          if (item.status === 'REJECTED' || item.status === 'REVISE_REQUIRED') {
+            const refinementEnabled = isRejectionRefinementEnabled();
+            if (!refinementEnabled) {
+              item.status = 'ACCEPT_REJECTION';
+              item.requiresRevision = false;
+            } else {
+              // Keep REVISE_REQUIRED if refinement is enabled
+              item.status = 'REVISE_REQUIRED';
+              item.requiresRevision = true;
+            }
+          } else {
+            item.status = item.status || 'PENDING';
+          }
           updatedChecklist.push(item);
           managerDecisions.push({
             item: item,
@@ -1407,19 +1457,42 @@ class ManagerEngine {
 
       // Update item status based on evaluation - follow lifecycle: REJECTED -> REVISE_REQUIRED
       const status = evaluation.status;
+      const previousStatus = item.status || 'PENDING';
       
       // Step 1: Set status to evaluation status (could be REJECTED) and add managerReason
       item.status = status;
       item.managerReason = evaluation.reason || `Manager evaluation: ${status}`;
 
-      // Step 2: If rejected, immediately convert to REVISE_REQUIRED
+      // Step 2: Post-rejection handling
       if (status === 'REJECTED') {
-        item.status = 'REVISE_REQUIRED';
-        item.requiresRevision = true;
-        if (!item.revisionCount) {
-          item.revisionCount = 0;
+        const refinementEnabled = isRejectionRefinementEnabled();
+        
+        if (!refinementEnabled) {
+          // Refinement disabled: Mark as terminal immediately
+          item.status = 'ACCEPT_REJECTION';
+          item.requiresRevision = false;
+          item.revisionCount = item.revisionCount || 0;
+          console.log(`[ManagerEngine] Item ${item.id} rejected - refinement disabled, marking as terminal (ACCEPT_REJECTION)`);
+        } else {
+          // Refinement enabled: Convert to REVISE_REQUIRED for agent revision
+          item.status = 'REVISE_REQUIRED';
+          item.requiresRevision = true;
+          if (!item.revisionCount) {
+            item.revisionCount = 0;
+          }
+          // Initialize refinement log if it doesn't exist
+          if (!item.refinementLog) {
+            item.refinementLog = [];
+          }
+          // Log the rejection
+          item.refinementLog.push({
+            round: item.revisionCount + 1,
+            action: 'REJECTED',
+            managerReason: evaluation.reason || `Manager evaluation: ${status}`,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`[ManagerEngine] Item ${item.id} rejected - refinement enabled, sending for revision (round ${item.revisionCount + 1})`);
         }
-        // Don't increment revisionCount here - it will be incremented when worker revises
       }
 
       // Determine approved flag for manager decision
@@ -1435,6 +1508,19 @@ class ManagerEngine {
 
       managerDecisions.push(managerDecision);
       updatedChecklist.push(item);
+
+      // Step 3: Trigger execution if status transitioned to APPROVED
+      if (status === 'APPROVED' && previousStatus !== 'APPROVED') {
+        try {
+          const ExecutionEngine = require('./ExecutionEngine');
+          const executionEngine = new ExecutionEngine();
+          console.log(`[ManagerEngine] Triggering execution for item ${item.id} that transitioned to APPROVED (previousStatus=${previousStatus})`);
+          await executionEngine.handleItemStatusTransition(item.id, discussionId, previousStatus);
+        } catch (executionError) {
+          console.error(`[ManagerEngine] Error triggering execution for item ${item.id}:`, executionError);
+          // Don't throw - allow discussion to continue even if execution trigger fails
+        }
+      }
     }
 
     // Update discussion with manager decisions and updated checklist
@@ -1543,8 +1629,6 @@ class ManagerEngine {
         // Check if discussion can now close
         if (this.canDiscussionClose(discussionRoom)) {
           console.log(`[ManagerEngine] Discussion ${discussionId} can now close after force resolution. Auto-closing...`);
-          discussionRoom.status = 'decided';
-          discussionRoom.updatedAt = new Date().toISOString();
           
           // Save final round snapshot
           const roundCount = discussionRoom.currentRound || discussionRoom.round || 1;
@@ -1564,7 +1648,7 @@ class ManagerEngine {
           discussionRoom.roundHistory.push(finalRoundSnapshot);
           await saveDiscussion(discussionRoom);
           
-          // Transition to DECIDED status
+          // Transition to DECIDED status (with guard for PENDING items)
           await transitionStatus(discussionId, STATUS.DECIDED, `Auto-closed after max rounds (${this.MAX_ROUNDS})`);
           
           console.log(`[ManagerEngine] Discussion ${discussionId} auto-closed after max rounds (${this.MAX_ROUNDS}).`);
@@ -1691,8 +1775,23 @@ class ManagerEngine {
         item.requiresRevision = true;
       } else {
         // Approved items should have status 'PENDING' or 'APPROVED'
+        // BUT: Do NOT set rejected items to PENDING - they must be terminal or REVISE_REQUIRED
         if (!item.status || item.status === 'REVISE_REQUIRED') {
-          item.status = 'PENDING';
+          // Only set to PENDING if item was not previously rejected
+          if (item.status !== 'REJECTED' && item.status !== 'ACCEPT_REJECTION') {
+            item.status = 'PENDING';
+          } else if (item.status === 'REJECTED') {
+            // Rejected items should not be left in PENDING - mark as terminal if refinement disabled
+            const refinementEnabled = isRejectionRefinementEnabled();
+            if (!refinementEnabled) {
+              item.status = 'ACCEPT_REJECTION';
+              item.requiresRevision = false;
+            } else {
+              // Keep as REVISE_REQUIRED if refinement enabled
+              item.status = 'REVISE_REQUIRED';
+              item.requiresRevision = true;
+            }
+          }
         }
         item.requiresRevision = false;
       }
@@ -1725,6 +1824,8 @@ class ManagerEngine {
       .filter(decision => decision.approved === true && decision.item)
       .map(decision => {
         const item = decision.item;
+        // Track previous status before setting to APPROVED
+        const previousStatus = item.status || 'PENDING';
         // Mark item as APPROVED in the discussion
         item.status = 'APPROVED';
         return {
@@ -1737,11 +1838,28 @@ class ManagerEngine {
           agentId: item.agentId,
           agentName: item.agentName,
           approved: true,
-          approvedAt: new Date().toISOString()
+          approvedAt: new Date().toISOString(),
+          previousStatus: previousStatus // Store for execution trigger
         };
       });
     
     discussionRoom.finalizedChecklist = approvedItems;
+
+    // Trigger execution for items that transitioned to APPROVED
+    for (const approvedItem of approvedItems) {
+      if (approvedItem.previousStatus !== 'APPROVED') {
+        try {
+          const ExecutionEngine = require('./ExecutionEngine');
+          const executionEngine = new ExecutionEngine();
+          const itemId = approvedItem.id;
+          console.log(`[ManagerEngine] Triggering execution for item ${itemId} that transitioned to APPROVED (previousStatus=${approvedItem.previousStatus})`);
+          await executionEngine.handleItemStatusTransition(itemId, discussionId, approvedItem.previousStatus);
+        } catch (executionError) {
+          console.error(`[ManagerEngine] Error triggering execution for item ${approvedItem.id}:`, executionError);
+          // Don't throw - allow discussion to continue even if execution trigger fails
+        }
+      }
+    }
 
     // Add approved items to manager's execution list (instead of executing immediately)
     if (approvedItems.length > 0) {
@@ -2183,11 +2301,25 @@ class ManagerEngine {
       return updated || item;
     });
 
-    // Mark approved items as APPROVED in the discussion
+    // Mark approved items as APPROVED in the discussion and trigger execution
     for (const item of approvedItems) {
       const draftItem = discussionRoom.checklistDraft.find(d => d.id === item.id);
       if (draftItem) {
+        const previousStatus = draftItem.status || 'PENDING';
         draftItem.status = 'APPROVED';
+        
+        // Trigger execution if status transitioned to APPROVED
+        if (previousStatus !== 'APPROVED') {
+          try {
+            const ExecutionEngine = require('./ExecutionEngine');
+            const executionEngine = new ExecutionEngine();
+            console.log(`[ManagerEngine] Triggering execution for item ${item.id} that transitioned to APPROVED (previousStatus=${previousStatus})`);
+            await executionEngine.handleItemStatusTransition(item.id, discussionId, previousStatus);
+          } catch (executionError) {
+            console.error(`[ManagerEngine] Error triggering execution for item ${item.id}:`, executionError);
+            // Don't throw - allow discussion to continue even if execution trigger fails
+          }
+        }
       }
     }
 
@@ -2679,7 +2811,8 @@ class ManagerEngine {
    * Check if a discussion can be closed
    * Returns true only if ALL closure conditions are met:
    * 1. No items remain with status: 'PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'
-   * 2. All checklist items are either: 'APPROVED' or 'ACCEPT_REJECTION'
+   * 2. All checklist items are either: 'APPROVED' or 'REJECTED' (or 'ACCEPT_REJECTION' as terminal state)
+   * 3. Manager has emitted a final decision summary (finalDecision is set)
    * 
    * @param {DiscussionRoom|Object} discussion - DiscussionRoom instance or discussion data object
    * @returns {boolean} True if discussion can be closed, false otherwise
@@ -2702,8 +2835,12 @@ class ManagerEngine {
       return status === '' || status === 'PENDING' || status === 'REVISE_REQUIRED' || status === 'RESUBMITTED';
     });
 
-    // If there are no checklist items AND no pending drafts, treat as closable (no more proposals)
+    // If there are no checklist items AND no pending drafts, still require final decision
     if (allItems.length === 0 && openDrafts.length === 0) {
+      // Even with no items, manager must emit final decision summary
+      if (!discussionRoom.finalDecision) {
+        return false;
+      }
       return true;
     }
 
@@ -2729,6 +2866,11 @@ class ManagerEngine {
       return false;
     }
 
+    // CRITICAL: Manager must have emitted a final decision summary
+    if (!discussionRoom.finalDecision) {
+      return false;
+    }
+
     // All conditions met - discussion can be closed
     return true;
   }
@@ -2737,8 +2879,8 @@ class ManagerEngine {
    * Close a discussion - ONLY called by manager agent when all checklist items are resolved
    * A discussion should only close when ALL of the following are true:
    * 1. No checklist items are left in 'PENDING', 'REVISE_REQUIRED', or 'RESUBMITTED'
-   * 2. All items are either 'APPROVED' or 'ACCEPT_REJECTION'
-   * 3. Manager evaluates final state and calls closeDiscussion(discussionId)
+   * 2. All items are either 'APPROVED' or 'REJECTED' (or 'ACCEPT_REJECTION' as terminal state)
+   * 3. Manager has emitted a final decision summary (finalDecision is set)
    * 
    * On close:
    * - status → 'decided' (even if all items are rejected/accepted as rejection)
@@ -2780,12 +2922,49 @@ class ManagerEngine {
         });
         const invalidItems = allItems.filter(item => {
           const status = (item.status || '').toUpperCase();
-          return status !== 'APPROVED' && status !== 'ACCEPT_REJECTION';
+          return status !== 'APPROVED' && status !== 'REJECTED' && status !== 'ACCEPT_REJECTION';
         });
 
-        const errorMsg = `Cannot close discussion ${discussionId}: Closure conditions not met. ` +
-          `${blockingItems.length} items with blocking statuses (PENDING/REVISE_REQUIRED/RESUBMITTED), ` +
-          `${invalidItems.length} items not in final state (APPROVED/ACCEPT_REJECTION)`;
+        // Check for missing final decision summary
+        const hasFinalDecision = !!discussionRoom.finalDecision;
+
+        // Build detailed debug log for attempted premature closure
+        const debugInfo = {
+          discussionId: discussionId,
+          status: discussionRoom.status,
+          totalChecklistItems: allItems.length,
+          blockingItemsCount: blockingItems.length,
+          invalidItemsCount: invalidItems.length,
+          hasFinalDecision: hasFinalDecision,
+          blockingItems: blockingItems.map(item => ({
+            id: item.id,
+            status: item.status,
+            requiresRevision: item.requiresRevision
+          })),
+          invalidItems: invalidItems.map(item => ({
+            id: item.id,
+            status: item.status
+          })),
+          finalDecision: discussionRoom.finalDecision,
+          timestamp: new Date().toISOString()
+        };
+
+        // Log detailed debug information for attempted premature closure
+        console.error(`[ManagerEngine] PREMATURE CLOSURE ATTEMPT BLOCKED for discussion ${discussionId}:`, JSON.stringify(debugInfo, null, 2));
+
+        // Build error message
+        const reasons = [];
+        if (blockingItems.length > 0) {
+          reasons.push(`${blockingItems.length} item(s) with blocking statuses (PENDING/REVISE_REQUIRED/RESUBMITTED)`);
+        }
+        if (invalidItems.length > 0) {
+          reasons.push(`${invalidItems.length} item(s) not in final state (must be APPROVED or REJECTED)`);
+        }
+        if (!hasFinalDecision) {
+          reasons.push('Manager has not emitted final decision summary');
+        }
+
+        const errorMsg = `Cannot close discussion ${discussionId}: Closure conditions not met. ${reasons.join('; ')}`;
         console.warn(`[ManagerEngine] ${errorMsg}`);
         throw new Error(errorMsg);
       }

@@ -95,6 +95,15 @@ export interface ChecklistItem {
   managerReason?: string | null;
   revisionCount?: number;
   revisedAt?: string;
+  // Refinement tracking
+  refinementLog?: Array<{
+    round: number;
+    action: 'REJECTED' | 'RESUBMITTED' | 'ACCEPT_REJECTION';
+    managerReason?: string;
+    reason?: string;
+    shouldReduceSize?: boolean;
+    timestamp: string;
+  }>; // Log of each refinement attempt
   // Manager decision metadata - authoritative state
   decisionBy?: string; // Manager ID who made the decision
   decidedAt?: string; // ISO timestamp when decision was made

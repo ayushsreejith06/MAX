@@ -217,7 +217,28 @@ class DiscussionWatchdog {
       }
 
       // Discussion cannot be closed normally - force close with watchdog reason
-      console.log(`[DiscussionWatchdog] Discussion ${discussionId} cannot be closed normally, forcing closure due to stall`);
+      // Log why normal closure was blocked (for debugging)
+      const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
+      const blockingStatuses = ['PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'];
+      const blockingItems = allItems.filter(item => {
+        const status = (item.status || '').toUpperCase();
+        return blockingStatuses.includes(status) || item.requiresRevision === true;
+      });
+      const invalidItems = allItems.filter(item => {
+        const status = (item.status || '').toUpperCase();
+        return status !== 'APPROVED' && status !== 'REJECTED' && status !== 'ACCEPT_REJECTION';
+      });
+      const hasFinalDecision = !!discussionRoom.finalDecision;
+
+      console.warn(`[DiscussionWatchdog] Discussion ${discussionId} cannot be closed normally, forcing closure due to stall. Closure blocked because:`, {
+        discussionId,
+        blockingItemsCount: blockingItems.length,
+        invalidItemsCount: invalidItems.length,
+        hasFinalDecision,
+        reason: !hasFinalDecision ? 'Missing final decision summary' : 
+                blockingItems.length > 0 ? 'Items with blocking statuses' :
+                invalidItems.length > 0 ? 'Items not in final state' : 'Unknown'
+      });
 
       // Set close reason
       const closeReason = hasChecklistItems

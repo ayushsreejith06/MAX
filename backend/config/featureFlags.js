@@ -13,7 +13,16 @@ const FEATURE_FLAGS = {
    * Default: false (disabled)
    * Future: Will enable ML-driven confidence impact on simulation outcomes
    */
-  CONFIDENCE_BASED_EXECUTION_IMPACT: false
+  CONFIDENCE_BASED_EXECUTION_IMPACT: false,
+
+  /**
+   * Enable refinement for rejected checklist items.
+   * When enabled, rejected items are sent back to agents for revision.
+   * When disabled, rejected items are immediately marked as terminal (ACCEPT_REJECTION).
+   * 
+   * Default: true (enabled)
+   */
+  ENABLE_REJECTION_REFINEMENT: true
 };
 
 /**
@@ -47,10 +56,19 @@ function isConfidenceBasedExecutionImpactEnabled() {
   return getFeatureFlag('CONFIDENCE_BASED_EXECUTION_IMPACT');
 }
 
+/**
+ * Check if rejection refinement is enabled
+ * @returns {boolean}
+ */
+function isRejectionRefinementEnabled() {
+  return getFeatureFlag('ENABLE_REJECTION_REFINEMENT');
+}
+
 module.exports = {
   FEATURE_FLAGS,
   getFeatureFlag,
   setFeatureFlag,
-  isConfidenceBasedExecutionImpactEnabled
+  isConfidenceBasedExecutionImpactEnabled,
+  isRejectionRefinementEnabled
 };
 

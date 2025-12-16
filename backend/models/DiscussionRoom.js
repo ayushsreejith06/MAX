@@ -166,19 +166,18 @@ class DiscussionRoom {
     }
 
     // INVARIANT: discussion.status === DECIDED  ⇔  checklist.pendingCount === 0
-    // Cannot mark as DECIDED if ANY checklist items are still PENDING
+    // GUARD: Cannot mark as DECIDED if ANY checklist items have status PENDING
     if (hasChecklistItems) {
-      const terminalStatuses = ['APPROVED', 'REJECTED', 'ACCEPT_REJECTION', 'EXECUTED'];
       const pendingItems = [];
 
+      // Explicit check for PENDING status items
       for (const item of this.checklist) {
         const status = (item.status || '').toUpperCase();
-        const isTerminal = terminalStatuses.includes(status);
         
-        if (!isTerminal) {
+        if (status === 'PENDING') {
           pendingItems.push({
             id: item.id || 'unknown',
-            status: status || 'PENDING',
+            status: 'PENDING',
             action: item.action || item.actionType || 'unknown',
             symbol: item.symbol || 'unknown'
           });
@@ -191,10 +190,83 @@ class DiscussionRoom {
           `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
         ).join('\n');
         
-        const warning = `Cannot mark discussion as DECIDED: Discussion ${this.id} has ${pendingItems.length} pending checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
+        const errorMessage = `Cannot mark discussion DECIDED while checklist items are pending`;
+        const warning = `${errorMessage}: Discussion ${this.id} has ${pendingItems.length} checklist item(s) with status PENDING. All items must be resolved (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
         
         console.warn(`[DiscussionRoom.setDecision] ${warning}`);
-        throw new Error(`Cannot mark as DECIDED: ${pendingItems.length} checklist item(s) still pending (IDs: ${pendingItemIds}). Manager agent must remain ACTIVE until all items are resolved.`);
+        throw new Error(`${errorMessage}. Discussion ${this.id} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
+      }
+
+      // Additional check: All items must be in terminal approval states
+      const terminalStatuses = ['APPROVED', 'REJECTED', 'ACCEPT_REJECTION', 'EXECUTED'];
+      const nonTerminalItems = [];
+
+      for (const item of this.checklist) {
+        const status = (item.status || '').toUpperCase();
+        const isTerminal = terminalStatuses.includes(status);
+        
+        if (!isTerminal) {
+          nonTerminalItems.push({
+            id: item.id || 'unknown',
+            status: status || 'PENDING',
+            action: item.action || item.actionType || 'unknown',
+            symbol: item.symbol || 'unknown'
+          });
+        }
+      }
+
+      if (nonTerminalItems.length > 0) {
+        const nonTerminalItemIds = nonTerminalItems.map(item => item.id).join(', ');
+        const nonTerminalItemDetails = nonTerminalItems.map(item => 
+          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
+        ).join('\n');
+        
+        const warning = `Cannot mark discussion as DECIDED: Discussion ${this.id} has ${nonTerminalItems.length} non-terminal checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nNon-terminal items:\n${nonTerminalItemDetails}`;
+        
+        console.warn(`[DiscussionRoom.setDecision] ${warning}`);
+        throw new Error(`Cannot mark as DECIDED: ${nonTerminalItems.length} checklist item(s) still in non-terminal states (IDs: ${nonTerminalItemIds}). Manager agent must remain ACTIVE until all items are resolved.`);
+      }
+
+      // HARD VALIDATION: Require at least one APPROVED checklist item
+      const approvedItems = [];
+      for (const item of this.checklist) {
+        const status = (item.status || '').toUpperCase();
+        if (status === 'APPROVED') {
+          approvedItems.push({
+            id: item.id || 'unknown',
+            status: status,
+            action: item.action || item.actionType || 'unknown',
+            symbol: item.symbol || 'unknown'
+          });
+        }
+      }
+
+      if (approvedItems.length === 0) {
+        const violationMessage = `HARD VALIDATION VIOLATION: Cannot mark discussion as DECIDED: Discussion ${this.id} has zero APPROVED checklist items. A discussion must have at least one APPROVED checklist item before it can be marked as DECIDED.`;
+        
+        console.error(`[DiscussionRoom.setDecision] ${violationMessage}`);
+        throw new Error(`Cannot mark as DECIDED: Discussion has zero APPROVED checklist items. At least one APPROVED item is required.`);
+      }
+
+      // HARD VALIDATION: Require at least one terminal checklist item
+      const terminalItems = [];
+      for (const item of this.checklist) {
+        const status = (item.status || '').toUpperCase();
+        if (terminalStatuses.includes(status)) {
+          terminalItems.push({
+            id: item.id || 'unknown',
+            status: status,
+            action: item.action || item.actionType || 'unknown',
+            symbol: item.symbol || 'unknown'
+          });
+        }
+      }
+
+      if (terminalItems.length === 0) {
+        const violationMessage = `HARD VALIDATION VIOLATION: Cannot mark discussion as DECIDED: Discussion ${this.id} has no terminal checklist items. A discussion must have at least one terminal checklist item (APPROVED, REJECTED, ACCEPT_REJECTION, or EXECUTED) before it can be marked as DECIDED.`;
+        
+        console.error(`[DiscussionRoom.setDecision] ${violationMessage}`);
+        throw new Error(`Cannot mark as DECIDED: Discussion has no terminal checklist items. At least one terminal item is required.`);
       }
     }
     

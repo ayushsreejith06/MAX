@@ -21926,3 +21926,403 @@
   "averageScore": 48.475
 }
 
+[2025-12-13T23:49:38.876Z] [managerEvaluateChecklist] Starting evaluation for discussion 499c8187-debd-4b58-b305-6381dae25a9a
+{
+  "discussionId": "499c8187-debd-4b58-b305-6381dae25a9a",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:49:38.887Z] [evaluateChecklistItem] Item checklist-499c8187-debd-4b58-b305-6381dae25a9a-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-499c8187-debd-4b58-b305-6381dae25a9a-0",
+  "rawItemContent": {
+    "id": "checklist-499c8187-debd-4b58-b305-6381dae25a9a-0",
+    "action": "buy",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+    "confidence": 65,
+    "workerConfidence": 65,
+    "amount": 20,
+    "round": 1,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.24,
+  "computedConfidence": 65,
+  "computedRiskLevel": 17.86,
+  "alignmentWithSectorGoal": 61.5,
+  "finalDecisionScore": 48.475,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 65,
+    "expectedImpact": 0.24,
+    "riskLevel": 17.86,
+    "alignmentWithSectorGoal": 61.5,
+    "normalizedRiskScore": 82.14,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:49:46.887Z] [managerEvaluateChecklist] Starting evaluation for discussion 499c8187-debd-4b58-b305-6381dae25a9a
+{
+  "discussionId": "499c8187-debd-4b58-b305-6381dae25a9a",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:49:46.897Z] [evaluateChecklistItem] Item checklist-499c8187-debd-4b58-b305-6381dae25a9a-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-499c8187-debd-4b58-b305-6381dae25a9a-0",
+  "rawItemContent": {
+    "id": "checklist-499c8187-debd-4b58-b305-6381dae25a9a-0",
+    "action": "buy",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 65,
+    "workerConfidence": 65,
+    "amount": 20,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.24,
+  "computedConfidence": 65,
+  "computedRiskLevel": 17.86,
+  "alignmentWithSectorGoal": 61.5,
+  "finalDecisionScore": 48.475,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 65,
+    "expectedImpact": 0.24,
+    "riskLevel": 17.86,
+    "alignmentWithSectorGoal": 61.5,
+    "normalizedRiskScore": 82.14,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:49:46.961Z] [managerEvaluateChecklist] Starting evaluation for discussion 499c8187-debd-4b58-b305-6381dae25a9a
+{
+  "discussionId": "499c8187-debd-4b58-b305-6381dae25a9a",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:49:46.971Z] [evaluateChecklistItem] Item checklist-499c8187-debd-4b58-b305-6381dae25a9a-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-499c8187-debd-4b58-b305-6381dae25a9a-0",
+  "rawItemContent": {
+    "id": "checklist-499c8187-debd-4b58-b305-6381dae25a9a-0",
+    "action": "buy",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 65,
+    "workerConfidence": 65,
+    "amount": 20,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.24,
+  "computedConfidence": 65,
+  "computedRiskLevel": 17.86,
+  "alignmentWithSectorGoal": 61.5,
+  "finalDecisionScore": 48.475,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 65,
+    "expectedImpact": 0.24,
+    "riskLevel": 17.86,
+    "alignmentWithSectorGoal": 61.5,
+    "normalizedRiskScore": 82.14,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:50:35.972Z] [managerEvaluateChecklist] Starting evaluation for discussion 2196f293-d2ec-42c8-96b6-26743dc97755
+{
+  "discussionId": "2196f293-d2ec-42c8-96b6-26743dc97755",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:50:35.987Z] [evaluateChecklistItem] Item checklist-2196f293-d2ec-42c8-96b6-26743dc97755-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-2196f293-d2ec-42c8-96b6-26743dc97755-0",
+  "rawItemContent": {
+    "id": "checklist-2196f293-d2ec-42c8-96b6-26743dc97755-0",
+    "action": "hold",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 1,
+    "workerConfidence": 1,
+    "amount": 0,
+    "round": 1,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0,
+  "computedConfidence": 1,
+  "computedRiskLevel": 20.6,
+  "alignmentWithSectorGoal": 42.3,
+  "finalDecisionScore": 22.575000000000003,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 1,
+    "expectedImpact": 0,
+    "riskLevel": 20.6,
+    "alignmentWithSectorGoal": 42.3,
+    "normalizedRiskScore": 79.4,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:55:08.966Z] [managerEvaluateChecklist] Starting evaluation for discussion a635f3b5-096f-4f5b-b613-5d620fb78254
+{
+  "discussionId": "a635f3b5-096f-4f5b-b613-5d620fb78254",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:55:08.980Z] [evaluateChecklistItem] Item checklist-a635f3b5-096f-4f5b-b613-5d620fb78254-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-a635f3b5-096f-4f5b-b613-5d620fb78254-0",
+  "rawItemContent": {
+    "id": "checklist-a635f3b5-096f-4f5b-b613-5d620fb78254-0",
+    "action": "hold",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 1,
+    "workerConfidence": 1,
+    "amount": 0,
+    "round": 1,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0,
+  "computedConfidence": 1,
+  "computedRiskLevel": 20.6,
+  "alignmentWithSectorGoal": 42.3,
+  "finalDecisionScore": 22.575000000000003,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 1,
+    "expectedImpact": 0,
+    "riskLevel": 20.6,
+    "alignmentWithSectorGoal": 42.3,
+    "normalizedRiskScore": 79.4,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:55:13.282Z] [managerEvaluateChecklist] Starting evaluation for discussion ea31f444-2ecb-4bf7-990f-c3e5b2d16295
+{
+  "discussionId": "ea31f444-2ecb-4bf7-990f-c3e5b2d16295",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:55:13.290Z] [evaluateChecklistItem] Item checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0",
+  "rawItemContent": {
+    "id": "checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0",
+    "action": "buy",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 60,
+    "workerConfidence": 60,
+    "amount": 20,
+    "round": 1,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.24,
+  "computedConfidence": 60,
+  "computedRiskLevel": 18.86,
+  "alignmentWithSectorGoal": 60,
+  "finalDecisionScore": 46.3,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 60,
+    "expectedImpact": 0.24,
+    "riskLevel": 18.86,
+    "alignmentWithSectorGoal": 60,
+    "normalizedRiskScore": 81.14,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:55:21.008Z] [managerEvaluateChecklist] Starting evaluation for discussion ea31f444-2ecb-4bf7-990f-c3e5b2d16295
+{
+  "discussionId": "ea31f444-2ecb-4bf7-990f-c3e5b2d16295",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:55:21.024Z] [evaluateChecklistItem] Item checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0",
+  "rawItemContent": {
+    "id": "checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0",
+    "action": "buy",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 60,
+    "workerConfidence": 60,
+    "amount": 20,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.24,
+  "computedConfidence": 60,
+  "computedRiskLevel": 18.86,
+  "alignmentWithSectorGoal": 60,
+  "finalDecisionScore": 46.3,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 60,
+    "expectedImpact": 0.24,
+    "riskLevel": 18.86,
+    "alignmentWithSectorGoal": 60,
+    "normalizedRiskScore": 81.14,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+
+[2025-12-13T23:55:21.084Z] [managerEvaluateChecklist] Starting evaluation for discussion ea31f444-2ecb-4bf7-990f-c3e5b2d16295
+{
+  "discussionId": "ea31f444-2ecb-4bf7-990f-c3e5b2d16295",
+  "totalChecklistItems": 1,
+  "pendingItemsCount": 1,
+  "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+  "managerId": "399ba857-280d-4065-a3fc-eed6f1d15bf7"
+}
+
+[2025-12-13T23:55:21.095Z] [evaluateChecklistItem] Item checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0 evaluation complete: REJECTED
+{
+  "itemId": "checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0",
+  "rawItemContent": {
+    "id": "checklist-ea31f444-2ecb-4bf7-990f-c3e5b2d16295-0",
+    "action": "buy",
+    "reason": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "reasoning": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. | TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "confidence": 60,
+    "workerConfidence": 60,
+    "amount": 20,
+    "round": 4,
+    "agentId": "TECH_NVIDIA_ANALYST",
+    "agentName": "TECH_NVIDIA_ANALYST",
+    "workerProposal": null,
+    "status": "PENDING"
+  },
+  "computedExpectedImpact": 0.24,
+  "computedConfidence": 60,
+  "computedRiskLevel": 18.86,
+  "alignmentWithSectorGoal": 60,
+  "finalDecisionScore": 46.3,
+  "approvalThreshold": 70,
+  "isHardConstraintViolated": false,
+  "hardConstraintReason": null,
+  "finalDecision": "REJECTED",
+  "scoreBreakdown": {
+    "workerConfidence": 60,
+    "expectedImpact": 0.24,
+    "riskLevel": 18.86,
+    "alignmentWithSectorGoal": 60,
+    "normalizedRiskScore": 81.14,
+    "weights": {
+      "workerConfidence": 0.35,
+      "expectedImpact": 0.3,
+      "riskLevel": 0.2,
+      "alignmentWithSectorGoal": 0.15
+    }
+  }
+}
+

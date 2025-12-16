@@ -30,6 +30,16 @@ export type ChecklistItem = {
   // Manager decision metadata - authoritative state
   decisionBy?: string; // Manager ID who made the decision
   decidedAt?: string; // ISO timestamp when decision was made
+  // Refinement tracking
+  revisionCount?: number; // Number of times item has been revised
+  refinementLog?: Array<{
+    round: number;
+    action: 'REJECTED' | 'RESUBMITTED' | 'ACCEPT_REJECTION';
+    managerReason?: string;
+    reason?: string;
+    shouldReduceSize?: boolean;
+    timestamp: string;
+  }>; // Log of each refinement attempt
   rejectionReason?: {
     score?: number;
     approvalThreshold?: number;

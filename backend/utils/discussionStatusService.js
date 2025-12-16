@@ -84,6 +84,76 @@ function checkChecklistItemsTerminal(checklist) {
 }
 
 /**
+ * Count APPROVED checklist items
+ * @param {Array} checklist - Array of checklist items
+ * @returns {Object} { count: number, approvedItems: Array }
+ */
+function countApprovedItems(checklist) {
+  if (!Array.isArray(checklist) || checklist.length === 0) {
+    return { count: 0, approvedItems: [] };
+  }
+
+  const approvedItems = [];
+
+  for (const item of checklist) {
+    const status = (item.status || '').toUpperCase();
+    if (status === 'APPROVED') {
+      approvedItems.push({
+        id: item.id || 'unknown',
+        status: status,
+        action: item.action || item.actionType || 'unknown',
+        symbol: item.symbol || 'unknown'
+      });
+    }
+  }
+
+  return {
+    count: approvedItems.length,
+    approvedItems: approvedItems
+  };
+}
+
+/**
+ * Check if there is at least one terminal checklist item
+ * Terminal states: APPROVED, REJECTED, ACCEPT_REJECTION, EXECUTED
+ * @param {Array} checklist - Array of checklist items
+ * @returns {Object} { hasTerminal: boolean, terminalItems: Array, nonTerminalItems: Array }
+ */
+function checkHasTerminalItem(checklist) {
+  if (!Array.isArray(checklist) || checklist.length === 0) {
+    return { hasTerminal: false, terminalItems: [], nonTerminalItems: [] };
+  }
+
+  const terminalStatuses = ['APPROVED', 'REJECTED', 'ACCEPT_REJECTION', 'EXECUTED'];
+  const terminalItems = [];
+  const nonTerminalItems = [];
+
+  for (const item of checklist) {
+    const status = (item.status || '').toUpperCase();
+    const isTerminal = terminalStatuses.includes(status);
+    
+    const itemInfo = {
+      id: item.id || 'unknown',
+      status: status || 'PENDING',
+      action: item.action || item.actionType || 'unknown',
+      symbol: item.symbol || 'unknown'
+    };
+
+    if (isTerminal) {
+      terminalItems.push(itemInfo);
+    } else {
+      nonTerminalItems.push(itemInfo);
+    }
+  }
+
+  return {
+    hasTerminal: terminalItems.length > 0,
+    terminalItems: terminalItems,
+    nonTerminalItems: nonTerminalItems
+  };
+}
+
+/**
  * Check if all ACCEPTED (APPROVED) checklist items have been executed
  * @param {Array} checklist - Array of checklist items
  * @returns {Object} { allExecuted: boolean, unexecutedItems: Array }
@@ -284,20 +354,68 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
     }
 
     if (hasChecklistItems) {
+      // GUARD: Explicit check for PENDING status items before allowing transition to DECIDED
+      const pendingItems = [];
+      for (const item of discussionRoom.checklist) {
+        const status = (item.status || '').toUpperCase();
+        if (status === 'PENDING') {
+          pendingItems.push({
+            id: item.id || 'unknown',
+            status: 'PENDING',
+            action: item.action || item.actionType || 'unknown',
+            symbol: item.symbol || 'unknown'
+          });
+        }
+      }
+
+      if (pendingItems.length > 0) {
+        const pendingItemIds = pendingItems.map(item => item.id).join(', ');
+        const pendingItemDetails = pendingItems.map(item => 
+          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
+        ).join('\n');
+        
+        const errorMessage = `Cannot mark discussion DECIDED while checklist items are pending`;
+        const warning = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with status PENDING. All items must be resolved (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
+        
+        console.warn(`[DiscussionStatusService] ${warning}`);
+        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${warning}`);
+        throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
+      }
+
       // First check: All items must be in terminal approval states
       const checklistCheck = checkChecklistItemsTerminal(discussionRoom.checklist);
       
       if (!checklistCheck.allTerminal) {
-        const pendingItemIds = checklistCheck.pendingItems.map(item => item.id).join(', ');
-        const pendingItemDetails = checklistCheck.pendingItems.map(item => 
+        const nonTerminalItemIds = checklistCheck.pendingItems.map(item => item.id).join(', ');
+        const nonTerminalItemDetails = checklistCheck.pendingItems.map(item => 
           `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
         ).join('\n');
         
-        const warning = `Cannot transition discussion to DECIDED: Discussion ${discussionId} has ${checklistCheck.pendingItems.length} pending checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
+        const warning = `Cannot transition discussion to DECIDED: Discussion ${discussionId} has ${checklistCheck.pendingItems.length} non-terminal checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nNon-terminal items:\n${nonTerminalItemDetails}`;
         
         console.warn(`[DiscussionStatusService] ${warning}`);
         logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${warning}`);
-        throw new Error(`Cannot transition to DECIDED: ${checklistCheck.pendingItems.length} checklist item(s) still pending (IDs: ${pendingItemIds}).`);
+        throw new Error(`Cannot transition to DECIDED: ${checklistCheck.pendingItems.length} checklist item(s) still in non-terminal states (IDs: ${nonTerminalItemIds}).`);
+      }
+
+      // HARD VALIDATION: Require at least one APPROVED checklist item
+      const approvedCheck = countApprovedItems(discussionRoom.checklist);
+      if (approvedCheck.count === 0) {
+        const violationMessage = `HARD VALIDATION VIOLATION: Cannot transition discussion to DECIDED: Discussion ${discussionId} has zero APPROVED checklist items. A discussion must have at least one APPROVED checklist item before it can be marked as DECIDED.`;
+        
+        console.error(`[DiscussionStatusService] ${violationMessage}`);
+        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
+        throw new Error(`Cannot transition to DECIDED: Discussion has zero APPROVED checklist items. At least one APPROVED item is required.`);
+      }
+
+      // HARD VALIDATION: Require at least one terminal checklist item
+      const terminalCheck = checkHasTerminalItem(discussionRoom.checklist);
+      if (!terminalCheck.hasTerminal) {
+        const violationMessage = `HARD VALIDATION VIOLATION: Cannot transition discussion to DECIDED: Discussion ${discussionId} has no terminal checklist items. A discussion must have at least one terminal checklist item (APPROVED, REJECTED, ACCEPT_REJECTION, or EXECUTED) before it can be marked as DECIDED.`;
+        
+        console.error(`[DiscussionStatusService] ${violationMessage}`);
+        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
+        throw new Error(`Cannot transition to DECIDED: Discussion has no terminal checklist items. At least one terminal item is required.`);
       }
 
       // Second check: All ACCEPTED (APPROVED) items must be EXECUTED
@@ -512,6 +630,8 @@ module.exports = {
   checkAndTransitionToAwaitingExecution,
   checkAndTransitionToDecided,
   checkChecklistItemsTerminal,
-  checkAcceptedItemsExecuted
+  checkAcceptedItemsExecuted,
+  countApprovedItems,
+  checkHasTerminalItem
 };
 

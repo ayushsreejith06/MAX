@@ -2133,18 +2133,39 @@ _clampConfidence(value) {
 
     const managerReason = item.managerReason || '';
     const revisionCount = item.revisionCount || 0;
+    const MAX_REFINEMENT_ROUNDS = 3;
 
     // Decision logic:
-    // 1. If idea rejected 2+ times → accept
-    if (revisionCount >= 2) {
+    // 1. If idea rejected 3+ times → accept (cap refinement rounds at 3)
+    if (revisionCount >= MAX_REFINEMENT_ROUNDS) {
       item.status = 'ACCEPT_REJECTION';
       item.requiresRevision = false;
-      console.log(`[Worker Response] Worker accepted rejection for item ${itemId} (rejected ${revisionCount} times)`);
+      // Log final acceptance
+      if (!item.refinementLog) {
+        item.refinementLog = [];
+      }
+      item.refinementLog.push({
+        round: revisionCount + 1,
+        action: 'ACCEPT_REJECTION',
+        reason: `Max refinement rounds (${MAX_REFINEMENT_ROUNDS}) reached`,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`[Worker Response] Worker accepted rejection for item ${itemId} (rejected ${revisionCount} times, max rounds ${MAX_REFINEMENT_ROUNDS} reached)`);
     }
     // 2. If hard constraint (rule violation) → accept
     else if (this.isHardConstraint(managerReason)) {
       item.status = 'ACCEPT_REJECTION';
       item.requiresRevision = false;
+      // Log hard constraint acceptance
+      if (!item.refinementLog) {
+        item.refinementLog = [];
+      }
+      item.refinementLog.push({
+        round: revisionCount + 1,
+        action: 'ACCEPT_REJECTION',
+        reason: `Hard constraint violation: ${managerReason}`,
+        timestamp: new Date().toISOString()
+      });
       console.log(`[Worker Response] Worker accepted rejection for item ${itemId} (hard constraint: ${managerReason})`);
     }
     // 3. If managerReason is fixable → revise
@@ -2174,6 +2195,18 @@ _clampConfidence(value) {
       item.requiresRevision = false;
       item.revisedAt = new Date().toISOString();
       
+      // Log refinement attempt
+      if (!item.refinementLog) {
+        item.refinementLog = [];
+      }
+      item.refinementLog.push({
+        round: item.revisionCount,
+        action: 'RESUBMITTED',
+        managerReason: managerReason,
+        shouldReduceSize: shouldReduceSize,
+        timestamp: item.revisedAt
+      });
+      
       // Clear manager decision for this item (will be re-evaluated)
       if (Array.isArray(discussionRoom.managerDecisions)) {
         const decisionIndex = discussionRoom.managerDecisions.findIndex(d => 
@@ -2185,7 +2218,7 @@ _clampConfidence(value) {
       }
 
       const sizeNote = shouldReduceSize ? ' with reduced size' : '';
-      console.log(`[Worker Response] Worker revised item ${itemId}${sizeNote} (revision ${item.revisionCount})`);
+      console.log(`[Worker Response] Worker revised item ${itemId}${sizeNote} (revision ${item.revisionCount}/${MAX_REFINEMENT_ROUNDS})`);
     }
 
     // Update the item in checklist

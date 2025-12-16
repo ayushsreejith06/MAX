@@ -41,7 +41,8 @@ const getApiBase = () => {
 };
 
 const API_BASE = getApiBase();
-const BACKEND = getBackendBaseUrl();
+// Don't call getBackendBaseUrl() at module level - it should be called dynamically
+// to handle SSR vs client-side differences properly
 
 function unwrapPayload<T>(payload: ApiPayload<T>): T {
   if (payload && typeof payload === 'object' && 'data' in payload) {
@@ -70,7 +71,7 @@ async function request<T>(
   try {
     // Get API base URL dynamically (handles desktop vs web mode)
     const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
-    const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
+    const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : (process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000');
     const fullUrl = `${apiBase}${path}`;
     
     // Debug logging (always log to help debug issues)
@@ -135,7 +136,7 @@ async function request<T>(
       if (isNetworkError) {
         // Always use dynamic detection for error messages
         const apiBase = typeof window !== 'undefined' ? getApiBaseUrl() : API_BASE;
-        const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
+        const backendUrl = typeof window !== 'undefined' ? getBackendBaseUrl() : (process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000');
         const fullUrl = `${apiBase}${path}`;
         
         // Log more details
@@ -1478,7 +1479,7 @@ export async function executeManagerExecutionList(managerId: string): Promise<{
 export async function clearAllDiscussions(): Promise<{ success: boolean; deletedCount: number }> {
   try {
     // Use backend base URL directly since debug routes are not under /api
-    const backendBase = typeof window !== 'undefined' ? getBackendBaseUrl() : BACKEND;
+    const backendBase = typeof window !== 'undefined' ? getBackendBaseUrl() : (process.env.NEXT_PUBLIC_MAX_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000');
     const fullUrl = `${backendBase}/debug/discussions/clear`;
     
     const response = await rateLimitedFetch(
