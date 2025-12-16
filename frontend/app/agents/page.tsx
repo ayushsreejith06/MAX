@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect, memo, useRef, useCallback, Suspense } from 'react';
-import { Activity, Filter, Search, Target, UsersRound, Zap, Trash2, Settings } from 'lucide-react';
+import { Activity, Search, Target, UsersRound, Zap, Trash2, Settings } from 'lucide-react';
 import isEqual from 'lodash.isequal';
 import { fetchAgents, fetchSectors, deleteAgent, isRateLimitError, isSkippedResult } from '@/lib/api';
 import type { Agent, Sector } from '@/lib/types';
@@ -15,26 +15,28 @@ type AgentWithSector = Agent & {
   sectorName: string;
 };
 
-const statusFilters: Array<{ id: 'all' | Agent['status']; label: string; accent?: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'THINKING', label: 'Thinking', accent: 'text-warning-amber' },
-  { id: 'DISCUSSING', label: 'Discussing', accent: 'text-blue-400' },
-  { id: 'EXECUTING', label: 'Executing', accent: 'text-purple-400' },
-  { id: 'IDLE', label: 'Idle', accent: 'text-floral-white/70' },
-  // Legacy statuses for backward compatibility
-  { id: 'active', label: 'Live', accent: 'text-sage-green' },
-  { id: 'processing', label: 'Processing', accent: 'text-warning-amber' },
-  { id: 'idle', label: 'Idle', accent: 'text-floral-white/70' },
-];
+// Helper function to normalize agent status to ACTIVE or IDLE
+function normalizeAgentStatus(status: string | undefined): 'ACTIVE' | 'IDLE' {
+  if (!status) return 'IDLE';
+  const upperStatus = status.toUpperCase();
+  // Map all active statuses to ACTIVE
+  if (upperStatus === 'ACTIVE' || upperStatus === 'THINKING' || upperStatus === 'DISCUSSING' || 
+      upperStatus === 'EXECUTING' || upperStatus === 'PROCESSING' || upperStatus === 'LIVE') {
+    return 'ACTIVE';
+  }
+  // Everything else is IDLE
+  return 'IDLE';
+}
 
 const statusPills: Record<string, string> = {
-  THINKING: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40',
-  DISCUSSING: 'bg-blue-500/15 text-blue-400 border border-blue-500/40',
-  EXECUTING: 'bg-purple-500/15 text-purple-400 border border-purple-500/40',
+  ACTIVE: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
   IDLE: 'bg-muted-text/10 text-floral-white border border-muted-text/20',
-  // Legacy statuses for backward compatibility
+  // Legacy mappings for backward compatibility (all map to ACTIVE or IDLE)
+  THINKING: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
+  DISCUSSING: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
+  EXECUTING: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
   active: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
-  processing: 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40',
+  processing: 'bg-sage-green/15 text-sage-green border border-sage-green/40',
   idle: 'bg-muted-text/10 text-floral-white border border-muted-text/20',
 };
 
@@ -92,8 +94,8 @@ const AgentRow = memo(function AgentRow({
             </div>
           )}
         </div>
-        <span className={`rounded-full px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${statusPills[agent.status]}`}>
-          {agent.status}
+        <span className={`rounded-full px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] ${statusPills[normalizeAgentStatus(agent.status)] || statusPills.IDLE}`}>
+          {normalizeAgentStatus(agent.status)}
         </span>
       </button>
       {!isManager && (
@@ -132,7 +134,7 @@ export default function Agents() {
   const [agents, setAgents] = useState<AgentWithSector[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<(typeof statusFilters)[number]['id']>('all');
+  // Status filter removed - no longer needed
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -248,15 +250,14 @@ export default function Agents() {
 
   const filteredAgents = useMemo(() => {
     return agents.filter(agent => {
-      const matchesStatus = statusFilter === 'all' || agent.status === statusFilter;
       const matchesSearch =
         !searchQuery ||
         agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         agent.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
         agent.sectorSymbol.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+      return matchesSearch;
     });
-  }, [agents, searchQuery, statusFilter]);
+  }, [agents, searchQuery]);
 
   // Use a stable string representation of filtered agent IDs to prevent loops
   const filteredAgentIds = useMemo(() => {
@@ -277,28 +278,17 @@ export default function Agents() {
 
   const heroStats = useMemo(() => {
     const total = agents.length;
-    // Count agents by new status values
-    const thinkingAgents = agents.filter(agent => agent.status === 'THINKING').length;
-    const discussingAgents = agents.filter(agent => agent.status === 'DISCUSSING').length;
-    const executingAgents = agents.filter(agent => agent.status === 'EXECUTING').length;
-    const idleAgents = agents.filter(agent => agent.status === 'IDLE' || agent.status === 'idle').length;
-    // Legacy status counts for backward compatibility
-    const live = agents.filter(agent => agent.status === 'active').length;
-    const processingAgents = agents.filter(agent => agent.status === 'processing').length;
-    // Active agents = thinking + discussing + executing (not idle)
-    const activeAgents = thinkingAgents + discussingAgents + executingAgents + live + processingAgents;
+    // Count agents by normalized status (ACTIVE or IDLE only)
+    const activeAgents = agents.filter(agent => normalizeAgentStatus(agent.status) === 'ACTIVE').length;
+    const idleAgents = agents.filter(agent => normalizeAgentStatus(agent.status) === 'IDLE').length;
     const readiness = total ? Math.round((activeAgents / total) * 100) : 0;
     const avgPerformance = total
       ? (agents.reduce((sum, agent) => sum + agent.performance, 0) / total).toFixed(2)
       : '0.00';
     return {
       total,
-      live: activeAgents, // Total active agents (thinking + discussing + executing + legacy active/processing)
-      thinking: thinkingAgents,
-      discussing: discussingAgents,
-      executing: executingAgents,
+      live: activeAgents, // Total active agents
       idle: idleAgents,
-      processing: processingAgents, // Legacy
       readiness,
       avgPerformance,
     };
@@ -474,21 +464,6 @@ export default function Agents() {
 
         <div className="rounded-3xl border border-ink-500 bg-card-bg/80 p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {statusFilters.map(filter => (
-                <button
-                  key={filter.id}
-                  onClick={() => setStatusFilter(filter.id)}
-                  className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
-                    statusFilter === filter.id
-                      ? 'border-sage-green bg-sage-green text-pure-black'
-                      : 'border-ink-500 bg-transparent text-floral-white/70 hover:border-sage-green/50'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 rounded-2xl border border-ink-500 bg-pure-black/50 px-4 py-2">
                 <Search className="h-4 w-4 text-floral-white/40" />
@@ -499,10 +474,6 @@ export default function Agents() {
                   className="bg-transparent text-sm text-floral-white outline-none placeholder:text-floral-white/40"
                 />
               </div>
-              <button className="flex items-center gap-2 rounded-2xl border border-ink-500 px-4 py-2 text-xs uppercase tracking-[0.3em] text-floral-white/70">
-                <Filter className="h-4 w-4" />
-                Advanced Filters
-              </button>
             </div>
           </div>
 
@@ -603,8 +574,8 @@ export default function Agents() {
                   <div className="rounded-xl border border-ink-500/60 bg-card-bg/60 p-3">
                     <p className="text-[0.6rem] uppercase tracking-[0.3em] text-floral-white/50">Activity Status</p>
                     <div className="mt-2">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${statusPills[selectedAgent.status]}`}>
-                        {selectedAgent.status}
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${statusPills[normalizeAgentStatus(selectedAgent.status)] || statusPills.IDLE}`}>
+                        {normalizeAgentStatus(selectedAgent.status)}
                       </span>
                     </div>
                   </div>

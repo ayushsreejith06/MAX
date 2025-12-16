@@ -33,17 +33,23 @@ const AgentRow = memo(function AgentRow({
   isManager: boolean;
   isPerformanceHighlighted?: boolean;
 }) {
-  const statusColors = {
-    THINKING: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
-    DISCUSSING: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
-    EXECUTING: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
-    IDLE: 'bg-floral-white/10 text-floral-white/70 border-floral-white/30',
-    // Legacy statuses for backward compatibility
-    active: 'bg-sage-green/20 text-sage-green border-sage-green/50',
-    idle: 'bg-warning-amber/20 text-warning-amber border-warning-amber/50',
-    processing: 'bg-sky-blue/20 text-sky-blue border-sky-blue/50',
+  // Helper function to normalize agent status to ACTIVE or IDLE
+  const normalizeAgentStatus = (status: string | undefined): 'ACTIVE' | 'IDLE' => {
+    if (!status) return 'IDLE';
+    const upperStatus = status.toUpperCase();
+    if (upperStatus === 'ACTIVE' || upperStatus === 'THINKING' || upperStatus === 'DISCUSSING' || 
+        upperStatus === 'EXECUTING' || upperStatus === 'PROCESSING' || upperStatus === 'LIVE') {
+      return 'ACTIVE';
+    }
+    return 'IDLE';
   };
-  const statusColor = statusColors[agent.status as keyof typeof statusColors] || statusColors.IDLE;
+
+  const statusColors = {
+    ACTIVE: 'bg-sage-green/20 text-sage-green border-sage-green/50',
+    IDLE: 'bg-floral-white/10 text-floral-white/70 border-floral-white/30',
+  };
+  const normalizedStatus = normalizeAgentStatus(agent.status);
+  const statusColor = statusColors[normalizedStatus] || statusColors.IDLE;
   const agentDisplayName = agent.displayName || agent.name || agent.id;
   const formattedRole = agent.role
     ? agent.role.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -78,7 +84,7 @@ const AgentRow = memo(function AgentRow({
       </td>
       <td className="px-4 py-3 text-center">
         <span className={`inline-block px-2 py-1 rounded text-xs font-mono uppercase tracking-wider ${statusColor}`}>
-          {agent.status}
+          {normalizedStatus}
         </span>
       </td>
       <td className={`px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums ${

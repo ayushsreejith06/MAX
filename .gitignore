@@ -24,6 +24,7 @@ node_modules/
 
 # Next.js
 .next/
+.next/trace
 out/
 build/
 dist/
@@ -51,6 +52,8 @@ backend/storage/*.json
 backend/logs/
 backend/trace/
 backend/**/*.log
+backend/agents.json
+backend/sectors.json
 
 frontend/next/trace/
 frontend/next/**/*.log

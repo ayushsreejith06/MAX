@@ -13,7 +13,7 @@ export interface ValuationHistoryPoint {
   changePercent?: number;
 }
 
-export type AgentStatus = 'IDLE' | 'THINKING' | 'DISCUSSING' | 'EXECUTING' | 'active' | 'idle' | 'processing' | string;
+export type AgentStatus = 'IDLE' | 'ACTIVE' | string; // Only IDLE and ACTIVE are valid statuses
 
 export interface AgentPersonality {
   riskTolerance: string;
