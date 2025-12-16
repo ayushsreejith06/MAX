@@ -30,148 +30,6 @@
     },
     "memory": [
       {
-        "timestamp": 1765675338516,
-        "type": "observation",
-        "data": {},
-        "reasoning": null,
-        "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-        "decision": {
-          "action": "HOLD",
-          "confidence": 0.5,
-          "rationale": "Majority vote: 1 agents voted HOLD",
-          "reason": "Majority vote: 1 agents voted HOLD",
-          "voteBreakdown": {
-            "BUY": 0,
-            "SELL": 0,
-            "HOLD": 1
-          },
-          "conflictScore": 0,
-          "timestamp": 1765675338572
-        },
-        "sectorData": {
-          "id": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-          "sectorName": "tech",
-          "currentPrice": 100
-        }
-      },
-      {
-        "timestamp": 1765675338516,
-        "type": "observation",
-        "data": {},
-        "reasoning": null,
-        "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-        "decision": {
-          "action": "HOLD",
-          "confidence": 0.5,
-          "rationale": "Majority vote: 1 agents voted HOLD",
-          "reason": "Majority vote: 1 agents voted HOLD",
-          "voteBreakdown": {
-            "BUY": 0,
-            "SELL": 0,
-            "HOLD": 1
-          },
-          "conflictScore": 0,
-          "timestamp": 1765675338572
-        },
-        "sectorData": {
-          "id": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
-          "sectorName": "tech",
-          "currentPrice": 100
-        }
-      },
-      {
-        "timestamp": 1765675341528,
-        "type": "reasoning",
-        "data": {
-          "tickTimestamp": 1765675341528,
-          "context": {
-            "decision": {
-              "action": "HOLD",
-              "confidence": 0.5,
-              "rationale": "Majority vote: 1 agents voted HOLD",
-              "reason": "Majority vote: 1 agents voted HOLD",
-              "voteBreakdown": {
-                "BUY": 0,
-                "SELL": 0,
-                "HOLD": 1
-              },
-              "conflictScore": 0,
-              "timestamp": 1765675341528
-            },
-            "signals": [
-              {
-                "action": "HOLD",
-                "confidence": 0.5,
-                "agentId": "TECH_NVIDIA_ANALYST",
-                "winRate": 0
-              }
-            ]
-          }
-        },
-        "reasoning": "Majority vote: 1 agents voted HOLD"
-      },
-      {
-        "timestamp": 1765675341528,
-        "type": "reasoning",
-        "data": {
-          "tickTimestamp": 1765675341528,
-          "context": {
-            "decision": {
-              "action": "HOLD",
-              "confidence": 0.5,
-              "rationale": "Majority vote: 1 agents voted HOLD",
-              "reason": "Majority vote: 1 agents voted HOLD",
-              "voteBreakdown": {
-                "BUY": 0,
-                "SELL": 0,
-                "HOLD": 1
-              },
-              "conflictScore": 0,
-              "timestamp": 1765675341528
-            },
-            "signals": [
-              {
-                "action": "HOLD",
-                "confidence": 0.5,
-                "agentId": "TECH_NVIDIA_ANALYST",
-                "winRate": 0
-              }
-            ]
-          }
-        },
-        "reasoning": "Majority vote: 1 agents voted HOLD"
-      },
-      {
-        "timestamp": 1765675341528,
-        "type": "decision",
-        "data": {
-          "action": "HOLD",
-          "confidence": 0.5,
-          "voteBreakdown": {
-            "BUY": 0,
-            "SELL": 0,
-            "HOLD": 1
-          },
-          "conflictScore": 0
-        },
-        "reasoning": "Majority vote: 1 agents voted HOLD"
-      },
-      {
-        "timestamp": 1765675341528,
-        "type": "decision",
-        "data": {
-          "action": "HOLD",
-          "confidence": 0.5,
-          "voteBreakdown": {
-            "BUY": 0,
-            "SELL": 0,
-            "HOLD": 1
-          },
-          "conflictScore": 0
-        },
-        "reasoning": "Majority vote: 1 agents voted HOLD"
-      },
-      {
         "timestamp": 1765675341516,
         "type": "observation",
         "data": {},
@@ -23680,6 +23538,148 @@
       },
       {
         "timestamp": 1765845432310,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 1
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 1 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765845432299,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 1 agents voted HOLD",
+          "reason": "Majority vote: 1 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 1
+          },
+          "conflictScore": 0,
+          "timestamp": 1765845432310
+        },
+        "sectorData": {
+          "id": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+          "sectorName": "tech",
+          "currentPrice": 100
+        }
+      },
+      {
+        "timestamp": 1765845432299,
+        "type": "observation",
+        "data": {},
+        "reasoning": null,
+        "sectorId": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+        "decision": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "rationale": "Majority vote: 1 agents voted HOLD",
+          "reason": "Majority vote: 1 agents voted HOLD",
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 1
+          },
+          "conflictScore": 0,
+          "timestamp": 1765845432310
+        },
+        "sectorData": {
+          "id": "123f39c3-7177-4cb1-b3f8-51e73dea7405",
+          "sectorName": "tech",
+          "currentPrice": 100
+        }
+      },
+      {
+        "timestamp": 1765845435362,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765845435362,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 1 agents voted HOLD",
+              "reason": "Majority vote: 1 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 1
+              },
+              "conflictScore": 0,
+              "timestamp": 1765845435362
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_NVIDIA_ANALYST",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 1 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765845435362,
+        "type": "reasoning",
+        "data": {
+          "tickTimestamp": 1765845435362,
+          "context": {
+            "decision": {
+              "action": "HOLD",
+              "confidence": 0.5,
+              "rationale": "Majority vote: 1 agents voted HOLD",
+              "reason": "Majority vote: 1 agents voted HOLD",
+              "voteBreakdown": {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 1
+              },
+              "conflictScore": 0,
+              "timestamp": 1765845435362
+            },
+            "signals": [
+              {
+                "action": "HOLD",
+                "confidence": 0.5,
+                "agentId": "TECH_NVIDIA_ANALYST",
+                "winRate": 0
+              }
+            ]
+          }
+        },
+        "reasoning": "Majority vote: 1 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765845435362,
+        "type": "decision",
+        "data": {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "voteBreakdown": {
+            "BUY": 0,
+            "SELL": 0,
+            "HOLD": 1
+          },
+          "conflictScore": 0
+        },
+        "reasoning": "Majority vote: 1 agents voted HOLD"
+      },
+      {
+        "timestamp": 1765845435362,
         "type": "decision",
         "data": {
           "action": "HOLD",
@@ -23705,9 +23705,9 @@
         "HOLD": 1
       },
       "conflictScore": 0,
-      "timestamp": 1765845432310
+      "timestamp": 1765845435362
     },
-    "lastDecisionAt": 1765845432310,
+    "lastDecisionAt": 1765845435362,
     "morale": 50,
     "rewardPoints": 0,
     "lastRewardTimestamp": null,
