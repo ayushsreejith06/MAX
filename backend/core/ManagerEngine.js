@@ -215,6 +215,14 @@ class ManagerEngine {
     };
     this._writeDebugLog(`[evaluateChecklistItem] Item ${item.id} evaluation complete: ${status}`, debugData);
 
+    // Determine if refinement should be recommended
+    // Hard constraints are terminal (no refinement), but score-based rejections may be fixable
+    // Recommend refinement if the score gap is small enough to be potentially fixable
+    // and it's not a hard constraint violation
+    const recommendRefinement = status === 'REJECTED' && 
+                                !isHardConstraintViolated && 
+                                scoreGap < 30; // Only recommend if gap is fixable (< 30 points)
+
     return {
       status: status,
       managerReason: managerReason,
@@ -225,7 +233,8 @@ class ManagerEngine {
         expectedImpact,
         riskLevel,
         alignmentWithSectorGoal
-      }
+      },
+      recommendRefinement: recommendRefinement
     };
   }
 
@@ -343,7 +352,7 @@ class ManagerEngine {
       throw new Error(`Discussion ${discussionId} not found`);
     }
 
-    const discussionRoom = DiscussionRoom.fromData(discussionData);
+    let discussionRoom = DiscussionRoom.fromData(discussionData);
 
     // Ensure discussion is in_progress (not decided/closed)
     if (discussionRoom.status === 'decided' || discussionRoom.status === 'CLOSED' || discussionRoom.status === 'closed') {
@@ -375,7 +384,8 @@ class ManagerEngine {
       };
       this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No checklist items`, debugData);
       
-      return discussionRoom;
+      // No early return - continue to validation and potential discussion closing
+      // This ensures the invariant check still runs even with no checklist items
     }
 
     // FAILSAFE: Check for items that have been stuck too long and force-resolve them
@@ -419,6 +429,7 @@ class ManagerEngine {
 
     // Filter for PENDING and RESUBMITTED items (RESUBMITTED items need re-evaluation after worker revision)
     // Also include items without status (should be treated as PENDING)
+    // HARD INVARIANT: ALL PENDING items MUST be evaluated - no skipping allowed
     const pendingItems = discussionRoom.checklist.filter(item => {
       const status = (item.status || '').toUpperCase();
       return !item.status || 
@@ -426,40 +437,6 @@ class ManagerEngine {
              status === 'RESUBMITTED' ||
              (status === 'REVISE_REQUIRED' && !item.requiresRevision); // Items that were REVISE_REQUIRED but worker hasn't responded yet
     });
-
-    // CRITICAL: If no pending items but discussion has items, check if any need evaluation
-    // This ensures we don't skip items that should be evaluated
-    if (pendingItems.length === 0) {
-      // Check if there are any items that might need re-evaluation
-      const allItems = discussionRoom.checklist || [];
-      const hasUnevaluatedItems = allItems.some(item => {
-        const status = (item.status || '').toUpperCase();
-        // Items without status, or items that were auto-evaluated but might need manager review
-        return !item.status || !item.evaluatedAt || !item.managerReason;
-      });
-      
-      if (!hasUnevaluatedItems) {
-        console.log(`[ManagerEngine] No PENDING items to evaluate for discussion ${discussionId}`);
-        
-        // DEBUG LOG: No pending items
-        const debugData = {
-          discussionId: discussionId,
-          checklistLength: discussionRoom.checklist.length,
-          pendingItemsCount: 0,
-          reason: 'No PENDING items to evaluate',
-          allItemStatuses: discussionRoom.checklist.map(item => ({ id: item.id, status: item.status }))
-        };
-        this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No pending items`, debugData);
-        
-        // Even if no pending items, check if discussion can close
-        if (this.canDiscussionClose(discussionRoom)) {
-          console.log(`[ManagerEngine] Discussion ${discussionId} can close - all items resolved. Auto-closing...`);
-          return await this.closeDiscussion(discussionId);
-        }
-        
-        return discussionRoom;
-      }
-    }
 
     console.log(`[ManagerEngine] Evaluating ${pendingItems.length} PENDING checklist items for discussion ${discussionId}`);
 
@@ -477,34 +454,29 @@ class ManagerEngine {
       discussionRoom.managerDecisions = [];
     }
 
-    // Evaluate each PENDING item explicitly
+    // HARD INVARIANT: Evaluate each PENDING item explicitly - NO SKIPPING ALLOWED
     const managerDecisions = [];
     const updatedChecklist = [];
     const evaluationResults = [];
 
-    // Iterate through all checklist items, evaluating only PENDING ones
-    for (const item of discussionRoom.checklist) {
-      // Skip items that are not PENDING or RESUBMITTED
-      const itemStatus = (item.status || '').toUpperCase();
-      const shouldEvaluate = !item.status || 
-                            itemStatus === ChecklistStatus.PENDING || 
-                            itemStatus === 'RESUBMITTED' ||
-                            (itemStatus === 'REVISE_REQUIRED' && !item.requiresRevision);
-      
-      if (!shouldEvaluate) {
-        // Keep existing decision if any
-        const existingDecision = discussionRoom.managerDecisions.find(
-          decision => decision.item && decision.item.id === item.id
-        );
-        if (existingDecision) {
-          managerDecisions.push(existingDecision);
-        }
-        updatedChecklist.push(item);
-        continue;
+    // STEP 1: Iterate through ALL PENDING items and evaluate each one explicitly
+    // FORBIDDEN: Skipping items, early returns, or leaving items untouched
+    for (const item of pendingItems) {
+      // CRITICAL: Each PENDING item MUST be evaluated - no continue/break allowed here
+      if (!item || !item.id) {
+        console.warn(`[ManagerEngine] Skipping invalid pending item (missing id)`);
+        continue; // Only allowed for invalid items
       }
 
-      // Evaluate the item
+      // Evaluate the item - this MUST produce APPROVED or REJECTED with decisionReason
       const evaluation = await this.evaluateChecklistItem(manager, item, sector);
+      
+      // VALIDATION: Ensure evaluation has required fields
+      if (!evaluation.status || !evaluation.managerReason) {
+        console.error(`[ManagerEngine] CRITICAL: Evaluation for item ${item.id} missing status or managerReason. Forcing rejection.`);
+        evaluation.status = 'REJECTED';
+        evaluation.managerReason = evaluation.managerReason || 'Manager auto-resolution: Evaluation missing required fields';
+      }
 
       // FAILSAFE: If score is below threshold, ensure it's rejected
       // This is a double-check to ensure low-scoring items are never approved
@@ -1169,57 +1141,26 @@ class ManagerEngine {
       const { validateMarketDataForDiscussion } = require('../utils/marketDataValidation');
       sector = await validateMarketDataForDiscussion(sector);
 
-      // VALIDATION 1: INVARIANT GUARD - Check if there are any IN_PROGRESS discussions for this sector
+      // VALIDATION 1: INVARIANT GUARD - Check if there are any active discussions for this sector
       // Per sector, there can only be one discussion at a time
-      // A new discussion is allowed only when ALL previous discussions are DECIDED or CLOSED
-      const { hasNonClosedDiscussions, loadDiscussions } = require('../utils/discussionStorage');
-      const existingDiscussions = await loadDiscussions();
-      const sectorDiscussions = existingDiscussions.filter(d => d.sectorId === sectorId);
+      // A new discussion is allowed ONLY when ALL previous discussions are CLOSED
+      // DECIDED discussions still block new discussions until they are CLOSED
+      const { hasActiveDiscussion } = require('../utils/discussionStorage');
+      const { hasActive, activeDiscussion } = await hasActiveDiscussion(sectorId);
       
-      // Check for IN_PROGRESS discussions (the critical invariant)
-      const inProgressDiscussions = sectorDiscussions.filter(d => {
-        const status = (d.status || '').toUpperCase();
-        return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN';
-      });
-      
-      if (inProgressDiscussions.length > 0) {
-        const inProgressIds = inProgressDiscussions.map(d => d.id).join(', ');
-        const inProgressDetails = inProgressDiscussions.map(d => 
-          `  - ${d.id} (${d.status || 'unknown'}): ${d.title || 'Untitled'}`
-        ).join('\n');
-        
-        const errorMessage = `INVARIANT VIOLATION: Cannot create discussion while another discussion is IN_PROGRESS in the same sector`;
-        const violationMessage = `${errorMessage}: Cannot create discussion for sector ${sectorId} because there are ${inProgressDiscussions.length} IN_PROGRESS discussion(s). Per sector, there can only be one discussion at a time.\nIN_PROGRESS discussions:\n${inProgressDetails}`;
+      if (hasActive && activeDiscussion) {
+        const errorMessage = `INVARIANT VIOLATION: Cannot create discussion while another discussion is active in the same sector`;
+        const violationMessage = `${errorMessage}: Cannot create discussion for sector ${sectorId} because there is an active discussion (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Per sector, there can only be one discussion at a time. Only CLOSED discussions allow new discussions.`;
         
         console.error(`[ManagerEngine] HARD STOP - ${violationMessage}`);
         return { 
           created: false, 
-          discussion: DiscussionRoom.fromData(inProgressDiscussions[0]),
+          discussion: DiscussionRoom.fromData(activeDiscussion),
           error: errorMessage
         };
       }
       
-      // Also check for any other non-closed discussions (legacy check)
-      const hasActive = await hasNonClosedDiscussions(sectorId);
-      
-      if (hasActive) {
-        // Find the active discussion for logging
-        const activeDiscussion = sectorDiscussions.find(d => {
-          const status = (d.status || '').toUpperCase();
-          const closedStatuses = ['DECIDED', 'CLOSED', 'FINALIZED', 'ARCHIVED', 'ACCEPTED', 'COMPLETED'];
-          return !closedStatuses.includes(status);
-        });
-        
-        if (activeDiscussion) {
-          console.log(`[ManagerEngine] Cannot create discussion - Non-closed discussion exists for sector ${sectorId}: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
-          return { 
-            created: false, 
-            discussion: DiscussionRoom.fromData(activeDiscussion) 
-          };
-        }
-      } else {
-        console.log(`[ManagerEngine] ✓ No non-closed discussions found for sector ${sectorId}, proceeding with creation...`);
-      }
+      console.log(`[ManagerEngine] ✓ No active discussions found for sector ${sectorId}, proceeding with creation...`);
 
       // VALIDATION 2: Check sector balance > 0
       const sectorBalance = typeof sector.balance === 'number' ? sector.balance : 0;
@@ -2859,9 +2800,11 @@ class ManagerEngine {
   /**
    * Check if a discussion can be closed
    * Returns true only if ALL closure conditions are met:
-   * 1. No items remain with status: 'PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'
-   * 2. All checklist items are either: 'APPROVED' or 'REJECTED' (or 'ACCEPT_REJECTION' as terminal state)
-   * 3. Manager has emitted a final decision summary (finalDecision is set)
+   * 1. Discussion has messages (indicates actual discussion activity)
+   * 2. Discussion has checklist items (at least one item must exist)
+   * 3. No items remain with status: 'PENDING', 'REVISE_REQUIRED', 'RESUBMITTED'
+   * 4. All checklist items are either: 'APPROVED' or 'REJECTED' (or 'ACCEPT_REJECTION' as terminal state)
+   * 5. Manager has emitted a final decision summary (finalDecision is set)
    * 
    * @param {DiscussionRoom|Object} discussion - DiscussionRoom instance or discussion data object
    * @returns {boolean} True if discussion can be closed, false otherwise
@@ -2876,21 +2819,32 @@ class ManagerEngine {
       ? discussion 
       : DiscussionRoom.fromData(discussion);
 
+    // CRITICAL: Require messages - a discussion must have messages to be considered valid
+    const hasMessages = Array.isArray(discussionRoom.messages) && discussionRoom.messages.length > 0;
+    if (!hasMessages) {
+      console.log(`[canDiscussionClose] Discussion ${discussionRoom.id} cannot be closed: no messages`);
+      return false;
+    }
+
     const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
     const draftItems = Array.isArray(discussionRoom.checklistDraft) ? discussionRoom.checklistDraft : [];
+
+    // CRITICAL: Require checklist items - a discussion must have checklist items to be closed
+    // Empty discussions (no messages or no checklist items) should not be closed
+    if (allItems.length === 0 && draftItems.length === 0) {
+      console.log(`[canDiscussionClose] Discussion ${discussionRoom.id} cannot be closed: no checklist items`);
+      return false;
+    }
 
     const openDrafts = draftItems.filter(item => {
       const status = (item.status || '').toUpperCase();
       return status === '' || status === 'PENDING' || status === 'REVISE_REQUIRED' || status === 'RESUBMITTED';
     });
 
-    // If there are no checklist items AND no pending drafts, still require final decision
-    if (allItems.length === 0 && openDrafts.length === 0) {
-      // Even with no items, manager must emit final decision summary
-      if (!discussionRoom.finalDecision) {
-        return false;
-      }
-      return true;
+    // If there are pending drafts, cannot close
+    if (openDrafts.length > 0) {
+      console.log(`[canDiscussionClose] Discussion ${discussionRoom.id} cannot be closed: ${openDrafts.length} pending draft items`);
+      return false;
     }
 
     // Check for items with statuses that prevent closure
@@ -3047,10 +3001,40 @@ class ManagerEngine {
 
       // Save discussion with round history
       await saveDiscussion(discussionRoom);
-      
+
+      // CRITICAL VALIDATION: Before transitioning to DECIDED, ensure all requirements are met
+      // transitionStatus will validate, but we should also check here to provide better error messages
+      const hasMessages = Array.isArray(discussionRoom.messages) && discussionRoom.messages.length > 0;
+      if (!hasMessages) {
+        const error = `Cannot close discussion ${discussionId}: Discussion has no messages. A discussion must have messages before it can be marked as DECIDED.`;
+        console.error(`[ManagerEngine] ${error}`);
+        throw new Error(error);
+      }
+
+      const hasChecklistItems = Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0;
+      const hasChecklistDraft = Array.isArray(discussionRoom.checklistDraft) && discussionRoom.checklistDraft.length > 0;
+      if (!hasChecklistItems && !hasChecklistDraft) {
+        const error = `Cannot close discussion ${discussionId}: Discussion has no checklist items. A discussion must have checklist items before it can be marked as DECIDED.`;
+        console.error(`[ManagerEngine] ${error}`);
+        throw new Error(error);
+      }
+
+      // Check for pending checklist items - all must be in terminal states
+      if (hasChecklistItems) {
+        const { checkChecklistItemsTerminal } = require('../utils/discussionStatusService');
+        const checklistCheck = checkChecklistItemsTerminal(discussionRoom.checklist);
+        if (!checklistCheck.allTerminal) {
+          const pendingItemIds = checklistCheck.pendingItems.map(item => item.id).join(', ');
+          const error = `Cannot close discussion ${discussionId}: ${checklistCheck.pendingItems.length} checklist item(s) still in non-terminal states (IDs: ${pendingItemIds}). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.`;
+          console.error(`[ManagerEngine] ${error}`);
+          throw new Error(error);
+        }
+      }
+
       // State transition: IN_PROGRESS → DECIDED → CLOSED
       // First mark as DECIDED if not already, then mark as CLOSED
       // After CLOSED, the sector becomes eligible for a new discussion
+      // transitionStatus will perform additional validations (messages, checklist items, etc.)
       currentStatus = (discussionRoom.status || '').toUpperCase();
       if (currentStatus !== 'DECIDED' && currentStatus !== 'CLOSED') {
         await transitionStatus(discussionId, STATUS.DECIDED, 'Discussion ready to close');

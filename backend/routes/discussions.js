@@ -502,6 +502,24 @@ module.exports = async (fastify) => {
         });
       }
 
+      // Validate DECIDED discussion state: Check for pending items
+      // HARD RULE: DECIDED discussions CANNOT have pending checklist items
+      if (discussion.status === 'DECIDED' || discussion.status === 'decided') {
+        try {
+          const { fixInconsistentDecidedState } = require('../utils/discussionStatusService');
+          await fixInconsistentDecidedState(id);
+        } catch (validationError) {
+          // If validation fails, return error to client
+          const errorMessage = validationError.message || 'Invalid state: DECIDED discussion contains pending checklist items';
+          log(`[Discussions Route] Invalid DECIDED state for discussion ${id}: ${errorMessage}`);
+          return reply.status(500).send({
+            success: false,
+            error: errorMessage,
+            discussionId: id
+          });
+        }
+      }
+
       // Get proposed checklist items (from discussion.checklist)
       const rawChecklistItems = Array.isArray(discussion.checklist) ? discussion.checklist : [];
       log(`GET /discussions/${id}/checklist - Found ${rawChecklistItems.length} raw checklist items in discussion.checklist`);
@@ -1443,6 +1461,22 @@ module.exports = async (fastify) => {
         });
       }
 
+      // Fix inconsistent state: Auto-resolve pending items in DECIDED discussions
+      if (discussion.status === 'DECIDED' || discussion.status === 'decided') {
+        try {
+          const { fixInconsistentDecidedState } = require('../utils/discussionStatusService');
+          await fixInconsistentDecidedState(id);
+        } catch (fixError) {
+          console.warn(`[Discussions Route] Failed to fix inconsistent state for discussion ${id}:`, fixError.message);
+        }
+        // Reload discussion after fix
+        const updatedDiscussions = await loadDiscussions();
+        const updatedDiscussion = updatedDiscussions.find(d => d.id === id);
+        if (updatedDiscussion) {
+          discussion = updatedDiscussion;
+        }
+      }
+      
       const enriched = await enrichDiscussion(discussion);
       log(`Found discussion - ID: ${enriched.id}, Title: ${enriched.title}, Status: ${enriched.status}, Messages: ${enriched.messages?.length || 0}`);
       

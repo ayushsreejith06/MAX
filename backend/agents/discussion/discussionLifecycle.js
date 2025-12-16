@@ -32,16 +32,17 @@ const { transitionStatus, STATUS } = require('../../utils/discussionStatusServic
  */
 async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCheck = false) {
   try {
-    // VALIDATION 1: SERIAL EXECUTION LOCK - Check for existing active discussion (IN_PROGRESS or OPEN) FIRST
+    // VALIDATION 1: SERIAL EXECUTION LOCK - Check for existing active discussion FIRST
     // Only ONE active discussion per sector at a time
-    // New discussion allowed ONLY after previous is CLOSED or DECIDED
+    // New discussion allowed ONLY after previous is CLOSED
+    // DECIDED discussions still block new discussions until they are CLOSED
     // This check should happen BEFORE any other processing
     const { hasActiveDiscussion } = require('../../utils/discussionStorage');
     const { hasActive, activeDiscussion } = await hasActiveDiscussion(sectorId);
     
     if (hasActive && activeDiscussion) {
       console.log(`[DiscussionLifecycle] Cannot start discussion - Active discussion already exists for sector ${sectorId}: ${activeDiscussion.id} (status: ${activeDiscussion.status})`);
-      throw new Error(`Cannot start discussion: There is already an active discussion for this sector (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Only one active discussion per sector is allowed.`);
+      throw new Error(`Cannot start discussion: There is already an active discussion for this sector (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Only one active discussion per sector is allowed. Only CLOSED discussions allow new discussions.`);
     }
 
     // If agentIds not provided, get all agents in the sector

@@ -8,6 +8,7 @@ import { fetchChecklist, type ChecklistResponse, type ChecklistItemResponse } fr
 interface ChecklistSectionProps {
   discussionId: string;
   discussionStatus: string;
+  refreshTrigger?: number; // Optional trigger to force refresh
 }
 
 export default function ChecklistSection({ discussionId, discussionStatus }: ChecklistSectionProps) {

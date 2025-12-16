@@ -53,6 +53,11 @@ async function saveRejectedItems(rejectedItems) {
   }
   
   await atomicUpdate(REJECTED_ITEMS_FILE, (items) => {
+    // Ensure items is always an array
+    if (!Array.isArray(items)) {
+      items = [];
+    }
+    
     const existingIds = new Set(items.map(item => item.id));
     
     // Add new items that don't already exist

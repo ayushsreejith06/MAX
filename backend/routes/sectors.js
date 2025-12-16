@@ -473,7 +473,7 @@ module.exports = async (fastify) => {
         agents: agents || [],
         performance: performance || {},
         balance: 0, // New sectors always start with 0 balance
-        currentPrice: 100, // Price starts at 100 on sector creation (per price simulation requirements)
+        currentPrice: 0, // Price starts at 0 on sector creation - only changes from user input or manager agent executions
         symbols: providedSymbols, // If provided, will be used instead of inferring from name
         marketContext: marketContext // If provided, will be used; otherwise auto-initialized
       });
@@ -583,7 +583,7 @@ module.exports = async (fastify) => {
             ? normalizedSector.holdings.position 
             : 0);
         const valuation = balance + position;
-        const initialPrice = valuation > 0 ? valuation : 100;
+        const initialPrice = valuation > 0 ? valuation : 0;
         
         // Update sector with initial valuation
         await updateSector(normalizedSector.id, {

@@ -196,17 +196,17 @@ const start = async () => {
           const valuation = balance + position;
           
           // Initialize price to valuation if not set or if it doesn't match valuation
-          if (typeof sector.currentPrice !== 'number' || sector.currentPrice <= 0 || sector.currentPrice !== valuation) {
+          if (typeof sector.currentPrice !== 'number' || sector.currentPrice < 0 || sector.currentPrice !== valuation) {
             await updateSector(sector.id, { 
-              currentPrice: valuation > 0 ? valuation : 100,
-              baselinePrice: valuation > 0 ? valuation : 100
+              currentPrice: valuation > 0 ? valuation : 0,
+              baselinePrice: valuation > 0 ? valuation : 0
             });
           }
           
           // Initialize price history if empty
           const existingHistory = await PriceHistory.getBySectorId(sector.id, 1);
           if (existingHistory.length === 0) {
-            const initialPrice = valuation > 0 ? valuation : 100;
+            const initialPrice = valuation > 0 ? valuation : 0;
             const initialPriceHistory = new PriceHistory({
               sectorId: sector.id,
               price: initialPrice,

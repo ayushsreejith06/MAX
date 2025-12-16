@@ -321,7 +321,14 @@ async function atomicUpdate(filename, modifier) {
     } catch (error) {
       if (error.code === 'ENOENT') {
         // File doesn't exist, use default based on filename
-        currentData = filename.endsWith('.json') && (filename.includes('sectors') || filename.includes('agents') || filename.includes('discussions')) ? [] : null;
+        // For JSON files that should be arrays, default to empty array
+        if (filename.endsWith('.json')) {
+          // Check if it's a file that should be an array
+          const arrayFiles = ['sectors', 'agents', 'discussions', 'rejectedItems'];
+          currentData = arrayFiles.some(name => filename.includes(name)) ? [] : null;
+        } else {
+          currentData = null;
+        }
       } else {
         throw error;
       }

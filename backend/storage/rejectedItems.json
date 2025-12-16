@@ -1,1 +1,47 @@
-{}
+[
+  {
+    "id": "rejected-99738aaa-efed-43d4-a49b-9b8573b1da0c-checklist-99738aaa-efed-43d4-a49b-9b8573b1da0c-0",
+    "text": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "discussionId": "99738aaa-efed-43d4-a49b-9b8573b1da0c",
+    "discussionTitle": "Discussion for tech",
+    "sectorId": "3d7ced8e-5cfd-4cfc-b7e9-a56efe1c30ea",
+    "sectorSymbol": "TECH",
+    "timestamp": 1765921246466
+  },
+  {
+    "id": "rejected-95026837-6e12-4179-be43-21d149f66fe7-checklist-95026837-6e12-4179-be43-21d149f66fe7-0",
+    "text": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+    "discussionId": "95026837-6e12-4179-be43-21d149f66fe7",
+    "discussionTitle": "Discussion for tech",
+    "sectorId": "3d7ced8e-5cfd-4cfc-b7e9-a56efe1c30ea",
+    "sectorSymbol": "TECH",
+    "timestamp": 1765921290467
+  },
+  {
+    "id": "rejected-36b2eea6-d2b6-479b-862f-c9f5fb3a8b90-checklist-36b2eea6-d2b6-479b-862f-c9f5fb3a8b90-0",
+    "text": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "discussionId": "36b2eea6-d2b6-479b-862f-c9f5fb3a8b90",
+    "discussionTitle": "Discussion: tech - Deploy available capital (Balance: 100)",
+    "sectorId": "3d7ced8e-5cfd-4cfc-b7e9-a56efe1c30ea",
+    "sectorSymbol": "TECH",
+    "timestamp": 1765921335644
+  },
+  {
+    "id": "rejected-20659d6f-9657-43cd-a4ce-951be9b52fda-checklist-20659d6f-9657-43cd-a4ce-951be9b52fda-0",
+    "text": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.",
+    "discussionId": "20659d6f-9657-43cd-a4ce-951be9b52fda",
+    "discussionTitle": "Discussion for tech",
+    "sectorId": "3d7ced8e-5cfd-4cfc-b7e9-a56efe1c30ea",
+    "sectorSymbol": "TECH",
+    "timestamp": 1765921701489
+  },
+  {
+    "id": "rejected-efe485b9-78e2-4f1e-9ce9-5d8c88a14127-checklist-efe485b9-78e2-4f1e-9ce9-5d8c88a14127-0",
+    "text": "TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals. [Refined from earlier rounds: TECH_NVIDIA_ANALYST recommends maintaining current position due to insufficient market signals.]",
+    "discussionId": "efe485b9-78e2-4f1e-9ce9-5d8c88a14127",
+    "discussionTitle": "Discussion for tech",
+    "sectorId": "3d7ced8e-5cfd-4cfc-b7e9-a56efe1c30ea",
+    "sectorSymbol": "TECH",
+    "timestamp": 1765921891994
+  }
+]

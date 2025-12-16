@@ -93,7 +93,7 @@ async function createSector(data) {
       agents: data.agents || [],
       performance: data.performance || {},
       balance: typeof data.balance === 'number' ? data.balance : 0,
-      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 100, // Default to 100 for new sectors
+      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 0, // Default to 0 for new sectors - only changes from user input or manager agent executions
       change: typeof data.change === 'number' ? data.change : 0,
       changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
       volatility: typeof data.volatility === 'number' ? data.volatility : 0.02,

@@ -15,6 +15,24 @@ const { setAgentThinking, setAgentDiscussing, STATUS: AGENT_STATUS } = require('
  */
 class DiscussionEngine {
   /**
+   * Check if discussion has only one participant (excluding manager)
+   * @param {Object} discussionRoom - DiscussionRoom instance
+   * @returns {boolean} True if single-agent discussion
+   */
+  isSingleAgentDiscussion(discussionRoom) {
+    if (!discussionRoom || !Array.isArray(discussionRoom.agentIds)) {
+      return false;
+    }
+    // Exclude manager - only count non-manager agents
+    const nonManagerAgents = discussionRoom.agentIds.filter(id => {
+      // We can't check role here without loading agents, so we assume agentIds only contains non-manager agents
+      // This is consistent with how agentIds are populated in startDiscussion
+      return id;
+    });
+    return nonManagerAgents.length === 1;
+  }
+
+  /**
    * Start a new discussion for a sector
    * @param {Object} sector - Sector object
    * @returns {Promise<Object>} Updated sector with new discussion
@@ -488,6 +506,13 @@ class DiscussionEngine {
 
     const discussionRoom = DiscussionRoom.fromData(discussionData);
     
+    // Single-agent optimization: limit to 1 round and disable multi-round refinement
+    const isSingleAgent = this.isSingleAgentDiscussion(discussionRoom);
+    if (isSingleAgent) {
+      console.log(`[DiscussionEngine] Single-agent discussion — multi-round disabled`);
+      numRounds = 1; // Force exactly ONE proposal round
+    }
+    
     // Check if rounds have already been started (idempotency check)
     const existingMessages = Array.isArray(discussionRoom.messages) ? discussionRoom.messages : [];
     const currentRound = typeof discussionRoom.round === 'number' ? discussionRoom.round : 1;
@@ -508,6 +533,33 @@ class DiscussionEngine {
     // Transition status from CREATED to IN_PROGRESS when rounds start (if no messages yet)
     const currentStatus = (discussionRoom.status || '').toUpperCase();
     if ((currentStatus === 'CREATED' || currentStatus === 'OPEN') && existingMessages.length === 0) {
+      // INVARIANT GUARD: Check for other IN_PROGRESS discussions in the same sector before transitioning
+      // This prevents race conditions where multiple discussions are created simultaneously
+      const { loadDiscussions } = require('../utils/discussionStorage');
+      const allDiscussions = await loadDiscussions();
+      const sectorId = discussionRoom.sectorId;
+      const otherInProgressDiscussions = allDiscussions.filter(d => {
+        if (!d.sectorId || d.id === discussionId) {
+          return false; // Skip if no sectorId or if it's the current discussion
+        }
+        if (d.sectorId !== sectorId) {
+          return false; // Skip if different sector
+        }
+        const status = (d.status || '').toUpperCase();
+        return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN';
+      });
+      
+      if (otherInProgressDiscussions.length > 0) {
+        const otherDiscussionIds = otherInProgressDiscussions.map(d => d.id).join(', ');
+        const errorMessage = `INVARIANT VIOLATION: Cannot start rounds for discussion ${discussionId} while another discussion is IN_PROGRESS in the same sector`;
+        const violationMessage = `${errorMessage}: Sector ${sectorId} already has ${otherInProgressDiscussions.length} other active discussion(s). Per sector, there can only be one discussion at a time.\nOther active discussions:\n${otherInProgressDiscussions.map(d => `  - ${d.id} (${d.status || 'unknown'}): ${d.title || 'Untitled'}`).join('\n')}`;
+        
+        console.error(`[DiscussionEngine] HARD STOP - ${violationMessage}`);
+        // Close this discussion instead of transitioning to IN_PROGRESS
+        await transitionStatus(discussionId, STATUS.CLOSED, 'Duplicate discussion - another IN_PROGRESS discussion exists in sector');
+        throw new Error(`${errorMessage}. Sector ${sectorId} has ${otherInProgressDiscussions.length} other active discussion(s) (IDs: ${otherDiscussionIds}).`);
+      }
+      
       await transitionStatus(discussionId, STATUS.IN_PROGRESS, 'Rounds started');
       console.log(`[DiscussionEngine] Transitioned discussion ${discussionId} to IN_PROGRESS`);
     }
@@ -1281,14 +1333,15 @@ class DiscussionEngine {
     const { validateMarketDataForDiscussion } = require('../utils/marketDataValidation');
     sector = await validateMarketDataForDiscussion(sector);
 
-    // VALIDATION 1: SERIAL EXECUTION LOCK - Check for existing active discussion (IN_PROGRESS or OPEN)
+    // VALIDATION 1: SERIAL EXECUTION LOCK - Check for existing active discussion
     // Only ONE active discussion per sector at a time
-    // New discussion allowed ONLY after previous is CLOSED or DECIDED
+    // New discussion allowed ONLY after previous is CLOSED
+    // DECIDED discussions still block new discussions until they are CLOSED
     const { hasActiveDiscussion } = require('../utils/discussionStorage');
     const { hasActive, activeDiscussion } = await hasActiveDiscussion(sectorId);
     
     if (hasActive && activeDiscussion) {
-      throw new Error(`Cannot start discussion: There is already an active discussion for this sector (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Only one active discussion per sector is allowed.`);
+      throw new Error(`Cannot start discussion: There is already an active discussion for this sector (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Only one active discussion per sector is allowed. Only CLOSED discussions allow new discussions.`);
     }
 
     // VALIDATION 2: Check sector balance > 0
@@ -1457,6 +1510,13 @@ class DiscussionEngine {
     }
 
     const discussionRoom = DiscussionRoom.fromData(discussionData);
+
+    // Single-agent optimization: skip round advancement
+    const isSingleAgent = this.isSingleAgentDiscussion(discussionRoom);
+    if (isSingleAgent) {
+      console.log(`[DiscussionEngine] Single-agent discussion — skipping round advancement`);
+      return discussionRoom; // Return without advancing
+    }
 
     // Ensure discussion is in_progress (not decided/closed)
     if (discussionRoom.status === 'decided' || discussionRoom.status === 'CLOSED' || discussionRoom.status === 'closed') {

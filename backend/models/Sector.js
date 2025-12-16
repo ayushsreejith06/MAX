@@ -90,7 +90,7 @@ class Sector {
     this.sectorName = this.name;
     this.sectorSymbol = this.symbol;
     
-    this.currentPrice = typeof data.currentPrice === 'number' ? data.currentPrice : 100;
+    this.currentPrice = typeof data.currentPrice === 'number' ? data.currentPrice : 0;
     this.change = typeof data.change === 'number' ? data.change : 0;
     this.changePercent = typeof data.changePercent === 'number' ? data.changePercent : 0;
     this.volatility = typeof data.volatility === 'number' ? data.volatility : 0.02;
@@ -155,7 +155,7 @@ class Sector {
       symbol: symbol,
       sectorName: name, // Keep for backward compatibility
       sectorSymbol: symbol, // Keep for backward compatibility
-      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 100,
+      currentPrice: typeof data.currentPrice === 'number' ? data.currentPrice : 0,
       change: typeof data.change === 'number' ? data.change : 0,
       changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
       volatility: typeof data.volatility === 'number' ? data.volatility : 0.02,

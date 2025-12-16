@@ -501,14 +501,50 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
   // Set timestamps based on status
   if (normalizedNewStatus === STATUS.DECIDED && !discussionRoom.decidedAt) {
     discussionRoom.decidedAt = new Date().toISOString();
+    
+    // DEFENSIVE ASSERTION: Verify no pending items exist after setting status to DECIDED
+    // This is a hard invariant: DECIDED discussions CANNOT have pending checklist items
+    if (Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0) {
+      const pendingItems = [];
+      const nonTerminalStatuses = ['PENDING', 'RESUBMITTED', 'REVISE_REQUIRED'];
+      
+      for (const item of discussionRoom.checklist) {
+        const status = (item.status || '').toUpperCase();
+        if (!status || status === 'PENDING' || nonTerminalStatuses.includes(status)) {
+          pendingItems.push({
+            id: item.id || 'unknown',
+            status: status || 'PENDING',
+            action: item.action || item.actionType || 'unknown',
+            symbol: item.symbol || 'unknown'
+          });
+        }
+      }
+      
+      if (pendingItems.length > 0) {
+        const pendingItemIds = pendingItems.map(item => item.id).join(', ');
+        const pendingItemDetails = pendingItems.map(item => 
+          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
+        ).join('\n');
+        
+        const errorMessage = `Invalid state: DECIDED discussion contains pending checklist items`;
+        const violationMessage = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with status PENDING. This violates the hard rule that DECIDED discussions cannot have pending items.\nPending items:\n${pendingItemDetails}`;
+        
+        console.error(`[DiscussionStatusService] DEFENSIVE ASSERTION FAILED - ${violationMessage}`);
+        // Revert status change
+        discussionRoom.status = currentStatus;
+        throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
+      }
+    }
   }
   
   if (normalizedNewStatus === STATUS.CLOSED && !discussionRoom.discussionClosedAt) {
     discussionRoom.discussionClosedAt = new Date().toISOString();
   }
   
-  // Save discussion
-  await saveDiscussion(discussionRoom);
+  // Save discussion (if not already saved above)
+  if (normalizedNewStatus !== STATUS.DECIDED || !Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
+    await saveDiscussion(discussionRoom);
+  }
   
   // If discussion is being closed, refresh agent statuses
   // Agents should be set to IDLE if they're not in any other active discussions
@@ -675,11 +711,81 @@ async function checkAndTransitionToDecided(discussionId) {
   }
 }
 
+/**
+ * Validate DECIDED discussion state: Check for pending items and throw if found
+ * This function enforces the hard rule: DECIDED discussions CANNOT have pending checklist items
+ * @param {string} discussionId - Discussion ID
+ * @returns {Promise<boolean>} True if state is valid (no pending items)
+ * @throws {Error} If DECIDED discussion contains pending items
+ */
+async function fixInconsistentDecidedState(discussionId) {
+  try {
+    const currentStatus = await getStatus(discussionId);
+    
+    // Only validate DECIDED discussions
+    if (currentStatus !== STATUS.DECIDED) {
+      return true; // Not a DECIDED discussion, so no validation needed
+    }
+    
+    const discussionData = await findDiscussionById(discussionId);
+    if (!discussionData) {
+      return true; // Discussion not found, can't validate
+    }
+    
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
+    
+    if (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
+      return true; // No checklist items, so no pending items
+    }
+    
+    // Check for pending items
+    const pendingItems = [];
+    const nonTerminalStatuses = ['PENDING', 'RESUBMITTED', 'REVISE_REQUIRED'];
+    
+    for (const item of discussionRoom.checklist) {
+      const status = (item.status || '').toUpperCase();
+      if (!status || status === 'PENDING' || nonTerminalStatuses.includes(status)) {
+        pendingItems.push({
+          id: item.id || 'unknown',
+          status: status || 'PENDING',
+          action: item.action || item.actionType || 'unknown',
+          symbol: item.symbol || 'unknown'
+        });
+      }
+    }
+    
+    // HARD RULE: Throw error if pending items found in DECIDED discussion
+    if (pendingItems.length > 0) {
+      const pendingItemIds = pendingItems.map(item => item.id).join(', ');
+      const pendingItemDetails = pendingItems.map(item => 
+        `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
+      ).join('\n');
+      
+      const errorMessage = `Invalid state: DECIDED discussion contains pending checklist items`;
+      const violationMessage = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with status PENDING. This violates the hard rule that DECIDED discussions cannot have pending items.\nPending items:\n${pendingItemDetails}`;
+      
+      console.error(`[DiscussionStatusService] HARD RULE VIOLATION - ${violationMessage}`);
+      throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
+    }
+    
+    return true; // State is valid
+  } catch (error) {
+    // Re-throw validation errors
+    if (error.message.includes('Invalid state: DECIDED discussion contains pending checklist items')) {
+      throw error;
+    }
+    // Log other errors but don't fail validation
+    console.warn(`[DiscussionStatusService] Error validating DECIDED state for discussion ${discussionId}:`, error.message);
+    return false;
+  }
+}
+
 module.exports = {
   STATUS,
   transitionStatus,
   getStatus,
   isStatus,
+  fixInconsistentDecidedState,
   isValidTransition,
   normalizeStatus,
   checkAndTransitionToAwaitingExecution,
