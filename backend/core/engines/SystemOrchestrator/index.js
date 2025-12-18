@@ -276,13 +276,6 @@ class SystemOrchestrator {
             console.log(`[SystemOrchestrator] Starting rounds for discussion ${newDiscussion.id}`);
             await this.discussionEngine.startRounds(newDiscussion.id, MAX_ROUNDS);
             
-            // Step 3: Finalize checklist after rounds complete
-            console.log(`[SystemOrchestrator] Finalizing checklist for discussion ${newDiscussion.id}`);
-            await this.discussionEngine.finalizeChecklist(newDiscussion.id);
-            
-            // Step 4: Handle checklist (approve and mark as finalized)
-            console.log(`[SystemOrchestrator] Handling checklist for discussion ${newDiscussion.id}`);
-            await this.managerEngine.handleChecklist(newDiscussion);
             
             // Reload sector after full cycle
             updatedSector = await getSectorById(sectorId);
@@ -310,27 +303,13 @@ class SystemOrchestrator {
         }
       }
 
-      // 4. Check for decided discussions with manager-approved checklists and execute them
-      // IF a manager-approved checklist exists AND discussion.status === "decided": ExecutionEngine.executeChecklist()
+      // 4. Check for decided discussions
       const finalizedDiscussion = await this._getFinalizedDiscussion(sectorId);
       if (finalizedDiscussion) {
         const discussionRoom = DiscussionRoom.fromData(finalizedDiscussion);
         
-        // Check if there are manager-approved checklist items
-        const approvedChecklist = this._getApprovedChecklist(discussionRoom);
-        
-        // Execution happens automatically when items transition to APPROVED status
-        // No need to execute here - items are already executed when they were approved
-        if (approvedChecklist && approvedChecklist.length > 0) {
-          console.log(`[SystemOrchestrator] Found decided discussion ${discussionRoom.id} with ${approvedChecklist.length} approved checklist items`);
-          
-          // Mark discussion as ended to start cooldown period
-          this.sectorEngine.markDiscussionEnded(sectorId);
-        } else {
-          // Discussion is finalized but has no approved checklist items
-          // Mark as ended to allow new discussions
-          this.sectorEngine.markDiscussionEnded(sectorId);
-        }
+        // Mark discussion as ended to start cooldown period
+        this.sectorEngine.markDiscussionEnded(sectorId);
       }
 
       // 5. Check for discussions that are in progress/active but not yet finalized
@@ -367,12 +346,23 @@ class SystemOrchestrator {
         }
       }
       
-      const activeDiscussion = await this._getActiveDiscussion(sectorId);
-      if (activeDiscussion) {
-        const discussionRoom = DiscussionRoom.fromData(activeDiscussion);
+      // Process ALL IN_PROGRESS discussions to ensure all checklist items are evaluated
+      // Also check DECIDED discussions for any pending items that need evaluation
+      const discussionsToProcess = [
+        ...inProgressDiscussions,
+        ...sectorDiscussions.filter(d => {
+          const status = (d.status || '').toUpperCase();
+          return status === 'DECIDED';
+        })
+      ];
+      
+      // Process each discussion to ensure all checklist items are evaluated
+      for (const discussionData of discussionsToProcess) {
+        const discussionRoom = DiscussionRoom.fromData(discussionData);
+        const currentStatus = (discussionRoom.status || '').toUpperCase();
+        
         
         // Handle legacy 'active' status discussions - transition them to 'in_progress'
-        const currentStatus = (discussionRoom.status || '').toUpperCase();
         if (currentStatus === 'ACTIVE') {
           console.log(`[SystemOrchestrator] Found legacy active discussion ${discussionRoom.id}, transitioning to in_progress...`);
           const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
@@ -415,7 +405,7 @@ class SystemOrchestrator {
               if (!hasMessages) {
                 console.warn(`[SystemOrchestrator] Stale discussion ${discussionRoom.id} has no messages - closing directly (cannot be DECIDED without messages)`);
                 try {
-                  await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Stale discussion with no messages or checklist - invalid state');
+                  await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion with no messages or checklist - invalid state');
                   this.sectorEngine.markDiscussionEnded(sectorId);
                 } catch (closeError) {
                   console.error(`[SystemOrchestrator] Error closing stale discussion ${discussionRoom.id}:`, closeError.message);
@@ -429,16 +419,15 @@ class SystemOrchestrator {
                   }
                 }
               } else {
-                // Has messages but no checklist - try to mark as DECIDED (will fail validation, then close)
+                // Has messages - try to mark as DECIDED
                 try {
-                  await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion with no checklist');
+                  await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion');
                   this.sectorEngine.markDiscussionEnded(sectorId);
                 } catch (decidedError) {
-                  // Transition to DECIDED failed (expected - no checklist items)
-                  // Close it instead
+                  // Transition to DECIDED failed - close it instead
                   console.warn(`[SystemOrchestrator] Cannot mark stale discussion ${discussionRoom.id} as DECIDED (${decidedError.message}), closing instead`);
                   try {
-                    await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Stale discussion - cannot be DECIDED without checklist items');
+                    await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Stale discussion');
                     this.sectorEngine.markDiscussionEnded(sectorId);
                   } catch (closeError) {
                     console.error(`[SystemOrchestrator] Error closing stale discussion ${discussionRoom.id}:`, closeError.message);
@@ -450,78 +439,16 @@ class SystemOrchestrator {
               if (!Array.isArray(discussionRoom.messages) || discussionRoom.messages.length === 0) {
                 console.log(`[SystemOrchestrator] Active discussion has no messages, starting rounds...`);
                 await this.discussionEngine.startRounds(discussionRoom.id, MAX_ROUNDS);
-                await this.discussionEngine.finalizeChecklist(discussionRoom.id);
               }
             }
           }
-          
-          // Reload sector after processing
-          updatedSector = await getSectorById(sectorId);
-          const allAgents = await loadAgents();
-          const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
-          updatedSector.agents = sectorAgents;
-        } else if ((discussionRoom.status || '').toUpperCase() === 'IN_PROGRESS' && 
-            Array.isArray(discussionRoom.checklistDraft) && 
-            discussionRoom.checklistDraft.length > 0) {
-          // If discussion is in_progress with checklistDraft, handle it
-          console.log(`[SystemOrchestrator] Found in-progress discussion with checklistDraft, handling...`);
-          const handledDiscussion = await this.managerEngine.handleChecklist(discussionRoom);
-          // Check if discussion can be closed after handling
-          if (handledDiscussion && this.managerEngine.canDiscussionClose(handledDiscussion)) {
-            console.log(`[SystemOrchestrator] In-progress discussion ${discussionRoom.id} can be closed, auto-closing...`);
-            await this.managerEngine.closeDiscussion(discussionRoom.id);
-          }
-          
-          // Reload sector
-          updatedSector = await getSectorById(sectorId);
-          const allAgents = await loadAgents();
-          const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
-          updatedSector.agents = sectorAgents;
-        } else if ((discussionRoom.status || '').toUpperCase() === 'IN_PROGRESS' && 
-            Array.isArray(discussionRoom.checklist) && 
-            discussionRoom.checklist.length > 0) {
-          // Check for pending items that need manager evaluation
-          const pendingItems = discussionRoom.checklist.filter(item => {
-            const status = (item.status || '').toUpperCase();
-            return !status || status === 'PENDING' || status === 'RESUBMITTED';
-          });
-          
-          // If there are pending items, trigger manager evaluation
-          if (pendingItems.length > 0) {
-            const pendingItemIds = pendingItems.map(item => item.id).join(', ');
-            console.log(`[SystemOrchestrator] Found ${pendingItems.length} pending checklist item(s) in discussion ${discussionRoom.id}, triggering manager evaluation... (IDs: ${pendingItemIds})`);
-            
-            try {
-              await this.managerEngine.managerEvaluateChecklist(discussionRoom.id);
-              console.log(`[SystemOrchestrator] Manager evaluation completed for discussion ${discussionRoom.id}`);
-              
-              // Reload discussion after evaluation to get updated state
-              const updatedDiscussion = await findDiscussionById(discussionRoom.id);
-              if (updatedDiscussion) {
-                discussionRoom = DiscussionRoom.fromData(updatedDiscussion);
-              }
-            } catch (evalError) {
-              console.error(`[SystemOrchestrator] Error during manager evaluation for discussion ${discussionRoom.id}:`, evalError.message);
-              // Continue to check if discussion can close even if evaluation failed
-            }
-          }
-          
-          // Periodic check: if discussion is in_progress with checklist, check if it can be closed
-          if (this.managerEngine.canDiscussionClose(discussionRoom)) {
-            console.log(`[SystemOrchestrator] Found in-progress discussion ${discussionRoom.id} that can be closed, auto-closing...`);
-            await this.managerEngine.closeDiscussion(discussionRoom.id);
-          }
-        } else if (discussionRoom.status === 'in_progress' &&
-            (!Array.isArray(discussionRoom.checklistDraft) || discussionRoom.checklistDraft.length === 0) &&
-            (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0)) {
-          console.log(`[SystemOrchestrator] In-progress discussion ${discussionRoom.id} has no pending items or drafts, closing...`, {
-            event: 'DISCUSSION_CLOSED',
-            sectorId: sectorId,
-            discussionId: discussionRoom.id,
-            reason: 'no_more_proposals'
-          });
-          await this.managerEngine.closeDiscussion(discussionRoom.id);
         }
+        
+        // Reload sector after processing each discussion
+        updatedSector = await getSectorById(sectorId);
+        const allAgents = await loadAgents();
+        const sectorAgents = allAgents.filter(agent => agent.sectorId === sectorId);
+        updatedSector.agents = sectorAgents;
       }
 
       // 5. Save updated sector state
@@ -593,148 +520,6 @@ class SystemOrchestrator {
     }
   }
 
-  /**
-   * Get approved checklist items from a discussion
-   * Formats items for ExecutionEngine (requires action and amount)
-   * @private
-   */
-  _getApprovedChecklist(discussionRoom) {
-    if (!discussionRoom) {
-      return null;
-    }
-
-    const approvedItems = [];
-
-    // Check managerDecisions for approved items
-    if (Array.isArray(discussionRoom.managerDecisions) && discussionRoom.managerDecisions.length > 0) {
-      const managerApproved = discussionRoom.managerDecisions
-        .filter(decision => decision.approved === true && decision.item)
-        .map(decision => {
-          const item = decision.item;
-          // Extract action from item - check type first, then action, then text
-          let action = item.type || item.action;
-          if (action) {
-            action = action.toLowerCase();
-          }
-          
-          // Try to extract from text if not found
-          if (!action && item.text) {
-            const upperText = item.text.toUpperCase();
-            if (upperText.includes('BUY') || upperText.includes('DEPLOY CAPITAL') || upperText.includes('DEPLOY')) {
-              action = 'buy';
-            } else if (upperText.includes('SELL') || upperText.includes('WITHDRAW')) {
-              action = 'sell';
-            } else if (upperText.includes('HOLD')) {
-              action = 'hold';
-            } else if (upperText.includes('REBALANCE') || upperText.includes('ALLOCATE')) {
-              action = 'rebalance';
-            }
-          }
-          
-          // Try to extract from reasoning if still not found
-          if (!action && item.reasoning) {
-            const upperReasoning = item.reasoning.toUpperCase();
-            if (upperReasoning.includes('BUY') || upperReasoning.includes('DEPLOY')) {
-              action = 'buy';
-            } else if (upperReasoning.includes('SELL') || upperReasoning.includes('WITHDRAW')) {
-              action = 'sell';
-            } else if (upperReasoning.includes('HOLD')) {
-              action = 'hold';
-            } else if (upperReasoning.includes('REBALANCE')) {
-              action = 'rebalance';
-            }
-          }
-          
-          // If still no action found, skip this item (don't default to 'buy')
-          if (!action) {
-            console.warn(`[SystemOrchestrator] Skipping checklist item ${item.id || 'unknown'}: No action could be determined from type, action, text, or reasoning`);
-            return null;
-          }
-          
-          // Extract or default amount
-          let amount = item.amount;
-          if (!amount || amount <= 0) {
-            // Default amount based on confidence or use a percentage of balance
-            // For now, use a default amount - this can be enhanced
-            amount = 100; // Default amount
-          }
-
-          return {
-            id: item.id || `item-${Date.now()}`,
-            action: action.toLowerCase(),
-            amount: amount,
-            text: item.text || item.reasoning || '',
-            agentId: item.agentId,
-            agentName: item.agentName,
-            confidence: item.confidence || 0.7
-          };
-        })
-        .filter(item => item !== null); // Remove null items
-      
-      approvedItems.push(...managerApproved);
-    }
-
-    // Fallback: check checklist array for approved items
-    if (approvedItems.length === 0 && Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0) {
-      const checklistApproved = discussionRoom.checklist
-        .filter(item => item.status === 'approved' || (!item.status && item.completed === false))
-        .map(item => {
-          // Extract action - check type first, then action, then text
-          let action = item.type || item.action;
-          if (action) {
-            action = action.toLowerCase();
-          }
-          
-          // Try to extract from text if not found
-          if (!action && item.text) {
-            const upperText = item.text.toUpperCase();
-            if (upperText.includes('BUY') || upperText.includes('DEPLOY CAPITAL') || upperText.includes('DEPLOY')) {
-              action = 'buy';
-            } else if (upperText.includes('SELL') || upperText.includes('WITHDRAW')) {
-              action = 'sell';
-            } else if (upperText.includes('HOLD')) {
-              action = 'hold';
-            } else if (upperText.includes('REBALANCE') || upperText.includes('ALLOCATE')) {
-              action = 'rebalance';
-            }
-          }
-          
-          // Try to extract from reasoning if still not found
-          if (!action && (item.reasoning || item.reason)) {
-            const reasoningText = (item.reasoning || item.reason || '').toUpperCase();
-            if (reasoningText.includes('BUY') || reasoningText.includes('DEPLOY')) {
-              action = 'buy';
-            } else if (reasoningText.includes('SELL') || reasoningText.includes('WITHDRAW')) {
-              action = 'sell';
-            } else if (reasoningText.includes('HOLD')) {
-              action = 'hold';
-            } else if (reasoningText.includes('REBALANCE')) {
-              action = 'rebalance';
-            }
-          }
-          
-          // If still no action found, skip this item (don't default to 'buy')
-          if (!action) {
-            console.warn(`[SystemOrchestrator] Skipping checklist item ${item.id || 'unknown'}: No action could be determined from type, action, text, or reasoning`);
-            return null;
-          }
-
-          return {
-            id: item.id || `item-${Date.now()}`,
-            action: action.toLowerCase(),
-            amount: item.amount || 100,
-            text: item.text || '',
-            agentId: item.agentId,
-            agentName: item.agentName
-          };
-        })
-        .filter(item => item !== null); // Remove null items
-      
-      approvedItems.push(...checklistApproved);
-    }
-
-    return approvedItems.length > 0 ? approvedItems : null;
-  }
 
   /**
    * Update sector performance after checklist execution

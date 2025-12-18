@@ -144,7 +144,7 @@ export function AgentSettingsForm({
 
     void loadAgentData();
     void loadSectors();
-  }, [agent.id]); // Only depend on agent.id, not the whole agent object
+  }, [agent.id, agent, sectors.length]); // Depend on agent.id and other used properties
 
   // Handle click outside to close
   useEffect(() => {

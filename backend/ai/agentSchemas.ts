@@ -1,5 +1,11 @@
+// Legacy type - kept for backward compatibility with managerBrain.ts
+// New agent proposals use plain text only (see workerBrain.ts)
 const ALLOWED_ACTIONS = ['BUY', 'SELL', 'HOLD', 'REBALANCE'] as const;
 
+/**
+ * Legacy structured proposal type - agents no longer generate these
+ * @deprecated Agents now generate plain text proposals only (see workerBrain.ts WorkerAgentProposal)
+ */
 export type WorkerAgentProposal = {
   action: (typeof ALLOWED_ACTIONS)[number];
   symbol: string;

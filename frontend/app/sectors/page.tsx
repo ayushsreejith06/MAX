@@ -427,7 +427,7 @@ export default function SectorsPage() {
             <div className="bg-shadow-grey rounded-lg p-6 border border-ink-500 max-w-md w-full mx-4">
               <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase">Confirm Deletion</h2>
               <p className="text-floral-white/70 mb-4 font-mono">
-                To confirm deletion of <span className="font-bold text-floral-white">"{showDeleteConfirm.sectorName}"</span>, please enter the exact sector name below.
+                To confirm deletion of <span className="font-bold text-floral-white">&quot;{showDeleteConfirm.sectorName}&quot;</span>, please enter the exact sector name below.
               </p>
               <p className="text-warning-amber text-sm mb-4 font-mono">
                 ⚠️ This will delete the sector and all its agents. The sector balance will be withdrawn to your account.

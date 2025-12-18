@@ -17,16 +17,6 @@ export enum DiscussionStatus {
 }
 
 /**
- * Checklist Status
- * Represents the approval/execution state of a checklist item
- */
-export enum ChecklistStatus {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED'
-}
-
-/**
  * Execution Mode
  * Represents whether an execution has been completed
  */

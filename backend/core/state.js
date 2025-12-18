@@ -17,16 +17,6 @@ const DiscussionStatus = {
 };
 
 /**
- * Checklist Status
- * Represents the approval/execution state of a checklist item
- */
-const ChecklistStatus = {
-  PENDING: 'PENDING',
-  ACCEPTED: 'ACCEPTED',
-  REJECTED: 'REJECTED'
-};
-
-/**
  * Execution Mode
  * Represents whether an execution has been completed
  */
@@ -55,7 +45,6 @@ const RejectedItemStatus = {
 
 module.exports = {
   DiscussionStatus,
-  ChecklistStatus,
   ExecutionMode,
   AgentStatus,
   RejectedItemStatus

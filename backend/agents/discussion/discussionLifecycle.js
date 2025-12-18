@@ -21,6 +21,7 @@ const { extractConfidence } = require('../../utils/confidenceUtils');
 const DiscussionEngine = require('../../core/DiscussionEngine');
 const { getSystemMode } = require('../../core/SystemMode');
 const { transitionStatus, STATUS } = require('../../utils/discussionStatusService');
+const { validateNoChecklist } = require('../../utils/checklistGuard');
 
 /**
  * Start a discussion for a sector
@@ -115,6 +116,10 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
 
     // Create new discussion room
     const discussionRoom = new DiscussionRoom(sectorId, title, agentIds);
+    
+    // CHECKLIST GUARD: Validate new discussion before saving
+    validateNoChecklist(discussionRoom, 'startDiscussion (new discussion)', true);
+    
     await saveDiscussion(discussionRoom);
 
     // Update agent statuses to ACTIVE when they join the discussion
@@ -143,7 +148,7 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
         if (messages.length === 0) {
           console.error(`[DiscussionLifecycle] WARNING: Discussion ${discussionRoom.id} was created but has no messages after rounds completed. Marking as CLOSED.`);
           // Mark discussion as CLOSED to prevent empty discussions
-          await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'No messages after rounds completed');
+          await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'No messages after rounds completed');
           throw new Error(`Discussion created but no messages were generated. Discussion marked as CLOSED.`);
         }
       }
@@ -152,7 +157,7 @@ async function startDiscussion(sectorId, title, agentIds = null, skipThresholdCh
       
       // If rounds fail, mark the discussion as CLOSED to prevent empty discussions
       try {
-        await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Round failure');
+        await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Round failure');
         console.error(`[DiscussionLifecycle] Marked discussion ${discussionRoom.id} as CLOSED due to round failure`);
       } catch (saveError) {
         console.error(`[DiscussionLifecycle] Failed to mark discussion as CLOSED:`, saveError);
@@ -180,6 +185,9 @@ async function collectArguments(discussionId) {
     if (!discussionData) {
       throw new Error(`Discussion ${discussionId} not found`);
     }
+
+    // CHECKLIST GUARD: Validate discussion data before processing
+    validateNoChecklist(discussionData, `collectArguments (${discussionId})`, true);
 
     const discussionRoom = DiscussionRoom.fromData(discussionData);
     const agents = await loadAgents();
@@ -471,6 +479,9 @@ async function produceDecision(discussionId) {
       throw new Error(`Discussion ${discussionId} not found`);
     }
 
+    // CHECKLIST GUARD: Validate discussion data before producing decision
+    validateNoChecklist(discussionData, `produceDecision (${discussionId})`, true);
+
     const discussionRoom = DiscussionRoom.fromData(discussionData);
 
     // Collect arguments if not already done
@@ -550,8 +561,15 @@ async function produceDecision(discussionId) {
       timestamp: new Date().toISOString()
     };
 
-    // Set decision on discussion room
-    discussionRoom.setDecision(decision);
+    // CHECKLIST GUARD: Validate decision object
+    validateNoChecklist(decision, `produceDecision decision object (${discussionId})`);
+
+    // Set decision on discussion room (now async - uses transitionStatus internally)
+    // setDecision will handle status transition to DECIDED with full validation
+    await discussionRoom.setDecision(decision);
+    
+    // Note: setDecision already saves the discussion internally, but we save again
+    // to ensure any additional changes are persisted
     await saveDiscussion(discussionRoom);
 
     // Update agent confidence after consensus is reached (no automatic adjustments; rely on LLM inputs)
@@ -610,12 +628,8 @@ async function closeDiscussion(discussionId) {
         discussionRoom = DiscussionRoom.fromData(updatedData);
       }
 
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      // Will transition to DECIDED when all ACCEPTED items are executed
-      const { checkAndTransitionToAwaitingExecution } = require('../../utils/discussionStatusService');
-      await checkAndTransitionToAwaitingExecution(discussionId);
-
-      console.log(`[DiscussionLifecycle] Marked discussion ${discussionId} as AWAITING_EXECUTION (legacy mode)`);
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
       return discussionRoom;
     }
   } catch (error) {
@@ -647,13 +661,8 @@ async function archiveDiscussion(discussionId) {
       discussionRoom = DiscussionRoom.fromData(updatedData);
     }
 
-    // Transition to AWAITING_EXECUTION when all items are terminal
-    // Will transition to DECIDED when all ACCEPTED items are executed
-    const updatedStatus = (discussionRoom.status || '').toUpperCase();
-    if (updatedStatus !== 'DECIDED' && updatedStatus !== 'CLOSED' && updatedStatus !== 'AWAITING_EXECUTION') {
-      const { checkAndTransitionToAwaitingExecution } = require('../../utils/discussionStatusService');
-      await checkAndTransitionToAwaitingExecution(discussionId);
-    }
+    // State machine refactored: No automatic transitions
+    // Transitions are now explicit: IN_PROGRESS → DECIDED
 
     console.log(`[DiscussionLifecycle] Marked discussion ${discussionId} as decided`);
     return discussionRoom;

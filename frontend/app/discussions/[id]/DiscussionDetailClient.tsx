@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, MessageSquare, Clock, Users, CheckCircle, XCircle, Archive, Lock, Settings, Trash2 } from 'lucide-react';
 import type { Discussion, Message } from '@/lib/types';
 import { fetchDiscussionById, fetchDiscussionMessages, addDiscussionMessage, sendMessageToManager, deleteDiscussion, isSkippedResult, isRateLimitError } from '@/lib/api';
-import ChecklistSection from '@/components/discussions/ChecklistSection';
 import { usePolling } from '@/hooks/usePolling';
 import { getStatusColor, getStatusLabel } from '@/lib/statusColors';
 import { formatMessageContent } from '@/utils/formatMessage';
@@ -304,7 +303,7 @@ export default function DiscussionDetailClient() {
   useEffect(() => {
     void loadDiscussion(true);
     void loadMessages(true);
-  }, [discussionId]); // Only reload when discussionId changes
+  }, [discussionId, loadDiscussion, loadMessages]); // Reload when discussionId or load functions change
 
   // Auto-start rounds if discussion is CREATED and has no messages
   useEffect(() => {
@@ -633,12 +632,6 @@ export default function DiscussionDetailClient() {
             </div>
           )}
         </div>
-
-        {/* Checklist Section */}
-        <ChecklistSection
-          discussionId={discussion.id}
-          discussionStatus={discussion.status}
-        />
       </div>
 
       {/* Manual Override Modal */}

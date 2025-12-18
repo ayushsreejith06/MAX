@@ -60,8 +60,8 @@ async function optimizeSectorForList(sector) {
       role: agent.role || 'agent',
       status: agent.status || 'idle'
     })),
-    // Return discussion count and empty array (frontend uses length for count)
-    discussions: new Array(discussionCount).fill(null).map((_, i) => ({ id: `placeholder-${i}` })),
+    // Return empty array (frontend uses length for count)
+    discussions: [],
     createdAt: sector.createdAt || new Date().toISOString()
   };
 }

@@ -1,5 +1,11 @@
 # MAX: Multi-Sector Agentic Financial Simulation
 
+## ⚠️ IMPORTANT: Checklist System Removed
+
+**Checklist system intentionally removed — do not reintroduce without v2 design**
+
+The checklist system has been intentionally removed from the codebase. Defensive guards are in place to prevent accidental reintroduction. Any attempts to add checklist-related fields will trigger errors.
+
 ## Overview
 
 MAX is a multi-sector NYSE-style agentic financial simulation platform where users create autonomous agents that discuss, coordinate, and execute simulated trades using MNEE (Multi-Nodal Economic Exchange) principles. The system enables sophisticated financial modeling through intelligent agent interactions, sector-based market segmentation, and high-fidelity trading simulation.

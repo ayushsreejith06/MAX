@@ -6,6 +6,7 @@ const ExecutionAgent = require('../agents/ExecutionAgent');
 const ExecutionLog = require('../models/ExecutionLog');
 const { captureConfidenceSnapshot, calculateConfidenceMultiplier, applyConfidenceMultiplier } = require('../utils/confidenceMultiplier');
 const { loadAgents } = require('../utils/agentStorage');
+const { requireManager } = require('../utils/managerAuth');
 
 function log(message) {
   console.log(`[Execution] ${message}`);
@@ -47,7 +48,7 @@ module.exports = async (fastify) => {
    */
   fastify.post('/execute', async (request, reply) => {
     try {
-      const { sectorId, decision, options = {} } = request.body;
+      const { sectorId, decision, options = {}, agentId } = request.body;
 
       // Validate input
       if (!sectorId) {
@@ -69,6 +70,22 @@ module.exports = async (fastify) => {
           success: false,
           error: 'decision.action is required'
         });
+      }
+
+      // ENFORCEMENT: Only managers can trigger execution
+      if (agentId) {
+        try {
+          await requireManager(agentId, decision.executionId || 'unknown', 'EXECUTE', 'POST /api/execution/execute');
+        } catch (authError) {
+          return reply.status(403).send({
+            success: false,
+            error: authError.message
+          });
+        }
+      } else {
+        // If no agentId provided, we should still check if this is a manager-initiated request
+        // For now, we'll allow it but log a warning
+        console.warn('[Execution] POST /api/execution/execute called without agentId - cannot verify manager authority');
       }
 
       log(`Executing decision for sector ${sectorId}: ${decision.action} (confidence: ${decision.confidence || 'N/A'})`);

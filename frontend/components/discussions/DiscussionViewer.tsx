@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import { MessageSquare, Clock, CheckCircle2, Circle } from 'lucide-react';
-import type { Discussion, Message, ChecklistItem } from '@/lib/types';
+import { MessageSquare, Clock, Circle } from 'lucide-react';
+import type { Discussion, Message } from '@/lib/types';
 import { fetchDiscussionById } from '@/lib/api';
 import { formatMessageContent } from '@/utils/formatMessage';
 
@@ -85,126 +85,6 @@ const RoundHeader = memo(function RoundHeader({ round }: { round: number }) {
   );
 });
 
-// Memoized checklist item component
-const ChecklistItemComponent = memo(function ChecklistItemComponent({ 
-  item 
-}: { 
-  item: ChecklistItem; 
-}) {
-  const theme = item.agentName ? getAgentTheme(item.agentName) : null;
-  
-  // Extract rationale from structured data only - handle both string and array
-  let rationaleText = 'No rationale provided';
-  if (item.rationale) {
-    if (Array.isArray(item.rationale)) {
-      rationaleText = item.rationale.length > 0 
-        ? item.rationale.join(' ') 
-        : 'No rationale provided';
-    } else if (typeof item.rationale === 'string' && item.rationale.trim()) {
-      rationaleText = item.rationale;
-    }
-  }
-  
-  const isAccepted = item.approvalStatus === 'accepted';
-  const isRejected = item.approvalStatus === 'rejected';
-  const isPending = !item.approvalStatus || item.approvalStatus === 'pending';
-  
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border border-ink-500 bg-ink-600/40">
-      {isAccepted ? (
-        <CheckCircle2 className="w-4 h-4 text-sage-green mt-0.5 flex-shrink-0" />
-      ) : isRejected ? (
-        <Circle className="w-4 h-4 text-error-red mt-0.5 flex-shrink-0" />
-      ) : (
-        <Circle className="w-4 h-4 text-warning-amber mt-0.5 flex-shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {/* Action Badge - REQUIRED */}
-          {item.action && (
-            <span
-              className={`px-2 py-1 rounded text-xs font-semibold uppercase ${
-                item.action === 'buy'
-                  ? 'bg-sage-green/20 text-sage-green border border-sage-green/40'
-                  : item.action === 'sell'
-                  ? 'bg-error-red/20 text-error-red border border-error-red/40'
-                  : item.action === 'hold'
-                  ? 'bg-warning-amber/20 text-warning-amber border border-warning-amber/40'
-                  : 'bg-shadow-grey/50 text-floral-white border border-floral-white/20'
-              }`}
-            >
-              {item.action.toUpperCase()}
-            </span>
-          )}
-          
-          {/* Allocation % */}
-          {item.allocationPercent !== undefined && item.allocationPercent !== null && (
-            <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
-              {item.allocationPercent.toFixed(1)}%
-            </span>
-          )}
-          
-          {/* Amount - REQUIRED */}
-          {item.amount !== undefined && item.amount !== null && (
-            <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
-              ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          )}
-          
-          {/* Confidence - REQUIRED */}
-          {item.confidence !== undefined && item.confidence !== null && (
-            <span className="px-2 py-1 rounded text-xs font-semibold bg-ink-500/50 text-floral-white border border-ink-400">
-              {item.confidence.toFixed(1)}% confidence
-            </span>
-          )}
-          
-          {/* Manager Approval Status - REQUIRED */}
-          {item.approvalStatus && (
-            <span
-              className={`px-2 py-1 rounded text-xs font-semibold ${
-                item.approvalStatus === 'accepted'
-                  ? 'bg-sage-green/15 text-sage-green border border-sage-green/40'
-                  : item.approvalStatus === 'rejected'
-                  ? 'bg-error-red/15 text-error-red border border-error-red/40'
-                  : 'bg-warning-amber/15 text-warning-amber border border-warning-amber/40'
-              }`}
-            >
-              {item.approvalStatus}
-            </span>
-          )}
-        </div>
-        
-        {/* Rationale Text - from structured data only */}
-        <p className="text-floral-white text-sm font-mono mb-2">{rationaleText}</p>
-        
-        {(item.agentName || item.round) && (
-          <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-floral-white/70 font-mono">
-            {item.agentName && theme && (
-              <span
-                className={`px-2 py-0.5 rounded border ${theme.text} ${theme.border} ${theme.bg}`}
-              >
-                {item.agentName}
-              </span>
-            )}
-            {item.round && (
-              <span>
-                Round {item.round}
-              </span>
-            )}
-          </div>
-        )}
-        
-        {item.approvalReason && (
-          <div className="mt-2 pt-2 border-t border-ink-500">
-            <p className="text-xs text-floral-white/60 font-mono">
-              <span className="text-floral-white/50">Manager:</span> {item.approvalReason}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
 
 export default function DiscussionViewer({ 
   discussionId, 
@@ -297,6 +177,17 @@ export default function DiscussionViewer({
     }
   }, [discussionId, onDiscussionUpdate]);
 
+  // Determine if discussion is active (still in progress)
+  // Multi-round: OPEN means active, CLOSED means completed
+  const isActive = discussion?.status === 'OPEN' || discussion?.status === 'in_progress';
+  const isCompleted = discussion?.status === 'CLOSED' || 
+                      discussion?.status === 'decided' || 
+                      discussion?.status === 'finalized' || // Legacy status
+                      discussion?.status === 'accepted' || // Legacy status
+                      discussion?.status === 'completed' || // Legacy status
+                      discussion?.status === 'closed' || 
+                      discussion?.status === 'archived';
+
   // Initial load
   useEffect(() => {
     if (!initialDiscussion) {
@@ -316,21 +207,6 @@ export default function DiscussionViewer({
 
     return () => clearInterval(interval);
   }, [discussionId, isActive, loadDiscussion]);
-
-  // Determine if discussion is active (still in progress)
-  // Multi-round: OPEN means active, CLOSED means completed
-  const isActive = discussion?.status === 'OPEN' || discussion?.status === 'in_progress';
-  const isCompleted = discussion?.status === 'CLOSED' || 
-                      discussion?.status === 'decided' || 
-                      discussion?.status === 'finalized' || // Legacy status
-                      discussion?.status === 'accepted' || // Legacy status
-                      discussion?.status === 'completed' || // Legacy status
-                      discussion?.status === 'closed' || 
-                      discussion?.status === 'archived';
-  
-  // Read from checklistItems[] - single source of truth
-  const checklistItems = discussion?.checklistItems || [];
-  const showChecklist = checklistItems.length > 0;
 
   if (loading) {
     return (
@@ -409,70 +285,12 @@ export default function DiscussionViewer({
                     {new Date(snapshot.timestamp).toLocaleString()}
                   </span>
                 </div>
-                {snapshot.checklist && snapshot.checklist.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <div className="text-xs text-floral-white/70 font-mono mb-1">
-                      Checklist Items ({snapshot.checklist.length}):
-                    </div>
-                    {snapshot.checklist.map((item) => {
-                      // Extract rationale from structured data only
-                      let rationaleText = 'No rationale provided';
-                      if (item.rationale) {
-                        if (Array.isArray(item.rationale)) {
-                          rationaleText = item.rationale.length > 0 
-                            ? item.rationale.join(' ') 
-                            : 'No rationale provided';
-                        } else if (typeof item.rationale === 'string' && item.rationale.trim()) {
-                          rationaleText = item.rationale;
-                        }
-                      }
-                      
-                      return (
-                        <div key={item.id} className="text-xs text-floral-white/60 font-mono pl-2 border-l-2 border-sage-green/30">
-                          {item.action && (
-                            <span className="text-sage-green">{item.action}</span>
-                          )}
-                          {rationaleText && rationaleText !== 'No rationale provided' && (
-                            <span className="ml-2">{rationaleText.substring(0, 100)}{rationaleText.length > 100 ? '...' : ''}</span>
-                          )}
-                          {item.status && (
-                            <span className={`ml-2 px-1.5 py-0.5 rounded text-[0.65rem] ${
-                              item.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
-                              item.status === 'REJECTED' || item.status === 'REVISE_REQUIRED' ? 'bg-red-500/20 text-red-400' :
-                              'bg-yellow-500/20 text-yellow-400'
-                            }`}>
-                              {item.status}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Checklist Items - unified display from checklistItems[] */}
-      {showChecklist && (
-        <div className="bg-ink-600/60 rounded-lg border border-ink-500 overflow-hidden">
-          <div className="bg-ink-600/80 px-4 py-3 border-b border-ink-500">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-sage-green" />
-              <span className="text-sm font-semibold uppercase tracking-wide text-floral-white">
-                Checklist Items ({checklistItems.length})
-              </span>
-            </div>
-          </div>
-          <div className="p-4 space-y-2">
-            {checklistItems.map((item) => (
-              <ChecklistItemComponent key={item.id} item={item} />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

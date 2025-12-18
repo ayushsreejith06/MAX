@@ -17,6 +17,7 @@ const {
   getManagerBySectorId,
   getManagerById
 } = require('../utils/executionListStorage');
+const { requireManager } = require('../utils/managerAuth');
 
 // Simple logger
 function log(message) {
@@ -478,6 +479,16 @@ module.exports = async (fastify) => {
         return reply.status(400).send({
           success: false,
           error: 'Manager ID is required'
+        });
+      }
+
+      // ENFORCEMENT: Verify that the ID belongs to a manager
+      try {
+        await requireManager(id, 'all', 'EXECUTE_ALL', `POST /api/manager/${id}/execute-all`);
+      } catch (authError) {
+        return reply.status(403).send({
+          success: false,
+          error: authError.message
         });
       }
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
-    "build:web:desktop": "node scripts/build-frontend-desktop.js",
+    "build:web:desktop": "node frontend/scripts/build-frontend-desktop.js",
     "tauri:dev": "npx tauri dev",
     "tauri:build": "powershell -ExecutionPolicy Bypass -File scripts/pre-build-desktop.ps1 && npx tauri build",
     "tauri:build:quick": "powershell -ExecutionPolicy Bypass -File scripts/build-quick.ps1 && npm run build:web:desktop && npx tauri build --bundles none",

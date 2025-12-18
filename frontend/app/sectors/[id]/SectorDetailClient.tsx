@@ -377,7 +377,7 @@ export default function SectorDetailClient() {
         isLoadingRef.current = false;
       }
     };
-  }, [normalizedSectorId]);
+  }, [normalizedSectorId, params, sector, sectorId]);
 
   // Load execution logs
   const loadExecutionLogs = useCallback(async () => {
@@ -618,7 +618,7 @@ export default function SectorDetailClient() {
     } finally {
       setDeletingAgentId(null);
     }
-  }, [sector?.id, sector?.agents?.length, reloadSector]);
+  }, [sector?.agents, reloadSector]);
 
   const isManagerAgent = (agent: Agent) => {
     return agent.role === 'manager' || agent.role?.toLowerCase().includes('manager');
@@ -763,8 +763,8 @@ export default function SectorDetailClient() {
     // Priority 2: Use first candle data point's price if available
     if (sector?.candleData && sector.candleData.length > 0) {
       const firstCandle = sector.candleData[0];
-      if (firstCandle && typeof firstCandle.close === 'number' && firstCandle.close > 0) {
-        return firstCandle.close;
+      if (firstCandle && typeof firstCandle.value === 'number' && firstCandle.value > 0) {
+        return firstCandle.value;
       }
     }
     // Priority 3: Use currentPrice if > 0 (fallback for new sectors)
@@ -1533,7 +1533,7 @@ export default function SectorDetailClient() {
             <div className="bg-shadow-grey rounded-lg p-6 border border-ink-500 max-w-md w-full mx-4">
               <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase">Confirm Deletion</h2>
               <p className="text-floral-white/70 mb-4 font-mono">
-                To confirm deletion of <span className="font-bold text-floral-white">"{sector.name}"</span>, please enter the exact sector name below.
+                To confirm deletion of <span className="font-bold text-floral-white">&quot;{sector.name}&quot;</span>, please enter the exact sector name below.
               </p>
               <p className="text-warning-amber text-sm mb-2 font-mono">
                 ⚠️ This will delete the sector and all its agents.
@@ -1578,7 +1578,7 @@ export default function SectorDetailClient() {
             <div className="bg-shadow-grey rounded-lg p-6 border border-ink-500 max-w-md w-full mx-4">
               <h2 className="text-xl font-bold text-floral-white mb-4 font-mono uppercase">Withdraw Funds</h2>
               <p className="text-floral-white/70 mb-4 font-mono">
-                Withdraw from current valuation of <span className="font-bold text-floral-white">"{sector.name}"</span> to your account. This will reduce the sector's current price by the withdrawal amount.
+                Withdraw from current valuation of <span className="font-bold text-floral-white">&quot;{sector.name}&quot;</span> to your account. This will reduce the sector&apos;s current price by the withdrawal amount.
               </p>
               <p className="text-sage-green text-sm mb-4 font-mono">
                 💰 Available valuation: $${(sector.currentPrice || 0).toFixed(2)}
@@ -1602,7 +1602,7 @@ export default function SectorDetailClient() {
                   }}
                 />
                 <p className="text-xs text-floral-white/50 mt-2 font-mono">
-                  Enter a specific amount or "all" to withdraw everything
+                  Enter a specific amount or &quot;all&quot; to withdraw everything
                 </p>
               </div>
               <div className="flex gap-3">

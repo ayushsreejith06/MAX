@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { validateAgentMessage } = require('../utils/messageValidation');
-const { DiscussionStatus, ChecklistStatus } = require('../core/state');
+const { DiscussionStatus } = require('../core/state');
+const { validateNoChecklist } = require('../utils/checklistGuard');
 
 class DiscussionRoom {
   constructor(sectorId, title, agentIds = []) {
@@ -16,9 +17,6 @@ class DiscussionRoom {
     // Discussion lifecycle fields
     this.round = 1;
     this.currentRound = 1; // Multi-round: tracks current round number
-    this.checklistDraft = [];
-    this.checklist = [];
-    this.finalizedChecklist = [];
     this.needsRefinement = [];
     // Refinement cycle tracking
     this.activeRefinementCycles = []; // Array of {itemId, rejectedAt, rejectionReason, requiredImprovements}
@@ -37,12 +35,13 @@ class DiscussionRoom {
     // Closure fields
     this.discussionClosedAt = null;
     // Guardrail tracking fields
-    this.checklistCreationAttempts = {}; // Map of round -> Set of agentIds who attempted checklist creation
-    this.lastChecklistItemTimestamp = null; // Timestamp of last checklist item creation
     this.closeReason = null; // Reason why discussion was closed
   }
 
   static fromData(data) {
+    // CHECKLIST GUARD: Validate incoming discussion data
+    validateNoChecklist(data, 'DiscussionRoom.fromData', true);
+    
     const discussionRoom = new DiscussionRoom(data.sectorId, data.title, data.agentIds);
     discussionRoom.id = data.id;
     discussionRoom.messages = data.messages || [];
@@ -80,9 +79,6 @@ class DiscussionRoom {
     discussionRoom.round = typeof data.round === 'number' ? data.round : 1;
     // Multi-round: currentRound tracks the current round number
     discussionRoom.currentRound = typeof data.currentRound === 'number' ? data.currentRound : (typeof data.round === 'number' ? data.round : 1);
-    discussionRoom.checklistDraft = Array.isArray(data.checklistDraft) ? data.checklistDraft : [];
-    discussionRoom.checklist = Array.isArray(data.checklist) ? data.checklist : [];
-    discussionRoom.finalizedChecklist = Array.isArray(data.finalizedChecklist) ? data.finalizedChecklist : [];
     discussionRoom.needsRefinement = Array.isArray(data.needsRefinement) ? data.needsRefinement : [];
     // Refinement cycle tracking
     discussionRoom.activeRefinementCycles = Array.isArray(data.activeRefinementCycles) ? data.activeRefinementCycles : [];
@@ -101,11 +97,7 @@ class DiscussionRoom {
     // Closure fields
     discussionRoom.discussionClosedAt = data.discussionClosedAt || null;
     // Guardrail tracking fields
-    discussionRoom.checklistCreationAttempts = data.checklistCreationAttempts || {};
-    discussionRoom.lastChecklistItemTimestamp = data.lastChecklistItemTimestamp || null;
     discussionRoom.closeReason = data.closeReason || null;
-    // Migration flag
-    discussionRoom.checklistMigrated = data.checklistMigrated === true;
     return discussionRoom;
   }
 
@@ -142,11 +134,18 @@ class DiscussionRoom {
     
     // Include proposal and analysis if present (for LLM-generated messages)
     if (message.proposal) {
+      // CHECKLIST GUARD: Validate proposal object
+      validateNoChecklist(message.proposal, 'DiscussionRoom.addMessage (proposal)');
       messageEntry.proposal = message.proposal;
     }
     if (message.analysis) {
+      // CHECKLIST GUARD: Validate analysis object
+      validateNoChecklist(message.analysis, 'DiscussionRoom.addMessage (analysis)');
       messageEntry.analysis = message.analysis;
     }
+    
+    // CHECKLIST GUARD: Validate message entry before adding
+    validateNoChecklist(messageEntry, 'DiscussionRoom.addMessage (messageEntry)');
     
     this.messages.push(messageEntry);
     this.messagesCount = this.messages.length;
@@ -154,123 +153,11 @@ class DiscussionRoom {
     return true; // Return true to indicate message was added successfully
   }
 
-  setDecision(decision) {
-    // VALIDATION: Cannot mark as DECIDED without checklist items
-    // A discussion must have checklist items to be considered DECIDED
-    const hasChecklistItems = Array.isArray(this.checklist) && this.checklist.length > 0;
-    const hasChecklistDraft = Array.isArray(this.checklistDraft) && this.checklistDraft.length > 0;
+  async setDecision(decision) {
+    // CHECKLIST GUARD: Validate decision object
+    validateNoChecklist(decision, 'DiscussionRoom.setDecision');
     
-    if (!hasChecklistItems && !hasChecklistDraft) {
-      const error = `Cannot mark discussion as DECIDED: Discussion ${this.id} has no checklist items. A discussion must have checklist items before it can be marked as DECIDED.`;
-      console.error(`[DiscussionRoom.setDecision] ${error}`);
-      throw new Error(error);
-    }
-
-    // INVARIANT: discussion.status === DECIDED  ⇔  checklist.pendingCount === 0
-    // GUARD: Cannot mark as DECIDED if ANY checklist items have status PENDING
-    if (hasChecklistItems) {
-      const pendingItems = [];
-
-      // Explicit check for PENDING status items
-      for (const item of this.checklist) {
-        const status = (item.status || '').toUpperCase();
-        
-        if (status === ChecklistStatus.PENDING) {
-          pendingItems.push({
-            id: item.id || 'unknown',
-            status: 'PENDING',
-            action: item.action || item.actionType || 'unknown',
-            symbol: item.symbol || 'unknown'
-          });
-        }
-      }
-
-      if (pendingItems.length > 0) {
-        const pendingItemIds = pendingItems.map(item => item.id).join(', ');
-        const pendingItemDetails = pendingItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const errorMessage = `Cannot mark discussion DECIDED while checklist items are pending`;
-        const warning = `${errorMessage}: Discussion ${this.id} has ${pendingItems.length} checklist item(s) with status PENDING. All items must be resolved (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
-        
-        console.warn(`[DiscussionRoom.setDecision] ${warning}`);
-        throw new Error(`${errorMessage}. Discussion ${this.id} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
-      }
-
-      // Additional check: All items must be in terminal approval states
-      const terminalStatuses = ['APPROVED', 'REJECTED', 'ACCEPT_REJECTION', 'EXECUTED'];
-      const nonTerminalItems = [];
-
-      for (const item of this.checklist) {
-        const status = (item.status || '').toUpperCase();
-        const isTerminal = terminalStatuses.includes(status);
-        
-        if (!isTerminal) {
-          nonTerminalItems.push({
-            id: item.id || 'unknown',
-            status: status || 'PENDING',
-            action: item.action || item.actionType || 'unknown',
-            symbol: item.symbol || 'unknown'
-          });
-        }
-      }
-
-      if (nonTerminalItems.length > 0) {
-        const nonTerminalItemIds = nonTerminalItems.map(item => item.id).join(', ');
-        const nonTerminalItemDetails = nonTerminalItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const warning = `Cannot mark discussion as DECIDED: Discussion ${this.id} has ${nonTerminalItems.length} non-terminal checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nNon-terminal items:\n${nonTerminalItemDetails}`;
-        
-        console.warn(`[DiscussionRoom.setDecision] ${warning}`);
-        throw new Error(`Cannot mark as DECIDED: ${nonTerminalItems.length} checklist item(s) still in non-terminal states (IDs: ${nonTerminalItemIds}). Manager agent must remain ACTIVE until all items are resolved.`);
-      }
-
-      // HARD VALIDATION: Require at least one APPROVED checklist item
-      const approvedItems = [];
-      for (const item of this.checklist) {
-        const status = (item.status || '').toUpperCase();
-        if (status === 'APPROVED') {
-          approvedItems.push({
-            id: item.id || 'unknown',
-            status: status,
-            action: item.action || item.actionType || 'unknown',
-            symbol: item.symbol || 'unknown'
-          });
-        }
-      }
-
-      if (approvedItems.length === 0) {
-        const violationMessage = `HARD VALIDATION VIOLATION: Cannot mark discussion as DECIDED: Discussion ${this.id} has zero APPROVED checklist items. A discussion must have at least one APPROVED checklist item before it can be marked as DECIDED.`;
-        
-        console.error(`[DiscussionRoom.setDecision] ${violationMessage}`);
-        throw new Error(`Cannot mark as DECIDED: Discussion has zero APPROVED checklist items. At least one APPROVED item is required.`);
-      }
-
-      // HARD VALIDATION: Require at least one terminal checklist item
-      const terminalItems = [];
-      for (const item of this.checklist) {
-        const status = (item.status || '').toUpperCase();
-        if (terminalStatuses.includes(status)) {
-          terminalItems.push({
-            id: item.id || 'unknown',
-            status: status,
-            action: item.action || item.actionType || 'unknown',
-            symbol: item.symbol || 'unknown'
-          });
-        }
-      }
-
-      if (terminalItems.length === 0) {
-        const violationMessage = `HARD VALIDATION VIOLATION: Cannot mark discussion as DECIDED: Discussion ${this.id} has no terminal checklist items. A discussion must have at least one terminal checklist item (APPROVED, REJECTED, ACCEPT_REJECTION, or EXECUTED) before it can be marked as DECIDED.`;
-        
-        console.error(`[DiscussionRoom.setDecision] ${violationMessage}`);
-        throw new Error(`Cannot mark as DECIDED: Discussion has no terminal checklist items. At least one terminal item is required.`);
-      }
-    }
-    
+    // Set decision metadata (this does not change the status)
     this.finalDecision = decision.action || decision.finalDecision;
     this.rationale = decision.rationale || decision.reason;
     this.confidence = decision.confidence;
@@ -279,75 +166,32 @@ class DiscussionRoom {
     this.conflictScore = decision.conflictScore || null;
     this.decidedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
-    this.status = DiscussionStatus.DECIDED; // Discussion status: 'CREATED' | 'IN_PROGRESS' | 'DECIDED' | 'CLOSED'
+    
+    // Use transitionStatus to change status to DECIDED
+    // This ensures all validation logic is applied
+    const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
+    
+    // Save the discussion first to ensure transitionStatus has the latest state
+    const { saveDiscussion } = require('../utils/discussionStorage');
+    await saveDiscussion(this);
+    
+    // Transition to DECIDED status (this will perform all validations)
+    await transitionStatus(this.id, STATUS.DECIDED, 'Decision produced by discussion lifecycle');
+    
+    // Reload the discussion to get the updated status
+    const { findDiscussionById } = require('../utils/discussionStorage');
+    const updatedData = await findDiscussionById(this.id);
+    if (updatedData) {
+      // Update this instance with the latest data from storage
+      const updatedRoom = DiscussionRoom.fromData(updatedData);
+      this.status = updatedRoom.status;
+      this.updatedAt = updatedRoom.updatedAt;
+    }
   }
 
-  /**
-   * Check if agent has already attempted checklist creation in this round
-   * @param {string} agentId - Agent ID
-   * @param {number} round - Round number
-   * @returns {boolean} True if already attempted
-   */
-  hasAttemptedChecklistCreation(agentId, round) {
-    if (!this.checklistCreationAttempts) {
-      this.checklistCreationAttempts = {};
-    }
-    const roundKey = String(round);
-    const attempts = this.checklistCreationAttempts[roundKey];
-    return attempts && Array.isArray(attempts) && attempts.includes(agentId);
-  }
-
-  /**
-   * Mark that agent has attempted checklist creation in this round
-   * @param {string} agentId - Agent ID
-   * @param {number} round - Round number
-   */
-  markChecklistCreationAttempt(agentId, round) {
-    if (!this.checklistCreationAttempts) {
-      this.checklistCreationAttempts = {};
-    }
-    const roundKey = String(round);
-    if (!this.checklistCreationAttempts[roundKey]) {
-      this.checklistCreationAttempts[roundKey] = [];
-    }
-    if (!this.checklistCreationAttempts[roundKey].includes(agentId)) {
-      this.checklistCreationAttempts[roundKey].push(agentId);
-    }
-    this.updatedAt = new Date().toISOString();
-  }
-
-  /**
-   * Check if agent already has a checklist item in this round
-   * @param {string} agentId - Agent ID
-   * @param {number} round - Round number
-   * @returns {boolean} True if agent has checklist item for this round
-   */
-  hasChecklistItemForRound(agentId, round) {
-    if (!Array.isArray(this.checklist)) {
-      return false;
-    }
-    return this.checklist.some(item => {
-      // CRITICAL: Only match items with explicit round field that matches
-      // Do NOT use fallback logic - this causes false matches across discussions/rounds
-      if (typeof item.round !== 'number') {
-        return false; // Item has no round set - don't match (shouldn't happen, but be safe)
-      }
-      const itemRound = item.round;
-      const itemAgentId = item.sourceAgentId || item.agentId;
-      return itemAgentId === agentId && itemRound === round;
-    });
-  }
-
-  /**
-   * Update timestamp of last checklist item creation
-   */
-  updateLastChecklistItemTimestamp() {
-    this.lastChecklistItemTimestamp = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
-  }
 
   toJSON() {
-    return {
+    const json = {
       id: this.id,
       sectorId: this.sectorId,
       title: this.title,
@@ -360,9 +204,6 @@ class DiscussionRoom {
       // Discussion lifecycle fields
       round: this.round,
       currentRound: this.currentRound, // Multi-round: current round number
-      checklistDraft: this.checklistDraft,
-      checklist: this.checklist,
-      finalizedChecklist: this.finalizedChecklist,
       needsRefinement: this.needsRefinement,
       // Refinement cycle tracking
       activeRefinementCycles: this.activeRefinementCycles || [],
@@ -381,12 +222,13 @@ class DiscussionRoom {
       // Closure fields
       discussionClosedAt: this.discussionClosedAt,
       // Guardrail tracking fields
-      checklistCreationAttempts: this.checklistCreationAttempts || {},
-      lastChecklistItemTimestamp: this.lastChecklistItemTimestamp || null,
-      closeReason: this.closeReason || null,
-      // Migration flag
-      checklistMigrated: this.checklistMigrated === true
+      closeReason: this.closeReason || null
     };
+    
+    // CHECKLIST GUARD: Validate before returning
+    validateNoChecklist(json, 'DiscussionRoom.toJSON', true);
+    
+    return json;
   }
 }
 

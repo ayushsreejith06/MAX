@@ -23,11 +23,14 @@ class ExecutionEngine {
 
   /**
    * Execute a single checklist item
+   * NOTE: Execution system disabled — awaiting checklist v2. This method can still be called manually.
    * @param {string} checklistItemId - ID of the checklist item to execute
    * @param {string} discussionId - Discussion ID containing the item
    * @returns {Promise<Object>} Execution result with success, impact, delta, timestamp, sectorId, discussionId
    */
   async executeChecklistItem(checklistItemId, discussionId) {
+    console.log(`[ExecutionEngine] Execution system disabled — awaiting checklist v2. Manual execution called for item ${checklistItemId} in discussion ${discussionId}.`);
+    
     if (!checklistItemId) {
       throw new Error('checklistItemId is required');
     }
@@ -117,15 +120,8 @@ class ExecutionEngine {
     // Save updated discussion
     await saveDiscussion(discussionRoom);
 
-    // Check if discussion should transition from AWAITING_EXECUTION to DECIDED
-    // (all ACCEPTED items are now executed)
-    try {
-      const { checkAndTransitionToDecided } = require('../utils/discussionStatusService');
-      await checkAndTransitionToDecided(discussionId);
-    } catch (transitionError) {
-      console.warn(`[ExecutionEngine] Failed to check transition to DECIDED:`, transitionError.message);
-      // Don't throw - transition failure shouldn't break execution
-    }
+    // State machine refactored: No automatic transitions
+    // Transitions are now explicit: IN_PROGRESS → DECIDED
 
     // Extract execution details from result
     // executeChecklist returns { success, updatedSectorState } but doesn't expose individual results
@@ -174,16 +170,28 @@ class ExecutionEngine {
   /**
    * Handle checklist item status transition - execute if item transitions to APPROVED
    * This is the main trigger for execution - called whenever an item's status changes to APPROVED
+   * DISABLED: Execution system disabled — awaiting checklist v2
    * @param {string} checklistItemId - ID of the checklist item
    * @param {string} discussionId - Discussion ID containing the item
    * @param {string} previousStatus - Previous status of the item (optional)
    * @returns {Promise<Object>} Execution result or null if not executed
    */
   async handleItemStatusTransition(checklistItemId, discussionId, previousStatus = null) {
-    if (!checklistItemId || !discussionId) {
-      console.log(`[ExecutionEngine] handleItemStatusTransition called with invalid parameters: checklistItemId=${checklistItemId}, discussionId=${discussionId}`);
-      return null;
-    }
+    // DISABLED: Execution system disabled — awaiting checklist v2
+    console.log(`[ExecutionEngine] Execution system disabled — awaiting checklist v2. Automatic execution blocked for item ${checklistItemId} in discussion ${discussionId}.`);
+    return {
+      success: false,
+      blocked: true,
+      reason: 'Execution system disabled — awaiting checklist v2',
+      itemId: checklistItemId,
+      discussionId: discussionId
+    };
+    
+    // Original code disabled - automatic execution is disabled
+    // if (!checklistItemId || !discussionId) {
+    //   console.log(`[ExecutionEngine] handleItemStatusTransition called with invalid parameters: checklistItemId=${checklistItemId}, discussionId=${discussionId}`);
+    //   return null;
+    // }
 
     try {
       // Load discussion to check current item status
@@ -329,12 +337,15 @@ class ExecutionEngine {
 
   /**
    * Execute a checklist of approved items
+   * NOTE: Execution system disabled — awaiting checklist v2. This method can still be called manually.
    * @param {Array} checklistItems - Array of checklist items with action and amount
    * @param {string} sectorId - Sector ID for execution
    * @param {string} checklistId - Optional checklist ID for logging
    * @returns {Promise<Object>} Execution results with updated sectorState
    */
   async executeChecklist(checklistItems, sectorId, checklistId = null) {
+    console.log(`[ExecutionEngine] Execution system disabled — awaiting checklist v2. Manual execution called for ${checklistItems?.length || 0} items in sector ${sectorId}.`);
+    
     if (!Array.isArray(checklistItems)) {
       throw new Error('checklistItems must be an array');
     }
@@ -1023,15 +1034,8 @@ class ExecutionEngine {
             await saveDiscussion(discussionRoom);
             console.log(`[ExecutionEngine] Marked ${executionLogIdMap.size} checklist items as EXECUTED in discussion ${checklistId}`);
             
-            // Check if discussion should transition from AWAITING_EXECUTION to DECIDED
-            // (all ACCEPTED items are now executed)
-            try {
-              const { checkAndTransitionToDecided } = require('../utils/discussionStatusService');
-              await checkAndTransitionToDecided(checklistId);
-            } catch (transitionError) {
-              console.warn(`[ExecutionEngine] Failed to check transition to DECIDED:`, transitionError.message);
-              // Don't throw - transition failure shouldn't break execution
-            }
+            // State machine refactored: No automatic transitions
+            // Transitions are now explicit: IN_PROGRESS → DECIDED
           }
         }
       } catch (updateError) {

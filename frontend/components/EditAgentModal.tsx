@@ -145,6 +145,12 @@ export function EditAgentModal({
     void loadSectors();
   }, [isOpen, agent]);
 
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget && !isSubmitting) {
+      onClose();
+    }
+  };
+
   if (!isOpen || !agent) {
     return null;
   }
@@ -213,12 +219,6 @@ export function EditAgentModal({
       );
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget && !isSubmitting) {
-      onClose();
     }
   };
 

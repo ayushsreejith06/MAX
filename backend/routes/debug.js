@@ -4,6 +4,7 @@ const SystemOrchestrator = require('../core/engines/SystemOrchestrator');
 const { startDiscussion } = require('../agents/discussion/discussionLifecycle');
 const { loadDiscussions, saveDiscussions } = require('../utils/discussionStorage');
 const { readDataFile } = require('../utils/persistence');
+const { loadRejectedItems, clearRejectedItems } = require('../utils/rejectedItemsStorage');
 
 // Simple logger
 function log(message) {
@@ -364,8 +365,15 @@ module.exports = async (fastify) => {
       const allDiscussions = await loadDiscussions();
       const deletedCount = allDiscussions.length;
 
+      // Load all rejected items to get count
+      const allRejectedItems = await loadRejectedItems();
+      const rejectedItemsCount = allRejectedItems.length;
+
       // Clear all discussions
       await saveDiscussions([]);
+
+      // Clear all rejected items
+      await clearRejectedItems();
 
       // Clear discussion references from all sectors
       const sectors = await getAllSectors();
@@ -383,11 +391,12 @@ module.exports = async (fastify) => {
       const orchestrator = new SystemOrchestrator();
       orchestrator.discussionLock.clear();
 
-      log(`Cleared ${deletedCount} discussions, reset manager locks, and removed discussion references from sectors`);
+      log(`Cleared ${deletedCount} discussions, ${rejectedItemsCount} rejected items, reset manager locks, and removed discussion references from sectors`);
 
       return reply.status(200).send({
         success: true,
-        deletedCount
+        deletedCount,
+        rejectedItemsCleared: rejectedItemsCount
       });
     } catch (error) {
       log(`Error clearing discussions: ${error.message}`);

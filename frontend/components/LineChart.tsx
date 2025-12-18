@@ -48,14 +48,14 @@ const LineChart = React.memo(function LineChart({
     if (tickIncrement !== initialTickIncrement) {
       setTickIncrement(initialTickIncrement);
     }
-  }, [initialTickIncrement]); // Remove tickIncrement and sectorName from deps to prevent loops
+  }, [initialTickIncrement, tickIncrement]); // Include tickIncrement - guard prevents loops
 
   useEffect(() => {
     // Only update if prop actually changed to prevent loops
     if (windowSizeHours !== initialWindowHours) {
       setWindowSizeHours(initialWindowHours);
     }
-  }, [initialWindowHours]); // Remove windowSizeHours and sectorName from deps to prevent loops
+  }, [initialWindowHours, windowSizeHours]); // Include windowSizeHours - guard prevents loops
 
   useEffect(() => {
     setWindowIndex(0);

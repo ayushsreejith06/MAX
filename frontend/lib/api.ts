@@ -1,4 +1,4 @@
-import { Agent, ApiPayload, Discussion, Sector, CandleData, RejectedItem, ValuationHistoryPoint } from './types';
+import { Agent, ApiPayload, Discussion, Sector, CandleData, RejectedItem, ValuationHistoryPoint, Message } from './types';
 import { getApiBaseUrl, getBackendBaseUrl, isDesktopApp } from './desktopEnv';
 import { rateLimitedFetch } from './rateLimit';
 
@@ -63,7 +63,7 @@ function normalizeAgentId(id: any): string {
   return normalized || '';
 }
 
-async function request<T>(
+export async function request<T>(
   path: string, 
   init?: RequestInit,
   bypassRateLimit = false

@@ -212,6 +212,11 @@ export interface Sector {
   // Performance and balance
   performance?: Record<string, any>;
   balance?: number;
+  position?: number; // Current position value
+  holdings?: {
+    position?: number;
+    [key: string]: any;
+  };
   // Additional fields
   lastSimulatedPrice?: number | null;
   initialPrice?: number;

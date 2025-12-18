@@ -40,7 +40,7 @@ function createQueryClient() {
         // Prevent refetch cascades
         staleTime: 2500,
         // Keep previous data while fetching to prevent UI flicker
-        placeholderData: (previousData) => previousData,
+        placeholderData: (previousData: any) => previousData,
         // Disable automatic refetch on mount if data exists
         refetchOnMount: false,
         // Disable refetch on reconnect

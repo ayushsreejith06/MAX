@@ -288,12 +288,12 @@ module.exports = async (fastify) => {
       ? result.managerImpact 
       : null;
     
-    // Transform to frontend format: { id, timestamp, sectorId, checklistId, action, impact, results }
+    // Transform to frontend format: { id, timestamp, sectorId, discussionId, action, impact, results }
     return {
       id: executionId,
       timestamp: timestamp,
       sectorId: sectorId,
-      checklistId: discussionId, // Use discussionId as checklistId for frontend
+      discussionId: discussionId,
       action: actionType,
       impact: performanceImpact || 0,
       results: [{

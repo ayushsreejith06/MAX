@@ -1,11 +1,21 @@
 const { readDataFile, writeDataFile, atomicUpdate } = require('./persistence');
+const { validateNoChecklist } = require('./checklistGuard');
 
 const DISCUSSIONS_FILE = 'discussions.json';
 
 async function loadDiscussions() {
   try {
     const data = await readDataFile(DISCUSSIONS_FILE);
-    return Array.isArray(data) ? data : [];
+    const discussions = Array.isArray(data) ? data : [];
+    
+    // CHECKLIST GUARD: Validate all discussions when loading
+    discussions.forEach((discussion, index) => {
+      if (discussion) {
+        validateNoChecklist(discussion, `loadDiscussions (discussion[${index}])`, true);
+      }
+    });
+    
+    return discussions;
   } catch (error) {
     // If file doesn't exist, return empty array and create it
     if (error.code === 'ENOENT') {
@@ -22,11 +32,21 @@ async function saveDiscussions(discussions) {
 
 async function findDiscussionById(id) {
   const discussions = await loadDiscussions();
-  return discussions.find(d => d.id === id) || null;
+  const discussion = discussions.find(d => d.id === id) || null;
+  
+  // CHECKLIST GUARD: Validate when finding by ID
+  if (discussion) {
+    validateNoChecklist(discussion, `findDiscussionById (${id})`, true);
+  }
+  
+  return discussion;
 }
 
 async function saveDiscussion(discussion) {
   const data = discussion.toJSON ? discussion.toJSON() : discussion;
+  
+  // CHECKLIST GUARD: Validate before saving
+  validateNoChecklist(data, 'saveDiscussion', true);
 
   await atomicUpdate(DISCUSSIONS_FILE, (discussions) => {
     const idx = discussions.findIndex(d => d.id === discussion.id);

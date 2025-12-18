@@ -1,44 +1,36 @@
 const { findDiscussionById, saveDiscussion, loadDiscussions } = require('./discussionStorage');
 const DiscussionRoom = require('../models/DiscussionRoom');
 const { DiscussionStatus } = require('../core/state');
+const { detectAndResolveDeadlocks } = require('./deadlockDetectionService');
 
 /**
  * Discussion Status Service
  * 
  * Single authoritative source for discussion status transitions.
- * Enforces state machine: CREATED → IN_PROGRESS → AWAITING_EXECUTION → DECIDED → CLOSED
+ * Enforces state machine: IN_PROGRESS → DECIDED
  * 
  * State Machine Rules:
- * - Status may only move forward (no backward transitions)
- * - CREATED: Initial state when discussion is created
- * - IN_PROGRESS: Discussion has started, agents are active
- * - AWAITING_EXECUTION: All checklist items are in terminal states (ACCEPTED/REJECTED), waiting for execution
- * - DECIDED: All ACCEPTED checklist items have been executed
- * - CLOSED: Discussion is finalized and archived
+ * - Discussion starts → IN_PROGRESS
+ * - Discussion ends → DECIDED
+ * - No intermediate states
+ * - All transitions are explicit and logged
  */
 
 // Valid status values (uppercase for consistency)
-// Note: DiscussionStatus enum only includes IN_PROGRESS and DECIDED as per contract
-// Other statuses (CREATED, AWAITING_EXECUTION, CLOSED) remain as string literals for now
 const STATUS = {
-  CREATED: 'CREATED',
   IN_PROGRESS: DiscussionStatus.IN_PROGRESS,
-  AWAITING_EXECUTION: 'AWAITING_EXECUTION',
-  DECIDED: DiscussionStatus.DECIDED,
-  CLOSED: 'CLOSED'
+  DECIDED: DiscussionStatus.DECIDED
 };
 
 // Valid state transitions (from -> to)
 const VALID_TRANSITIONS = {
-  [STATUS.CREATED]: [STATUS.IN_PROGRESS, STATUS.CLOSED], // Can skip to CLOSED if failed
-  [STATUS.IN_PROGRESS]: [STATUS.AWAITING_EXECUTION, STATUS.CLOSED], // Can close early if needed
-  [STATUS.AWAITING_EXECUTION]: [STATUS.DECIDED, STATUS.CLOSED], // Can close early if needed
-  [STATUS.DECIDED]: [STATUS.CLOSED],
-  [STATUS.CLOSED]: [] // Terminal state - no transitions allowed
+  [STATUS.IN_PROGRESS]: [STATUS.DECIDED],
+  [STATUS.DECIDED]: [] // Terminal state - no transitions allowed
 };
 
 /**
  * Log status transition
+ * All transitions are explicitly logged for audit purposes
  * @private
  */
 function logTransition(discussionId, fromStatus, toStatus, reason = '') {
@@ -200,19 +192,20 @@ function isValidTransition(fromStatus, toStatus) {
   
   // Map legacy statuses to canonical ones
   const statusMap = {
-    'OPEN': STATUS.CREATED,
+    'OPEN': STATUS.IN_PROGRESS,
+    'CREATED': STATUS.IN_PROGRESS,
     'ACTIVE': STATUS.IN_PROGRESS,
     'IN_PROGRESS': STATUS.IN_PROGRESS,
-    'AWAITING_EXECUTION': STATUS.AWAITING_EXECUTION,
+    'AWAITING_EXECUTION': STATUS.IN_PROGRESS, // Legacy state maps to IN_PROGRESS
     'DECIDED': STATUS.DECIDED,
-    'CLOSED': STATUS.CLOSED,
-    'FINALIZED': STATUS.CLOSED,
-    'ARCHIVED': STATUS.CLOSED,
-    'ACCEPTED': STATUS.CLOSED,
-    'COMPLETED': STATUS.CLOSED
+    'CLOSED': STATUS.DECIDED, // Legacy CLOSED maps to DECIDED
+    'FINALIZED': STATUS.DECIDED,
+    'ARCHIVED': STATUS.DECIDED,
+    'ACCEPTED': STATUS.DECIDED,
+    'COMPLETED': STATUS.DECIDED
   };
   
-  const normalizedFrom = statusMap[from] || from;
+  const normalizedFrom = statusMap[from] || STATUS.IN_PROGRESS; // Default to IN_PROGRESS for unknown states
   const normalizedTo = statusMap[to] || to;
   
   // Same status is always valid (idempotent)
@@ -249,7 +242,7 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
   }
   
   const discussionRoom = DiscussionRoom.fromData(discussionData);
-  const currentStatus = discussionRoom.status || STATUS.CREATED;
+  const currentStatus = discussionRoom.status || STATUS.IN_PROGRESS; // Default to IN_PROGRESS for new discussions
   const normalizedNewStatus = newStatus.toUpperCase();
   
   // Validate transition
@@ -282,8 +275,8 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
       }
       
       const status = (d.status || '').toUpperCase();
-      // Check for IN_PROGRESS or legacy active statuses (exclude CREATED as it's just initial state)
-      return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN';
+      // Check for IN_PROGRESS or legacy active statuses
+      return status === 'IN_PROGRESS' || status === 'ACTIVE' || status === 'OPEN' || status === 'CREATED';
     });
     
     if (otherInProgressDiscussions.length > 0) {
@@ -301,194 +294,11 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
     }
   }
 
-  // VALIDATION: Transition to AWAITING_EXECUTION
-  // A discussion can transition to AWAITING_EXECUTION when all checklist items are in terminal approval states
-  if (normalizedNewStatus === STATUS.AWAITING_EXECUTION) {
-    const hasChecklistItems = Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0;
-    const hasChecklistDraft = Array.isArray(discussionRoom.checklistDraft) && discussionRoom.checklistDraft.length > 0;
-    
-    if (!hasChecklistItems && !hasChecklistDraft) {
-      const error = `Cannot transition discussion to AWAITING_EXECUTION: Discussion ${discussionId} has no checklist items.`;
-      logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${error}`);
-      throw new Error(error);
-    }
-
-    // All items must be in terminal approval states (ACCEPTED/REJECTED)
-    if (hasChecklistItems) {
-      const checklistCheck = checkChecklistItemsTerminal(discussionRoom.checklist);
-      
-      if (!checklistCheck.allTerminal) {
-        const pendingItemIds = checklistCheck.pendingItems.map(item => item.id).join(', ');
-        const pendingItemDetails = checklistCheck.pendingItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const warning = `Cannot transition discussion to AWAITING_EXECUTION: Discussion ${discussionId} has ${checklistCheck.pendingItems.length} pending checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as AWAITING_EXECUTION.\nPending items:\n${pendingItemDetails}`;
-        
-        console.warn(`[DiscussionStatusService] ${warning}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${warning}`);
-        throw new Error(`Cannot transition to AWAITING_EXECUTION: ${checklistCheck.pendingItems.length} checklist item(s) still pending (IDs: ${pendingItemIds}).`);
-      }
-    }
-  }
-
-  // VALIDATION: Transition to DECIDED
-  // A discussion can only transition to DECIDED if:
-  // 1. Has messages (discussion must have activity)
-  // 2. All checklist items are in terminal approval states (ACCEPTED or REJECTED)
-  // 3. All ACCEPTED (APPROVED) checklist items have execution.status === 'EXECUTED'
+  // Transition to DECIDED: No checklist-dependent or execution-linked validations
+  // Discussion ends → DECIDED (explicit transition, no intermediate states)
   if (normalizedNewStatus === STATUS.DECIDED) {
-    // INVARIANT GUARD: Cannot mark discussion as DECIDED without messages
-    // A discussion must have messages to be considered DECIDED (indicates actual discussion activity)
-    const hasMessages = Array.isArray(discussionRoom.messages) && discussionRoom.messages.length > 0;
-    if (!hasMessages) {
-      const errorMessage = `INVARIANT VIOLATION: Cannot mark discussion DECIDED without messages`;
-      const violationMessage = `${errorMessage}: Discussion ${discussionId} has no messages. A discussion must have messages (indicating actual discussion activity) before it can be marked as DECIDED.`;
-      console.error(`[DiscussionStatusService] HARD STOP - ${violationMessage}`);
-      logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
-      throw new Error(`${errorMessage}. Discussion ${discussionId} has 0 messages.`);
-    }
-    
-    const hasChecklistItems = Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0;
-    const hasChecklistDraft = Array.isArray(discussionRoom.checklistDraft) && discussionRoom.checklistDraft.length > 0;
-    
-    if (!hasChecklistItems && !hasChecklistDraft) {
-      const error = `Cannot transition discussion to DECIDED: Discussion ${discussionId} has no checklist items. A discussion must have checklist items before it can be marked as DECIDED.`;
-      logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${error}`);
-      throw new Error(error);
-    }
-    
-    // VALIDATION: Cannot transition to DECIDED if there are active refinement cycles
-    // All rejected items must be resolved (either revised and approved, or accepted as rejection)
-    const activeRefinementCycles = Array.isArray(discussionRoom.activeRefinementCycles) 
-      ? discussionRoom.activeRefinementCycles 
-      : [];
-    
-    if (activeRefinementCycles.length > 0) {
-      // Check if all items in refinement cycles have been resolved
-      const allItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
-      const unresolvedCycles = activeRefinementCycles.filter(cycle => {
-        // Check if there's a new item from the same agent that addresses this rejection
-        // OR if the original item has been accepted as rejection
-        const originalItem = allItems.find(item => item.id === cycle.itemId);
-        if (originalItem) {
-          const status = (originalItem.status || '').toUpperCase();
-          // Item is resolved if it's ACCEPT_REJECTION or if there's a new APPROVED item from same agent
-          if (status === 'ACCEPT_REJECTION') {
-            return false; // Resolved
-          }
-        }
-        
-        // Check if there's a new APPROVED item from the same agent (revised proposal)
-        const originalItemAgentId = cycle.originalItem?.sourceAgentId || cycle.originalItem?.agentId;
-        if (originalItemAgentId) {
-          const hasNewApprovedItem = allItems.some(item => {
-            const itemAgentId = item.sourceAgentId || item.agentId;
-            const itemStatus = (item.status || '').toUpperCase();
-            return itemAgentId === originalItemAgentId && 
-                   itemStatus === 'APPROVED' && 
-                   item.id !== cycle.itemId; // Different item (new proposal)
-          });
-          if (hasNewApprovedItem) {
-            return false; // Resolved - agent created new approved proposal
-          }
-        }
-        
-        return true; // Still unresolved
-      });
-      
-      if (unresolvedCycles.length > 0) {
-        const error = `Cannot transition discussion to DECIDED: Discussion ${discussionId} has ${unresolvedCycles.length} active refinement cycle(s). All rejected items must be resolved (revised and approved, or accepted as rejection) before the discussion can be marked as DECIDED.`;
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${error}`);
-        throw new Error(error);
-      }
-    }
-
-    if (hasChecklistItems) {
-      // INVARIANT GUARD (HARD STOP): Cannot mark discussion as DECIDED while any checklist item is pending
-      // This is a critical invariant: discussion.status === DECIDED  ⇔  all checklist items are in terminal states
-      const pendingItems = [];
-      const nonTerminalStatuses = ['PENDING', 'RESUBMITTED', 'REVISE_REQUIRED'];
-      
-      for (const item of discussionRoom.checklist) {
-        const status = (item.status || '').toUpperCase();
-        // Check for explicit PENDING status or any non-terminal status
-        if (!status || status === 'PENDING' || nonTerminalStatuses.includes(status)) {
-          pendingItems.push({
-            id: item.id || 'unknown',
-            status: status || 'PENDING',
-            action: item.action || item.actionType || 'unknown',
-            symbol: item.symbol || 'unknown'
-          });
-        }
-      }
-
-      if (pendingItems.length > 0) {
-        const pendingItemIds = pendingItems.map(item => item.id).join(', ');
-        const pendingItemDetails = pendingItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const errorMessage = `INVARIANT VIOLATION: Cannot mark discussion DECIDED while checklist items are pending`;
-        const violationMessage = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with non-terminal status. All items must be resolved (APPROVED/ACCEPTED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nPending items:\n${pendingItemDetails}`;
-        
-        console.error(`[DiscussionStatusService] HARD STOP - ${violationMessage}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
-        throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
-      }
-
-      // First check: All items must be in terminal approval states
-      const checklistCheck = checkChecklistItemsTerminal(discussionRoom.checklist);
-      
-      if (!checklistCheck.allTerminal) {
-        const nonTerminalItemIds = checklistCheck.pendingItems.map(item => item.id).join(', ');
-        const nonTerminalItemDetails = checklistCheck.pendingItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const warning = `Cannot transition discussion to DECIDED: Discussion ${discussionId} has ${checklistCheck.pendingItems.length} non-terminal checklist item(s). All items must be in terminal states (APPROVED, REJECTED, or ACCEPT_REJECTION) before a discussion can be marked as DECIDED.\nNon-terminal items:\n${nonTerminalItemDetails}`;
-        
-        console.warn(`[DiscussionStatusService] ${warning}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${warning}`);
-        throw new Error(`Cannot transition to DECIDED: ${checklistCheck.pendingItems.length} checklist item(s) still in non-terminal states (IDs: ${nonTerminalItemIds}).`);
-      }
-
-      // HARD VALIDATION: Require at least one APPROVED checklist item
-      const approvedCheck = countApprovedItems(discussionRoom.checklist);
-      if (approvedCheck.count === 0) {
-        const violationMessage = `HARD VALIDATION VIOLATION: Cannot transition discussion to DECIDED: Discussion ${discussionId} has zero APPROVED checklist items. A discussion must have at least one APPROVED checklist item before it can be marked as DECIDED.`;
-        
-        console.error(`[DiscussionStatusService] ${violationMessage}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
-        throw new Error(`Cannot transition to DECIDED: Discussion has zero APPROVED checklist items. At least one APPROVED item is required.`);
-      }
-
-      // HARD VALIDATION: Require at least one terminal checklist item
-      const terminalCheck = checkHasTerminalItem(discussionRoom.checklist);
-      if (!terminalCheck.hasTerminal) {
-        const violationMessage = `HARD VALIDATION VIOLATION: Cannot transition discussion to DECIDED: Discussion ${discussionId} has no terminal checklist items. A discussion must have at least one terminal checklist item (APPROVED, REJECTED, ACCEPT_REJECTION, or EXECUTED) before it can be marked as DECIDED.`;
-        
-        console.error(`[DiscussionStatusService] ${violationMessage}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${violationMessage}`);
-        throw new Error(`Cannot transition to DECIDED: Discussion has no terminal checklist items. At least one terminal item is required.`);
-      }
-
-      // Second check: All ACCEPTED (APPROVED) items must be EXECUTED
-      const executionCheck = checkAcceptedItemsExecuted(discussionRoom.checklist);
-      
-      if (!executionCheck.allExecuted) {
-        const unexecutedItemIds = executionCheck.unexecutedItems.map(item => item.id).join(', ');
-        const unexecutedItemDetails = executionCheck.unexecutedItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const warning = `Cannot transition discussion to DECIDED: Discussion ${discussionId} has ${executionCheck.unexecutedItems.length} ACCEPTED (APPROVED) checklist item(s) that have not been executed. All ACCEPTED items must have execution.status === 'EXECUTED' before a discussion can be marked as DECIDED.\nUnexecuted items:\n${unexecutedItemDetails}`;
-        
-        console.warn(`[DiscussionStatusService] ${warning}`);
-        logTransition(discussionId, currentStatus, normalizedNewStatus, `REJECTED: ${warning}`);
-        throw new Error(`Cannot transition to DECIDED: ${executionCheck.unexecutedItems.length} ACCEPTED checklist item(s) not yet executed (IDs: ${unexecutedItemIds}). Discussion must be in AWAITING_EXECUTION state until all ACCEPTED items are executed.`);
-      }
-    }
+    // No validations required - transition is explicit and logged
+    // All transitions are explicit and logged via logTransition below
   }
   
   // Log transition
@@ -501,54 +311,14 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
   // Set timestamps based on status
   if (normalizedNewStatus === STATUS.DECIDED && !discussionRoom.decidedAt) {
     discussionRoom.decidedAt = new Date().toISOString();
-    
-    // DEFENSIVE ASSERTION: Verify no pending items exist after setting status to DECIDED
-    // This is a hard invariant: DECIDED discussions CANNOT have pending checklist items
-    if (Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0) {
-      const pendingItems = [];
-      const nonTerminalStatuses = ['PENDING', 'RESUBMITTED', 'REVISE_REQUIRED'];
-      
-      for (const item of discussionRoom.checklist) {
-        const status = (item.status || '').toUpperCase();
-        if (!status || status === 'PENDING' || nonTerminalStatuses.includes(status)) {
-          pendingItems.push({
-            id: item.id || 'unknown',
-            status: status || 'PENDING',
-            action: item.action || item.actionType || 'unknown',
-            symbol: item.symbol || 'unknown'
-          });
-        }
-      }
-      
-      if (pendingItems.length > 0) {
-        const pendingItemIds = pendingItems.map(item => item.id).join(', ');
-        const pendingItemDetails = pendingItems.map(item => 
-          `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-        ).join('\n');
-        
-        const errorMessage = `Invalid state: DECIDED discussion contains pending checklist items`;
-        const violationMessage = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with status PENDING. This violates the hard rule that DECIDED discussions cannot have pending items.\nPending items:\n${pendingItemDetails}`;
-        
-        console.error(`[DiscussionStatusService] DEFENSIVE ASSERTION FAILED - ${violationMessage}`);
-        // Revert status change
-        discussionRoom.status = currentStatus;
-        throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
-      }
-    }
   }
   
-  if (normalizedNewStatus === STATUS.CLOSED && !discussionRoom.discussionClosedAt) {
-    discussionRoom.discussionClosedAt = new Date().toISOString();
-  }
+  // Save discussion
+  await saveDiscussion(discussionRoom);
   
-  // Save discussion (if not already saved above)
-  if (normalizedNewStatus !== STATUS.DECIDED || !Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
-    await saveDiscussion(discussionRoom);
-  }
-  
-  // If discussion is being closed, refresh agent statuses
+  // If discussion is being marked as DECIDED, refresh agent statuses
   // Agents should be set to IDLE if they're not in any other active discussions
-  if (normalizedNewStatus === STATUS.CLOSED) {
+  if (normalizedNewStatus === STATUS.DECIDED) {
     try {
       const { refreshAgentStatus } = require('./agentStatusService');
       const agentIds = Array.isArray(discussionRoom.agentIds) ? discussionRoom.agentIds : [];
@@ -558,10 +328,38 @@ async function transitionStatus(discussionId, newStatus, reason = '') {
         agentIds.map(agentId => refreshAgentStatus(agentId))
       );
       
-      console.log(`[DiscussionStatusService] Refreshed status for ${agentIds.length} agents after closing discussion ${discussionId}`);
+      console.log(`[DiscussionStatusService] Refreshed status for ${agentIds.length} agents after marking discussion ${discussionId} as DECIDED`);
     } catch (error) {
-      console.warn(`[DiscussionStatusService] Failed to refresh agent statuses after closing discussion:`, error.message);
+      console.warn(`[DiscussionStatusService] Failed to refresh agent statuses after marking discussion as DECIDED:`, error.message);
     }
+  }
+  
+  // Deadlock detection: Check for items that remain PENDING after status change attempt
+  // Note: ManagerEngine is optional here - if not available, deadlock detection will skip forced reevaluation
+  // and go straight to auto-reject if needed
+  try {
+    // Try to get ManagerEngine if available (for forced reevaluation)
+    let ManagerEngine = null;
+    try {
+      const ManagerEngineClass = require('../core/ManagerEngine');
+      ManagerEngine = new ManagerEngineClass();
+    } catch (error) {
+      // ManagerEngine not available - deadlock detection will use auto-reject only
+      console.debug(`[DiscussionStatusService] ManagerEngine not available for deadlock detection, will use auto-reject only`);
+    }
+    
+    const resolvedItems = await detectAndResolveDeadlocks(discussionId, 'status_change', ManagerEngine);
+    if (resolvedItems.length > 0) {
+      console.log(`[DiscussionStatusService] Deadlock detection resolved ${resolvedItems.length} item(s) after status change attempt`);
+      // Reload discussion to get updated state after deadlock resolution
+      const updatedDiscussionData = await findDiscussionById(discussionId);
+      if (updatedDiscussionData) {
+        return DiscussionRoom.fromData(updatedDiscussionData);
+      }
+    }
+  } catch (deadlockError) {
+    console.error(`[DiscussionStatusService] Error during deadlock detection after status change:`, deadlockError.message);
+    // Don't throw - continue with normal return even if deadlock detection fails
   }
   
   return discussionRoom;
@@ -579,7 +377,7 @@ async function getStatus(discussionId) {
   }
   
   const discussionRoom = DiscussionRoom.fromData(discussionData);
-  return (discussionRoom.status || STATUS.CREATED).toUpperCase();
+  return (discussionRoom.status || STATUS.IN_PROGRESS).toUpperCase();
 }
 
 /**
@@ -600,184 +398,54 @@ async function isStatus(discussionId, status) {
  * @returns {string} Normalized status
  */
 function normalizeStatus(status) {
-  if (!status) return STATUS.CREATED;
+  if (!status) return STATUS.IN_PROGRESS;
   
   const statusUpper = (status || '').toUpperCase();
   const statusMap = {
-    'OPEN': STATUS.CREATED,
-    'CREATED': STATUS.CREATED,
+    'OPEN': STATUS.IN_PROGRESS,
+    'CREATED': STATUS.IN_PROGRESS,
     'ACTIVE': STATUS.IN_PROGRESS,
     'IN_PROGRESS': STATUS.IN_PROGRESS,
-    'AWAITING_EXECUTION': STATUS.AWAITING_EXECUTION,
+    'AWAITING_EXECUTION': STATUS.IN_PROGRESS, // Legacy state maps to IN_PROGRESS
     'DECIDED': STATUS.DECIDED,
-    'CLOSED': STATUS.CLOSED,
-    'FINALIZED': STATUS.CLOSED,
-    'ARCHIVED': STATUS.CLOSED,
-    'ACCEPTED': STATUS.CLOSED,
-    'COMPLETED': STATUS.CLOSED
+    'CLOSED': STATUS.DECIDED, // Legacy CLOSED maps to DECIDED
+    'FINALIZED': STATUS.DECIDED,
+    'ARCHIVED': STATUS.DECIDED,
+    'ACCEPTED': STATUS.DECIDED,
+    'COMPLETED': STATUS.DECIDED
   };
   
-  return statusMap[statusUpper] || STATUS.CREATED;
+  return statusMap[statusUpper] || STATUS.IN_PROGRESS;
 }
 
 /**
- * Check if discussion should transition to AWAITING_EXECUTION
- * Transitions to AWAITING_EXECUTION when all checklist items are in terminal approval states
- * @param {string} discussionId - Discussion ID
- * @returns {Promise<boolean>} True if transition was made or already in correct state
+ * @deprecated Removed: checkAndTransitionToAwaitingExecution
+ * State machine no longer has AWAITING_EXECUTION state.
+ * All transitions are now explicit: IN_PROGRESS → DECIDED
  */
 async function checkAndTransitionToAwaitingExecution(discussionId) {
-  try {
-    const currentStatus = await getStatus(discussionId);
-    
-    // Only transition from IN_PROGRESS
-    if (currentStatus !== STATUS.IN_PROGRESS) {
-      return currentStatus === STATUS.AWAITING_EXECUTION || 
-             currentStatus === STATUS.DECIDED || 
-             currentStatus === STATUS.CLOSED;
-    }
-    
-    const discussionData = await findDiscussionById(discussionId);
-    if (!discussionData) {
-      return false;
-    }
-    
-    const discussionRoom = DiscussionRoom.fromData(discussionData);
-    const hasChecklistItems = Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0;
-    
-    if (!hasChecklistItems) {
-      return false;
-    }
-    
-    const checklistCheck = checkChecklistItemsTerminal(discussionRoom.checklist);
-    
-    if (checklistCheck.allTerminal) {
-      await transitionStatus(discussionId, STATUS.AWAITING_EXECUTION, 'All checklist items in terminal states');
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.warn(`[DiscussionStatusService] Error checking transition to AWAITING_EXECUTION:`, error.message);
-    return false;
-  }
+  console.warn(`[DiscussionStatusService] checkAndTransitionToAwaitingExecution is deprecated. State machine only supports IN_PROGRESS → DECIDED transitions.`);
+  return false;
 }
 
 /**
- * Check if discussion should transition from AWAITING_EXECUTION to DECIDED
- * Transitions to DECIDED when all ACCEPTED (APPROVED) items are EXECUTED
- * @param {string} discussionId - Discussion ID
- * @returns {Promise<boolean>} True if transition was made or already in correct state
+ * @deprecated Removed: checkAndTransitionToDecided
+ * State machine no longer has automatic transitions based on checklist or execution state.
+ * All transitions must be explicit: IN_PROGRESS → DECIDED
  */
 async function checkAndTransitionToDecided(discussionId) {
-  try {
-    const currentStatus = await getStatus(discussionId);
-    
-    // Only transition from AWAITING_EXECUTION
-    if (currentStatus !== STATUS.AWAITING_EXECUTION) {
-      return currentStatus === STATUS.DECIDED || currentStatus === STATUS.CLOSED;
-    }
-    
-    const discussionData = await findDiscussionById(discussionId);
-    if (!discussionData) {
-      return false;
-    }
-    
-    const discussionRoom = DiscussionRoom.fromData(discussionData);
-    const hasChecklistItems = Array.isArray(discussionRoom.checklist) && discussionRoom.checklist.length > 0;
-    
-    if (!hasChecklistItems) {
-      return false;
-    }
-    
-    // Check if all items are terminal
-    const checklistCheck = checkChecklistItemsTerminal(discussionRoom.checklist);
-    if (!checklistCheck.allTerminal) {
-      return false;
-    }
-    
-    // Check if all ACCEPTED items are executed
-    const executionCheck = checkAcceptedItemsExecuted(discussionRoom.checklist);
-    
-    if (executionCheck.allExecuted) {
-      await transitionStatus(discussionId, STATUS.DECIDED, 'All ACCEPTED checklist items executed');
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.warn(`[DiscussionStatusService] Error checking transition to DECIDED:`, error.message);
-    return false;
-  }
+  console.warn(`[DiscussionStatusService] checkAndTransitionToDecided is deprecated. State machine only supports explicit transitions. Use transitionStatus() directly.`);
+  return false;
 }
 
 /**
- * Validate DECIDED discussion state: Check for pending items and throw if found
- * This function enforces the hard rule: DECIDED discussions CANNOT have pending checklist items
- * @param {string} discussionId - Discussion ID
- * @returns {Promise<boolean>} True if state is valid (no pending items)
- * @throws {Error} If DECIDED discussion contains pending items
+ * @deprecated Removed: fixInconsistentDecidedState
+ * State machine no longer validates checklist state for DECIDED transitions.
+ * All transitions are explicit and do not depend on checklist or execution state.
  */
 async function fixInconsistentDecidedState(discussionId) {
-  try {
-    const currentStatus = await getStatus(discussionId);
-    
-    // Only validate DECIDED discussions
-    if (currentStatus !== STATUS.DECIDED) {
-      return true; // Not a DECIDED discussion, so no validation needed
-    }
-    
-    const discussionData = await findDiscussionById(discussionId);
-    if (!discussionData) {
-      return true; // Discussion not found, can't validate
-    }
-    
-    const discussionRoom = DiscussionRoom.fromData(discussionData);
-    
-    if (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
-      return true; // No checklist items, so no pending items
-    }
-    
-    // Check for pending items
-    const pendingItems = [];
-    const nonTerminalStatuses = ['PENDING', 'RESUBMITTED', 'REVISE_REQUIRED'];
-    
-    for (const item of discussionRoom.checklist) {
-      const status = (item.status || '').toUpperCase();
-      if (!status || status === 'PENDING' || nonTerminalStatuses.includes(status)) {
-        pendingItems.push({
-          id: item.id || 'unknown',
-          status: status || 'PENDING',
-          action: item.action || item.actionType || 'unknown',
-          symbol: item.symbol || 'unknown'
-        });
-      }
-    }
-    
-    // HARD RULE: Throw error if pending items found in DECIDED discussion
-    if (pendingItems.length > 0) {
-      const pendingItemIds = pendingItems.map(item => item.id).join(', ');
-      const pendingItemDetails = pendingItems.map(item => 
-        `  - ${item.id} (${item.status}): ${item.action} ${item.symbol || ''}`
-      ).join('\n');
-      
-      const errorMessage = `Invalid state: DECIDED discussion contains pending checklist items`;
-      const violationMessage = `${errorMessage}: Discussion ${discussionId} has ${pendingItems.length} checklist item(s) with status PENDING. This violates the hard rule that DECIDED discussions cannot have pending items.\nPending items:\n${pendingItemDetails}`;
-      
-      console.error(`[DiscussionStatusService] HARD RULE VIOLATION - ${violationMessage}`);
-      throw new Error(`${errorMessage}. Discussion ${discussionId} has ${pendingItems.length} pending item(s) (IDs: ${pendingItemIds}).`);
-    }
-    
-    return true; // State is valid
-  } catch (error) {
-    // Re-throw validation errors
-    if (error.message.includes('Invalid state: DECIDED discussion contains pending checklist items')) {
-      throw error;
-    }
-    // Log other errors but don't fail validation
-    console.warn(`[DiscussionStatusService] Error validating DECIDED state for discussion ${discussionId}:`, error.message);
-    return false;
-  }
+  console.warn(`[DiscussionStatusService] fixInconsistentDecidedState is deprecated. State machine no longer validates checklist state.`);
+  return true;
 }
 
 module.exports = {
@@ -785,14 +453,14 @@ module.exports = {
   transitionStatus,
   getStatus,
   isStatus,
-  fixInconsistentDecidedState,
+  fixInconsistentDecidedState, // Deprecated but kept for backward compatibility
   isValidTransition,
   normalizeStatus,
-  checkAndTransitionToAwaitingExecution,
-  checkAndTransitionToDecided,
-  checkChecklistItemsTerminal,
-  checkAcceptedItemsExecuted,
-  countApprovedItems,
-  checkHasTerminalItem
+  checkAndTransitionToAwaitingExecution, // Deprecated but kept for backward compatibility
+  checkAndTransitionToDecided, // Deprecated but kept for backward compatibility
+  checkChecklistItemsTerminal, // Kept for other uses (not for state transitions)
+  checkAcceptedItemsExecuted, // Kept for other uses (not for state transitions)
+  countApprovedItems, // Kept for other uses (not for state transitions)
+  checkHasTerminalItem // Kept for other uses (not for state transitions)
 };
 

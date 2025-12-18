@@ -88,7 +88,7 @@ export default function FinalizedRejectionsTab({ refreshTrigger }: FinalizedReje
     try {
       const result = await fetchFinalizedRejections(filters);
       setRejections(result.rejections || []);
-      setPagination(result.pagination || pagination);
+      setPagination(result.pagination || (prev => prev));
     } catch (error) {
       console.error('Error loading finalized rejections:', error);
     } finally {
@@ -102,7 +102,7 @@ export default function FinalizedRejectionsTab({ refreshTrigger }: FinalizedReje
   }, [loadRejections]);
 
   // Polling for real-time updates
-  usePolling(loadRejections, 5000);
+  usePolling({ callback: loadRejections, interval: 5000 });
 
   // Refresh when refreshTrigger changes
   useEffect(() => {

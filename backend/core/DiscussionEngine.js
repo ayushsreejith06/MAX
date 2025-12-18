@@ -6,9 +6,11 @@ const { generateWorkerProposal } = require('../ai/workerBrain');
 const { extractConfidence } = require('../utils/confidenceUtils');
 const { isLlmEnabled } = require('../ai/llmClient');
 const { updateConfidencePhase4 } = require('../simulation/confidence');
-const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
+// Checklist generation from agent reasoning has been removed
+// Agents now only provide reasoning + proposal text + confidence
 const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
 const { setAgentThinking, setAgentDiscussing, STATUS: AGENT_STATUS } = require('../utils/agentStatusService');
+const { validateNoChecklist } = require('../utils/checklistGuard');
 
 /**
  * DiscussionEngine - Manages discussion lifecycle and rounds
@@ -59,13 +61,13 @@ class DiscussionEngine {
     // Status is set to CREATED by default in DiscussionRoom constructor
     discussionRoom.round = 1;
     discussionRoom.currentRound = 1;
-    discussionRoom.checklistDraft = [];
-    discussionRoom.checklist = [];
     discussionRoom.roundHistory = [];
-    // CRITICAL: Reset checklist creation attempts for new discussion
-    // This ensures each new discussion starts with a clean slate
-    discussionRoom.checklistCreationAttempts = {};
-    discussionRoom.lastChecklistItemTimestamp = null;
+    
+    // CHECKLIST GUARD: Validate new discussion before saving
+    validateNoChecklist(discussionRoom, 'DiscussionEngine.startDiscussion (new discussion)', true);
+    
+    // CHECKLIST GUARD: Validate sector object
+    validateNoChecklist(sector, 'DiscussionEngine.startDiscussion (sector)');
 
     // Save discussion
     await saveDiscussion(discussionRoom);
@@ -105,8 +107,8 @@ class DiscussionEngine {
           if (messages.length === 0) {
             console.error(`[DiscussionEngine] WARNING: Discussion ${discussionRoom.id} was created but has no messages after rounds completed. This should not happen.`);
             // Mark discussion as failed or delete it
-            await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'No messages after rounds completed');
-            console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to no messages`);
+            await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'No messages after rounds completed');
+            console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as DECIDED due to no messages`);
           }
         }
       } catch (error) {
@@ -115,8 +117,8 @@ class DiscussionEngine {
         
         // If rounds fail, mark the discussion as CLOSED to prevent empty discussions
         try {
-          await transitionStatus(discussionRoom.id, STATUS.CLOSED, 'Round failure');
-          console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as CLOSED due to round failure`);
+          await transitionStatus(discussionRoom.id, STATUS.DECIDED, 'Round failure');
+          console.error(`[DiscussionEngine] Marked discussion ${discussionRoom.id} as DECIDED due to round failure`);
         } catch (saveError) {
           console.error(`[DiscussionEngine] Failed to mark discussion as CLOSED:`, saveError);
         }
@@ -196,11 +198,9 @@ class DiscussionEngine {
           content: `${agentName}: Observing discussion (confidence ${agentConfidence.toFixed(2)} < 65, cannot propose actions).`,
           analysis: `${agentName}: Observing discussion (confidence ${agentConfidence.toFixed(2)} < 65, cannot propose actions).`,
           proposal: {
-            action: 'HOLD',
-            symbol: sector?.symbol || sector?.name || 'UNKNOWN',
-            allocationPercent: 0,
-            confidence: agentConfidence,
-            reasoning: 'Confidence below threshold - observing only'
+            reasoning: 'Confidence below threshold - observing only',
+            proposal: 'Continue observing the discussion.',
+            confidence: agentConfidence / 100 // Convert to 0.0-1.0
           },
           role: 'agent',
           timestamp: new Date().toISOString()
@@ -250,98 +250,12 @@ class DiscussionEngine {
         continue;
       }
 
-      // Try to extract structured proposal (BUY/SELL/HOLD) from message and create checklist item
-      // GUARDRAIL: Ensure checklist creation is attempted exactly once per agent per round
+      // Agents now only generate plain text reasoning, proposal, and confidence (0.0-1.0)
+      // No checklist items are created from agent reasoning
       const currentRound = discussionRoom.round || 1;
-      
-      // Check if agent already has a checklist item for this round (prevent duplicates)
-      if (discussionRoom.hasChecklistItemForRound(agent.id, currentRound)) {
-        // Log detailed info for debugging
-        const existingItems = (discussionRoom.checklist || []).filter(item => {
-          const itemAgentId = item.sourceAgentId || item.agentId;
-          return itemAgentId === agent.id;
-        });
-        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) already has a checklist item for this round, skipping duplicate creation. Existing items for this agent:`, existingItems.map(item => ({ id: item.id, round: item.round, actionType: item.actionType })));
-        continue;
-      }
-
-      // Check if agent has already attempted checklist creation for this round
-      if (discussionRoom.hasAttemptedChecklistCreation(agent.id, currentRound)) {
-        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) has already attempted checklist creation for this round, skipping`);
-        continue;
-      }
-
-      // Mark that we're attempting checklist creation for this agent in this round
-      discussionRoom.markChecklistCreationAttempt(agent.id, currentRound);
-      console.log(`[DiscussionEngine] Round ${currentRound}: Attempting checklist creation for agent ${agent.id} (${agent.name || 'Unknown'})`);
-
-      try {
-        // CONFIDENCE GATING: Check if agent has sufficient confidence to create checklist items
-        // Agents with confidence < 65 can post analysis messages but cannot create checklist items
-        const agentConfidence = extractConfidence(agent, 0);
-        if (agentConfidence < 65) {
-          console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) has confidence ${agentConfidence.toFixed(2)} < 65. Skipping checklist item creation. Agent may still post analysis messages.`);
-          continue;
-        }
-
-        // Create checklist item from structured proposal object
-        // Checklist items MUST ONLY be created from structured proposal objects, never from message text
-        if (!messageData || typeof messageData !== 'object' || !messageData.proposal) {
-          console.warn(`[DiscussionEngine] Round ${currentRound}: Message data missing proposal object for agent ${agent.id} (${agent.name || 'Unknown'}). Skipping checklist item creation.`);
-          // Note: We don't create a fallback here because the proposal should always exist for LLM-generated messages
-          // If it doesn't, that's a data integrity issue that should be fixed upstream
-          continue;
-        }
-
+      if (messageData && messageData.proposal) {
         const proposal = messageData.proposal;
-        
-        // Create checklist item from structured proposal object
-        // createChecklistFromLLM will ALWAYS return a valid item (even if parsing fails, it creates a REJECTED fallback)
-        // This ensures checklist items are always created when proposals exist, even if unparseable
-        const checklistItem = await createChecklistFromLLM({
-          proposal: proposal, // REQUIRED: Structured proposal object (may be invalid/null - fallback will handle it)
-          discussionId: discussionRoom.id,
-          agentId: agent.id,
-          agentName: agent.name || undefined,
-          sector: {
-            id: sector.id,
-            symbol: sector.symbol || sector.sectorSymbol,
-            name: sector.name || sector.sectorName,
-            allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-          },
-          sectorData: {
-            currentPrice: sector.currentPrice,
-            baselinePrice: sector.currentPrice,
-            balance: sector.balance,
-          },
-          availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
-          currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
-        });
-
-        // Checklist item is always created (even if fallback is used)
-        // CRITICAL: Ensure round is ALWAYS set on the checklist item
-        // This is required for hasChecklistItemForRound to work correctly
-        if (typeof checklistItem.round !== 'number') {
-          checklistItem.round = currentRound;
-        }
-        discussionRoom.checklist.push(checklistItem);
-        discussionRoom.updateLastChecklistItemTimestamp();
-        console.log(`[DiscussionEngine] Round ${currentRound}: Created checklist item from agent ${agent.id} (${agent.name || 'Unknown'}): ${checklistItem.actionType} ${checklistItem.symbol}`);
-        console.log(`[DiscussionEngine] Checklist item details:`, {
-          id: checklistItem.id,
-          actionType: checklistItem.actionType,
-          symbol: checklistItem.symbol,
-          allocationPercent: checklistItem.allocationPercent,
-          confidence: checklistItem.confidence,
-          status: checklistItem.status,
-          round: checklistItem.round,
-          totalChecklistItems: discussionRoom.checklist.length
-        });
-      } catch (error) {
-        // Log error but don't fail the entire round if checklist creation fails
-        // createChecklistFromLLM should always return a valid item (with fallback), so this is unexpected
-        console.error(`[DiscussionEngine] Round ${currentRound}: Failed to create checklist item from message for agent ${agent.id} (${agent.name || 'Unknown'}): ${error.message}`);
-        console.error(`[DiscussionEngine] Error stack:`, error.stack);
+        console.log(`[DiscussionEngine] Round ${currentRound}: Agent ${agent.id} (${agent.name || 'Unknown'}) provided reasoning with confidence ${(proposal.confidence || 0).toFixed(2)}`);
       }
     }
 
@@ -384,10 +298,8 @@ class DiscussionEngine {
         discussionRoom.roundHistory.push(finalRoundSnapshot);
         await saveDiscussion(discussionRoom);
         
-        // Transition to AWAITING_EXECUTION when all items are terminal
-        // Will transition to DECIDED when all ACCEPTED items are executed
-        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-        await checkAndTransitionToAwaitingExecution(discussionRoom.id);
+        // State machine refactored: No automatic transitions
+        // Transitions are now explicit: IN_PROGRESS → DECIDED
         
         console.log(`[DiscussionEngine] Discussion ${discussionRoom.id} all items terminal after round ${currentRound}.`);
         return updatedSector;
@@ -471,10 +383,8 @@ class DiscussionEngine {
     discussionRoom.checklist = checklist;
     await saveDiscussion(discussionRoom);
 
-    // Transition to AWAITING_EXECUTION when all items are terminal
-    // Will transition to DECIDED when all ACCEPTED items are executed
-    const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-    await checkAndTransitionToAwaitingExecution(discussionRoom.id);
+    // State machine refactored: No automatic transitions
+    // Transitions are now explicit: IN_PROGRESS → DECIDED
 
     // Update sector
     const updatedSector = await updateSector(sector.id, {
@@ -503,6 +413,9 @@ class DiscussionEngine {
     if (!discussionData) {
       throw new Error(`Discussion ${discussionId} not found`);
     }
+
+    // CHECKLIST GUARD: Validate discussion data before processing
+    validateNoChecklist(discussionData, `DiscussionEngine.startRounds (${discussionId})`, true);
 
     const discussionRoom = DiscussionRoom.fromData(discussionData);
     
@@ -556,7 +469,7 @@ class DiscussionEngine {
         
         console.error(`[DiscussionEngine] HARD STOP - ${violationMessage}`);
         // Close this discussion instead of transitioning to IN_PROGRESS
-        await transitionStatus(discussionId, STATUS.CLOSED, 'Duplicate discussion - another IN_PROGRESS discussion exists in sector');
+        await transitionStatus(discussionId, STATUS.DECIDED, 'Duplicate discussion - another IN_PROGRESS discussion exists in sector');
         throw new Error(`${errorMessage}. Sector ${sectorId} has ${otherInProgressDiscussions.length} other active discussion(s) (IDs: ${otherDiscussionIds}).`);
       }
       
@@ -617,13 +530,13 @@ class DiscussionEngine {
             throw new Error(`Invalid message data structure from agent ${agent.id}`);
           }
           
-          console.log(`[DiscussionEngine] Round ${round}: Agent ${agent.name} (${agent.id}) sending message with proposal: ${messageData.proposal.action} ${messageData.proposal.symbol}`);
+          console.log(`[DiscussionEngine] Round ${round}: Agent ${agent.name} (${agent.id}) sending message with reasoning and proposal`);
           console.log(`[DiscussionEngine] Message data structure:`, {
             hasAnalysis: !!messageData.analysis,
             hasProposal: !!messageData.proposal,
-            proposalAction: messageData.proposal?.action,
-            proposalSymbol: messageData.proposal?.symbol,
-            proposalReasoning: messageData.proposal?.reasoning?.substring(0, 50)
+            proposalConfidence: messageData.proposal?.confidence,
+            proposalReasoningLength: messageData.proposal?.reasoning?.length || 0,
+            proposalTextLength: messageData.proposal?.proposal?.length || 0
           });
           
           // Add message to discussion with analysis and proposal
@@ -808,31 +721,20 @@ class DiscussionEngine {
       
       // Process messages and extract proposals
       allMessages.forEach((msg, index) => {
-        // Check if message has a proposal (new format)
+        // Check if message has a proposal (new format: { reasoning, proposal, confidence })
         if (msg.proposal && typeof msg.proposal === 'object') {
           const proposal = msg.proposal;
           
-          // Extract proposal data
-          const action = (proposal.action || 'HOLD').toLowerCase();
-          const symbol = proposal.symbol || 'UNKNOWN';
-          const allocationPercent = typeof proposal.allocationPercent === 'number'
-            ? Math.max(0, Math.min(100, proposal.allocationPercent))
-            : 0;
-          const confidence = typeof proposal.confidence === 'number'
-            ? Math.max(0, Math.min(100, proposal.confidence))
-            : 50;
+          // Extract proposal data from new format
           const reasoning = typeof proposal.reasoning === 'string' && proposal.reasoning.trim()
             ? proposal.reasoning.trim()
             : 'No reasoning provided';
-          
-          // Calculate amount from allocation percent if sector balance is available
-          let amount = 0;
-          if (sector && typeof sector.balance === 'number' && sector.balance > 0) {
-            amount = Math.round((allocationPercent / 100) * sector.balance);
-          } else {
-            // Fallback: calculate based on confidence
-            amount = Math.round((confidence / 100) * 1000);
-          }
+          const proposalText = typeof proposal.proposal === 'string' && proposal.proposal.trim()
+            ? proposal.proposal.trim()
+            : 'No proposal provided';
+          const confidence = typeof proposal.confidence === 'number'
+            ? Math.max(0, Math.min(100, proposal.confidence))
+            : 50;
           
           // Determine round number from message
           let round = 1;
@@ -858,17 +760,15 @@ class DiscussionEngine {
             itemsByRound.set(round, []);
           }
           
+          // Store proposal as text-based reasoning (no structured actions)
           itemsByRound.get(round).push({
-            action: action,
             reason: reasoning,
             reasoning: reasoning,
+            proposal: proposalText,
             confidence: Math.round(confidence * 10) / 10, // Round to 1 decimal
-            allocationPercent: allocationPercent,
-            amount: amount,
             round: round,
             agentId: msg.agentId,
-            agentName: msg.agentName,
-            symbol: symbol
+            agentName: msg.agentName
           });
         } else {
           // Legacy path: parse message content (backward compatibility)
@@ -1221,32 +1121,24 @@ class DiscussionEngine {
         };
 
         try {
+          // Agents now only generate plain text reasoning, proposal, and confidence (0.0-1.0)
+          // No structured actions, no checklist items
           const proposal = await generateWorkerProposal({
             agentProfile,
             sectorState
           });
 
-          const allocationAmount = typeof sector?.balance === 'number'
-            ? Math.max(0, Math.round((proposal.allocationPercent / 100) * sector.balance))
-            : Math.max(0, Math.round(proposal.allocationPercent * 10));
+          // Store proposal as plain text only - no checklist creation
+          // Proposals are stored in messages, not as checklist items
+          console.log(`[DiscussionEngine] Agent ${agent.id} generated proposal: ${proposal.proposal.substring(0, 100)}...`);
 
-          checklistDraft.push({
-            id: `draft-final-${discussionRoom.id}-${agent.id}-${checklistDraft.length}`,
-            action: proposal.action,
-            allocationPercent: proposal.allocationPercent,
-            confidence: proposal.confidence,
-            workerConfidence: proposal.confidence,
+          // Update agent confidence based on proposal (confidence is 0.0-1.0, convert to 0-100 for internal use)
+          const confidencePercent = proposal.confidence * 100;
+          const updatedConfidence = await this._applyProposalConfidence(agent, {
             reasoning: proposal.reasoning,
-            symbol: proposal.symbol || sector?.symbol || sector?.sectorSymbol || '',
-            amount: allocationAmount,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            agentId: agent.id,
-            agentName: agent.name || 'Unknown Agent',
-            workerProposal: proposal
-          });
-
-          const updatedConfidence = await this._applyProposalConfidence(agent, proposal, sector);
+            proposal: proposal.proposal,
+            confidence: confidencePercent
+          }, sector);
           if (updatedConfidence !== null) {
             agentsUpdated = true;
           }
@@ -1256,30 +1148,10 @@ class DiscussionEngine {
       }
     }
 
-    // Fallback to legacy placeholder if LLM disabled or produced no proposals
-    if (!useLlm || checklistDraft.length === 0) {
-      const allMessages = Array.isArray(discussionRoom.messages) ? discussionRoom.messages : [];
-      const messageSummaries = allMessages.map(msg => msg.content).join(' ');
-      const combinedSummary = messageSummaries || 'Discussion completed with agent input';
-
-      checklistDraft.push({
-        id: `draft-final-${discussionRoom.id}`,
-        action: 'deploy capital',
-        reasoning: combinedSummary,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      });
-    }
-
-    discussionRoom.checklistDraft = checklistDraft;
-
-    // Keep a matching checklist view for manager review
-    discussionRoom.checklist = checklistDraft.map((item, index) => ({
-      ...item,
-      id: item.id || `checklist-${discussionRoom.id}-${index}`,
-      status: 'PENDING',
-      workerProposal: item.workerProposal || null
-    }));
+    // Agents no longer generate checklist items - only plain text reasoning and proposals
+    // Checklist items are not created from agent reasoning
+    discussionRoom.checklistDraft = [];
+    discussionRoom.checklist = [];
 
     // Save finalized discussion
     await saveDiscussion(discussionRoom);
@@ -1671,7 +1543,8 @@ _clampConfidence(value) {
     let alignmentWithSectorTrend = 50; // Default neutral
     if (sector) {
       const trendPercent = typeof sector.changePercent === 'number' ? sector.changePercent : 0;
-      const action = (proposal.action || '').toUpperCase();
+          // Agents no longer provide structured actions - skip action extraction
+          const action = null;
       
       // Alignment: BUY aligns with positive trend, SELL aligns with negative trend
       if (action === 'BUY' && trendPercent > 0) {
@@ -1742,11 +1615,9 @@ _clampConfidence(value) {
       return {
         analysis: `${agentName}: Manager agents do not contribute to discussion rounds.`,
         proposal: {
-          action: 'HOLD',
-          symbol: sector?.symbol || sector?.name || 'UNKNOWN',
-          allocationPercent: 0,
-          confidence: 0,
-          reasoning: 'Manager agents do not contribute to discussion rounds.'
+          reasoning: 'Manager agents do not contribute to discussion rounds.',
+          proposal: 'No proposal from manager agent.',
+          confidence: 0.0
         }
       };
     }
@@ -1759,11 +1630,9 @@ _clampConfidence(value) {
       return {
         analysis: `${agentName}: Observing discussion (confidence ${agentConfidence.toFixed(2)} < 65, cannot propose actions).`,
         proposal: {
-          action: 'HOLD',
-          symbol: sector?.symbol || sector?.name || 'UNKNOWN',
-          allocationPercent: 0,
-          confidence: agentConfidence,
-          reasoning: 'Confidence below threshold - observing only, cannot propose actions'
+          reasoning: 'Confidence below threshold - observing only, cannot propose actions',
+          proposal: 'Continue observing the discussion.',
+          confidence: agentConfidence / 100 // Convert to 0.0-1.0
         }
       };
     }
@@ -1820,33 +1689,17 @@ _clampConfidence(value) {
           `Trend: ${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}%`,
           `Volatility: ${(volatility * 100).toFixed(2)}%`,
           '',
-          'You are an ACTIVE trading agent. Your job is to make trading decisions, not avoid them. HOLD should be rare.',
-          'CRITICAL: Default to action (BUY/SELL) rather than inaction (HOLD) when any market signal exists.',
+          'Your task is to analyze the market data and provide:',
+          '1. REASONING: Your internal thought process and analysis of the current market conditions',
+          '2. PROPOSAL: A plain text proposal describing your trading recommendation (no structured actions)',
+          '3. CONFIDENCE: Your confidence level (0.0-1.0) in your proposal',
           '',
-          'Decision guidelines (prioritize action):',
-          `1. BUY when:`,
-          `   - Trend is positive (>0.5%) OR price > baseline OR any bullish indicators exist`,
-          `   - Volatility is reasonable (<40%)`,
-          `   - Available capital exists (balance > 0)`,
-          `   - Confidence: 50-85% based on signal strength`,
-          `   - Allocation: 15-30% for high confidence, 10-20% for medium, 5-15% for lower`,
-          '',
-          `2. SELL when:`,
-          `   - Trend is negative (<-0.5%) OR price < baseline OR bearish indicators exist`,
-          `   - Volatility is reasonable (<40%)`,
-          `   - You have positions to sell`,
-          `   - Confidence: 50-80% based on signal strength`,
-          '',
-          `3. HOLD ONLY when:`,
-          `   - Trend is truly neutral (-0.5% to +0.5%)`,
-          `   - AND no clear directional indicators exist`,
-          `   - AND volatility is extremely high (>50%)`,
-          `   - Confidence should be low: 5-30%`,
-          `   - Allocation: 0%`,
-          '',
-          `IMPORTANT: If balance > 0 and trend > 0.5%, you should strongly consider BUY.`,
-          `IMPORTANT: If trend < -0.5%, consider SELL.`,
-          `IMPORTANT: Your confidence MUST reflect signal strength: strong signals = 60-85%, moderate = 40-60%, weak = 20-40%, HOLD = 5-30%`,
+          'IMPORTANT:',
+          '- Provide reasoning based on the market data (price, trend, volatility, indicators)',
+          '- Write proposals as natural language text, not structured action objects',
+          '- Do not use BUY/SELL/HOLD as structured objects - describe your recommendation in plain text',
+          '- Confidence should reflect how certain you are about your proposal (0.0-1.0)',
+          '- Strong signals should have confidence 0.6-0.85, moderate 0.4-0.6, weak 0.2-0.4',
           'Your response should be a clear, concise analysis with a specific recommendation.',
           'Focus on the current market conditions, price trends, and risk factors.',
           'Use the actual market data provided above to justify your decision.',
@@ -1855,15 +1708,15 @@ _clampConfidence(value) {
         // Check for rejected items that need refinement from this agent
         let rejectedItemsContext = '';
         if (discussionRoom) {
-          const activeRefinementCycles = Array.isArray(discussionRoom.activeRefinementCycles) 
-            ? discussionRoom.activeRefinementCycles 
-            : [];
+          const checklistItems = Array.isArray(discussionRoom.checklist) ? discussionRoom.checklist : [];
           
-          // Find rejected items from this agent that are in active refinement cycles
-          const agentRejectedItems = activeRefinementCycles.filter(cycle => {
-            const originalItem = cycle.originalItem || {};
-            const itemAgentId = originalItem.sourceAgentId || originalItem.agentId;
-            return itemAgentId === agent.id;
+          // Find items with REVISE_REQUIRED status from this agent (refinement enabled)
+          const agentRejectedItems = checklistItems.filter(item => {
+            const itemStatus = (item.status || '').toUpperCase();
+            const itemAgentId = item.sourceAgentId || item.agentId;
+            return itemStatus === 'REVISE_REQUIRED' && 
+                   item.requiresRevision === true &&
+                   itemAgentId === agent.id;
           });
           
           if (agentRejectedItems.length > 0) {
@@ -1871,60 +1724,87 @@ _clampConfidence(value) {
             rejectedItemsContext += 'The following proposal(s) you previously submitted were REJECTED. ';
             rejectedItemsContext += 'You MUST create a NEW, REVISED proposal (do NOT modify the old one - it is immutable).\n\n';
             
-            agentRejectedItems.forEach((cycle, index) => {
-              const item = cycle.originalItem || {};
+            agentRejectedItems.forEach((item, index) => {
+              // Extract rejectionReason from item (injected when item was rejected)
+              const rejectionReason = item.rejectionReason || {};
+              const rejectionReasonText = rejectionReason.reason || item.managerReason || 'N/A';
+              const scoreInfo = rejectionReason.score !== undefined 
+                ? ` (Score: ${rejectionReason.score.toFixed(1)}/${rejectionReason.approvalThreshold || 100})`
+                : '';
+              
               rejectedItemsContext += `Rejected Proposal #${index + 1}:\n`;
               rejectedItemsContext += `  - Action: ${item.actionType || item.action || 'N/A'}\n`;
               rejectedItemsContext += `  - Symbol: ${item.symbol || 'N/A'}\n`;
               rejectedItemsContext += `  - Allocation: ${item.allocationPercent || 0}%\n`;
               rejectedItemsContext += `  - Confidence: ${item.confidence || 0}%\n`;
-              rejectedItemsContext += `  - Reasoning: ${item.reasoning || 'N/A'}\n`;
-              rejectedItemsContext += `  - Rejection Reason: ${cycle.rejectionReason || 'N/A'}\n`;
-              rejectedItemsContext += `  - Required Improvements: ${cycle.requiredImprovements || 'N/A'}\n\n`;
+              rejectedItemsContext += `  - Reasoning: ${item.reasoning || item.rationale || 'N/A'}\n`;
+              rejectedItemsContext += `  - Rejection Reason: ${rejectionReasonText}${scoreInfo}\n`;
+              
+              // Add score breakdown if available
+              if (rejectionReason.scoreBreakdown) {
+                const breakdown = rejectionReason.scoreBreakdown;
+                rejectedItemsContext += `  - Score Breakdown:\n`;
+                if (breakdown.workerConfidence !== undefined) {
+                  rejectedItemsContext += `    * Worker Confidence: ${breakdown.workerConfidence.toFixed(1)}\n`;
+                }
+                if (breakdown.expectedImpact !== undefined) {
+                  rejectedItemsContext += `    * Expected Impact: ${breakdown.expectedImpact.toFixed(1)}\n`;
+                }
+                if (breakdown.riskLevel !== undefined) {
+                  rejectedItemsContext += `    * Risk Level: ${breakdown.riskLevel.toFixed(1)}\n`;
+                }
+                if (breakdown.alignmentWithSectorGoal !== undefined) {
+                  rejectedItemsContext += `    * Alignment: ${breakdown.alignmentWithSectorGoal.toFixed(1)}\n`;
+                }
+              }
+              
+              // Add required improvements if available
+              if (rejectionReason.requiredImprovements && Array.isArray(rejectionReason.requiredImprovements)) {
+                rejectedItemsContext += `  - Required Improvements:\n`;
+                rejectionReason.requiredImprovements.forEach(improvement => {
+                  rejectedItemsContext += `    * ${improvement}\n`;
+                });
+              }
+              
+              rejectedItemsContext += `  - Revision Attempt: ${(item.revisionCount || 0) + 1}/2 (max 2 attempts)\n\n`;
             });
             
             rejectedItemsContext += 'CRITICAL INSTRUCTIONS FOR REVISED PROPOSAL:\n';
             rejectedItemsContext += '1. Create a COMPLETELY NEW proposal (the old one cannot be modified)\n';
-            rejectedItemsContext += '2. Address ALL required improvements listed above\n';
+            rejectedItemsContext += '2. Address ALL rejection reasons and required improvements listed above\n';
             rejectedItemsContext += '3. Ensure your new proposal meets the confidence threshold\n';
             rejectedItemsContext += '4. Provide stronger reasoning that addresses the rejection concerns\n';
-            rejectedItemsContext += '5. Your new proposal will be evaluated independently\n\n';
+            rejectedItemsContext += '5. Your new proposal will be evaluated independently\n';
+            rejectedItemsContext += '6. This is your ONE chance to revise - make it count!\n\n';
           }
         }
 
-        // Build user prompt that asks for structured JSON output
+        // Build user prompt that asks for simple reasoning + proposal format
         const userPrompt = [
           rejectedItemsContext ? rejectedItemsContext : '',
           'Analyze the current market data and provide your trading recommendation.',
           '',
           'You MUST respond with a JSON object containing:',
           '{',
-          '  "action": "BUY" | "SELL" | "HOLD",',
-          '  "allocationPercent": number (0-100),',
-          '  "confidence": number (0-100),',
-          '  "reasoning": string or string[] (your analysis and reasoning),',
-          '  "riskNotes": string or string[] (optional risk assessment)',
+          '  "reasoning": string,  // Your analysis and thought process',
+          '  "proposal": string,   // Plain text proposal describing your recommendation',
+          '  "confidence": number  // Your confidence level (0.0-1.0)',
           '}',
           '',
           'Important:',
-          '- PREFER BUY/SELL over HOLD: Make active trading decisions when market signals exist',
-          '- When trend > 0.5% or price > baseline: Consider BUY with confidence 50-75%',
-          '- When trend < -0.5% or price < baseline: Consider SELL with confidence 50-70%',
-          '- HOLD only if trend is truly neutral (-0.5% to +0.5%) AND no clear signals (confidence 5-30%)',
-          '- Your confidence MUST be based on the strength of market signals and your reasoning',
-          '- Strong conviction with clear signals (trend >2% or <-2%) should have confidence 60-85',
-          '- Moderate signals should have confidence 40-60',
-          '- Weak/uncertain signals (HOLD) should have confidence 5-30',
-          '- For BUY/SELL: allocationPercent should be 15-30% (high confidence), 10-20% (medium), 5-15% (lower)',
-          '- For HOLD: allocationPercent should be 0%',
+          '- reasoning: Provide detailed analysis of market conditions, trends, and indicators',
+          '- proposal: Write a natural language proposal describing what you recommend',
+          '- confidence: A number between 0.0-1.0 reflecting how certain you are about your proposal',
+          '- Do NOT use structured action objects (BUY/SELL/HOLD) - describe your recommendation in plain text',
           '- Reference specific numbers from the market data in your reasoning',
-          '- Provide a clear, detailed analysis in the reasoning field that explains your confidence level.',
-          '- REMEMBER: You are an active trader. Make decisions. HOLD is a last resort, not a default.',
+          '- Confidence should reflect signal strength: strong signals = 0.6-0.85, moderate = 0.4-0.6, weak = 0.2-0.4',
+          '- Confidence MUST be derived solely from the current proposal, not from prior discussions or past confidence',
+          '- Output MUST be valid JSON - no markdown code blocks, no commentary outside the JSON object',
         ].join('\n');
 
-        // Call LLM in JSON mode to get structured output
+        // Call LLM in JSON mode to get simple reasoning + proposal output
         console.log(`[DiscussionEngine] Calling LLM in JSON mode for agent ${agentName} (${agent.id}) in sector ${sectorName}`);
-        let structuredProposal;
+        let agentReasoning;
         let analysisText = '';
         
         try {
@@ -1935,119 +1815,98 @@ _clampConfidence(value) {
             maxTokens: 1000
           });
 
-          // Parse JSON response - use normalizeLLMDecision for graceful error handling
+          // Parse JSON response - simple format: { reasoning, proposal, confidence }
           let parsed;
           try {
-            parsed = JSON.parse(jsonResponse);
+            const cleaned = jsonResponse
+              .replace(/```json/gi, '')
+              .replace(/```/g, '')
+              .trim();
+            parsed = JSON.parse(cleaned);
           } catch (parseError) {
-            // JSON parsing failed - use normalizeLLMDecision to create valid fallback
             console.warn(`[DiscussionEngine] Failed to parse LLM JSON response for agent ${agent.id}: ${parseError.message}`);
-            parsed = null; // Will trigger normalizeLLMDecision fallback
+            parsed = null;
           }
 
-          // Use normalizeLLMDecision to handle all parsing/validation failures gracefully
-          const { normalizeLLMDecision } = require('../ai/normalizeLLMDecision');
-          let normalized = normalizeLLMDecision(
-            parsed,
-            `${agentName} recommends maintaining current position due to insufficient market signals.`
-          );
+          // Extract and validate fields
+          if (parsed && typeof parsed === 'object') {
+            const reasoning = typeof parsed.reasoning === 'string' && parsed.reasoning.trim().length > 0
+              ? parsed.reasoning.trim()
+              : `${agentName} did not provide reasoning.`;
 
-          // Post-process to encourage BUY when balance exists and signals are positive
-          // If LLM returned HOLD but we have balance and positive signals, convert to BUY
-          if (normalized.action === 'HOLD' && sectorBalance > 0) {
-            const hasPositiveSignal = trendPercent > 0.5 || (currentPrice > baselinePrice && baselinePrice > 0);
-            const hasNegativeSignal = trendPercent < -0.5 || (currentPrice < baselinePrice && baselinePrice > 0);
-            
-            if (hasPositiveSignal) {
-              // Convert HOLD to BUY when positive signals exist
-              console.log(`[DiscussionEngine] Converting HOLD to BUY for agent ${agentName} due to positive signals (trend: ${trendPercent.toFixed(2)}%, price vs baseline)`);
-              normalized = {
-                ...normalized,
-                action: 'BUY',
-                allocationPercent: Math.max(10, Math.min(25, normalized.allocationPercent || 15)), // 10-25% for converted BUY
-                confidence: Math.max(40, Math.min(65, normalized.confidence || 50)), // 40-65% for converted BUY
-                reasoning: normalized.reasoning + ` (Converted from HOLD to BUY due to positive trend ${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}% and available capital)`
-              };
-            } else if (hasNegativeSignal && sectorBalance > 0) {
-              // Could also convert to SELL if negative signals, but only if we have positions
-              // For now, keep as HOLD if negative signals (we might not have positions to sell)
+            const proposal = typeof parsed.proposal === 'string' && parsed.proposal.trim().length > 0
+              ? parsed.proposal.trim()
+              : 'No specific proposal provided.';
+
+            // Validate confidence (0.0-1.0)
+            let confidence = 0.5; // Default
+            if (typeof parsed.confidence === 'number' && Number.isFinite(parsed.confidence)) {
+              // Convert from 0-100 scale to 0.0-1.0 if needed
+              if (parsed.confidence > 1.0) {
+                confidence = Math.max(0.0, Math.min(1.0, parsed.confidence / 100));
+              } else {
+                confidence = Math.max(0.0, Math.min(1.0, parsed.confidence));
+              }
             }
+
+            agentReasoning = {
+              reasoning,
+              proposal,
+              confidence,
+            };
+          } else {
+            // Fallback if parsing failed
+            agentReasoning = {
+              reasoning: `${agentName} analyzed the market but could not provide detailed reasoning.`,
+              proposal: 'Maintain current position due to insufficient data.',
+              confidence: 1,
+            };
           }
 
-          // Determine symbol from allowed symbols
-          const symbol = allowedSymbols.length > 0 ? allowedSymbols[0] : sectorName;
-
-          structuredProposal = {
-            action: normalized.action,
-            symbol: symbol,
-            allocationPercent: normalized.allocationPercent,
-            confidence: normalized.confidence,
-            reasoning: normalized.reasoning,
-            riskNotes: parsed && parsed.riskNotes 
-              ? (Array.isArray(parsed.riskNotes) ? parsed.riskNotes.join(' ').trim() : parsed.riskNotes.trim())
-              : undefined
-          };
-
-          // Create analysis text from the structured data for display (user-friendly, no error messages)
-          // Include confidence reasoning in the message
-          const confidenceReasoning = structuredProposal.confidence >= 50 
-            ? `High confidence (${structuredProposal.confidence}%) - strong conviction in ${structuredProposal.action} recommendation.`
-            : structuredProposal.confidence >= 25
-            ? `Moderate confidence (${structuredProposal.confidence}%) - ${structuredProposal.action} with some uncertainty.`
-            : `Low confidence (${structuredProposal.confidence}%) - ${structuredProposal.action} due to limited conviction.`;
+          // Create analysis text for display
+          const confidenceLevel = agentReasoning.confidence >= 50 
+            ? `High confidence (${agentReasoning.confidence}%)`
+            : agentReasoning.confidence >= 25
+            ? `Moderate confidence (${agentReasoning.confidence}%)`
+            : `Low confidence (${agentReasoning.confidence}%)`;
           
           analysisText = [
-            `${agentName} recommends: ${structuredProposal.action}`,
-            `Allocation: ${structuredProposal.allocationPercent}%`,
-            `Confidence: ${structuredProposal.confidence}%`,
-            `Confidence Reasoning: ${confidenceReasoning}`,
+            `${agentName} Analysis:`,
+            `Confidence: ${confidenceLevel}`,
             '',
-            `Reasoning: ${structuredProposal.reasoning}`,
-            structuredProposal.riskNotes ? `\nRisk Notes: ${structuredProposal.riskNotes}` : ''
+            `Reasoning: ${agentReasoning.reasoning}`,
+            '',
+            `Proposal: ${agentReasoning.proposal}`
           ].join('\n').trim();
 
-          console.log(`[DiscussionEngine] Parsed structured proposal for agent ${agentName}:`, {
-            action: structuredProposal.action,
-            allocationPercent: structuredProposal.allocationPercent,
-            confidence: structuredProposal.confidence,
-            reasoningLength: structuredProposal.reasoning.length
+          console.log(`[DiscussionEngine] Parsed agent reasoning for ${agentName}:`, {
+            confidence: agentReasoning.confidence,
+            reasoningLength: agentReasoning.reasoning.length,
+            proposalLength: agentReasoning.proposal.length
           });
         } catch (llmError) {
-          // LLM call failed - create fallback proposal with user-friendly message
+          // LLM call failed - create fallback reasoning
           console.error(`[DiscussionEngine] LLM call failed for agent ${agent.id}: ${llmError.message}`);
-          const fallbackSymbol = allowedSymbols && allowedSymbols.length > 0 
-            ? allowedSymbols[0] 
-            : (sector?.symbol || sector?.name || 'UNKNOWN');
           
-          // If we have balance and positive signals, default to BUY instead of HOLD
-          const hasPositiveSignal = trendPercent > 0.5 || (currentPrice > baselinePrice && baselinePrice > 0);
-          const fallbackAction = (sectorBalance > 0 && hasPositiveSignal) ? 'BUY' : 'HOLD';
-          const fallbackAllocation = fallbackAction === 'BUY' ? 15 : 0;
-          const fallbackConfidence = fallbackAction === 'BUY' ? 50 : 1;
-          const fallbackReasoning = fallbackAction === 'BUY'
-            ? `${agentName} recommends BUY based on positive trend (${trendPercent > 0 ? '+' : ''}${trendPercent.toFixed(2)}%) and available capital.`
-            : `${agentName} recommends maintaining current position due to insufficient market signals.`;
-          
-          structuredProposal = {
-            action: fallbackAction,
-            symbol: fallbackSymbol,
-            allocationPercent: fallbackAllocation,
-            confidence: fallbackConfidence,
-            reasoning: fallbackReasoning
+          agentReasoning = {
+            reasoning: `${agentName} could not analyze the market due to an error.`,
+            proposal: 'Maintain current position due to insufficient data.',
+            confidence: 1,
           };
+          
           analysisText = [
-            `${agentName} recommends: HOLD`,
-            `Allocation: 0%`,
-            `Confidence: 1%`,
-            `Confidence Reasoning: Low confidence (1%) - HOLD due to insufficient market signals.`,
+            `${agentName} Analysis:`,
+            `Confidence: Low confidence (1%)`,
             '',
-            `Reasoning: ${structuredProposal.reasoning}`
+            `Reasoning: ${agentReasoning.reasoning}`,
+            '',
+            `Proposal: ${agentReasoning.proposal}`
           ].join('\n').trim();
         }
 
         return {
           analysis: analysisText, // Formatted analysis text for display
-          proposal: structuredProposal // Structured proposal object for checklist
+          proposal: agentReasoning // Simple reasoning + proposal object
         };
       } catch (error) {
         console.error(`[DiscussionEngine] Failed to generate LLM message for agent ${agent.id}:`, error.message);
@@ -2078,19 +1937,17 @@ _clampConfidence(value) {
         
         return {
           analysis: [
-            `${agentName} recommends: ${fallbackAction}`,
-            `Allocation: ${fallbackAllocation}%`,
-            `Confidence: ${fallbackConfidence}%`,
-            `Confidence Reasoning: ${fallbackAction === 'BUY' ? `Moderate confidence (${fallbackConfidence}%) - BUY recommendation based on positive signals.` : `Low confidence (${fallbackConfidence}%) - HOLD due to insufficient market signals.`}`,
+            `${agentName} Analysis:`,
+            `Confidence: Low confidence (1%)`,
             '',
-            `Reasoning: ${fallbackReasoning}`
+            `Reasoning: ${agentName} could not analyze the market due to an error.`,
+            '',
+            `Proposal: Maintain current position due to insufficient data.`
           ].join('\n').trim(),
           proposal: {
-            action: fallbackAction,
-            symbol: fallbackSymbol,
-            allocationPercent: fallbackAllocation,
-            confidence: fallbackConfidence,
-            reasoning: fallbackReasoning
+            reasoning: `${agentName} could not analyze the market due to an error.`,
+            proposal: 'Maintain current position due to insufficient data.',
+            confidence: 1
           }
         };
       }
@@ -2099,11 +1956,9 @@ _clampConfidence(value) {
       return {
         analysis: `${agentName}: LLM is disabled. Cannot generate proposal.`,
         proposal: {
-          action: 'HOLD',
-          symbol: sector?.symbol || sector?.name || 'UNKNOWN',
-          allocationPercent: 0,
-          confidence: 0,
-          reasoning: 'LLM is disabled. Cannot generate proposal.'
+          reasoning: 'LLM is disabled. Cannot generate proposal.',
+          proposal: 'Maintain current position.',
+          confidence: 1
         }
       };
     }
@@ -2194,7 +2049,7 @@ _clampConfidence(value) {
 
     const managerReason = item.managerReason || '';
     const revisionCount = item.revisionCount || 0;
-    const MAX_REFINEMENT_ROUNDS = 3;
+    const MAX_REFINEMENT_ROUNDS = 2;
 
     // Decision logic:
     // 1. If idea rejected 3+ times → accept (cap refinement rounds at 3)

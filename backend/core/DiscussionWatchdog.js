@@ -247,7 +247,7 @@ class DiscussionWatchdog {
 
       discussionRoom.closeReason = closeReason;
       const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
-      await transitionStatus(discussionId, STATUS.CLOSED, 'Discussion stalled and closed by watchdog');
+      await transitionStatus(discussionId, STATUS.DECIDED, 'Discussion stalled and ended by watchdog');
       discussionRoom.discussionClosedAt = new Date().toISOString();
       discussionRoom.updatedAt = new Date().toISOString();
 

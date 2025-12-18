@@ -8,7 +8,6 @@ class ExecutionLog {
     id = randomUUID(),
     executionId = null,
     discussionId = null,
-    checklistItemId = null,
     sectorId,
     action,
     allocation = null,
@@ -39,7 +38,6 @@ class ExecutionLog {
     this.id = id;
     this.executionId = executionId || id; // Default to id if not provided
     this.discussionId = discussionId;
-    this.checklistItemId = checklistItemId;
     this.sectorId = sectorId;
     this.action = action.toUpperCase(); // Normalize to uppercase
     this.allocation = typeof allocation === 'number' ? allocation : null;
@@ -66,7 +64,6 @@ class ExecutionLog {
       id: this.id,
       executionId: this.executionId,
       discussionId: this.discussionId,
-      checklistItemId: this.checklistItemId,
       sectorId: this.sectorId,
       action: this.action,
       allocation: this.allocation,
@@ -137,7 +134,6 @@ class ExecutionLog {
       id: data.id,
       executionId: data.executionId || data.id,
       discussionId: data.discussionId,
-      checklistItemId: data.checklistItemId,
       sectorId: data.sectorId,
       action: data.action,
       allocation: data.allocation,
@@ -158,7 +154,7 @@ class ExecutionLog {
    * Get all execution logs with optional filters
    * @param {Object} filters - Filter options
    * @param {string} filters.sectorId - Filter by sector ID
-   * @param {string} filters.managerId - Filter by manager ID (from checklistId/discussionId)
+   * @param {string} filters.managerId - Filter by manager ID (from discussionId)
    * @param {string} filters.discussionId - Filter by discussion ID
    * @param {number} filters.startTime - Start timestamp (inclusive)
    * @param {number} filters.endTime - End timestamp (inclusive)
@@ -177,17 +173,15 @@ class ExecutionLog {
       }
       
       if (filters.managerId) {
-        // Manager ID can be in managerId field, checklistId, or discussionId field
+        // Manager ID can be in managerId field or discussionId field
         allLogs = allLogs.filter(log => 
           log.managerId === filters.managerId ||
-          (log.checklistId && log.checklistId.includes(filters.managerId)) ||
           (log.discussionId && log.discussionId.includes(filters.managerId))
         );
       }
       
       if (filters.discussionId) {
         allLogs = allLogs.filter(log => 
-          log.checklistId === filters.discussionId || 
           log.discussionId === filters.discussionId
         );
       }

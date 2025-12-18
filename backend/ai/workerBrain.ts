@@ -1,9 +1,4 @@
-import { callLLM } from './llmClient';
-import { validateWorkerAgentProposal, WorkerAgentProposal } from './agentSchemas';
-import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmAction';
-import { buildDecisionPrompt } from './prompts/buildDecisionPrompt';
-import { parseLLMTradeAction } from './parseLLMTradeAction';
-import { normalizeLLMResponse } from './normalizeLLMResponse';
+import { generateAgentReasoning, AgentReasoning } from '../agents/agentReasoning';
 
 type SectorType = 'crypto' | 'equities' | 'forex' | 'commodities' | 'other';
 
@@ -29,6 +24,15 @@ type GenerateWorkerProposalParams = {
   agentConfidence?: number; // Agent's last confidence (0-100)
 };
 
+/**
+ * Plain text proposal type - no structured actions
+ */
+export type WorkerAgentProposal = {
+  reasoning: string;
+  proposal: string;
+  confidence: number; // 0.0-1.0
+};
+
 function parseTrendPercent(trendDescriptor?: string | number): number | undefined {
   if (typeof trendDescriptor === 'number' && Number.isFinite(trendDescriptor)) {
     return trendDescriptor;
@@ -45,96 +49,50 @@ function parseTrendPercent(trendDescriptor?: string | number): number | undefine
   return undefined;
 }
 
-function buildPrompts(params: GenerateWorkerProposalParams) {
-  const { sectorState, purpose, agentProfile } = params;
-  const trendPercent = typeof sectorState.trendPercent === 'number'
-    ? sectorState.trendPercent
-    : parseTrendPercent(sectorState.trendDescriptor);
-
-  return buildDecisionPrompt({
-    sectorName: sectorState.sectorName,
-    agentSpecialization: purpose ?? agentProfile.roleDescription,
-    agentBrief: purpose ?? agentProfile.roleDescription,
-    allowedSymbols: Array.isArray(sectorState.allowedSymbols) ? sectorState.allowedSymbols : [],
-    remainingCapital: sectorState.balance,
-    realTimeData: {
-      recentPrice: sectorState.simulatedPrice,
-      baselinePrice: sectorState.baselinePrice,
-      trendPercent,
-      volatility: sectorState.volatility,
-      indicators: sectorState.indicators ?? {},
-    },
-  });
-}
-
-function mapTradeToWorkerProposal(
-  trade: {
-    action: WorkerAgentProposal['action'];
-    amount: number;
-    confidence: number;
-    reasoning: string;
-    symbol: string;
-  },
-  sectorState: GenerateWorkerProposalParams['sectorState']
-): WorkerAgentProposal {
-  const allocationPercent =
-    sectorState.balance && sectorState.balance > 0 ? Math.min(100, (trade.amount / sectorState.balance) * 100) : 0;
-
-  return validateWorkerAgentProposal({
-    action: trade.action,
-    symbol: trade.symbol,
-    allocationPercent,
-    confidence: trade.confidence,
-    reasoning: trade.reasoning,
-  });
-}
-
+/**
+ * Generate a plain text proposal from an agent.
+ * Returns only reasoning, proposal (plain text), and confidence (0.0-1.0).
+ * No structured actions, no BUY/SELL/HOLD labels, no execution semantics.
+ */
 export async function generateWorkerProposal(
   params: GenerateWorkerProposalParams
 ): Promise<WorkerAgentProposal> {
   try {
-    const { systemPrompt, userPrompt, allowedSymbols } = buildPrompts(params);
-    const rawResponse = await callLLM({
-      systemPrompt,
-      userPrompt,
-      jsonMode: true
+    const { sectorState, purpose, agentProfile } = params;
+    const trendPercent = typeof sectorState.trendPercent === 'number'
+      ? sectorState.trendPercent
+      : parseTrendPercent(sectorState.trendDescriptor);
+
+    // Use generateAgentReasoning which returns plain text only
+    const agentReasoning = await generateAgentReasoning({
+      sector: {
+        type: sectorState.sectorType,
+        symbol: sectorState.sectorName,
+        name: sectorState.sectorName,
+        allowedSymbols: Array.isArray(sectorState.allowedSymbols) ? sectorState.allowedSymbols : [],
+        trendPercent,
+        riskScore: sectorState.riskScore,
+      },
+      sectorData: {
+        currentPrice: sectorState.simulatedPrice,
+        baselinePrice: sectorState.baselinePrice,
+        changePercent: trendPercent,
+        volatility: sectorState.volatility,
+        ...(sectorState.indicators ?? {}),
+      },
+      agent: {
+        purpose: purpose ?? agentProfile.roleDescription,
+        confidence: params.agentConfidence,
+      },
+      availableBalance: sectorState.balance ?? 0,
     });
 
-    const priceContext = params.sectorState.simulatedPrice ?? params.sectorState.baselinePrice;
-    const parsed = parseLLMTradeAction(rawResponse, {
-      fallbackSector: params.sectorState.sectorName,
-      fallbackSymbol: allowedSymbols[0],
-      remainingCapital: params.sectorState.balance,
-      currentPrice: priceContext,
-    });
-    const llmTrade = validateLLMTradeAction(parsed, {
-      allowedSymbols,
-      remainingCapital: params.sectorState.balance,
-      fallbackSector: params.sectorState.sectorName,
-      fallbackSymbol: allowedSymbols[0],
-      currentPrice: priceContext,
-    });
-
-    if (params.sectorState.balance !== undefined && llmTrade.amount > params.sectorState.balance) {
-      throw new Error('LLMTradeAction.amount exceeds available sector balance.');
-    }
-
-    // Normalize LLM response before checklist creation
-    const normalized = normalizeLLMResponse(llmTrade, {
-      sectorRiskProfile: params.sectorState.riskScore,
-      lastConfidence: params.agentConfidence,
-      allowedSymbols,
-    });
-
-    const trade = {
-      action: normalized.actionType as WorkerAgentProposal['action'],
-      amount: llmTrade.amount, // Keep original amount calculation
-      confidence: normalized.confidence,
-      reasoning: normalized.reasoning,
-      symbol: normalized.symbol,
+    // Return plain text proposal - no structured actions
+    return {
+      reasoning: agentReasoning.reasoning,
+      proposal: agentReasoning.proposal,
+      confidence: agentReasoning.confidence, // Already 0.0-1.0 from generateAgentReasoning
     };
-
-    return mapTradeToWorkerProposal(trade, params.sectorState);
   } catch (error) {
     // Bubble up to let the discussion workflow handle invalid JSON/output.
     throw error;

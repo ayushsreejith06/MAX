@@ -289,6 +289,7 @@ export default function Agents() {
       total,
       live: activeAgents, // Total active agents
       idle: idleAgents,
+      processing: 0, // Active recalibrations (placeholder - not currently tracked)
       readiness,
       avgPerformance,
     };

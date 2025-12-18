@@ -11,12 +11,11 @@ process.env.NEXT_PUBLIC_MAX_BACKEND_URL = 'http://127.0.0.1:4000';
 process.env.NEXT_PUBLIC_DESKTOP_BUILD = 'true';
 
 // Resolve paths relative to this script's location
-// This script is in scripts/build-frontend-desktop.js
-// So __dirname is scripts/, and we need to go up one level to project root
-const projectRoot = path.resolve(__dirname, '..');
-const frontendDir = path.join(projectRoot, 'frontend');
+// This script is now in frontend/scripts/build-frontend-desktop.js
+// So __dirname is frontend/scripts/, and we need to go up one level to frontend/
+const frontendDir = path.resolve(__dirname, '..');
 
-// Verify the frontend directory exists
+// Verify the frontend directory exists (should be the parent of scripts/)
 if (!fs.existsSync(frontendDir)) {
   console.error(`Error: Frontend directory not found at ${frontendDir}`);
   process.exit(1);
@@ -38,4 +37,5 @@ try {
   console.error('Frontend build failed:', error.message);
   process.exit(1);
 }
+
 

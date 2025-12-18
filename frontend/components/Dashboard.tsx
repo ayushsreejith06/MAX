@@ -141,7 +141,7 @@ export default function Dashboard() {
         isFetchingRef.current = false;
       }
     },
-    [],
+    [sectors.length],
   );
 
   // Initial load with spinner
@@ -333,7 +333,7 @@ export default function Dashboard() {
     return () => {
       PollingManager.unregister('dashboard-confidence');
     };
-  }, [paginatedSectorIds]); // Use stable string ID instead of array reference
+  }, [paginatedSectorIds, paginatedSectors.length, updateConfidenceForSectors]); // Include all dependencies
 
   // All hooks must be called before any early returns
   const timeToMinutes = (time: string): number => {

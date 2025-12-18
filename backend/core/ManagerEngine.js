@@ -17,6 +17,7 @@ const { readDataFile, writeDataFile } = require('../utils/persistence');
 const { transitionStatus, STATUS } = require('../utils/discussionStatusService');
 const { ChecklistStatus, ExecutionMode, DiscussionStatus } = require('./state');
 const { isRejectionRefinementEnabled } = require('../config/featureFlags');
+const { validateNoChecklist } = require('../utils/checklistGuard');
 
 const EXECUTION_LOGS_FILE = 'executionLogs.json';
 
@@ -215,14 +216,6 @@ class ManagerEngine {
     };
     this._writeDebugLog(`[evaluateChecklistItem] Item ${item.id} evaluation complete: ${status}`, debugData);
 
-    // Determine if refinement should be recommended
-    // Hard constraints are terminal (no refinement), but score-based rejections may be fixable
-    // Recommend refinement if the score gap is small enough to be potentially fixable
-    // and it's not a hard constraint violation
-    const recommendRefinement = status === 'REJECTED' && 
-                                !isHardConstraintViolated && 
-                                scoreGap < 30; // Only recommend if gap is fixable (< 30 points)
-
     return {
       status: status,
       managerReason: managerReason,
@@ -233,8 +226,7 @@ class ManagerEngine {
         expectedImpact,
         riskLevel,
         alignmentWithSectorGoal
-      },
-      recommendRefinement: recommendRefinement
+      }
     };
   }
 
@@ -339,10 +331,12 @@ class ManagerEngine {
 
   /**
    * Evaluate all PENDING checklist items for a discussion
+   * Manager checklist evaluation removed - manager only logs discussion summaries
    * @param {string} discussionId - Discussion ID
-   * @returns {Promise<Object>} Updated discussion with manager decisions
+   * @returns {Promise<Object>} Discussion with logged summary
    */
   async managerEvaluateChecklist(discussionId) {
+    // Manager checklist evaluation removed - manager only logs discussion summaries
     if (!discussionId) {
       throw new Error('discussionId is required');
     }
@@ -352,50 +346,16 @@ class ManagerEngine {
       throw new Error(`Discussion ${discussionId} not found`);
     }
 
-    let discussionRoom = DiscussionRoom.fromData(discussionData);
-
-    // Ensure discussion is in_progress (not decided/closed)
-    if (discussionRoom.status === 'decided' || discussionRoom.status === 'CLOSED' || discussionRoom.status === 'closed') {
-      throw new Error(`Cannot evaluate checklist: Discussion ${discussionId} is already decided/closed. Current status: ${discussionRoom.status}`);
-    }
-
-    // Get sector state
-    const sector = await getSectorById(discussionRoom.sectorId);
-    if (!sector) {
-      throw new Error(`Sector ${discussionRoom.sectorId} not found`);
-    }
-
-    // Get manager agent
-    const manager = await getManagerBySectorId(discussionRoom.sectorId);
-    if (!manager) {
-      throw new Error(`Manager agent not found for sector ${discussionRoom.sectorId}`);
-    }
-
-    // Ensure checklist exists
-    if (!Array.isArray(discussionRoom.checklist) || discussionRoom.checklist.length === 0) {
-      console.warn(`[ManagerEngine] Discussion ${discussionId} has no checklist items to evaluate`);
-      
-      // DEBUG LOG: No checklist items
-      const debugData = {
-        discussionId: discussionId,
-        checklistLength: 0,
-        pendingItemsCount: 0,
-        reason: 'No checklist items to evaluate'
-      };
-      this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No checklist items`, debugData);
-      
-      // No early return - continue to validation and potential discussion closing
-      // This ensures the invariant check still runs even with no checklist items
-    }
-
-    // FAILSAFE: Check for items that have been stuck too long and force-resolve them
-    const now = Date.now();
-    const ITEM_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes timeout for items
-    const REVISE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes timeout for REVISE_REQUIRED items
+    const discussionRoom = DiscussionRoom.fromData(discussionData);
     
-    let forceResolvedCount = 0;
-    for (const item of discussionRoom.checklist) {
-      const status = (item.status || '').toUpperCase();
+    // Log discussion summary instead of evaluating checklist
+    await this.logDiscussionSummary(discussionId);
+    
+    return discussionRoom;
+  }
+
+  /**
+   * Handle discussion ready flag and create discussion if needed
       const itemCreatedAt = item.createdAt ? new Date(item.createdAt).getTime() : now;
       const itemUpdatedAt = item.updatedAt ? new Date(item.updatedAt).getTime() : itemCreatedAt;
       const timeSinceUpdate = now - itemUpdatedAt;
@@ -429,7 +389,6 @@ class ManagerEngine {
 
     // Filter for PENDING and RESUBMITTED items (RESUBMITTED items need re-evaluation after worker revision)
     // Also include items without status (should be treated as PENDING)
-    // HARD INVARIANT: ALL PENDING items MUST be evaluated - no skipping allowed
     const pendingItems = discussionRoom.checklist.filter(item => {
       const status = (item.status || '').toUpperCase();
       return !item.status || 
@@ -437,6 +396,40 @@ class ManagerEngine {
              status === 'RESUBMITTED' ||
              (status === 'REVISE_REQUIRED' && !item.requiresRevision); // Items that were REVISE_REQUIRED but worker hasn't responded yet
     });
+
+    // CRITICAL: If no pending items but discussion has items, check if any need evaluation
+    // This ensures we don't skip items that should be evaluated
+    if (pendingItems.length === 0) {
+      // Check if there are any items that might need re-evaluation
+      const allItems = discussionRoom.checklist || [];
+      const hasUnevaluatedItems = allItems.some(item => {
+        const status = (item.status || '').toUpperCase();
+        // Items without status, or items that were auto-evaluated but might need manager review
+        return !item.status || !item.evaluatedAt || !item.managerReason;
+      });
+      
+      if (!hasUnevaluatedItems) {
+        console.log(`[ManagerEngine] No PENDING items to evaluate for discussion ${discussionId}`);
+        
+        // DEBUG LOG: No pending items
+        const debugData = {
+          discussionId: discussionId,
+          checklistLength: discussionRoom.checklist.length,
+          pendingItemsCount: 0,
+          reason: 'No PENDING items to evaluate',
+          allItemStatuses: discussionRoom.checklist.map(item => ({ id: item.id, status: item.status }))
+        };
+        this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - No pending items`, debugData);
+        
+        // Even if no pending items, check if discussion can close
+        if (this.canDiscussionClose(discussionRoom)) {
+          console.log(`[ManagerEngine] Discussion ${discussionId} can close - all items resolved. Auto-closing...`);
+          return await this.closeDiscussion(discussionId);
+        }
+        
+        return discussionRoom;
+      }
+    }
 
     console.log(`[ManagerEngine] Evaluating ${pendingItems.length} PENDING checklist items for discussion ${discussionId}`);
 
@@ -601,6 +594,148 @@ class ManagerEngine {
       discussionRoom.managerDecisions = managerDecisions;
       discussionRoom.checklist = updatedChecklist;
       await saveDiscussion(discussionRoom);
+    }
+
+    // STEP 2: Handle non-pending items (preserve existing decisions)
+    for (const item of discussionRoom.checklist) {
+      const itemStatus = (item.status || '').toUpperCase();
+      const isPending = !item.status || 
+                       itemStatus === ChecklistStatus.PENDING || 
+                       itemStatus === 'RESUBMITTED' ||
+                       (itemStatus === 'REVISE_REQUIRED' && !item.requiresRevision);
+      
+      // Skip items that were already processed as pending
+      if (isPending && pendingItems.some(p => p.id === item.id)) {
+        continue; // Already processed above
+      }
+      
+      // Keep existing decision if any
+      const existingDecision = discussionRoom.managerDecisions.find(
+        decision => decision.item && decision.item.id === item.id
+      );
+      if (existingDecision) {
+        managerDecisions.push(existingDecision);
+      }
+      if (!updatedChecklist.some(u => u.id === item.id)) {
+        updatedChecklist.push(item);
+      }
+    }
+
+    // STEP 3: HARD INVARIANT VALIDATION - After evaluation, ZERO checklist items may remain PENDING
+    // Reload discussion to get latest state
+    const reloadedAfterEvaluation = await findDiscussionById(discussionId);
+    if (reloadedAfterEvaluation) {
+      discussionRoom = DiscussionRoom.fromData(reloadedAfterEvaluation);
+    }
+    
+    const remainingPendingItems = discussionRoom.checklist.filter(item => {
+      const status = (item.status || '').toUpperCase();
+      return !item.status || 
+             status === ChecklistStatus.PENDING || 
+             status === 'RESUBMITTED' ||
+             (status === 'REVISE_REQUIRED' && !item.requiresRevision);
+    });
+
+    // VALIDATION: Assert pendingCount === 0
+    if (remainingPendingItems.length > 0) {
+      console.error(`[ManagerEngine] INVARIANT VIOLATION: ${remainingPendingItems.length} checklist item(s) still PENDING after manager evaluation. Forcing rejection.`);
+      
+      // Force reject all remaining PENDING items with "Manager auto-resolution" reason
+      let forceRejectedCount = 0;
+      for (const item of remainingPendingItems) {
+        const itemStatus = (item.status || '').toUpperCase();
+        if (!item.status || itemStatus === ChecklistStatus.PENDING || itemStatus === 'RESUBMITTED') {
+          console.warn(`[ManagerEngine] Force rejecting PENDING item ${item.id} - Manager auto-resolution`);
+          
+          // Force reject with explicit decisionReason
+          item.status = 'REJECTED';
+          item.managerReason = 'Manager auto-resolution: Item remained PENDING after evaluation loop';
+          item.evaluatedAt = new Date().toISOString();
+          item.updatedAt = item.evaluatedAt;
+          
+          // Create manager decision for force-rejected item
+          const forceDecision = {
+            item: { ...item },
+            approved: false,
+            status: item.status,
+            reason: item.managerReason,
+            score: 0,
+            scoreBreakdown: null
+          };
+          
+          // Update or add decision
+          const existingDecisionIndex = managerDecisions.findIndex(
+            d => d.item && d.item.id === item.id
+          );
+          if (existingDecisionIndex >= 0) {
+            managerDecisions[existingDecisionIndex] = forceDecision;
+          } else {
+            managerDecisions.push(forceDecision);
+          }
+          
+          // Update checklist item
+          const checklistIndex = updatedChecklist.findIndex(u => u.id === item.id);
+          if (checklistIndex >= 0) {
+            updatedChecklist[checklistIndex] = item;
+          } else {
+            updatedChecklist.push(item);
+          }
+          
+          forceRejectedCount++;
+        }
+      }
+      
+      // Post-rejection handling for force-rejected items
+      for (const item of remainingPendingItems) {
+        if (item.status === 'REJECTED') {
+          const refinementEnabled = isRejectionRefinementEnabled();
+          
+          if (!refinementEnabled) {
+            item.status = 'ACCEPT_REJECTION';
+            item.requiresRevision = false;
+            item.revisionCount = item.revisionCount || 0;
+          } else {
+            item.status = 'REVISE_REQUIRED';
+            item.requiresRevision = true;
+            if (!item.revisionCount) {
+              item.revisionCount = 0;
+            }
+            item.revisionRequiredAt = item.evaluatedAt;
+            if (!item.refinementLog) {
+              item.refinementLog = [];
+            }
+            item.refinementLog.push({
+              round: item.revisionCount + 1,
+              action: 'REJECTED',
+              managerReason: item.managerReason,
+              timestamp: item.evaluatedAt
+            });
+          }
+        }
+      }
+      
+      // Persist force-rejected items immediately
+      discussionRoom.managerDecisions = managerDecisions;
+      discussionRoom.checklist = updatedChecklist;
+      discussionRoom.updatedAt = new Date().toISOString();
+      await saveDiscussion(discussionRoom);
+      
+      console.log(`[ManagerEngine] Force rejected ${forceRejectedCount} remaining PENDING items with "Manager auto-resolution" reason`);
+      
+      // Final validation: Assert pendingCount === 0 after force rejection
+      const finalReload = await findDiscussionById(discussionId);
+      if (finalReload) {
+        const finalRoom = DiscussionRoom.fromData(finalReload);
+        const finalPending = finalRoom.checklist.filter(item => {
+          const status = (item.status || '').toUpperCase();
+          return !item.status || status === ChecklistStatus.PENDING || status === 'RESUBMITTED';
+        });
+        
+        if (finalPending.length > 0) {
+          console.error(`[ManagerEngine] CRITICAL: ${finalPending.length} items still PENDING after force rejection. This indicates a serious bug.`);
+          throw new Error(`INVARIANT VIOLATION: ${finalPending.length} checklist items remain PENDING after manager evaluation and force rejection. Item IDs: ${finalPending.map(i => i.id).join(', ')}`);
+        }
+      }
     }
 
     // DEBUG LOG: Summary of all evaluations
@@ -821,7 +956,48 @@ class ManagerEngine {
     };
     this._writeDebugLog(`[managerEvaluateChecklist] Discussion ${discussionId} - Evaluation complete, discussion remains open`, finalDebugData);
 
-    return discussionRoom;
+    // Deadlock detection: Check for items that remain PENDING after manager evaluation
+    try {
+      const resolvedItems = await detectAndResolveDeadlocks(discussionId, 'manager_evaluation', this);
+      if (resolvedItems.length > 0) {
+        console.log(`[ManagerEngine] Deadlock detection resolved ${resolvedItems.length} item(s) after manager evaluation`);
+        // Reload discussion to get updated state after deadlock resolution
+        const updatedDiscussionData = await findDiscussionById(discussionId);
+        if (updatedDiscussionData) {
+          discussionRoom = DiscussionRoom.fromData(updatedDiscussionData);
+        }
+      }
+    } catch (deadlockError) {
+      console.error(`[ManagerEngine] Error during deadlock detection after manager evaluation:`, deadlockError.message);
+      // Don't throw - continue with normal return even if deadlock detection fails
+    }
+
+    // INVARIANT TESTS: Run invariant tests after checklist evaluation
+    try {
+      const { runAllInvariantTests } = require('../__tests__/discussionInvariants.test');
+      // Reload discussion to get latest state
+      const latestData = await findDiscussionById(discussionId);
+      if (latestData) {
+        const latestRoom = DiscussionRoom.fromData(latestData);
+        const invariantResult = await runAllInvariantTests(latestRoom);
+        
+        if (!invariantResult.valid) {
+          const errorMessage = `INVARIANT VIOLATION after manager evaluation: ${invariantResult.violations.join('; ')}`;
+          console.error(`[ManagerEngine] ${errorMessage}`);
+          // Throw error to prevent invalid state from persisting
+          throw new Error(errorMessage);
+        } else {
+          console.log(`[ManagerEngine] Invariant tests passed for discussion ${discussionId} after evaluation`);
+        }
+      }
+    } catch (invariantError) {
+      // If it's our invariant violation, re-throw it
+      if (invariantError.message.includes('INVARIANT VIOLATION')) {
+        throw invariantError;
+      }
+      console.error(`[ManagerEngine] Error running invariant tests after evaluation:`, invariantError);
+      // Don't throw for other errors - log and continue
+    }
   }
 
   /**
@@ -1140,6 +1316,9 @@ class ManagerEngine {
       // VALIDATION 0: Validate and auto-fill market data before starting discussion
       const { validateMarketDataForDiscussion } = require('../utils/marketDataValidation');
       sector = await validateMarketDataForDiscussion(sector);
+      
+      // CHECKLIST GUARD: Validate sector object
+      validateNoChecklist(sector, 'ManagerEngine.createDiscussion (sector)');
 
       // VALIDATION 1: INVARIANT GUARD - Check if there are any active discussions for this sector
       // Per sector, there can only be one discussion at a time
@@ -1149,6 +1328,9 @@ class ManagerEngine {
       const { hasActive, activeDiscussion } = await hasActiveDiscussion(sectorId);
       
       if (hasActive && activeDiscussion) {
+        // CHECKLIST GUARD: Validate active discussion
+        validateNoChecklist(activeDiscussion, `ManagerEngine.createDiscussion (activeDiscussion ${activeDiscussion.id})`, true);
+        
         const errorMessage = `INVARIANT VIOLATION: Cannot create discussion while another discussion is active in the same sector`;
         const violationMessage = `${errorMessage}: Cannot create discussion for sector ${sectorId} because there is an active discussion (ID: ${activeDiscussion.id}, status: ${activeDiscussion.status}). Per sector, there can only be one discussion at a time. Only CLOSED discussions allow new discussions.`;
         
@@ -1421,14 +1603,20 @@ class ManagerEngine {
           updatedChecklist.push(item);
         } else {
           // New item without evaluation - set to PENDING (but ensure rejected items are never left in PENDING)
-          // If item was previously rejected, mark as terminal instead of PENDING
+          // If item was previously rejected, check if refinement was recommended
           if (item.status === ChecklistStatus.REJECTED || item.status === 'REVISE_REQUIRED') {
-            const refinementEnabled = isRejectionRefinementEnabled();
-            if (!refinementEnabled) {
+            // Check if there's a manager decision with recommendRefinement
+            const previousDecision = discussionRoom.managerDecisions.find(
+              decision => decision.item && decision.item.id === item.id
+            );
+            const recommendRefinement = previousDecision?.recommendRefinement === true;
+            
+            if (!recommendRefinement) {
+              // Refinement not recommended: Mark as terminal
               item.status = 'ACCEPT_REJECTION';
               item.requiresRevision = false;
             } else {
-              // Keep REVISE_REQUIRED if refinement is enabled
+              // Keep REVISE_REQUIRED if refinement was recommended
               item.status = 'REVISE_REQUIRED';
               item.requiresRevision = true;
             }
@@ -1500,16 +1688,19 @@ class ManagerEngine {
       updatedChecklist.push(item);
 
       // Step 3: Trigger execution if status transitioned to APPROVED
+      // DISABLED: Execution system disabled — awaiting checklist v2
       if (status === 'APPROVED' && previousStatus !== 'APPROVED') {
-        try {
-          const ExecutionEngine = require('./ExecutionEngine');
-          const executionEngine = new ExecutionEngine();
-          console.log(`[ManagerEngine] Triggering execution for item ${item.id} that transitioned to APPROVED (previousStatus=${previousStatus})`);
-          await executionEngine.handleItemStatusTransition(item.id, discussionId, previousStatus);
-        } catch (executionError) {
-          console.error(`[ManagerEngine] Error triggering execution for item ${item.id}:`, executionError);
-          // Don't throw - allow discussion to continue even if execution trigger fails
-        }
+        console.log(`[ManagerEngine] Execution system disabled — awaiting checklist v2. Item ${item.id} approved but execution skipped.`);
+        // Automatic execution disabled - execution must be triggered manually
+        // try {
+        //   const ExecutionEngine = require('./ExecutionEngine');
+        //   const executionEngine = new ExecutionEngine();
+        //   console.log(`[ManagerEngine] Triggering execution for item ${item.id} that transitioned to APPROVED (previousStatus=${previousStatus})`);
+        //   await executionEngine.handleItemStatusTransition(item.id, discussionId, previousStatus);
+        // } catch (executionError) {
+        //   console.error(`[ManagerEngine] Error triggering execution for item ${item.id}:`, executionError);
+        //   // Don't throw - allow discussion to continue even if execution trigger fails
+        // }
       }
     }
 
@@ -2108,11 +2299,12 @@ class ManagerEngine {
   }
 
   /**
-   * Approve checklist items and execute them
+   * Approve checklist items - manager only logs, does not approve or execute
    * @param {Object} sector - Sector object
-   * @returns {Promise<Object>} Updated sector with approved items executed
+   * @returns {Promise<Object>} Sector (unchanged)
    */
   async approveChecklist(sector) {
+    // Manager checklist approval removed - manager only logs discussion summaries
     if (!sector || !sector.id) {
       throw new Error('Invalid sector: sector and sector.id are required');
     }
@@ -2120,7 +2312,8 @@ class ManagerEngine {
     // Find the active discussion for this sector
     const discussions = Array.isArray(sector.discussions) ? sector.discussions : [];
     if (discussions.length === 0) {
-      throw new Error(`No discussion found for sector ${sector.id}`);
+      console.warn(`[ManagerEngine] No discussion found for sector ${sector.id}`);
+      return sector;
     }
 
     // Get the most recent discussion
@@ -2128,13 +2321,87 @@ class ManagerEngine {
     const discussionData = await findDiscussionById(discussionId);
 
     if (!discussionData) {
-      throw new Error(`Discussion ${discussionId} not found`);
+      console.warn(`[ManagerEngine] Discussion ${discussionId} not found`);
+      return sector;
     }
 
     // Load discussion room
     const discussionRoom = DiscussionRoom.fromData(discussionData);
     
-    // Prevent duplicate executions - if already decided, skip
+    // Log discussion summary instead of approving
+    await this.logDiscussionSummary(discussionId);
+    
+    return sector;
+  }
+
+  /**
+   * Reject checklist items - manager only logs, does not reject
+   * @param {Object} sector - Sector object
+   * @returns {Promise<Object>} Sector (unchanged)
+   */
+  async rejectChecklist(sector) {
+    // Manager checklist rejection removed - manager only logs discussion summaries
+    if (!sector || !sector.id) {
+      throw new Error('Invalid sector: sector and sector.id are required');
+    }
+
+    // Find the active discussion for this sector
+    const discussions = Array.isArray(sector.discussions) ? sector.discussions : [];
+    if (discussions.length === 0) {
+      console.warn(`[ManagerEngine] No discussion found for sector ${sector.id}`);
+      return sector;
+    }
+
+    // Get the most recent discussion
+    const discussionId = discussions[discussions.length - 1];
+    const discussionData = await findDiscussionById(discussionId);
+
+    if (!discussionData) {
+      console.warn(`[ManagerEngine] Discussion ${discussionId} not found`);
+      return sector;
+    }
+
+    // Log discussion summary instead of rejecting
+    await this.logDiscussionSummary(discussionId);
+    
+    return sector;
+  }
+
+  /**
+   * Approve or reject checklist items - manager only logs
+   * @param {Object} sector - Sector object
+   * @returns {Promise<Object>} Sector (unchanged)
+   */
+  async approveOrRejectChecklist(sector) {
+    // Manager checklist approval/rejection removed - manager only logs discussion summaries
+    if (!sector || !sector.id) {
+      throw new Error('Invalid sector: sector and sector.id are required');
+    }
+
+    // Find the active discussion for this sector
+    const discussions = Array.isArray(sector.discussions) ? sector.discussions : [];
+    if (discussions.length === 0) {
+      console.warn(`[ManagerEngine] No discussion found for sector ${sector.id}`);
+      return sector;
+    }
+
+    // Get the most recent discussion
+    const discussionId = discussions[discussions.length - 1];
+    const discussionData = await findDiscussionById(discussionId);
+
+    if (!discussionData) {
+      console.warn(`[ManagerEngine] Discussion ${discussionId} not found`);
+      return sector;
+    }
+
+    // Log discussion summary instead of approving/rejecting
+    await this.logDiscussionSummary(discussionId);
+    
+    return sector;
+  }
+
+  /**
+   * Prevent duplicate executions - if already decided, skip
     if (discussionRoom.status === DiscussionStatus.DECIDED) {
       console.log(`[ManagerEngine] Discussion ${discussionId} already decided. Skipping execution.`);
       const updatedSector = await updateSector(sector.id, {
@@ -2299,16 +2566,19 @@ class ManagerEngine {
         draftItem.status = 'APPROVED';
         
         // Trigger execution if status transitioned to APPROVED
+        // DISABLED: Execution system disabled — awaiting checklist v2
         if (previousStatus !== 'APPROVED') {
-          try {
-            const ExecutionEngine = require('./ExecutionEngine');
-            const executionEngine = new ExecutionEngine();
-            console.log(`[ManagerEngine] Triggering execution for item ${item.id} that transitioned to APPROVED (previousStatus=${previousStatus})`);
-            await executionEngine.handleItemStatusTransition(item.id, discussionId, previousStatus);
-          } catch (executionError) {
-            console.error(`[ManagerEngine] Error triggering execution for item ${item.id}:`, executionError);
-            // Don't throw - allow discussion to continue even if execution trigger fails
-          }
+          console.log(`[ManagerEngine] Execution system disabled — awaiting checklist v2. Item ${item.id} approved but execution skipped.`);
+          // Automatic execution disabled - execution must be triggered manually
+          // try {
+          //   const ExecutionEngine = require('./ExecutionEngine');
+          //   const executionEngine = new ExecutionEngine();
+          //   console.log(`[ManagerEngine] Triggering execution for item ${item.id} that transitioned to APPROVED (previousStatus=${previousStatus})`);
+          //   await executionEngine.handleItemStatusTransition(item.id, discussionId, previousStatus);
+          // } catch (executionError) {
+          //   console.error(`[ManagerEngine] Error triggering execution for item ${item.id}:`, executionError);
+          //   // Don't throw - allow discussion to continue even if execution trigger fails
+          // }
         }
       }
     }
@@ -3047,6 +3317,24 @@ class ManagerEngine {
       // Save updated discussion
       await saveDiscussion(discussionRoom);
 
+      // INVARIANT TESTS: Run invariant tests on discussion close
+      try {
+        const { runAllInvariantTests } = require('../__tests__/discussionInvariants.test');
+        const invariantResult = await runAllInvariantTests(discussionRoom);
+        
+        if (!invariantResult.valid) {
+          const errorMessage = `INVARIANT VIOLATION on discussion close: ${invariantResult.violations.join('; ')}`;
+          console.error(`[ManagerEngine] ${errorMessage}`);
+          // Don't throw - log the violation but allow closure to proceed
+          // The violation will be caught by CI/CD tests
+        } else {
+          console.log(`[ManagerEngine] Invariant tests passed for discussion ${discussionId} on close`);
+        }
+      } catch (invariantError) {
+        console.error(`[ManagerEngine] Error running invariant tests on discussion close:`, invariantError);
+        // Don't throw - log the error but allow closure to proceed
+      }
+
       // Execute all approved checklist items that haven't been executed yet
       // This happens AFTER discussion closes, not during active rounds
       try {
@@ -3062,42 +3350,46 @@ class ManagerEngine {
           : [];
 
         if (approvedItems.length > 0) {
-          console.log(`[ManagerEngine] Auto-executing ${approvedItems.length} approved checklist items for discussion ${discussionId} after closure`);
+          // DISABLED: Execution system disabled — awaiting checklist v2
+          console.log(`[ManagerEngine] Execution system disabled — awaiting checklist v2. ${approvedItems.length} approved checklist items for discussion ${discussionId} will not be auto-executed.`);
           
-          const executionResults = [];
-          for (const item of approvedItems) {
-            try {
-              // Reload discussion to get latest state before each execution
-              const latestDiscussionData = await findDiscussionById(discussionId);
-              if (latestDiscussionData) {
-                const latestDiscussion = DiscussionRoom.fromData(latestDiscussionData);
-                // Check if item still exists and hasn't been executed
-                const latestItem = latestDiscussion.finalizedChecklist?.find(i => i.id === item.id) ||
-                                  latestDiscussion.checklist?.find(i => i.id === item.id);
-                if (latestItem && !latestItem.executedAt) {
-                  const result = await executionEngine.executeChecklistItem(item.id, discussionId);
-                  executionResults.push(result);
-                  console.log(`[ManagerEngine] Executed checklist item ${item.id}: ${result.success ? 'success' : 'failed'}`);
-                } else if (latestItem?.executedAt) {
-                  console.log(`[ManagerEngine] Checklist item ${item.id} already executed, skipping`);
-                  executionResults.push({
-                    success: true,
-                    itemId: item.id,
-                    alreadyExecuted: true
-                  });
-                }
-              } else {
-                throw new Error(`Discussion ${discussionId} not found during execution`);
-              }
-            } catch (execError) {
-              console.error(`[ManagerEngine] Failed to execute checklist item ${item.id}:`, execError.message);
-              executionResults.push({
-                success: false,
-                itemId: item.id,
-                error: execError.message
-              });
-            }
-          }
+          // Automatic execution disabled - execution must be triggered manually
+          // console.log(`[ManagerEngine] Auto-executing ${approvedItems.length} approved checklist items for discussion ${discussionId} after closure`);
+          // 
+          // const executionResults = [];
+          // for (const item of approvedItems) {
+          //   try {
+          //     // Reload discussion to get latest state before each execution
+          //     const latestDiscussionData = await findDiscussionById(discussionId);
+          //     if (latestDiscussionData) {
+          //       const latestDiscussion = DiscussionRoom.fromData(latestDiscussionData);
+          //       // Check if item still exists and hasn't been executed
+          //       const latestItem = latestDiscussion.finalizedChecklist?.find(i => i.id === item.id) ||
+          //                         latestDiscussion.checklist?.find(i => i.id === item.id);
+          //       if (latestItem && !latestItem.executedAt) {
+          //         const result = await executionEngine.executeChecklistItem(item.id, discussionId);
+          //         executionResults.push(result);
+          //         console.log(`[ManagerEngine] Executed checklist item ${item.id}: ${result.success ? 'success' : 'failed'}`);
+          //       } else if (latestItem?.executedAt) {
+          //         console.log(`[ManagerEngine] Checklist item ${item.id} already executed, skipping`);
+          //         executionResults.push({
+          //           success: true,
+          //           itemId: item.id,
+          //           alreadyExecuted: true
+          //         });
+          //       }
+          //     } else {
+          //       throw new Error(`Discussion ${discussionId} not found during execution`);
+          //     }
+          //   } catch (execError) {
+          //     console.error(`[ManagerEngine] Failed to execute checklist item ${item.id}:`, execError.message);
+          //     executionResults.push({
+          //       success: false,
+          //       itemId: item.id,
+          //       error: execError.message
+          //     });
+          //   }
+          // }
           
           const successCount = executionResults.filter(r => r.success).length;
           console.log(`[ManagerEngine] Auto-execution complete: ${successCount}/${approvedItems.length} items executed successfully`);

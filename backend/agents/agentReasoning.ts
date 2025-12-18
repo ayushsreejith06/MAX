@@ -1,23 +1,10 @@
 import { callLLM } from '../ai/llmClient';
-import { parseLLMTradeAction } from '../ai/parseLLMTradeAction';
-import { normalizeActionToUpper, validateLLMTradeAction } from '../types/llmAction';
 import { buildDecisionPrompt } from '../ai/prompts/buildDecisionPrompt';
-import { normalizeLLMResponse } from '../ai/normalizeLLMResponse';
 
-type AllowedAction = 'BUY' | 'SELL' | 'HOLD' | 'REBALANCE';
-
-export type AgentTrade = {
-  action: AllowedAction;
-  amount: number;
-  symbol: string;
-  sector: string;
-  confidence: number; // REQUIRED: Confidence from LLM (0-100)
-  reasoning?: string;
-  stopLoss?: number;
-  takeProfit?: number;
-  sizingBasis?: 'fixed_units' | 'fixed_dollars' | 'percent_of_capital';
-  size?: number;
-  entryPrice?: number | null;
+export type AgentReasoning = {
+  reasoning: string;
+  proposal: string;
+  confidence: number; // 0.0-1.0
 };
 
 type AgentReasoningParams = {
@@ -54,16 +41,10 @@ function buildPrompts(params: AgentReasoningParams) {
   });
 }
 
-export async function generateAgentTrade(params: AgentReasoningParams): Promise<AgentTrade> {
-  const { sector, sectorData, agent, availableBalance } = params;
+export async function generateAgentReasoning(params: AgentReasoningParams): Promise<AgentReasoning> {
+  const { sector, agent } = params;
 
-  const snapshot = (sectorData && typeof sectorData === 'object') ? sectorData as Record<string, unknown> : {};
-  const currentPrice =
-    typeof (snapshot as any).currentPrice === 'number'
-      ? (snapshot as any).currentPrice
-      : (typeof (snapshot as any).baselinePrice === 'number' ? (snapshot as any).baselinePrice : undefined);
-
-  const { systemPrompt, userPrompt, allowedSymbols } = buildPrompts(params);
+  const { systemPrompt, userPrompt } = buildPrompts(params);
   const llmResponse = await callLLM({
     systemPrompt,
     userPrompt,
@@ -71,43 +52,55 @@ export async function generateAgentTrade(params: AgentReasoningParams): Promise<
     useDecisionSystemPrompt: true
   });
 
-  const parsed = parseLLMTradeAction(llmResponse, {
-    fallbackSector: sector.symbol || sector.name,
-    fallbackSymbol: allowedSymbols[0],
-    remainingCapital: availableBalance,
-    currentPrice,
-  });
-  const trade = validateLLMTradeAction(parsed, {
-    allowedSymbols,
-    remainingCapital: availableBalance,
-    fallbackSector: sector.symbol || sector.name,
-    fallbackSymbol: allowedSymbols[0],
-    currentPrice,
-  });
-
-  if (trade.amount > availableBalance) {
-    throw new Error('LLMTradeAction.amount exceeds available balance.');
+  // Parse simple JSON response: { reasoning, proposal, confidence }
+  let parsed: { reasoning?: string; proposal?: string; confidence?: number };
+  try {
+    const cleaned = llmResponse
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    parsed = JSON.parse(cleaned);
+  } catch (error) {
+    console.error('[agentReasoning] Failed to parse LLM response:', error);
+    // Fallback response
+    return {
+      reasoning: 'Unable to parse agent reasoning response.',
+      proposal: 'Maintain current position due to insufficient data.',
+      confidence: 0.5,
+    };
   }
 
-  // Normalize LLM response before checklist creation
-  const normalized = normalizeLLMResponse(trade, {
-    sectorRiskProfile: sector.riskScore,
-    lastConfidence: agent.confidence,
-    allowedSymbols,
-  });
+  // Extract and validate fields
+  const reasoning = typeof parsed.reasoning === 'string' && parsed.reasoning.trim().length > 0
+    ? parsed.reasoning.trim()
+    : 'Agent did not provide reasoning.';
+
+  const proposal = typeof parsed.proposal === 'string' && parsed.proposal.trim().length > 0
+    ? parsed.proposal.trim()
+    : 'No specific proposal provided.';
+
+  // Validate confidence (0.0-1.0)
+  // Confidence MUST be derived solely from the current proposal, not from prior discussions, past confidence, or manager feedback
+  let confidence: number;
+  if (typeof parsed.confidence === 'number' && Number.isFinite(parsed.confidence)) {
+    // Convert from 0-100 scale to 0.0-1.0 if needed, or clamp to 0.0-1.0
+    if (parsed.confidence > 1.0) {
+      // Likely in 0-100 scale, convert to 0.0-1.0
+      confidence = Math.max(0.0, Math.min(1.0, parsed.confidence / 100));
+    } else {
+      // Already in 0.0-1.0 scale
+      confidence = Math.max(0.0, Math.min(1.0, parsed.confidence));
+    }
+  } else {
+    // Default to 0.5 if confidence is missing or invalid
+    // DO NOT use agent's last confidence - confidence must be derived from current proposal only
+    confidence = 0.5;
+  }
 
   return {
-    action: normalized.actionType,
-    amount: trade.amount, // Keep original amount calculation
-    symbol: normalized.symbol,
-    sector: trade.sector || (sector.symbol ?? sector.name ?? 'UNKNOWN'),
-    confidence: normalized.confidence,
-    reasoning: normalized.reasoning,
-    stopLoss: trade.stopLoss,
-    takeProfit: trade.takeProfit,
-    sizingBasis: trade.sizingBasis,
-    size: trade.size,
-    entryPrice: trade.entryPrice,
+    reasoning,
+    proposal,
+    confidence,
   };
 }
 

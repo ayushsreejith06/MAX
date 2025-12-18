@@ -160,7 +160,7 @@ export function usePolling({
         const result = await callbackRef.current();
         
         // Check if the callback returned { skipped: true } (rate limited)
-        const wasSkipped = result && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true;
+        const wasSkipped = result !== undefined && result !== null && typeof result === 'object' && 'skipped' in result && (result as any).skipped === true;
         
         if (wasSkipped) {
           console.debug('[usePolling] Poll was skipped (rate limited), waiting full interval before next poll');

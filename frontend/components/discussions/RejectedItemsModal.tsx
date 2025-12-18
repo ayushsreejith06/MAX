@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
-import { fetchRejectedItems, type RejectedItem } from '@/lib/api';
+import { fetchRejectedItems } from '@/lib/api';
+import type { RejectedItem } from '@/lib/types';
 
 interface RejectedItemsModalProps {
   isOpen: boolean;
@@ -89,7 +90,7 @@ export default function RejectedItemsModal({ isOpen, onClose }: RejectedItemsMod
               <table className="w-full border border-ink-500 bg-pure-black font-mono text-sm">
                 <thead>
                   <tr className="bg-ink-600 text-left text-xs uppercase tracking-[0.2em] text-floral-white/70">
-                    <th className="px-4 py-3 border border-ink-500 text-[0.6rem]">Checklist Item</th>
+                    <th className="px-4 py-3 border border-ink-500 text-[0.6rem]">Item</th>
                     <th className="px-4 py-3 border border-ink-500 text-[0.6rem]">Discussion Title</th>
                     <th className="px-4 py-3 border border-ink-500 text-[0.6rem]">Discussion ID</th>
                     <th className="px-4 py-3 border border-ink-500 text-[0.6rem]">Sector</th>

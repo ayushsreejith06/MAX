@@ -15,6 +15,8 @@ const { extractConfidence } = require('../utils/confidenceUtils');
 const ExecutionEngine = require('../core/ExecutionEngine');
 const { formatChecklistItemDescription } = require('../discussions/workflow/checklistBuilder');
 const { transitionStatus, STATUS, normalizeStatus } = require('../utils/discussionStatusService');
+const { requireManager, logViolation } = require('../utils/managerAuth');
+const { validateNoChecklist } = require('../utils/checklistGuard');
 
 // Simple logger
 function log(message) {
@@ -61,7 +63,11 @@ async function enrichDiscussion(discussion) {
 }
 
 module.exports = async (fastify) => {
-  // GET /discussions/rejected-items - Get all rejected checklist items from all discussions
+  // Log route registration for debugging
+  console.log('[discussions route] Registering routes with prefix /api/discussions');
+  
+  // GET /discussions/rejected-items - REMOVED (checklist functionality removed)
+  /*
   fastify.get('/rejected-items', async (request, reply) => {
     try {
       log('GET /discussions/rejected-items - Fetching all rejected items');
@@ -183,8 +189,10 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
-  // GET /discussions/finalized-rejections - Get finalized rejections (not pending/revisable)
+  // GET /discussions/finalized-rejections - REMOVED (checklist functionality removed)
+  /*
   fastify.get('/finalized-rejections', async (request, reply) => {
     try {
       const { sectorId, managerId, discussionId, startTime, endTime, page = '1', pageSize = '20' } = request.query;
@@ -334,10 +342,12 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
   // GET /discussions - Get all discussions with pagination, optionally filtered by sectorId or status
   // Returns only summary fields (no messages or full participant data)
   fastify.get('/', async (request, reply) => {
+    console.log('[discussions route] GET / route handler called');
     try {
       const { sectorId, status, page = '1', pageSize = '20' } = request.query;
 
@@ -485,7 +495,9 @@ module.exports = async (fastify) => {
     }
   });
 
-  // GET /discussions/:id/checklist - Get checklist for a discussion
+  // Checklist routes removed - checklist functionality has been removed from the system
+  // GET /discussions/:id/checklist - REMOVED
+  /*
   fastify.get('/:id/checklist', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -718,8 +730,10 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
-  // GET /discussions/:id/rejected-items - Get rejected items for a discussion
+  // GET /discussions/:id/rejected-items - REMOVED (checklist functionality removed)
+  /*
   fastify.get('/:id/rejected-items', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -850,7 +864,9 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /discussions/:id/submit-revision - Submit a revision for a rejected item
+  // Checklist endpoints removed - checklist functionality has been removed from the system
+  // POST /discussions/:id/submit-revision - REMOVED
+  /*
   fastify.post('/:id/submit-revision', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -920,6 +936,20 @@ module.exports = async (fastify) => {
       // Increment revision count
       item.revisionCount = (item.revisionCount || 0) + 1;
 
+      // ENFORCEMENT: Prevent agents from setting status to APPROVED/REJECTED
+      // Only managers can set these statuses
+      if (newContent.status) {
+        const requestedStatus = (newContent.status || '').toUpperCase();
+        if (requestedStatus === 'APPROVED' || requestedStatus === 'REJECTED') {
+          const { agentId } = request.body;
+          logViolation(agentId || 'unknown', itemId, `SET_STATUS_${requestedStatus}`, `POST /discussions/${id}/submit-revision`);
+          return reply.status(403).send({
+            success: false,
+            error: `Unauthorized: Only manager agents can set checklist item status to ${requestedStatus}. Agents may only revise proposals.`
+          });
+        }
+      }
+
       // Update item with new content
       if (newContent.action !== undefined) item.action = newContent.action;
       if (newContent.amount !== undefined) item.amount = newContent.amount;
@@ -931,6 +961,7 @@ module.exports = async (fastify) => {
       if (newContent.confidence !== undefined) item.confidence = newContent.confidence;
 
       // Set status to RESUBMITTED after worker revision
+      // ENFORCEMENT: Status is hardcoded - agents cannot change it to APPROVED/REJECTED
       item.status = 'RESUBMITTED';
       item.requiresRevision = false;
       item.requiresManagerEvaluation = true;
@@ -962,14 +993,9 @@ module.exports = async (fastify) => {
       // Save discussion first
       await saveDiscussion(discussionRoom);
       
-      // Update discussion status if all items are resolved
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      if (allItemsResolved) {
-        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-        await checkAndTransitionToAwaitingExecution(id);
-      } else {
-        await transitionStatus(id, STATUS.IN_PROGRESS, 'Items pending resolution');
-      }
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
+      // Status remains IN_PROGRESS until explicitly transitioned to DECIDED
 
       log(`Revision submitted for item ${itemId} in discussion ${id}. Revision count: ${item.revisionCount}`);
       return reply.status(200).send({
@@ -999,8 +1025,10 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
-  // POST /discussions/:id/accept-rejection - Accept a rejection for an item
+  // POST /discussions/:id/accept-rejection - REMOVED (checklist functionality removed)
+  /*
   fastify.post('/:id/accept-rejection', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -1096,13 +1124,8 @@ module.exports = async (fastify) => {
       // Save discussion first
       await saveDiscussion(discussionRoom);
       
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      // Will transition to DECIDED when all ACCEPTED items are executed
-      if (allItemsResolved) {
-        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-        await checkAndTransitionToAwaitingExecution(id);
-        log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - transitioned to AWAITING_EXECUTION`);
-      }
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
 
       log(`[ACCEPT REJECTION] Discussion ${id}: Rejection accepted for item ${itemId}. All items resolved: ${allItemsResolved}, Discussion status: ${discussionRoom.status}`);
       return reply.status(200).send({
@@ -1124,8 +1147,10 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
-  // POST /discussions/:id/items/:itemId/revise - Revise a rejected checklist item (new endpoint pattern)
+  // POST /discussions/:id/items/:itemId/revise - REMOVED (checklist functionality removed)
+  /*
   fastify.post('/:id/items/:itemId/revise', async (request, reply) => {
     try {
       const { id, itemId } = request.params;
@@ -1195,6 +1220,20 @@ module.exports = async (fastify) => {
       // Increment revision count
       item.revisionCount = (item.revisionCount || 0) + 1;
 
+      // ENFORCEMENT: Prevent agents from setting status to APPROVED/REJECTED
+      // Only managers can set these statuses
+      if (newContent.status) {
+        const requestedStatus = (newContent.status || '').toUpperCase();
+        if (requestedStatus === 'APPROVED' || requestedStatus === 'REJECTED') {
+          const { agentId } = request.body;
+          logViolation(agentId || 'unknown', itemId, `SET_STATUS_${requestedStatus}`, `POST /discussions/${id}/items/${itemId}/revise`);
+          return reply.status(403).send({
+            success: false,
+            error: `Unauthorized: Only manager agents can set checklist item status to ${requestedStatus}. Agents may only revise proposals.`
+          });
+        }
+      }
+
       // Update item with new content
       if (newContent.action !== undefined) item.action = newContent.action;
       if (newContent.amount !== undefined) item.amount = newContent.amount;
@@ -1206,6 +1245,7 @@ module.exports = async (fastify) => {
       if (newContent.confidence !== undefined) item.confidence = newContent.confidence;
 
       // Set status to RESUBMITTED after worker revision
+      // ENFORCEMENT: Status is hardcoded - agents cannot change it to APPROVED/REJECTED
       item.status = 'RESUBMITTED';
       item.requiresRevision = false;
       item.requiresManagerEvaluation = true;
@@ -1237,14 +1277,9 @@ module.exports = async (fastify) => {
       // Save discussion first
       await saveDiscussion(discussionRoom);
       
-      // Update discussion status if all items are resolved
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      if (allItemsResolved) {
-        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-        await checkAndTransitionToAwaitingExecution(id);
-      } else {
-        await transitionStatus(id, STATUS.IN_PROGRESS, 'Items pending resolution');
-      }
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
+      // Status remains IN_PROGRESS until explicitly transitioned to DECIDED
 
       log(`Revision submitted for item ${itemId} in discussion ${id}. Revision count: ${item.revisionCount}`);
       return reply.status(200).send({
@@ -1275,8 +1310,10 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
-  // POST /discussions/:id/items/:itemId/accept-rejection - Accept a rejection for an item (new endpoint pattern)
+  // POST /discussions/:id/items/:itemId/accept-rejection - REMOVED (checklist functionality removed)
+  /*
   fastify.post('/:id/items/:itemId/accept-rejection', async (request, reply) => {
     try {
       const { id, itemId } = request.params;
@@ -1384,13 +1421,8 @@ module.exports = async (fastify) => {
       // Save discussion first
       await saveDiscussion(discussionRoom);
       
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      // Will transition to DECIDED when all ACCEPTED items are executed
-      if (allItemsResolved) {
-        const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-        await checkAndTransitionToAwaitingExecution(id);
-        log(`[ACCEPT REJECTION] Discussion ${id}: All items resolved - transitioned to AWAITING_EXECUTION`);
-      }
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
 
       log(`[ACCEPT REJECTION] Discussion ${id}: Rejection accepted for item ${itemId}. All items resolved: ${allItemsResolved}, Discussion status: ${discussionRoom.status}`);
       return reply.status(200).send({
@@ -1412,6 +1444,7 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
   // GET /discussions/:id/messages - Get messages for a specific discussion
   fastify.get('/:id/messages', async (request, reply) => {
@@ -1461,19 +1494,24 @@ module.exports = async (fastify) => {
         });
       }
 
-      // Fix inconsistent state: Auto-resolve pending items in DECIDED discussions
+      // CHECKLIST GUARD: Validate discussion data
+      validateNoChecklist(discussion, `GET /discussions/:id (${id})`, true);
+
+      // Validate DECIDED discussion state: Check for pending items
+      // HARD RULE: DECIDED discussions CANNOT have pending checklist items
       if (discussion.status === 'DECIDED' || discussion.status === 'decided') {
         try {
           const { fixInconsistentDecidedState } = require('../utils/discussionStatusService');
           await fixInconsistentDecidedState(id);
-        } catch (fixError) {
-          console.warn(`[Discussions Route] Failed to fix inconsistent state for discussion ${id}:`, fixError.message);
-        }
-        // Reload discussion after fix
-        const updatedDiscussions = await loadDiscussions();
-        const updatedDiscussion = updatedDiscussions.find(d => d.id === id);
-        if (updatedDiscussion) {
-          discussion = updatedDiscussion;
+        } catch (validationError) {
+          // If validation fails, return error to client
+          const errorMessage = validationError.message || 'Invalid state: DECIDED discussion contains pending checklist items';
+          log(`[Discussions Route] Invalid DECIDED state for discussion ${id}: ${errorMessage}`);
+          return reply.status(500).send({
+            success: false,
+            error: errorMessage,
+            discussionId: id
+          });
         }
       }
       
@@ -1507,6 +1545,9 @@ module.exports = async (fastify) => {
   // POST /discussions - Create a new discussion
   fastify.post('/', async (request, reply) => {
     try {
+      // CHECKLIST GUARD: Validate request body
+      validateNoChecklist(request.body, 'POST /discussions (request.body)');
+      
       const { sectorId, title, agentIds } = request.body;
 
       if (!sectorId) {
@@ -1554,6 +1595,9 @@ module.exports = async (fastify) => {
   // POST /discussions/:id/message - Add a message to a discussion
   fastify.post('/:id/message', async (request, reply) => {
     try {
+      // CHECKLIST GUARD: Validate request body
+      validateNoChecklist(request.body, 'POST /discussions/:id/message (request.body)');
+      
       const { id } = request.params;
       const { agentId, content, role, agentName } = request.body;
 
@@ -1628,94 +1672,21 @@ module.exports = async (fastify) => {
                 console.log(`[POST /discussions/:id/message] Round ${currentRound}: Agent ${agentId} has confidence ${agentConfidence.toFixed(2)} < 65. Skipping checklist item creation. Agent may still post analysis messages.`);
                 // Continue to save the message even though checklist creation is skipped
               } else {
-                // Get sector information for checklist creation
-                const { getSectorById } = require('../utils/sectorStorage');
-                const sector = await getSectorById(discussionRoom.sectorId);
-                
-                if (sector) {
-                  const { createChecklistFromLLM } = require('../discussions/workflow/createChecklistFromLLM');
-                  // Create checklist item from structured proposal object
-                  // createChecklistFromLLM will create a fallback item if parsing fails
-                  const checklistItem = await createChecklistFromLLM({
-                    proposal: proposal, // REQUIRED: Structured proposal object
-                    discussionId: discussionRoom.id,
-                    agentId,
-                    agentName: agentName || undefined,
-                    sector: {
-                      id: sector.id,
-                      symbol: sector.symbol || sector.sectorSymbol,
-                      name: sector.name || sector.sectorName,
-                      allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-                    },
-                    sectorData: {
-                      currentPrice: sector.currentPrice,
-                      baselinePrice: sector.currentPrice,
-                      balance: sector.balance,
-                    },
-                    availableBalance: typeof sector.balance === 'number' ? sector.balance : 0,
-                    currentPrice: typeof sector.currentPrice === 'number' ? sector.currentPrice : undefined,
-                  });
-
-                  // Checklist item is always created (even if fallback is used)
-                  // CRITICAL: Ensure round is ALWAYS set on the checklist item
-                  // This is required for hasChecklistItemForRound to work correctly
-                  if (typeof checklistItem.round !== 'number') {
-                    checklistItem.round = currentRound;
-                  }
-                  
-                  // Auto-evaluate the checklist item immediately after creation
-                  let finalItem = checklistItem;
-                  try {
-                    const ManagerEngine = require('../core/ManagerEngine');
-                    const managerEngine = new ManagerEngine();
-                    
-                    // Get sector state for evaluation
-                    const sectorState = {
-                      id: sector.id,
-                      sectorId: sector.id,
-                      sectorName: sector.name || sector.sectorName,
-                      sectorType: sector.type || 'other',
-                      simulatedPrice: sector.currentPrice || sector.simulatedPrice,
-                      baselinePrice: sector.currentPrice || sector.baselinePrice,
-                      volatility: sector.volatility || 0,
-                      trendDescriptor: sector.trendDescriptor || 'neutral',
-                      balance: sector.balance,
-                      allowedSymbols: sector.allowedSymbols || (sector.symbol ? [sector.symbol] : []),
-                      riskScore: sector.riskScore
-                    };
-                    
-                    // Auto-evaluate the item (this modifies the item in place)
-                    finalItem = await managerEngine.autoEvaluateChecklistItem(checklistItem, sectorState);
-                    console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created and auto-evaluated checklist item from agent ${agentId} message: ${finalItem.actionType} ${finalItem.symbol} (status: ${finalItem.status})`);
-                  } catch (evalError) {
-                    // If auto-evaluation fails, use original item as PENDING (fallback)
-                    console.warn(`[POST /discussions/:id/message] Auto-evaluation failed for checklist item, adding as PENDING: ${evalError.message}`);
-                    console.log(`[POST /discussions/:id/message] Round ${currentRound}: Created checklist item from agent ${agentId} message: ${checklistItem.actionType} ${checklistItem.symbol}`);
-                  }
-                  
-                  // Add the final item (either evaluated or original) to checklist
-                  discussionRoom.checklist.push(finalItem);
-                  discussionRoom.updateLastChecklistItemTimestamp();
-                  console.log(`[POST /discussions/:id/message] Checklist item added. Total items: ${discussionRoom.checklist.length}`);
-                  console.log(`[POST /discussions/:id/message] Checklist item details:`, {
-                    id: finalItem.id,
-                    actionType: finalItem.actionType,
-                    symbol: finalItem.symbol,
-                    allocationPercent: finalItem.allocationPercent,
-                    confidence: finalItem.confidence,
-                    status: finalItem.status,
-                    round: finalItem.round
-                  });
-                }
+                // Agents no longer generate checklist items
+                // They only provide reasoning + proposal text + confidence
+                console.log(`[discussions] Agent ${agentId} provided reasoning with proposal (no checklist item created)`);
+                console.log(`[discussions] Proposal details:`, {
+                  confidence: proposal?.confidence,
+                  hasReasoning: !!proposal?.reasoning,
+                  hasProposal: !!proposal?.proposal
+                });
               }
             } else {
-              console.warn(`[POST /discussions/:id/message] Agent ${agentId} not found. Skipping checklist item creation.`);
+              console.warn(`[POST /discussions/:id/message] Agent ${agentId} not found.`);
             }
           } catch (error) {
-            // Log error but don't fail the request if checklist creation fails
-            // createChecklistFromLLM should always return a valid item (with fallback), so this is unexpected
-            console.error(`[POST /discussions/:id/message] Round ${currentRound}: Failed to create checklist item from message for agent ${agentId}: ${error.message}`);
-            console.error(`[POST /discussions/:id/message] Error stack:`, error.stack);
+            console.error(`[POST /discussions/:id/message] Error processing proposal for agent ${agentId}:`, error);
+            // Continue execution - don't block message saving if proposal processing fails
           }
         }
       } else {
@@ -1757,10 +1728,8 @@ module.exports = async (fastify) => {
           discussionRoom.roundHistory.push(finalRoundSnapshot);
           await saveDiscussion(discussionRoom);
           
-          // Transition to AWAITING_EXECUTION when all items are terminal
-          // Will transition to DECIDED when all ACCEPTED items are executed
-          const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-          await checkAndTransitionToAwaitingExecution(id);
+          // State machine refactored: No automatic transitions
+          // Transitions are now explicit: IN_PROGRESS → DECIDED
         }
       } catch (closeError) {
         log(`[POST /discussions/:id/message] Error checking if discussion can close: ${closeError.message}`);
@@ -1889,8 +1858,8 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /discussions/:id/accept - Accept a discussion (set status to accepted)
-  // Only accepts if discussion has approved checklist items (finalizedChecklist)
+  // POST /discussions/:id/accept - REMOVED (approval functionality removed)
+  /*
   fastify.post('/:id/accept', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -1934,10 +1903,8 @@ module.exports = async (fastify) => {
       // Execution happens automatically when items transition to APPROVED status
       // No need to execute here - items are already executed when they were approved
       
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      // Will transition to DECIDED when all ACCEPTED items are executed
-      const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-      await checkAndTransitionToAwaitingExecution(id);
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -1953,9 +1920,10 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
-  // POST /discussions/:id/reject - Mark a discussion as completed (discussions are not rejected, only checklist items are)
-  // This endpoint is kept for backward compatibility but marks discussion as 'completed' instead of 'rejected'
+  // POST /discussions/:id/reject - REMOVED (approval functionality removed)
+  /*
   fastify.post('/:id/reject', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -1972,10 +1940,8 @@ module.exports = async (fastify) => {
 
       const discussionRoom = DiscussionRoom.fromData(discussionData);
       // Individual checklist items are classified as 'accepted' or 'rejected', not discussions
-      // Transition to AWAITING_EXECUTION when all items are terminal
-      // Will transition to DECIDED when all ACCEPTED items are executed
-      const { checkAndTransitionToAwaitingExecution } = require('../utils/discussionStatusService');
-      await checkAndTransitionToAwaitingExecution(id);
+      // State machine refactored: No automatic transitions
+      // Transitions are now explicit: IN_PROGRESS → DECIDED
 
       const enriched = await enrichDiscussion(discussionRoom.toJSON());
 
@@ -1991,6 +1957,7 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
   // POST /discussions/:id/collect-arguments - Manually trigger argument collection
   fastify.post('/:id/collect-arguments', async (request, reply) => {
@@ -2126,8 +2093,8 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /discussions/:id/submit-checklist-round - Submit checklist items for a round
-  // Multi-round: Workers submit checklist items for the current round
+  // POST /discussions/:id/submit-checklist-round - REMOVED (checklist functionality removed)
+  /*
   fastify.post('/:id/submit-checklist-round', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -2160,6 +2127,7 @@ module.exports = async (fastify) => {
       });
     }
   });
+  */
 
   // POST /discussions/:id/advance-round - Advance discussion to next round
   // Multi-round: Increments currentRound, saves snapshot to roundHistory
@@ -2188,33 +2156,12 @@ module.exports = async (fastify) => {
     }
   });
 
-  // POST /discussions/:id/evaluate-checklist - Manually trigger manager evaluation of checklist items
-  // Evaluates all PENDING checklist items and updates their status
+  // POST /discussions/:id/evaluate-checklist - REMOVED (checklist functionality removed)
+  /*
   fastify.post('/:id/evaluate-checklist', async (request, reply) => {
-    try {
-      const { id } = request.params;
-
-      log(`POST /discussions/${id}/evaluate-checklist - Triggering manager evaluation of checklist items`);
-
-      const ManagerEngine = require('../core/ManagerEngine');
-      const managerEngine = new ManagerEngine();
-      const discussion = await managerEngine.managerEvaluateChecklist(id);
-
-      const enriched = await enrichDiscussion(discussion.toJSON());
-
-      return reply.status(200).send({
-        success: true,
-        discussion: enriched,
-        message: 'Manager evaluation completed'
-      });
-    } catch (error) {
-      log(`Error evaluating checklist: ${error.message}`);
-      return reply.status(500).send({
-        success: false,
-        error: error.message
-      });
-    }
+    // ... removed ...
   });
+  */
 
   // GET /discussions/:id/state - Get current discussion state
   // Multi-round: Returns current round, checklist, status, and roundHistory
@@ -2234,6 +2181,56 @@ module.exports = async (fastify) => {
       });
     } catch (error) {
       log(`Error fetching discussion state: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // GET /discussions/:id/validate-invariants - Validate discussion invariants
+  // Returns validation results for all invariant tests
+  fastify.get('/:id/validate-invariants', async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      log(`GET /discussions/${id}/validate-invariants - Validating discussion invariants`);
+
+      const { runAllInvariantTests } = require('../__tests__/discussionInvariants.test');
+      const result = await runAllInvariantTests(id);
+
+      return reply.status(200).send({
+        success: true,
+        valid: result.valid,
+        violations: result.violations,
+        testResults: result.testResults
+      });
+    } catch (error) {
+      log(`Error validating discussion invariants: ${error.message}`);
+      return reply.status(500).send({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // GET /discussions/validate-all-invariants - Validate all discussions' invariants
+  // Returns validation results for all discussions
+  fastify.get('/validate-all-invariants', async (request, reply) => {
+    try {
+      log(`GET /discussions/validate-all-invariants - Validating all discussion invariants`);
+
+      const { runInvariantTestsOnAllDiscussions } = require('../__tests__/discussionInvariants.test');
+      const result = await runInvariantTestsOnAllDiscussions();
+
+      return reply.status(200).send({
+        success: true,
+        valid: result.valid,
+        violations: result.violations,
+        discussionResults: result.discussionResults
+      });
+    } catch (error) {
+      log(`Error validating all discussion invariants: ${error.message}`);
       return reply.status(500).send({
         success: false,
         error: error.message

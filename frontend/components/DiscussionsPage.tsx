@@ -3,9 +3,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Discussion, Sector } from '@/lib/types';
-import { fetchDiscussions, fetchSectors, isRateLimitError, clearAllDiscussions, fetchRejectedItems, isSkippedResult, type DiscussionSummary, type PaginatedDiscussionsResponse } from '@/lib/api';
+import { fetchDiscussions, fetchSectors, isRateLimitError, clearAllDiscussions, isSkippedResult, type DiscussionSummary, type PaginatedDiscussionsResponse } from '@/lib/api';
 import { useToast, ToastContainer } from '@/components/Toast';
-import RejectedItemsModal from '@/components/discussions/RejectedItemsModal';
 import { usePolling } from '@/hooks/usePolling';
 import { getStatusColor, getStatusLabel } from '@/lib/statusColors';
 
@@ -53,8 +52,6 @@ export default function DiscussionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<{ page: number; pageSize: number; total: number; totalPages: number } | null>(null);
   const [statusCounts, setStatusCounts] = useState<{ all: number; in_progress: number; decided: number } | null>(null);
-  const [showRejectedModal, setShowRejectedModal] = useState(false);
-  const [rejectedItemsCount, setRejectedItemsCount] = useState<number>(0);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [confirmationText, setConfirmationText] = useState('');
@@ -66,7 +63,6 @@ export default function DiscussionsPage() {
   const previousPaginationRef = useRef<string>('');
   const previousStatusCountsRef = useRef<string>('');
   const previousSectorsRef = useRef<string>('');
-  const previousRejectedCountRef = useRef<number>(0);
   const isFetchingRef = useRef(false);
   // Refs to track current state for comparison (to avoid dependency issues)
   const currentSectorsDataRef = useRef<Sector[]>([]);
@@ -76,7 +72,6 @@ export default function DiscussionsPage() {
   const processDiscussionsData = useCallback((
     sectorResponse: Sector[] | { skipped: true },
     discussionResponse: PaginatedDiscussionsResponse | { skipped: true },
-    rejectedItemsResponse?: { rejected: any[] } | { skipped: true },
     showLoading = false
   ) => {
     // Handle skipped requests - don't update state if skipped
@@ -128,17 +123,6 @@ export default function DiscussionsPage() {
     const hasStatusCountsChanged = previousStatusCountsRef.current !== statusCountsKey;
     const hasSectorsChanged = previousSectorsRef.current !== sectorsKey;
 
-    // Update rejected items count
-    let hasRejectedCountChanged = false;
-    if (rejectedItemsResponse && !isSkippedResult(rejectedItemsResponse) && Array.isArray(rejectedItemsResponse.rejected)) {
-      const newRejectedCount = rejectedItemsResponse.rejected.length;
-      hasRejectedCountChanged = previousRejectedCountRef.current !== newRejectedCount;
-      if (hasRejectedCountChanged) {
-        previousRejectedCountRef.current = newRejectedCount;
-        setRejectedItemsCount(newRejectedCount);
-      }
-    }
-
     // Only update if something changed
     if (hasDiscussionsChanged || hasPaginationChanged || hasStatusCountsChanged || hasSectorsChanged) {
       if (hasDiscussionsChanged) {
@@ -181,15 +165,34 @@ export default function DiscussionsPage() {
       isFetchingRef.current = true;
 
       const sectorId = sectorFilter !== 'all' ? sectorFilter : undefined;
-      const [sectorResponse, discussionResponse, rejectedItemsResponse] = await Promise.all([
+      const [sectorResponse, discussionResponse] = await Promise.all([
         fetchSectors(),
         fetchDiscussions(currentPage, pageSize, sectorId, statusFilter),
-        fetchRejectedItems().catch(() => ({ rejected: [] })), // Fetch rejected items count
       ]);
 
       // Process and update data (only updates if changed)
-      processDiscussionsData(sectorResponse, discussionResponse, rejectedItemsResponse, showLoading);
-      setError(null);
+      const dataUpdated = processDiscussionsData(sectorResponse, discussionResponse, showLoading);
+      if (dataUpdated || !loading) {
+        // Only clear error if we got data or if we're not in loading state
+        setError(null);
+      }
+
+      // INVARIANT TESTS: Validate discussion invariants on UI load
+      if (discussionResponse && 'discussions' in discussionResponse && Array.isArray(discussionResponse.discussions)) {
+        try {
+          const { validateMultipleDiscussionInvariants } = await import('../utils/discussionInvariants');
+          const discussionIds = discussionResponse.discussions.map(d => d.id).filter((id): id is string => !!id);
+          if (discussionIds.length > 0) {
+            // Run validation in background (don't block UI)
+            validateMultipleDiscussionInvariants(discussionIds).catch(err => {
+              console.error('[DiscussionsPage] Error validating discussion invariants:', err);
+            });
+          }
+        } catch (err) {
+          // Don't block UI if validation fails
+          console.warn('[DiscussionsPage] Could not validate discussion invariants:', err);
+        }
+      }
     } catch (err) {
       // Only handle actual server rate limit errors (HTTP 429)
       // Skipped calls from rateLimitedFetch return empty arrays, not errors
@@ -197,12 +200,14 @@ export default function DiscussionsPage() {
         if (!showLoading) {
           // During polling, silently skip - will retry on next poll
           console.debug('Server rate limited during polling, will retry automatically');
-          isFetchingRef.current = false; // Clear the flag so polling can retry
+          // Don't clear isFetchingRef here - let finally block handle it
           return;
         } else {
           // During initial load, wait a bit and retry once
           console.debug('Server rate limited on initial load, retrying after delay...');
-          isFetchingRef.current = false; // Clear flag before retry
+          // Clear loading state immediately for rate limit, then retry
+          setLoading(false);
+          isFetchingRef.current = false;
           setTimeout(() => {
             void loadDiscussions(showLoading);
           }, 1000);
@@ -214,13 +219,14 @@ export default function DiscussionsPage() {
         setError('Unable to load discussions. Please try again later.');
       }
     } finally {
-      // Only clear loading state if we actually set it (not for skipped requests)
-      if (showLoading && isFetchingRef.current) {
+      // Always clear the fetching flag
+      isFetchingRef.current = false;
+      // Always clear loading state if we set it (showLoading was true)
+      if (showLoading) {
         setLoading(false);
       }
-      isFetchingRef.current = false;
     }
-  }, [currentPage, sectorFilter, statusFilter, processDiscussionsData]);
+  }, [currentPage, sectorFilter, statusFilter, processDiscussionsData, loading]);
 
   // Update refs when state changes (for comparison in processDiscussionsData)
   useEffect(() => {
@@ -311,7 +317,8 @@ export default function DiscussionsPage() {
     try {
       setClearing(true);
       const result = await clearAllDiscussions();
-      showToast(`All discussions cleared for testing. (${result.deletedCount} deleted)`, 'success');
+      const message = `All discussions cleared for testing. (${result.deletedCount} deleted)`;
+      showToast(message, 'success');
       setShowClearModal(false);
       setConfirmationText('');
       
@@ -337,12 +344,6 @@ export default function DiscussionsPage() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-floral-white">Discussions</h1>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowRejectedModal(true)}
-              className="px-4 py-2 bg-error-red text-floral-white border border-error-red rounded-lg hover:bg-error-red/80 transition-colors text-sm font-mono"
-            >
-              Rejected Items {rejectedItemsCount > 0 ? `(${rejectedItemsCount})` : ''}
-            </button>
             <button
               onClick={() => setShowClearModal(true)}
               className="px-4 py-2 bg-error-red text-floral-white border border-error-red rounded-lg hover:bg-error-red/80 transition-colors text-sm font-mono"
@@ -523,12 +524,6 @@ export default function DiscussionsPage() {
             </div>
           </div>
         )}
-
-        {/* Rejected Items Modal */}
-        <RejectedItemsModal
-          isOpen={showRejectedModal}
-          onClose={() => setShowRejectedModal(false)}
-        />
 
         {/* Clear All Discussions Confirmation Modal */}
         {showClearModal && (
