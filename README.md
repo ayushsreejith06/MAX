@@ -438,44 +438,152 @@ MAX/
 
 ### Branch Structure
 
-**IMPORTANT:** All work happens on the `main` branch. Follow these guidelines:
+MAX follows a **Git Flow** branching strategy for proper software engineering practices. This ensures code quality, enables parallel development, and maintains a stable main branch.
 
-#### Standard Workflow
+#### Branch Types
 
-1. **Always start from main:**
+1. **`main`** - Production-ready code
+   - Only contains tested, reviewed, and stable code
+   - Protected branch (requires pull request and approval)
+   - Deployed to production
+
+2. **`develop`** - Integration branch for features
+   - Main development branch
+   - All feature branches merge here first
+   - Should always be in a deployable state
+
+3. **`feature/`** - New features
+   - Branch from: `develop`
+   - Merge back to: `develop`
+   - Naming: `feature/agent-performance-tracking`, `feature/discussion-ui`
+
+4. **`fix/`** - Bug fixes
+   - Branch from: `develop`
+   - Merge back to: `develop`
+   - Naming: `fix/llm-connection-error`, `fix/sector-price-calculation`
+
+5. **`hotfix/`** - Urgent production fixes
+   - Branch from: `main`
+   - Merge back to: `main` and `develop`
+   - Naming: `hotfix/critical-security-patch`, `hotfix/api-crash-fix`
+
+### Standard Workflow
+
+#### Starting a New Feature
+
+1. **Ensure you're on develop and up-to-date:**
+   ```bash
+   git checkout develop
+   git pull origin develop
+   ```
+
+2. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Work on your feature:**
+   ```bash
+   # Make your changes
+   # ... edit code ...
+   
+   # Commit frequently with clear messages
+   git add .
+   git commit -m "Add agent performance tracking endpoint"
+   git commit -m "Implement performance calculation logic"
+   ```
+
+4. **Keep your branch updated with develop:**
+   ```bash
+   # Periodically sync with develop
+   git checkout develop
+   git pull origin develop
+   git checkout feature/your-feature-name
+   git merge develop
+   # Resolve any conflicts if needed
+   ```
+
+5. **Push your feature branch:**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+6. **Create a Pull Request:**
+   - Open a PR from `feature/your-feature-name` → `develop`
+   - Request code review
+   - Address review feedback
+   - Once approved, merge to `develop`
+
+#### Starting a Bug Fix
+
+1. **Create a fix branch from develop:**
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b fix/bug-description
+   ```
+
+2. **Fix the bug and commit:**
+   ```bash
+   # Make fixes
+   git add .
+   git commit -m "Fix: Resolve LLM connection timeout issue"
+   git push origin fix/bug-description
+   ```
+
+3. **Create Pull Request to `develop`**
+
+#### Hotfix Workflow (Production Issues)
+
+1. **Create hotfix from main:**
    ```bash
    git checkout main
    git pull origin main
+   git checkout -b hotfix/critical-issue
    ```
 
-2. **Before every commit, sync with remote:**
+2. **Fix the issue:**
    ```bash
-   git fetch origin main
-   git pull origin main
-   ```
-
-3. **Review recent commits:**
-   ```bash
-   git log --oneline -10
-   ```
-
-4. **Make your changes and commit:**
-   ```bash
+   # Make urgent fix
    git add .
-   git commit -m "Clear descriptive message"
+   git commit -m "Hotfix: Fix critical API crash in agent execution"
+   ```
+
+3. **Merge to main and develop:**
+   ```bash
+   # Merge to main
+   git checkout main
+   git merge hotfix/critical-issue
    git push origin main
+   
+   # Also merge to develop
+   git checkout develop
+   git merge hotfix/critical-issue
+   git push origin develop
    ```
 
 ### Commit Message Format
 
-Use clear, descriptive commit messages:
+Use clear, descriptive commit messages following this format:
+
+**Format:** `<type>: <subject>`
+
+**Types:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, no logic change)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
 
 **Good Examples:**
 ```bash
-git commit -m "Add agent creation endpoint"
-git commit -m "Fix discussion room state management"
-git commit -m "Update LLM client error handling"
-git commit -m "Add sector price history API"
+git commit -m "feat: Add agent creation endpoint"
+git commit -m "fix: Resolve discussion room state management issue"
+git commit -m "refactor: Update LLM client error handling"
+git commit -m "docs: Update API documentation for sectors endpoint"
+git commit -m "test: Add unit tests for agent factory"
 ```
 
 **Bad Examples:**
@@ -483,47 +591,96 @@ git commit -m "Add sector price history API"
 git commit -m "fix"
 git commit -m "updates"
 git commit -m "WIP"
+git commit -m "changes"
 ```
 
 ### Commit Guidelines
 
-- **One feature/fix per commit**: Keep commits atomic
-- **Test before committing**: Ensure your changes work
-- **Pull before pushing**: Always sync with remote first
-- **Clear messages**: Describe what and why, not how
+- **One logical change per commit**: Keep commits atomic and focused
+- **Test before committing**: Ensure your changes work and don't break existing functionality
+- **Write clear messages**: Describe what changed and why (not how)
+- **Commit frequently**: Small, frequent commits are better than large, infrequent ones
+- **Don't commit broken code**: Each commit should leave the codebase in a working state
 
-### Handling Conflicts
+### Pull Request Guidelines
+
+1. **Clear Title**: Descriptive title explaining what the PR does
+2. **Description**: 
+   - What changes were made
+   - Why the changes were needed
+   - How to test the changes
+   - Any breaking changes
+3. **Link Issues**: Reference related issues/tickets
+4. **Request Review**: Assign appropriate reviewers
+5. **Address Feedback**: Respond to review comments and make requested changes
+6. **Keep PRs Small**: Focused PRs are easier to review and merge
+
+### Handling Merge Conflicts
 
 If you encounter merge conflicts:
 
-1. **STOP immediately**
-2. **Do NOT attempt to resolve automatically**
-3. **Ask for guidance** from the team
-4. **Review conflicting changes** carefully
-5. **Coordinate** with other developers if needed
+1. **Don't panic**: Conflicts are normal in collaborative development
+2. **Understand the conflict**: Review what changed in both branches
+3. **Resolve carefully**: 
+   ```bash
+   # After merging develop into your feature branch
+   git checkout feature/your-feature-name
+   git merge develop
+   # Git will show conflicts
+   # Edit conflicted files, remove conflict markers
+   git add .
+   git commit -m "Merge develop into feature/your-feature-name"
+   ```
+4. **Test after resolving**: Ensure everything still works
+5. **Ask for help**: If unsure about a conflict, ask the team
 
 ### Example Development Session
 
 ```bash
-# 1. Start fresh
-git checkout main
-git pull origin main
+# 1. Start a new feature
+git checkout develop
+git pull origin develop
+git checkout -b feature/agent-performance-tracking
 
-# 2. Make changes to files
+# 2. Make changes and commit
 # ... edit code ...
-
-# 3. Before committing, sync again
-git fetch origin main
-git pull origin main
-
-# 4. Check for conflicts
-git status
-
-# 5. If clean, commit
 git add .
-git commit -m "Add new feature: agent performance tracking"
-git push origin main
+git commit -m "feat: Add performance tracking endpoint"
+git commit -m "feat: Implement performance calculation logic"
+git commit -m "test: Add tests for performance tracking"
+
+# 3. Keep branch updated
+git checkout develop
+git pull origin develop
+git checkout feature/agent-performance-tracking
+git merge develop  # Resolve conflicts if any
+
+# 4. Push and create PR
+git push origin feature/agent-performance-tracking
+# Create PR: feature/agent-performance-tracking → develop
+
+# 5. After PR approval and merge, clean up
+git checkout develop
+git pull origin develop
+git branch -d feature/agent-performance-tracking  # Delete local branch
+git push origin --delete feature/agent-performance-tracking  # Delete remote branch
 ```
+
+### Branch Naming Conventions
+
+- **Features**: `feature/description-with-dashes`
+- **Fixes**: `fix/description-of-bug`
+- **Hotfixes**: `hotfix/urgent-issue-description`
+- **Use lowercase and hyphens**: No spaces, underscores, or special characters
+- **Be descriptive**: Branch name should clearly indicate what it does
+
+**Examples:**
+- ✅ `feature/agent-performance-dashboard`
+- ✅ `fix/llm-connection-timeout`
+- ✅ `hotfix/critical-api-crash`
+- ❌ `feature/newStuff`
+- ❌ `fix/bug123`
+- ❌ `my-branch`
 
 ---
 
