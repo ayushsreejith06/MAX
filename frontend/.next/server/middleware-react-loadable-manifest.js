@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST="{\"components\\\\DiscussionsPage.tsx -> ../utils/discussionInvariants\":{\"id\":\"components\\\\DiscussionsPage.tsx -> ../utils/discussionInvariants\",\"files\":[\"static/chunks/_app-pages-browser_utils_discussionInvariants_ts.js\"]}}"

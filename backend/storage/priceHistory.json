@@ -8962,5 +8962,11 @@
     "sectorId": "3d7ced8e-5cfd-4cfc-b7e9-a56efe1c30ea",
     "price": 100,
     "timestamp": 1765920795960
+  },
+  {
+    "id": "ab1159fb-3343-4f99-8036-7cb48fc823d1",
+    "sectorId": "f68e41fd-2a34-4fd1-8fae-f4b704dfe311",
+    "price": 0,
+    "timestamp": 1766113292438
   }
 ]
